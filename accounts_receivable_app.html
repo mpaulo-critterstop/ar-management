@@ -1,0 +1,443 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --amber-50: #FAEEDA; --amber-100: #FAC775; --amber-400: #BA7517; --amber-800: #633806;
+  --teal-50: #E1F5EE; --teal-200: #5DCAA5; --teal-600: #0F6E56; --teal-800: #085041;
+  --red-50: #FCEBEB; --red-400: #E24B4A; --red-800: #791F1F;
+  --blue-50: #E6F1FB; --blue-400: #378ADD; --blue-800: #0C447C;
+  --gray-100: #D3D1C7; --gray-400: #888780;
+}
+body, .ar-app { font-family: var(--font-sans, sans-serif); font-size: 14px; color: var(--color-text-primary); }
+.ar-app { padding: 1rem 0; }
+nav { display: flex; gap: 4px; border-bottom: 0.5px solid var(--color-border-tertiary); margin-bottom: 1.5rem; padding-bottom: 0; }
+nav button { background: none; border: none; padding: 8px 14px; font-size: 13px; cursor: pointer; color: var(--color-text-secondary); border-bottom: 2px solid transparent; margin-bottom: -0.5px; transition: all 0.15s; }
+nav button.active { color: var(--color-text-primary); border-bottom: 2px solid var(--color-text-primary); font-weight: 500; }
+nav button:hover:not(.active) { color: var(--color-text-primary); }
+.page { display: none; } .page.active { display: block; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+.metric { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 14px 16px; }
+.metric-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
+.metric-value { font-size: 22px; font-weight: 500; }
+.metric-sub { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
+.card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.card-title { font-size: 14px; font-weight: 500; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-size: 11px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em; padding: 6px 10px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+td { padding: 10px; border-bottom: 0.5px solid var(--color-border-tertiary); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--color-background-secondary); }
+.badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 99px; }
+.badge-current { background: var(--teal-50); color: var(--teal-800); }
+.badge-30 { background: var(--amber-50); color: var(--amber-800); }
+.badge-60 { background: #FEF3CD; color: #7A5500; }
+.badge-90 { background: var(--red-50); color: var(--red-800); }
+.badge-paid { background: var(--teal-50); color: var(--teal-800); }
+.badge-pending { background: var(--blue-50); color: var(--blue-800); }
+.btn { background: none; border: 0.5px solid var(--color-border-secondary); padding: 6px 14px; border-radius: var(--border-radius-md); cursor: pointer; font-size: 13px; color: var(--color-text-primary); transition: all 0.12s; }
+.btn:hover { background: var(--color-background-secondary); }
+.btn-primary { background: var(--color-text-primary); color: var(--color-background-primary); border-color: var(--color-text-primary); }
+.btn-primary:hover { opacity: 0.85; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 12px; color: var(--color-text-secondary); }
+.form-group input, .form-group select { font-size: 13px; }
+.aging-bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; margin: 8px 0; }
+.aging-seg { height: 100%; transition: width 0.3s; }
+.filter-row { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+.filter-row input, .filter-row select { font-size: 13px; padding: 6px 10px; width: auto; }
+.totals-row td { font-weight: 500; background: var(--color-background-secondary); }
+.action-link { color: var(--color-text-info, var(--blue-400)); cursor: pointer; font-size: 12px; text-decoration: none; background: none; border: none; padding: 0; }
+.action-link:hover { text-decoration: underline; }
+.empty { text-align: center; padding: 2rem; color: var(--color-text-secondary); font-size: 13px; }
+.sparkbar { width: 60px; height: 8px; background: var(--color-border-tertiary); border-radius: 4px; overflow: hidden; display: inline-block; vertical-align: middle; }
+.sparkbar-fill { height: 100%; border-radius: 4px; }
+.section-sub { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 1rem; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 560px) { .two-col { grid-template-columns: 1fr; } .form-row { grid-template-columns: 1fr; } }
+</style>
+
+<div class="ar-app">
+<h2 class="sr-only">Accounts Receivable Management Application</h2>
+
+<nav>
+  <button class="active" onclick="showPage('dashboard')">Dashboard</button>
+  <button onclick="showPage('invoices')">Invoices</button>
+  <button onclick="showPage('aging')">Aging</button>
+  <button onclick="showPage('collections')">Collections</button>
+  <button onclick="showPage('new-invoice')"><i class="ti ti-plus" aria-hidden="true"></i> New</button>
+</nav>
+
+<!-- DASHBOARD -->
+<div id="page-dashboard" class="page active">
+  <div class="metrics" id="dash-metrics"></div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Aging summary</span></div>
+      <div id="aging-chart-container"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Recent activity</span></div>
+      <div id="recent-activity"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Overdue invoices</span></div>
+    <div id="overdue-table"></div>
+  </div>
+</div>
+
+<!-- INVOICES -->
+<div id="page-invoices" class="page">
+  <div class="filter-row">
+    <input type="text" id="inv-search" placeholder="Search customer or invoice #..." style="flex:1; min-width:160px;" oninput="renderInvoices()">
+    <select id="inv-status-filter" onchange="renderInvoices()">
+      <option value="">All statuses</option>
+      <option value="open">Open</option>
+      <option value="paid">Paid</option>
+      <option value="overdue">Overdue</option>
+    </select>
+  </div>
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table>
+      <thead><tr>
+        <th>Invoice #</th><th>Customer</th><th>Issue date</th><th>Due date</th><th>Amount</th><th>Balance</th><th>Status</th><th></th>
+      </tr></thead>
+      <tbody id="invoices-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- AGING -->
+<div id="page-aging" class="page">
+  <div class="metrics" id="aging-metrics"></div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Aging detail</span></div>
+    <table>
+      <thead><tr><th>Customer</th><th>Current</th><th>1–30 days</th><th>31–60 days</th><th>61–90 days</th><th>90+ days</th><th>Total</th></tr></thead>
+      <tbody id="aging-tbody"></tbody>
+      <tfoot><tr id="aging-totals" class="totals-row"></tr></tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- COLLECTIONS -->
+<div id="page-collections" class="page">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Follow-up queue</span>
+      <button class="btn btn-sm" onclick="addNote(null)"><i class="ti ti-plus" aria-hidden="true"></i> Log note</button>
+    </div>
+    <p class="section-sub">Invoices 30+ days overdue sorted by balance</p>
+    <table>
+      <thead><tr><th>Customer</th><th>Invoice</th><th>Days overdue</th><th>Balance</th><th>Last contact</th><th>Action</th></tr></thead>
+      <tbody id="collections-tbody"></tbody>
+    </table>
+  </div>
+  <div class="card" id="notes-card">
+    <div class="card-header"><span class="card-title">Collection notes</span></div>
+    <div id="notes-list"></div>
+  </div>
+</div>
+
+<!-- NEW INVOICE -->
+<div id="page-new-invoice" class="page">
+  <div class="card" style="max-width: 560px;">
+    <div class="card-header"><span class="card-title">Create invoice</span></div>
+    <div class="form-row">
+      <div class="form-group"><label>Customer name</label><input type="text" id="ni-customer" placeholder="Acme Corp"></div>
+      <div class="form-group"><label>Invoice number</label><input type="text" id="ni-number" placeholder="INV-0042"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Issue date</label><input type="date" id="ni-issue"></div>
+      <div class="form-group"><label>Due date</label><input type="date" id="ni-due"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Amount ($)</label><input type="number" id="ni-amount" placeholder="5000"></div>
+      <div class="form-group"><label>Terms</label>
+        <select id="ni-terms">
+          <option value="Net 30">Net 30</option>
+          <option value="Net 60">Net 60</option>
+          <option value="Net 15">Net 15</option>
+          <option value="Due on receipt">Due on receipt</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:1rem;"><label>Description</label><input type="text" id="ni-desc" placeholder="Services for Q2 2026"></div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-primary" onclick="createInvoice()">Create invoice</button>
+      <button class="btn" onclick="showPage('invoices')">Cancel</button>
+    </div>
+    <p id="ni-msg" style="margin-top:10px; font-size:13px; color:var(--teal-600);"></p>
+  </div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const today = new Date('2026-05-22');
+function daysAgo(n) { const d = new Date(today); d.setDate(d.getDate() - n); return d.toISOString().split('T')[0]; }
+function daysFromNow(n) { const d = new Date(today); d.setDate(d.getDate() + n); return d.toISOString().split('T')[0]; }
+function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
+function daysDiff(dateStr) { return Math.round((today - new Date(dateStr)) / 86400000); }
+
+let invoices = [
+  {id:'INV-1001',customer:'Meridian Group',issued:daysAgo(45),due:daysAgo(15),amount:12500,paid:0,desc:'Consulting Q1'},
+  {id:'INV-1002',customer:'Stellar Tech',issued:daysAgo(30),due:daysAgo(0),amount:8750,paid:0,desc:'Software license'},
+  {id:'INV-1003',customer:'Apex Solutions',issued:daysAgo(70),due:daysAgo(40),amount:22000,paid:0,desc:'Integration project'},
+  {id:'INV-1004',customer:'BlueLine Co',issued:daysAgo(15),due:daysFromNow(15),amount:5400,paid:0,desc:'Support retainer'},
+  {id:'INV-1005',customer:'Meridian Group',issued:daysAgo(90),due:daysAgo(60),amount:18000,paid:18000,desc:'Annual contract'},
+  {id:'INV-1006',customer:'Vantage Partners',issued:daysAgo(10),due:daysFromNow(20),amount:3200,paid:0,desc:'Design services'},
+  {id:'INV-1007',customer:'Apex Solutions',issued:daysAgo(20),due:daysFromNow(10),amount:6600,paid:6600,desc:'Phase 1'},
+  {id:'INV-1008',customer:'Harbor Digital',issued:daysAgo(100),due:daysAgo(70),amount:31000,paid:15000,desc:'ERP implementation'},
+  {id:'INV-1009',customer:'Stellar Tech',issued:daysAgo(55),due:daysAgo(25),amount:4200,paid:0,desc:'Training'},
+  {id:'INV-1010',customer:'BlueLine Co',issued:daysAgo(5),due:daysFromNow(25),amount:9100,paid:0,desc:'Q2 services'},
+];
+
+let notes = [];
+let agingChart = null;
+
+function getStatus(inv) {
+  const bal = inv.amount - inv.paid;
+  if (bal <= 0) return 'paid';
+  const dd = daysDiff(inv.due);
+  if (dd > 0) return 'overdue';
+  return 'open';
+}
+
+function getAgingBucket(inv) {
+  const dd = daysDiff(inv.due);
+  if (dd <= 0) return 'current';
+  if (dd <= 30) return '1-30';
+  if (dd <= 60) return '31-60';
+  if (dd <= 90) return '61-90';
+  return '90+';
+}
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  const btns = document.querySelectorAll('nav button');
+  const labels = ['dashboard','invoices','aging','collections','new-invoice'];
+  labels.forEach((l,i) => { if(l===id) btns[i].classList.add('active'); });
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'invoices') renderInvoices();
+  if (id === 'aging') renderAging();
+  if (id === 'collections') renderCollections();
+  if (id === 'new-invoice') prefillDates();
+}
+
+function prefillDates() {
+  document.getElementById('ni-issue').value = today.toISOString().split('T')[0];
+  const due = new Date(today); due.setDate(due.getDate() + 30);
+  document.getElementById('ni-due').value = due.toISOString().split('T')[0];
+  document.getElementById('ni-number').value = 'INV-' + (1000 + invoices.length + 1);
+}
+
+function renderDashboard() {
+  const open = invoices.filter(i => getStatus(i) !== 'paid');
+  const totalAR = open.reduce((s,i) => s + (i.amount - i.paid), 0);
+  const overdue = open.filter(i => getStatus(i) === 'overdue');
+  const overdueAmt = overdue.reduce((s,i) => s + (i.amount - i.paid), 0);
+  const paid90 = invoices.filter(i => getStatus(i) === 'paid').reduce((s,i) => s + i.paid, 0);
+
+  const aging = calcAging();
+  const avgDays = open.length ? Math.round(open.reduce((s,i) => s + Math.max(0, daysDiff(i.due)), 0) / open.length) : 0;
+
+  document.getElementById('dash-metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Total AR</div><div class="metric-value">${fmt(totalAR)}</div><div class="metric-sub">${open.length} open invoices</div></div>
+    <div class="metric"><div class="metric-label">Overdue</div><div class="metric-value" style="color:var(--red-400);">${fmt(overdueAmt)}</div><div class="metric-sub">${overdue.length} invoices</div></div>
+    <div class="metric"><div class="metric-label">Collected (90d)</div><div class="metric-value" style="color:var(--teal-600);">${fmt(paid90)}</div><div class="metric-sub">paid invoices</div></div>
+    <div class="metric"><div class="metric-label">Avg days overdue</div><div class="metric-value">${avgDays}</div><div class="metric-sub">open invoices</div></div>
+    <div class="metric"><div class="metric-label">DSO estimate</div><div class="metric-value">${Math.round(totalAR / Math.max(1, paid90 / 90))}</div><div class="metric-sub">days sales outstanding</div></div>
+  `;
+
+  const buckets = [aging.current, aging['1-30'], aging['31-60'], aging['61-90'], aging['90+']];
+  const total = buckets.reduce((a,b) => a+b, 0) || 1;
+  const colors = ['#1D9E75','#EF9F27','#E24B4A','#A32D2D','#501313'];
+  const labels = ['Current','1–30d','31–60d','61–90d','90+d'];
+
+  document.getElementById('aging-chart-container').innerHTML = `
+    <div style="position:relative; height:200px;"><canvas id="agingDonut" role="img" aria-label="Aging distribution donut chart">AR aging: Current ${fmt(aging.current)}, 1-30 days ${fmt(aging['1-30'])}, 31-60 days ${fmt(aging['31-60'])}, 61-90 days ${fmt(aging['61-90'])}, over 90 days ${fmt(aging['90+'])}.</canvas></div>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; font-size:12px; color:var(--color-text-secondary);">
+    ${labels.map((l,i) => `<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:${colors[i]};display:inline-block;"></span>${l} ${fmt(buckets[i])}</span>`).join('')}
+    </div>`;
+
+  if (agingChart) { agingChart.destroy(); agingChart = null; }
+  agingChart = new Chart(document.getElementById('agingDonut'), {
+    type: 'doughnut',
+    data: { datasets: [{ data: buckets, backgroundColor: colors, borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } } } }
+  });
+
+  const recent = [...invoices].sort((a,b) => b.issued > a.issued ? 1 : -1).slice(0,5);
+  document.getElementById('recent-activity').innerHTML = recent.map(inv => {
+    const st = getStatus(inv);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);">
+      <div><div style="font-size:13px;font-weight:500;">${inv.customer}</div><div style="font-size:11px;color:var(--color-text-secondary);">${inv.id} · ${inv.issued}</div></div>
+      <div style="text-align:right"><div style="font-size:13px;">${fmt(inv.amount - inv.paid)}</div><span class="badge badge-${st}">${st}</span></div>
+    </div>`;
+  }).join('') + (recent.length === 0 ? '<p class="empty">No invoices yet</p>' : '');
+
+  const ov = invoices.filter(i => getStatus(i) === 'overdue').sort((a,b) => (b.amount-b.paid) - (a.amount-a.paid));
+  document.getElementById('overdue-table').innerHTML = ov.length === 0 ? '<p class="empty">No overdue invoices</p>' :
+    `<table><thead><tr><th>Invoice</th><th>Customer</th><th>Due</th><th>Days overdue</th><th>Balance</th></tr></thead><tbody>
+    ${ov.map(inv => `<tr><td>${inv.id}</td><td>${inv.customer}</td><td>${inv.due}</td><td style="color:var(--red-400);font-weight:500;">${daysDiff(inv.due)}</td><td style="font-weight:500;">${fmt(inv.amount - inv.paid)}</td></tr>`).join('')}
+    </tbody></table>`;
+}
+
+function renderInvoices() {
+  const search = (document.getElementById('inv-search')?.value || '').toLowerCase();
+  const statusF = document.getElementById('inv-status-filter')?.value || '';
+  let rows = invoices.filter(i => {
+    const st = getStatus(i);
+    if (statusF && st !== statusF) return false;
+    if (search && !i.customer.toLowerCase().includes(search) && !i.id.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  const tbody = document.getElementById('invoices-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = rows.map(inv => {
+    const st = getStatus(inv);
+    const bal = inv.amount - inv.paid;
+    return `<tr>
+      <td style="font-weight:500;">${inv.id}</td>
+      <td>${inv.customer}</td>
+      <td>${inv.issued}</td>
+      <td>${inv.due}</td>
+      <td>${fmt(inv.amount)}</td>
+      <td style="font-weight:500;">${fmt(bal)}</td>
+      <td><span class="badge badge-${st}">${st}</span></td>
+      <td>${bal > 0 ? `<button class="btn btn-sm" onclick="recordPayment('${inv.id}')">Pay</button>` : ''}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="8" class="empty">No invoices match</td></tr>`;
+}
+
+function calcAging() {
+  const agg = { current: 0, '1-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
+  invoices.forEach(inv => {
+    if (getStatus(inv) === 'paid') return;
+    const bal = inv.amount - inv.paid;
+    agg[getAgingBucket(inv)] += bal;
+  });
+  return agg;
+}
+
+function renderAging() {
+  const aging = calcAging();
+  const total = Object.values(aging).reduce((a,b)=>a+b,0);
+  const overduePct = total ? Math.round((aging['1-30']+aging['31-60']+aging['61-90']+aging['90+'])/total*100) : 0;
+
+  document.getElementById('aging-metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Total outstanding</div><div class="metric-value">${fmt(total)}</div></div>
+    <div class="metric"><div class="metric-label">Current</div><div class="metric-value" style="color:var(--teal-600);">${fmt(aging.current)}</div></div>
+    <div class="metric"><div class="metric-label">1–30 days</div><div class="metric-value" style="color:var(--amber-400);">${fmt(aging['1-30'])}</div></div>
+    <div class="metric"><div class="metric-label">31–90 days</div><div class="metric-value" style="color:#E06B1A;">${fmt(aging['31-60']+aging['61-90'])}</div></div>
+    <div class="metric"><div class="metric-label">90+ days</div><div class="metric-value" style="color:var(--red-400);">${fmt(aging['90+'])}</div></div>
+    <div class="metric"><div class="metric-label">% overdue</div><div class="metric-value">${overduePct}%</div></div>
+  `;
+
+  const byCustomer = {};
+  invoices.forEach(inv => {
+    if (getStatus(inv) === 'paid') return;
+    const bal = inv.amount - inv.paid;
+    const b = getAgingBucket(inv);
+    if (!byCustomer[inv.customer]) byCustomer[inv.customer] = { current:0,'1-30':0,'31-60':0,'61-90':0,'90+':0 };
+    byCustomer[inv.customer][b] += bal;
+  });
+
+  const tbody = document.getElementById('aging-tbody');
+  let totals = { current:0,'1-30':0,'31-60':0,'61-90':0,'90+':0 };
+  tbody.innerHTML = Object.entries(byCustomer).map(([cust, bkts]) => {
+    const ct = Object.values(bkts).reduce((a,b)=>a+b,0);
+    Object.keys(totals).forEach(k => totals[k] += bkts[k]);
+    return `<tr><td style="font-weight:500;">${cust}</td>
+      <td>${bkts.current ? fmt(bkts.current) : '—'}</td>
+      <td>${bkts['1-30'] ? `<span style="color:var(--amber-400);">${fmt(bkts['1-30'])}</span>` : '—'}</td>
+      <td>${bkts['31-60'] ? `<span style="color:#E06B1A;">${fmt(bkts['31-60'])}</span>` : '—'}</td>
+      <td>${bkts['61-90'] ? `<span style="color:var(--red-400);">${fmt(bkts['61-90'])}</span>` : '—'}</td>
+      <td>${bkts['90+'] ? `<span style="color:var(--red-800);font-weight:500;">${fmt(bkts['90+'])}</span>` : '—'}</td>
+      <td style="font-weight:500;">${fmt(ct)}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="7" class="empty">No outstanding balances</td></tr>`;
+
+  const gt = Object.values(totals).reduce((a,b)=>a+b,0);
+  document.getElementById('aging-totals').innerHTML = `<td style="font-weight:500;">Total</td>
+    <td>${fmt(totals.current)}</td><td>${fmt(totals['1-30'])}</td><td>${fmt(totals['31-60'])}</td>
+    <td>${fmt(totals['61-90'])}</td><td>${fmt(totals['90+'])}</td><td style="font-weight:500;">${fmt(gt)}</td>`;
+}
+
+function renderCollections() {
+  const queue = invoices
+    .filter(i => getStatus(i) === 'overdue' && daysDiff(i.due) >= 30)
+    .sort((a,b) => (b.amount-b.paid) - (a.amount-a.paid));
+
+  const tbody = document.getElementById('collections-tbody');
+  tbody.innerHTML = queue.map(inv => {
+    const bal = inv.amount - inv.paid;
+    const dd = daysDiff(inv.due);
+    const note = notes.filter(n => n.invoiceId === inv.id).sort((a,b)=>b.date>a.date?1:-1)[0];
+    return `<tr>
+      <td style="font-weight:500;">${inv.customer}</td>
+      <td>${inv.id}</td>
+      <td><span style="color:${dd>60?'var(--red-400)':'var(--amber-400)'};font-weight:500;">${dd}d</span></td>
+      <td style="font-weight:500;">${fmt(bal)}</td>
+      <td style="font-size:12px;color:var(--color-text-secondary);">${note ? note.date + ': ' + note.text.substring(0,30) + '…' : 'No contact'}</td>
+      <td><button class="btn btn-sm" onclick="addNote('${inv.id}')">Log note</button></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="6" class="empty">No invoices require follow-up</td></tr>`;
+
+  const nl = document.getElementById('notes-list');
+  nl.innerHTML = notes.length === 0 ? '<p style="font-size:13px;color:var(--color-text-secondary);padding:8px 0;">No notes yet.</p>' :
+    notes.sort((a,b)=>b.date>a.date?1:-1).map(n => `
+      <div style="padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary);">
+        <div style="display:flex;gap:8px;font-size:12px;color:var(--color-text-secondary);margin-bottom:3px;">
+          <span>${n.date}</span>${n.invoiceId ? `<span style="font-weight:500;">${n.invoiceId}</span>` : ''}<span>${n.customer || ''}</span>
+        </div>
+        <div style="font-size:13px;">${n.text}</div>
+      </div>`).join('');
+}
+
+function addNote(invoiceId) {
+  const inv = invoiceId ? invoices.find(i => i.id === invoiceId) : null;
+  const customer = inv ? inv.customer : '';
+  const id = invoiceId || '';
+  const text = prompt(invoiceId ? `Log collection note for ${id} (${customer}):` : 'Log collection note (enter customer name: note):');
+  if (!text) return;
+  let custName = customer, noteText = text;
+  if (!invoiceId && text.includes(':')) { [custName, noteText] = text.split(':'); custName = custName.trim(); noteText = noteText.trim(); }
+  notes.push({ date: today.toISOString().split('T')[0], invoiceId: id, customer: custName, text: noteText });
+  renderCollections();
+}
+
+function recordPayment(id) {
+  const inv = invoices.find(i => i.id === id);
+  if (!inv) return;
+  const bal = inv.amount - inv.paid;
+  const amt = parseFloat(prompt(`Record payment for ${id} (${inv.customer})\nBalance: ${fmt(bal)}\nEnter amount:`));
+  if (isNaN(amt) || amt <= 0) return;
+  inv.paid = Math.min(inv.amount, inv.paid + amt);
+  renderInvoices();
+  renderDashboard();
+}
+
+function createInvoice() {
+  const customer = document.getElementById('ni-customer').value.trim();
+  const number = document.getElementById('ni-number').value.trim();
+  const issued = document.getElementById('ni-issue').value;
+  const due = document.getElementById('ni-due').value;
+  const amount = parseFloat(document.getElementById('ni-amount').value);
+  const desc = document.getElementById('ni-desc').value.trim();
+  const msg = document.getElementById('ni-msg');
+  if (!customer || !number || !issued || !due || isNaN(amount) || amount <= 0) { msg.textContent = 'Please fill in all required fields.'; msg.style.color = 'var(--red-400)'; return; }
+  if (invoices.find(i => i.id === number)) { msg.textContent = 'Invoice number already exists.'; msg.style.color = 'var(--red-400)'; return; }
+  invoices.push({ id: number, customer, issued, due, amount, paid: 0, desc });
+  msg.textContent = `Invoice ${number} created successfully.`; msg.style.color = 'var(--teal-600)';
+  setTimeout(() => { showPage('invoices'); }, 900);
+}
+
+renderDashboard();
+</script>
