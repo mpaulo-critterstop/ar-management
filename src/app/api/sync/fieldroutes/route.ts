@@ -82,3 +82,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: errors.length === 0 ? "success" : "partial", customersCreated, customersUpdated, invoicesCreated, invoicesUpdated, paymentsCreated, errors });
   } catch (e: any) {
     return NextResponse.json({ error:
+
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
+export async function GET() {
+  try {
+    const logs = await prisma.syncLog.findMany({
+      where: { source: "fieldroutes" },
+      orderBy: { startedAt: "desc" },
+      take: 10,
+    });
+    return NextResponse.json(logs);
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
