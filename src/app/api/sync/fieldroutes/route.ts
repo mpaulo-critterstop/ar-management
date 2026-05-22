@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 const BASE = `https://${process.env.FIELDROUTES_SUBDOMAIN}.fieldroutes.com/api/v1`;
 const HEADERS = {
   "Authorization": `Bearer ${process.env.FIELDROUTES_API_KEY}`,
+  "X-Auth-Token": `${process.env.FIELDROUTES_TOKEN}`,
   "Content-Type": "application/json",
 };
 
