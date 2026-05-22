@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AR Management — Critter Stopper",
+  title: "AR Management — Critter Stop",
   description: "Accounts Receivable Management",
 };
 
