@@ -12,7 +12,7 @@ async function main() {
     where: { email: "admin@critterstop.com" },
     update: {},
     create: {
-      email: "admin@critterstoppest.com",
+      email: "admin@critterstop.com",
       name: "Admin",
       password: pw,
       role: "ADMIN",
@@ -20,7 +20,7 @@ async function main() {
   });
 
   console.log("✓ Admin user created");
-  console.log("  Email: admin@critterstoppest.com");
+  console.log("  Email: admin@critterstop.com");
   console.log("  Password: password123");
   console.log("Seed complete!");
 }
