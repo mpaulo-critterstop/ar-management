@@ -11,8 +11,8 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-EXPOSE 3000
-ENV PORT=3000
+EXPOSE 8080
+ENV PORT=8080
 ENV HOSTNAME=0.0.0.0
 
 CMD ["sh", "-c", "npx prisma db push && npx tsx prisma/seed.ts && npm start"]
