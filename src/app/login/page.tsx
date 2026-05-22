@@ -22,7 +22,7 @@ export default function LoginPage() {
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"#F7F6F2" }}>
       <div style={{ background:"#fff", borderRadius:12, border:"1px solid #D3D1C7", padding:"2rem", width:360, boxShadow:"0 4px 24px rgba(0,0,0,0.08)" }}>
         <div style={{ marginBottom:"1.5rem" }}>
-          <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>Critter Stopper AR</div>
+          <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>Critter Stop Accounts Recievable</div>
           <div style={{ fontSize:13, color:"#888780" }}>Sign in to your account</div>
         </div>
         <form onSubmit={submit}>
