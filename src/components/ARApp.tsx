@@ -169,6 +169,7 @@ export default function ARApp() {
       {page==="collections" && <CollPage {...shared} brokenPromises={brokenPromises} />}
 
       {modal==="newInvoice" && <InvModal {...shared} invoice={null} onClose={()=>setModal(null)} />}
+      {modal==="importInvoices" && <ImportInvModal {...shared} onClose={()=>setModal(null)} />}
       {modal?.type==="editInvoice" && <InvModal {...shared} invoice={modal.invoice} onClose={()=>setModal(null)} />}
       {modal==="newCustomer" && <CustModal {...shared} customer={null} onClose={()=>setModal(null)} />}
       {modal==="importCustomers" && <ImportCustModal {...shared} onClose={()=>setModal(null)} />}
@@ -707,6 +708,93 @@ function ImportCustModal({onClose,showToast,loadAll}: any) {
           <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
             <Btn onClick={onClose}>Cancel</Btn>
             <Btn primary onClick={importAll} disabled={importing}>{importing?"Importing…":"↑ Import "+preview.length+" customers"}</Btn>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+function ImportInvModal({onClose,showToast,loadAll}: any) {
+  const [text,setText]=useState("");
+  const [preview,setPreview]=useState<any[]>([]);
+  const [importing,setImporting]=useState(false);
+
+  function formatPhone(p: string): string {
+    const digits = p.replace(/\D/g, "");
+    if(digits.length===10) return "("+digits.slice(0,3)+") "+digits.slice(3,6)+"-"+digits.slice(6);
+    if(digits.length===11&&digits[0]==="1") return "("+digits.slice(1,4)+") "+digits.slice(4,7)+"-"+digits.slice(7);
+    return p;
+  }
+
+  function parse() {
+    const lines=text.trim().split("\n");
+    if(lines.length<2)return;
+    const result:any[]=[];
+    for(let i=1;i<lines.length;i++){
+      const vals=lines[i].split(",").map((v:string)=>v.trim().replace(/^"|"$/g,""));
+      const frId=vals[0]||"";
+      const invoiceId=vals[1]||"";
+      const date=vals[2]||"";
+      const taxInvoiced=parseFloat(vals[7])||0;
+      const billed=parseFloat(vals[9])||0;
+      const amount=taxInvoiced+billed;
+      if(!frId||!invoiceId||amount<=0)continue;
+      result.push({frId,invoiceId,date,amount});
+    }
+    setPreview(result);
+  }
+
+  async function importAll() {
+    setImporting(true);
+    try {
+      const res=await fetch("/api/invoices/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({invoices:preview})});
+      const data=await res.json();
+      showToast(`Imported ${data.created} invoices, skipped ${data.skipped}, no customer match ${data.noCustomer}`);
+      loadAll();onClose();
+    } catch(e) {
+      showToast("Import failed","error");
+    }
+    setImporting(false);
+  }
+
+  return (
+    <Modal title="Import invoices from CSV" onClose={onClose} wide>
+      <div style={{fontSize:12,color:"#888780",marginBottom:12}}>
+        <div>Supports FieldRoutes invoice export format.</div>
+        <div>Columns: Group (FR ID), Subgroup (Invoice ID), Subgroup 2 (Date), Tax Invoiced, Billed</div>
+      </div>
+      <div style={{marginBottom:12}}>
+        <label style={{display:"inline-block",padding:"8px 16px",background:"#2C2C2A",color:"#fff",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:500}}>
+          📁 Choose CSV file
+          <input type="file" accept=".csv" style={{display:"none"}} onChange={e=>{
+            const file=e.target.files?.[0];
+            if(!file)return;
+            const reader=new FileReader();
+            reader.onload=ev=>{setText(ev.target?.result as string);};
+            reader.readAsText(file);
+          }}/>
+        </label>
+        <span style={{fontSize:12,color:"#888780",marginLeft:12}}>{text?"File loaded — click Preview":"or paste CSV below"}</span>
+      </div>
+      <textarea value={text} onChange={e=>setText(e.target.value)} placeholder={"Group,Subgroup,Subgroup 2,...\n46258,237664,5/12/2026,..."} style={{width:"100%",height:80,fontSize:11,fontFamily:"monospace",padding:10,border:"1px solid #D3D1C7",borderRadius:8,resize:"vertical"}}/>
+      <div style={{display:"flex",gap:8,margin:"10px 0 14px"}}>
+        <Btn onClick={parse}>Preview</Btn>
+        <span style={{fontSize:12,color:"#888780",alignSelf:"center"}}>{preview.length>0?preview.length+" invoices ready":""}</span>
+      </div>
+      {preview.length>0 && (
+        <div>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginBottom:12}}>
+            <thead><tr><Th>FR ID</Th><Th>Invoice ID</Th><Th>Date</Th><Th right>Amount</Th></tr></thead>
+            <tbody>
+              {preview.slice(0,10).map((inv:any,i:number)=>(
+                <tr key={i}><Td>{inv.frId}</Td><Td>{inv.invoiceId}</Td><Td>{inv.date}</Td><Td right>${inv.amount.toFixed(2)}</Td></tr>
+              ))}
+            </tbody>
+          </table>
+          {preview.length>10&&<p style={{fontSize:12,color:"#888780",marginBottom:12}}>...and {preview.length-10} more</p>}
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <Btn onClick={onClose}>Cancel</Btn>
+            <Btn primary onClick={importAll} disabled={importing}>{importing?"Importing…":"↑ Import "+preview.length+" invoices"}</Btn>
           </div>
         </div>
       )}
