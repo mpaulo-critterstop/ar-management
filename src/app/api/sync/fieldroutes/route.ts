@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
 
     // Search for customer IDs first, then fetch details
     try {
-      const search = await frGet("/customer/search");
-errors.push(`DEBUG search keys: ${Object.keys(search).join(",")}, customerIDs count: ${(search.customerIDs||[]).length}`);
+      const search = await frGet("/customer/search", { officeIDs: "1" });
+errors.push(`DEBUG search: ${JSON.stringify(search).substring(0, 200)}`);
 const ids: number[] = search.customerIDs || search.ids || [];
       
       // Fetch in batches of 100
