@@ -177,6 +177,7 @@ export default function ARApp() {
       {modal?.type==="customerDetail" && <CustDetail {...shared} customer={modal.customer} onClose={()=>setModal(null)} />}
       {modal==="newPayment" && <PayModal {...shared} invoice={null} onClose={()=>setModal(null)} />}
       {modal?.type==="recordPayment" && <PayModal {...shared} invoice={modal.invoice} onClose={()=>setModal(null)} />}
+            {modal?.type==="recordPayment" && <PayModal {...shared} invoice={modal.invoice} onClose={()=>setModal(null)} />}
       {modal?.type==="addNote" && <NoteModal {...shared} item={modal.item} onClose={()=>setModal(null)} />}
     </div>
   );
@@ -803,4 +804,40 @@ function ImportInvModal({onClose,showToast,loadAll}: any) {
     </Modal>
   );
 }
-      
+      function CloseOutModal({invoice,custMap,onClose,showToast,loadAll}: any) {
+  const today=new Date().toISOString().split("T")[0];
+  const [closeOutDate,setCloseOutDate]=useState(today);
+
+  async function submit() {
+    if(!closeOutDate)return showToast("Select a closeout date","error");
+    await fetch(`/api/invoices/${invoice.id}`,{
+      method:"PUT",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        due: closeOutDate,
+        status: new Date(closeOutDate) < new Date() ? "OVERDUE" : "CURRENT",
+      })
+    });
+    showToast("Invoice closed out — due date set to "+closeOutDate);
+    loadAll();
+    onClose();
+  }
+
+  const cust=custMap[invoice.customerId];
+  return (
+    <Modal title={"Close Out — "+invoice.id} onClose={onClose}>
+      <div style={{background:"#F7F6F2",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13}}>
+        <div style={{fontWeight:600}}>{cust?.name} · {invoice.id}</div>
+        <div style={{color:"#888780",marginTop:2}}>Amount: <strong>${Number(invoice.amount).toLocaleString()}</strong></div>
+      </div>
+      <div style={{fontSize:13,color:"#2C2C2A",marginBottom:12}}>
+        Select the closeout date. This will become the invoice due date and aging will start from this date.
+      </div>
+      <Inp label="Closeout date" value={closeOutDate} onChange={setCloseOutDate} type="date"/>
+      <div style={{display:"flex",gap:8,marginTop:16,justifyContent:"flex-end"}}>
+        <Btn onClick={onClose}>Cancel</Btn>
+        <Btn primary onClick={submit}>Close Out Invoice</Btn>
+      </div>
+    </Modal>
+  );
+}
