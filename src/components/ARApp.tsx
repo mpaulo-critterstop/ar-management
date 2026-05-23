@@ -279,16 +279,35 @@ function CustPage({customers,enriched,custMap,setModal,showToast,loadAll}: any) 
 function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll}: any) {
   const [search,setSearch]=useState("");
   const [statusF,setStatusF]=useState("");
+  const [selected,setSelected]=useState<Set<string>>(new Set());
+
   const filtered=enriched.filter((i:any)=>{
     if(statusF&&i.status!==statusF)return false;
     if(search){const s=search.toLowerCase();if(!i.id?.toLowerCase().includes(s)&&!i.customer?.name?.toLowerCase().includes(s))return false;}
     return true;
   });
+
+  const toggleSelect=(id:string)=>{
+    setSelected(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
+  };
+  const toggleAll=()=>{
+    if(selected.size===filtered.length)setSelected(new Set());
+    else setSelected(new Set(filtered.map((i:any)=>i.id)));
+  };
+  const bulkDelete=async()=>{
+    if(!confirm(`Delete ${selected.size} selected invoices?`))return;
+    await Promise.all([...selected].map(id=>fetch(`/api/invoices/${id}`,{method:"DELETE"})));
+    showToast(`Deleted ${selected.size} invoices`);
+    setSelected(new Set());
+    loadAll();
+  };
+
   const del=async(id:string)=>{if(!confirm("Delete invoice "+id+"?"))return;await fetch(`/api/invoices/${id}`,{method:"DELETE"});showToast("Invoice deleted");loadAll();};
   const csvExport=()=>{
     const rows=[["Invoice#","Customer","Date","Due","Amount","Balance","Status"],...filtered.map((i:any)=>[i.id,i.customer?.name,i.date?.split("T")[0],i.due?.split("T")[0],i.amount,i.balance,i.status])];
     const a=document.createElement("a");a.href="data:text/csv,"+encodeURIComponent(rows.map(r=>r.join(",")).join("\n"));a.download="invoices.csv";a.click();
   };
+
   return (
     <div>
       <div style={{display:"flex",gap:8,marginBottom:"1rem",flexWrap:"wrap",alignItems:"center"}}>
@@ -297,20 +316,29 @@ function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll}: any) {
           <option value="">All statuses</option>
           {["CURRENT","OVERDUE","COLLECTIONS","PAYMENT_PLAN","PAID","DISPUTED"].map(s=><option key={s} value={s}>{statusLabels[s]}</option>)}
         </select>
+        {selected.size>0 && <Btn danger onClick={bulkDelete}>🗑 Delete {selected.size} selected</Btn>}
         <Btn onClick={()=>setModal("importInvoices")}>↑ Import CSV</Btn>
         <Btn onClick={csvExport}>↓ Export</Btn>
         <Btn primary onClick={()=>setModal("newInvoice")}>+ New</Btn>
       </div>
       <Card noPad>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><Th>Invoice #</Th><Th>Customer</Th><Th>Invoice Date</Th><Th>Due Date</Th><Th right>Amount</Th><Th right>Balance</Th><Th>Status</Th><Th>&nbsp;</Th></tr></thead>
+          <thead><tr>
+            <th style={{padding:"8px 12px",borderBottom:"1px solid #E8E7E3",background:"#FAFAF8",width:32}}>
+              <input type="checkbox" checked={selected.size===filtered.length&&filtered.length>0} onChange={toggleAll}/>
+            </th>
+            <Th>Invoice #</Th><Th>Customer</Th><Th>Invoice Date</Th><Th>Due Date</Th><Th right>Amount</Th><Th right>Balance</Th><Th>Status</Th><Th>&nbsp;</Th>
+          </tr></thead>
           <tbody>
             {filtered.map((inv:any)=>(
-              <tr key={inv.id}>
+              <tr key={inv.id} style={{background:selected.has(inv.id)?"#F0F7FF":"inherit"}}>
+                <td style={{padding:"10px 12px",borderBottom:"1px solid #F0EEE8"}}>
+                  <input type="checkbox" checked={selected.has(inv.id)} onChange={()=>toggleSelect(inv.id)}/>
+                </td>
                 <Td bold>{inv.id}</Td>
                 <Td>{inv.customer?.name||"—"}</Td>
                 <Td>{inv.date?.split("T")[0]}</Td>
-                <Td color={inv.daysOverdue>0?"#E24B4A":"inherit"}>{inv.due?.split("T")[0]}</Td>
+                <Td color={inv.daysOverdue>0?"#E24B4A":"inherit"}>{inv.due?.split("T")[0]||"—"}</Td>
                 <Td right>{fmt(Number(inv.amount))}</Td>
                 <Td right bold>{fmt(inv.balance)}</Td>
                 <Td><Badge status={inv.status} small/></Td>
@@ -323,10 +351,12 @@ function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll}: any) {
                 </div></Td>
               </tr>
             ))}
-            {filtered.length===0&&<ER cols={7} msg="No invoices match"/>}
+            {filtered.length===0&&<ER cols={9} msg="No invoices match"/>}
           </tbody>
           {filtered.length>0&&<tfoot><tr style={{background:"#FAFAF8"}}>
+            <td/>
             <td colSpan={3} style={{padding:"9px 12px",fontSize:13,fontWeight:600}}>Total ({filtered.length})</td>
+            <td/>
             <td style={{padding:"9px 12px",textAlign:"right",fontSize:13,fontWeight:600}}>{fmt(filtered.reduce((s:number,i:any)=>s+Number(i.amount),0))}</td>
             <td style={{padding:"9px 12px",textAlign:"right",fontSize:13,fontWeight:600}}>{fmt(filtered.reduce((s:number,i:any)=>s+i.balance,0))}</td>
             <td colSpan={2}/>
