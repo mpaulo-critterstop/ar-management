@@ -39,7 +39,8 @@ export async function POST(req: NextRequest) {
         const batch = ids.slice(i, i + 100);
         try {
           const data = await frGet("/customer", { customerIDs: batch.join(",") });
-          const customers = data.customers || data.data || [];
+          const customers = data.customers || data.data || data.customer || Object.values(data).find(Array.isArray) || [];
+          errors.push(`DEBUG batch ${i}: keys=${Object.keys(data).join(",")}, count=${customers.length}`);
           for (const fc of customers) {
             try {
               const name = [fc.fname, fc.lname].filter(Boolean).join(" ") || fc.companyName || `Customer ${fc.customerID}`;
