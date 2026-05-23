@@ -177,7 +177,7 @@ export default function ARApp() {
       {modal?.type==="customerDetail" && <CustDetail {...shared} customer={modal.customer} onClose={()=>setModal(null)} />}
       {modal==="newPayment" && <PayModal {...shared} invoice={null} onClose={()=>setModal(null)} />}
       {modal?.type==="recordPayment" && <PayModal {...shared} invoice={modal.invoice} onClose={()=>setModal(null)} />}
-            {modal?.type==="recordPayment" && <PayModal {...shared} invoice={modal.invoice} onClose={()=>setModal(null)} />}
+      {modal?.type==="closeOut" && <CloseOutModal {...shared} invoice={modal.invoice} onClose={()=>setModal(null)} />}
       {modal?.type==="addNote" && <NoteModal {...shared} item={modal.item} onClose={()=>setModal(null)} />}
     </div>
   );
