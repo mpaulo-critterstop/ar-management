@@ -627,18 +627,22 @@ function ImportCustModal({onClose,showToast,loadAll}: any) {
       const vals=lines[i].split(",").map((v:string)=>v.trim().replace(/^"|"$/g,""));
       const obj:any={};
       headers.forEach((h:string,idx:number)=>{obj[h]=vals[idx]||"";});
-      if(!obj.name&&!obj.customername)continue;
+      const firstName=obj.firstname||obj.fname||"";
+      const lastName=obj.lastname||obj.lname||"";
+      const fullName=obj.name||obj.customername||(firstName&&lastName?firstName+" "+lastName:firstName||lastName)||"";
+      const frId=obj.customer||obj.customerid||obj.externalid||obj.id||"";
+      if(!fullName)continue;
       result.push({
-        name: obj.name||obj.customername||obj.customer||"",
-        email: obj.email||obj.emailaddress||"",
-        phone: obj.phone||obj.phonenumber||obj.phone1||"",
-        contact: obj.contact||obj.contactperson||"",
+        name: fullName,
+        email: obj.email||obj.emailaddress||obj.emailaddr||"",
+        phone: obj.phone||obj.phonenumber||obj.phone1||obj.primaryphone||"",
+        contact: obj.contact||obj.contactperson||fullName||"",
         billingAddr: obj.address||obj.billingaddress||"",
         status: (obj.status||"ACTIVE").toUpperCase(),
-        rep: obj.rep||"",
+        rep: obj.rep||obj.assignedrep||"",
         terms: obj.terms||"Net 30",
         notes: obj.notes||"",
-        externalId: obj.customerid||obj.externalid||"",
+        externalId: frId,
       });
     }
     setPreview(result);
