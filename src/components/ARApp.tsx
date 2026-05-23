@@ -298,7 +298,7 @@ function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll}: any) {
       </div>
       <Card noPad>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><Th>Invoice #</Th><Th>Customer</Th><Th>Due</Th><Th right>Amount</Th><Th right>Balance</Th><Th>Status</Th><Th></Th></tr></thead>
+          <thead><tr><Th>Invoice #</Th><Th>Customer</Th><Th>Due</Th><Th right>Amount</Th><Th right>Balance</Th><Th>Status</Th><Th>&nbsp;</Th></tr></thead>
           <tbody>
             {filtered.map((inv:any)=>(
               <tr key={inv.id}>
@@ -345,7 +345,7 @@ function PayPage({payments,invoices,custMap,showToast,loadAll,setModal}: any) {
       </div>
       <Card noPad>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><Th>Ref #</Th><Th>Customer</Th><Th>Invoice</Th><Th>Date</Th><Th>Method</Th><Th right>Amount</Th><Th>Note</Th><Th></Th></tr></thead>
+          <thead><tr><Th>Ref #</Th><Th>Customer</Th><Th>Invoice</Th><Th>Date</Th><Th>Method</Th><Th right>Amount</Th><Th>Note</Th><Th>&nbsp;</Th></tr></thead>
           <tbody>
             {ep.map((p:any)=>(
               <tr key={p.id}>
@@ -421,7 +421,7 @@ function CollPage({open,notes,custMap,setModal,showToast,loadAll,brokenPromises}
       </div>
       <Card title="Collections queue" noPad action={<Btn small onClick={()=>setModal({type:"addNote",item:null})}>+ Log note</Btn>}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><Th>Customer</Th><Th>Invoice</Th><Th>Days overdue</Th><Th right>Balance</Th><Th>Last contact</Th><Th>Status</Th><Th></Th></tr></thead>
+          <thead><tr><Th>Customer</Th><Th>Invoice</Th><Th>Days overdue</Th><Th right>Balance</Th><Th>Last contact</Th><Th>Status</Th><Th>&nbsp;</Th></tr></thead>
           <tbody>
             {queue.map((inv:any)=>{
               const note=lastNote(inv.id);
