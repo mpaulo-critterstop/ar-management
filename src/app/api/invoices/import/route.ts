@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
             due: new Date(inv.date),
             amount: inv.amount,
             paid: 0,
-            status: new Date(inv.date) < new Date() ? "OVERDUE" : "CURRENT",
+            status: "CURRENT",
             externalId: String(inv.invoiceId),
             externalSource: "fieldroutes",
             serviceType: "FieldRoutes",
