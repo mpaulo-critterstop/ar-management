@@ -295,6 +295,7 @@ function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll}: any) {
           <option value="">All statuses</option>
           {["CURRENT","OVERDUE","COLLECTIONS","PAYMENT_PLAN","PAID","DISPUTED"].map(s=><option key={s} value={s}>{statusLabels[s]}</option>)}
         </select>
+        <Btn onClick={()=>setModal("importInvoices")}>↑ Import CSV</Btn>
         <Btn onClick={csvExport}>↓ Export</Btn>
         <Btn primary onClick={()=>setModal("newInvoice")}>+ New</Btn>
       </div>
