@@ -5,9 +5,9 @@ const BASE = `https://${process.env.FIELDROUTES_SUBDOMAIN}.fieldroutes.com/api`;
 
 function frUrl(path: string, params: Record<string, string> = {}) {
   const url = new URL(BASE + path);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   url.searchParams.set("authenticationKey", process.env.FIELDROUTES_API_KEY || "");
   url.searchParams.set("authenticationToken", process.env.FIELDROUTES_TOKEN || "");
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   return url.toString();
 }
 
