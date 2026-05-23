@@ -5,10 +5,10 @@ body {
   color: #2C2C2A;
   background-color: #F7F6F2;
   background-image: url(/bg-watermark.png);
-  background-repeat: repeat;
+  background-repeat: no-repeat;
   background-position: center center;
   background-attachment: fixed;
-  background-size: 400px auto;
+  background-size: cover;
   line-height: 1.5;
 }
 input, select, textarea {
