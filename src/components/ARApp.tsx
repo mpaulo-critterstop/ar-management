@@ -115,7 +115,7 @@ export default function ARApp() {
     ...inv,
     customer: custMap[inv.customerId],
     balance: Number(inv.amount)-Number(inv.paid),
-    daysOverdue: Math.max(0, daysDiff(inv.due)),
+    daysOverdue: inv.due ? Math.max(0, daysDiff(inv.due)) : 0,
     daysOld: daysDiff(inv.date),
   })),[invoices,custMap]);
   const open = useMemo(()=>enriched.filter((i:any)=>i.status!=="PAID"),[enriched]);
@@ -184,7 +184,7 @@ export default function ARApp() {
 }
 function DashPage({open,totalAR,totalOverdue,collected30,collRate,agingTotals,payments,custMap,brokenPromises,invoices}: any) {
   const arVB = AR_BENCHMARK>0?totalAR/AR_BENCHMARK:0;
-  const topOD = [...open].filter((i:any)=>i.balance>0&&i.daysOverdue>0).sort((a:any,b:any)=>b.balance-a.balance).slice(0,5);
+  const topOD = [...open].filter((i:any)=>i.balance>0&&i.daysOverdue>0&&i.due).sort((a:any,b:any)=>b.balance-a.balance).slice(0,5);
   const recentP = [...payments].sort((a:any,b:any)=>a.date>b.date?-1:1).slice(0,5);
   return (
     <div>
