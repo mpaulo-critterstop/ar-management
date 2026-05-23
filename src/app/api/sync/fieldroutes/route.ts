@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
 
     // Search for customer IDs first, then fetch details
     try {
-      const search = await frGet("/customer/search", { officeIDs: "1" });
+     errors.push(`DEBUG env: key=${process.env.FIELDROUTES_API_KEY?.substring(0,8)}, token=${process.env.FIELDROUTES_TOKEN?.substring(0,8)}, subdomain=${process.env.FIELDROUTES_SUBDOMAIN}`);
+const search = await frGet("/customer/search");
 errors.push(`DEBUG search: ${JSON.stringify(search).substring(0, 200)}`);
 const ids: number[] = search.customerIDs || search.ids || [];
       
