@@ -302,12 +302,13 @@ function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll}: any) {
       </div>
       <Card noPad>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><Th>Invoice #</Th><Th>Customer</Th><Th>Due</Th><Th right>Amount</Th><Th right>Balance</Th><Th>Status</Th><Th>&nbsp;</Th></tr></thead>
+          <thead><tr><Th>Invoice #</Th><Th>Customer</Th><Th>Invoice Date</Th><Th>Due Date</Th><Th right>Amount</Th><Th right>Balance</Th><Th>Status</Th><Th>&nbsp;</Th></tr></thead>
           <tbody>
             {filtered.map((inv:any)=>(
               <tr key={inv.id}>
                 <Td bold>{inv.id}</Td>
                 <Td>{inv.customer?.name||"—"}</Td>
+                <Td>{inv.date?.split("T")[0]}</Td>
                 <Td color={inv.daysOverdue>0?"#E24B4A":"inherit"}>{inv.due?.split("T")[0]}</Td>
                 <Td right>{fmt(Number(inv.amount))}</Td>
                 <Td right bold>{fmt(inv.balance)}</Td>
@@ -315,6 +316,7 @@ function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll}: any) {
                 <Td><div style={{display:"flex",gap:4}}>
                   {inv.balance>0&&<Btn small onClick={()=>setModal({type:"recordPayment",invoice:inv})}>Pay</Btn>}
                   {inv.balance>0&&<Btn small onClick={()=>setModal({type:"addNote",item:inv})}>Note</Btn>}
+                  <Btn small onClick={()=>setModal({type:"closeOut",invoice:inv})} style={{background:"#E6F1FB",color:"#0C447C",border:"1px solid #A8C8F0"}}>Close Out</Btn>
                   <Btn small onClick={()=>setModal({type:"editInvoice",invoice:inv})}>✎</Btn>
                   <Btn small danger onClick={()=>del(inv.id)}>✕</Btn>
                 </div></Td>
