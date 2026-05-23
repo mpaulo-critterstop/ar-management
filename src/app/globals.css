@@ -4,11 +4,11 @@ body {
   font-size: 14px;
   color: #2C2C2A;
   background-color: #F7F6F2;
-  background-image: url('/bg-watermark.png');
-  background-repeat: no-repeat;
+  background-image: url(/bg-watermark.png);
+  background-repeat: repeat;
   background-position: center center;
   background-attachment: fixed;
-  background-size: 600px auto;
+  background-size: 400px auto;
   line-height: 1.5;
 }
 input, select, textarea {
