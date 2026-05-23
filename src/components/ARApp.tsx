@@ -648,7 +648,7 @@ function ImportCustModal({onClose,showToast,loadAll}: any) {
       const data=await res.json();
       showToast(`Imported ${data.created} customers, skipped ${data.skipped}`);
       loadAll();onClose();
-    } catch { showToast("Import failed","error"); }
+    } catch(e) { showToast("Import failed","error"); }
     setImporting(false);
   };
 
