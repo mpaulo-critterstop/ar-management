@@ -316,7 +316,7 @@ function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll}: any) {
                 <Td><div style={{display:"flex",gap:4}}>
                   {inv.balance>0&&<Btn small onClick={()=>setModal({type:"recordPayment",invoice:inv})}>Pay</Btn>}
                   {inv.balance>0&&<Btn small onClick={()=>setModal({type:"addNote",item:inv})}>Note</Btn>}
-                  <Btn small onClick={()=>setModal({type:"closeOut",invoice:inv})} style={{background:"#E6F1FB",color:"#0C447C",border:"1px solid #A8C8F0"}}>Close Out</Btn>
+                  <Btn small onClick={()=>setModal({type:"closeOut",invoice:inv})}>Close Out</Btn>
                   <Btn small onClick={()=>setModal({type:"editInvoice",invoice:inv})}>✎</Btn>
                   <Btn small danger onClick={()=>del(inv.id)}>✕</Btn>
                 </div></Td>
