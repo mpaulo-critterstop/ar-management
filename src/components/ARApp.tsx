@@ -636,7 +636,7 @@ function ImportCustModal({onClose,showToast,loadAll}: any) {
         name: fullName,
         email: obj.email||obj.emailaddress||obj.emailaddr||"",
         phone: obj.phone||obj.phonenumber||obj.phone1||obj.primaryphone||"",
-        contact: obj.contact||obj.contactperson||fullName||"",
+        contact: obj.contact||obj.contactperson||"",
         billingAddr: obj.address||obj.billingaddress||"",
         status: (obj.status||"ACTIVE").toUpperCase(),
         rep: obj.rep||obj.assignedrep||"",
