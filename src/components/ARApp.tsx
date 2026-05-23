@@ -618,6 +618,12 @@ function ImportCustModal({onClose,showToast,loadAll}: any) {
   const [preview,setPreview]=useState<any[]>([]);
   const [importing,setImporting]=useState(false);
 
+  function formatPhone(p: string): string {
+    const digits = p.replace(/\D/g, "");
+    if(digits.length===10) return "("+digits.slice(0,3)+") "+digits.slice(3,6)+"-"+digits.slice(6);
+    if(digits.length===11&&digits[0]==="1") return "("+digits.slice(1,4)+") "+digits.slice(4,7)+"-"+digits.slice(7);
+    return p;
+  }
   function parse() {
     const lines=text.trim().split("\n");
     if(lines.length<2)return;
@@ -635,7 +641,7 @@ function ImportCustModal({onClose,showToast,loadAll}: any) {
       result.push({
         name: fullName,
         email: obj.email||obj.emailaddress||obj.emailaddr||"",
-        phone: obj.phone||obj.phonenumber||obj.phone1||obj.primaryphone||"",
+        phone: formatPhone(obj.phone||obj.phonenumber||obj.phone1||obj.primaryphone||""),
         contact: obj.contact||obj.contactperson||"",
         billingAddr: obj.address||obj.billingaddress||"",
         status: (obj.status||"ACTIVE").toUpperCase(),
