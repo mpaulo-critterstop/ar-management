@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const BASE = `https://${process.env.FIELDROUTES_SUBDOMAIN}.fieldroutes.com/api/v1`;
+const BASE = `https://${process.env.FIELDROUTES_SUBDOMAIN}.fieldroutes.com/api`;
 
 function frUrl(path: string, params: Record<string, string> = {}) {
   const url = new URL(BASE + path);
