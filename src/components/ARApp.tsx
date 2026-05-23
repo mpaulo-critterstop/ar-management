@@ -249,7 +249,7 @@ function CustPage({customers,enriched,custMap,setModal,showToast,loadAll}: any) 
       </div>
       <Card noPad>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><Th>Customer</Th><Th>Contact</Th><Th>Rep</Th><Th>Terms</Th><Th>Status</Th><Th right>Open AR</Th><Th></Th></tr></thead>
+          <thead><tr><Th>Customer</Th><Th>Contact</Th><Th>Rep</Th><Th>Terms</Th><Th>Status</Th><Th right>Open AR</Th><Th>&nbsp;</Th></tr></thead>
           <tbody>
             {filtered.map((c:any)=>(
               <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>setModal({type:"customerDetail",customer:c})}>
