@@ -654,10 +654,10 @@ function ImportCustModal({onClose,showToast,loadAll}: any) {
 
   return (
     <Modal title="Import customers from CSV" onClose={onClose} wide>
-      <p style={{fontSize:12,color:"#888780",marginBottom:8}}>
-        CSV headers: <strong>name, email, phone, contact, address, status, rep, terms, notes, customerID</strong><br/>
-        Only <strong>name</strong> is required. customerID links to FieldRoutes.
-      </p>
+      <div style={{fontSize:12,color:"#888780",marginBottom:8}}>
+        <div>CSV headers: <strong>name, email, phone, contact, address, status, rep, terms, notes, customerID</strong></div>
+        <div>Only <strong>name</strong> is required. customerID links to FieldRoutes.</div>
+      </div>
       <textarea value={text} onChange={e=>setText(e.target.value)} placeholder={"name,email,phone,customerID\nJohn Smith,john@example.com,555-1234,12345"} style={{width:"100%",height:130,fontSize:12,fontFamily:"monospace",padding:10,border:"1px solid #D3D1C7",borderRadius:8,resize:"vertical"}}/>
       <div style={{display:"flex",gap:8,margin:"10px 0 14px"}}>
         <Btn onClick={parse}>Preview</Btn>
