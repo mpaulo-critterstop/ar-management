@@ -27,19 +27,16 @@ export async function POST(req: NextRequest) {
   let invoicesCreated = 0, invoicesUpdated = 0;
   const errors: string[] = [];
 
-  // Step 1: Search for invoices with a balance > 0
   try {
-    const searchUrl = makeUrl(subdomain, "invoice", "search", { balance: ">" }, key, token);
+    const searchUrl = makeUrl(subdomain, "invoice", "search", {}, key, token);
     const search = await frFetch(searchUrl);
-    errors.push(`DEBUG invoice search: success=${search.success}, count=${search.count}, error=${search.errorMessage||"none"}, idName=${search.idName}`);
+    errors.push(`DEBUG invoice search: success=${search.success}, count=${search.count}, error=${search.errorMessage||"none"}`);
 
     const invoiceIds: number[] = search.invoiceIDs || search.ids || [];
     errors.push(`DEBUG invoice IDs found: ${invoiceIds.length}`);
 
-    // Track which customer IDs we need
     const customerIdsNeeded = new Set<number>();
 
-    // Step 2: Fetch invoices in batches of 100
     for (let i = 0; i < invoiceIds.length; i += 100) {
       const batch = invoiceIds.slice(i, i + 100);
       try {
@@ -49,16 +46,14 @@ export async function POST(req: NextRequest) {
 
         for (const fi of invoices) {
           try {
-            if ((fi.balance || 0) <= 0) continue; // skip paid invoices
+            if ((fi.balance || 0) <= 0) continue;
             customerIdsNeeded.add(fi.customerID);
 
-            // Make sure customer exists first
             let customer = await prisma.customer.findFirst({
               where: { externalId: String(fi.customerID), externalSource: "fieldroutes" }
             });
 
             if (!customer) {
-              // Create a placeholder customer — will be updated in step 3
               customer = await prisma.customer.create({
                 data: {
                   name: `Customer ${fi.customerID}`,
@@ -101,10 +96,8 @@ export async function POST(req: NextRequest) {
         }
       } catch (e: any) { errors.push(`Invoice batch ${i}: ${e.message}`); }
     }
-
     errors.push(`DEBUG customers needed: ${customerIdsNeeded.size}`);
 
-    // Step 3: Fetch real customer details for customers with unpaid invoices
     const custIdArray = Array.from(customerIdsNeeded);
     for (let i = 0; i < custIdArray.length; i += 100) {
       const batch = custIdArray.slice(i, i + 100);
@@ -139,4 +132,23 @@ export async function POST(req: NextRequest) {
     }
 
   } catch (e: any) {
-    errors.push(`S
+    errors.push(`Sync failed: ${e.message}`);
+  }
+
+  await prisma.syncLog.create({
+    data: {
+      source: "fieldroutes",
+      status: errors.length === 0 ? "success" : "partial",
+      mode: "incremental",
+      startedAt: new Date(),
+      completedAt: new Date(),
+      customersCreated, customersUpdated,
+      invoicesCreated, invoicesUpdated,
+      paymentsCreated: 0,
+      errorCount: errors.length,
+      errors: errors.join("\n"),
+    }
+  });
+
+  return NextResponse.json({
+    status
