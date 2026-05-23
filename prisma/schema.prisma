@@ -59,7 +59,7 @@ model Invoice {
   id             String        @id
   customerId     String
   date           DateTime
-  due            DateTime
+  due            DateTime?
   amount         Decimal       @db.Decimal(12, 2)
   paid           Decimal       @default(0) @db.Decimal(12, 2)
   status         InvoiceStatus @default(CURRENT)
