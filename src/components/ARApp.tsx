@@ -611,7 +611,9 @@ function CustDetail({customer:c,enriched,notes,custMap,setModal,onClose}: any) {
       </>}
     </Modal>
   );
-} function ImportCustModal({onClose,showToast,loadAll}: any) {
+}
+
+function ImportCustModal({onClose,showToast,loadAll}: any) {
   const [text,setText]=useState("");
   const [preview,setPreview]=useState<any[]>([]);
   const [importing,setImporting]=useState(false);
