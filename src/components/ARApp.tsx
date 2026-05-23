@@ -664,11 +664,24 @@ function ImportCustModal({onClose,showToast,loadAll}: any) {
 
   return (
     <Modal title="Import customers from CSV" onClose={onClose} wide>
-      <div style={{fontSize:12,color:"#888780",marginBottom:8}}>
-        <div>CSV headers: name, email, phone, contact, address, status, rep, terms, notes, customerID</div>
-        <div>Only name is required. customerID links to FieldRoutes for payment sync.</div>
+      <div style={{fontSize:12,color:"#888780",marginBottom:12}}>
+        <div>Supports FieldRoutes CSV export format automatically.</div>
+        <div>Columns detected: Customer ID, First Name, Last Name, Email, Phone</div>
       </div>
-      <textarea value={text} onChange={e=>setText(e.target.value)} placeholder={"name,email,phone,customerID\nJohn Smith,john@example.com,555-1234,12345"} style={{width:"100%",height:130,fontSize:12,fontFamily:"monospace",padding:10,border:"1px solid #D3D1C7",borderRadius:8,resize:"vertical"}}/>
+      <div style={{marginBottom:12}}>
+        <label style={{display:"inline-block",padding:"8px 16px",background:"#2C2C2A",color:"#fff",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:500}}>
+          📁 Choose CSV file
+          <input type="file" accept=".csv" style={{display:"none"}} onChange={e=>{
+            const file=e.target.files?.[0];
+            if(!file)return;
+            const reader=new FileReader();
+            reader.onload=ev=>{setText(ev.target?.result as string);};
+            reader.readAsText(file);
+          }}/>
+        </label>
+        <span style={{fontSize:12,color:"#888780",marginLeft:12}}>{text?"File loaded — click Preview":"or paste CSV below"}</span>
+      </div>
+      <textarea value={text} onChange={e=>setText(e.target.value)} placeholder={"Customer,Last Name,First Name,Email Address,Phone 1\n46256,Davenpor,Chris,cjdavenpc@email.com,2147341451"} style={{width:"100%",height:100,fontSize:11,fontFamily:"monospace",padding:10,border:"1px solid #D3D1C7",borderRadius:8,resize:"vertical"}}/>
       <div style={{display:"flex",gap:8,margin:"10px 0 14px"}}>
         <Btn onClick={parse}>Preview</Btn>
         <span style={{fontSize:12,color:"#888780",alignSelf:"center"}}>{preview.length>0?preview.length+" customers ready":""}</span>
