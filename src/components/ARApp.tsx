@@ -621,7 +621,7 @@ function ImportCustModal({onClose,showToast,loadAll}: any) {
   const parse=()=>{
     const lines=text.trim().split("\n");
     const headers=lines[0].split(",").map((h:string)=>h.trim().toLowerCase().replace(/\s+/g,""));
-    const rows=lines.slice(1).map(line=>{
+    const rows=lines.slice(1).map((line:string)=>{
       const vals=line.split(",").map((v:string)=>v.trim().replace(/^"|"$/g,""));
       const obj:any={};
       headers.forEach((h:string,i:number)=>obj[h]=vals[i]||"");
