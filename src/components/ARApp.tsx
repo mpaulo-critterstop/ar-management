@@ -618,14 +618,17 @@ function ImportCustModal({onClose,showToast,loadAll}: any) {
   const [preview,setPreview]=useState<any[]>([]);
   const [importing,setImporting]=useState(false);
 
-  const parse=()=>{
+  function parse() {
     const lines=text.trim().split("\n");
+    if(lines.length<2)return;
     const headers=lines[0].split(",").map((h:string)=>h.trim().toLowerCase().replace(/\s+/g,""));
-    const rows=lines.slice(1).map((line:string)=>{
-      const vals=line.split(",").map((v:string)=>v.trim().replace(/^"|"$/g,""));
+    const result:any[]=[];
+    for(let i=1;i<lines.length;i++){
+      const vals=lines[i].split(",").map((v:string)=>v.trim().replace(/^"|"$/g,""));
       const obj:any={};
-      headers.forEach((h:string,i:number)=>obj[h]=vals[i]||"");
-      return {
+      headers.forEach((h:string,idx:number)=>{obj[h]=vals[idx]||"";});
+      if(!obj.name&&!obj.customername)continue;
+      result.push({
         name: obj.name||obj.customername||obj.customer||"",
         email: obj.email||obj.emailaddress||"",
         phone: obj.phone||obj.phonenumber||obj.phone1||"",
@@ -636,46 +639,53 @@ function ImportCustModal({onClose,showToast,loadAll}: any) {
         terms: obj.terms||"Net 30",
         notes: obj.notes||"",
         externalId: obj.customerid||obj.externalid||"",
-      };
-    }).filter((r:any)=>r.name);
-    setPreview(rows);
-  };
+      });
+    }
+    setPreview(result);
+  }
 
-  const importAll=async()=>{
+  async function importAll() {
     setImporting(true);
     try {
       const res=await fetch("/api/customers/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customers:preview})});
       const data=await res.json();
-      showToast(`Imported ${data.created} customers, skipped ${data.skipped}`);
-      loadAll();onClose();
-    } catch(e) { showToast("Import failed","error"); }
+      showToast("Imported "+data.created+" customers, skipped "+data.skipped);
+      loadAll();
+      onClose();
+    } catch(e) {
+      showToast("Import failed","error");
+    }
     setImporting(false);
-  };
+  }
 
   return (
     <Modal title="Import customers from CSV" onClose={onClose} wide>
       <div style={{fontSize:12,color:"#888780",marginBottom:8}}>
-        <div>CSV headers: <strong>name, email, phone, contact, address, status, rep, terms, notes, customerID</strong></div>
-        <div>Only <strong>name</strong> is required. customerID links to FieldRoutes.</div>
+        <div>CSV headers: name, email, phone, contact, address, status, rep, terms, notes, customerID</div>
+        <div>Only name is required. customerID links to FieldRoutes for payment sync.</div>
       </div>
       <textarea value={text} onChange={e=>setText(e.target.value)} placeholder={"name,email,phone,customerID\nJohn Smith,john@example.com,555-1234,12345"} style={{width:"100%",height:130,fontSize:12,fontFamily:"monospace",padding:10,border:"1px solid #D3D1C7",borderRadius:8,resize:"vertical"}}/>
       <div style={{display:"flex",gap:8,margin:"10px 0 14px"}}>
         <Btn onClick={parse}>Preview</Btn>
-        <span style={{fontSize:12,color:"#888780",alignSelf:"center"}}>{preview.length>0?`${preview.length} customers ready`:""}</span>
+        <span style={{fontSize:12,color:"#888780",alignSelf:"center"}}>{preview.length>0?preview.length+" customers ready":""}</span>
       </div>
-      {preview.length>0&&<>
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginBottom:12}}>
-          <thead><tr><Th>Name</Th><Th>Email</Th><Th>Phone</Th><Th>FR ID</Th><Th>Status</Th></tr></thead>
-          <tbody>{preview.slice(0,10).map((c:any,i:number)=>(
-            <tr key={i}><Td>{c.name}</Td><Td>{c.email||"—"}</Td><Td>{c.phone||"—"}</Td><Td>{c.externalId||"—"}</Td><Td><Badge status={c.status} small/></Td>
-          ))}</tbody>
-        </table>
-        {preview.length>10&&<p style={{fontSize:12,color:"#888780",marginBottom:12}}>...and {preview.length-10} more</p>}
-        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-          <Btn onClick={onClose}>Cancel</Btn>
-          <Btn primary onClick={importAll} disabled={importing}>{importing?"Importing…":"↑ Import "+preview.length+" customers"}</Btn>
+      {preview.length>0 && (
+        <div>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginBottom:12}}>
+            <thead><tr><Th>Name</Th><Th>Email</Th><Th>Phone</Th><Th>FR ID</Th><Th>Status</Th></tr></thead>
+            <tbody>
+              {preview.slice(0,10).map((c:any,i:number)=>(
+                <tr key={i}><Td>{c.name}</Td><Td>{c.email||"—"}</Td><Td>{c.phone||"—"}</Td><Td>{c.externalId||"—"}</Td><Td><Badge status={c.status} small/></Td></tr>
+              ))}
+            </tbody>
+          </table>
+          {preview.length>10 && <p style={{fontSize:12,color:"#888780",marginBottom:12}}>...and {preview.length-10} more</p>}
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <Btn onClick={onClose}>Cancel</Btn>
+            <Btn primary onClick={importAll} disabled={importing}>{importing?"Importing…":"↑ Import "+preview.length+" customers"}</Btn>
+          </div>
         </div>
-      </>}
+      )}
     </Modal>
   );
 }
