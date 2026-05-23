@@ -22,6 +22,7 @@ export async function GET() {
 
     const agingTotals: Record<string, number> = { current:0, "1-30":0, "31-60":0, "61-90":0, "90+":0 };
     for (const inv of openInvoices) {
+      if (!inv.due) { agingTotals["current"] += Number(inv.amount) - Number(inv.paid); continue; }
       const days = Math.round((today.getTime() - new Date(inv.due).getTime()) / 86400000);
       const bucket = days <= 0 ? "current" : days <= 30 ? "1-30" : days <= 60 ? "31-60" : days <= 90 ? "61-90" : "90+";
       agingTotals[bucket] += Number(inv.amount) - Number(inv.paid);
