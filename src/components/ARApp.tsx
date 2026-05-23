@@ -171,6 +171,7 @@ export default function ARApp() {
       {modal==="newInvoice" && <InvModal {...shared} invoice={null} onClose={()=>setModal(null)} />}
       {modal?.type==="editInvoice" && <InvModal {...shared} invoice={modal.invoice} onClose={()=>setModal(null)} />}
       {modal==="newCustomer" && <CustModal {...shared} customer={null} onClose={()=>setModal(null)} />}
+      {modal==="importCustomers" && <ImportCustModal {...shared} onClose={()=>setModal(null)} />}
       {modal?.type==="editCustomer" && <CustModal {...shared} customer={modal.customer} onClose={()=>setModal(null)} />}
       {modal?.type==="customerDetail" && <CustDetail {...shared} customer={modal.customer} onClose={()=>setModal(null)} />}
       {modal==="newPayment" && <PayModal {...shared} invoice={null} onClose={()=>setModal(null)} />}
