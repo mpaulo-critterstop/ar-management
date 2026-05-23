@@ -31,7 +31,6 @@ export async function POST(req: NextRequest) {
             id: String(inv.invoiceId),
             customerId: customer.id,
             date: new Date(inv.date),
-            due: new Date(inv.date),
             amount: inv.amount,
             paid: 0,
             status: "CURRENT",
