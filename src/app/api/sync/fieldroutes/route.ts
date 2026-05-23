@@ -28,36 +28,40 @@ export async function POST(req: NextRequest) {
   const errors: string[] = [];
 
   try {
-    const searchUrl = makeUrl(subdomain, "invoice", "search", {}, key, token);
+    // Search for tickets with a balance > 0
+    const searchUrl = makeUrl(subdomain, "ticket", "search", { balance: ">0" }, key, token);
     const search = await frFetch(searchUrl);
-    errors.push(`DEBUG invoice search: success=${search.success}, count=${search.count}, error=${search.errorMessage||"none"}`);
+    errors.push(`DEBUG ticket search: success=${search.success}, count=${search.count}, error=${search.errorMessage||"none"}`);
 
-    const invoiceIds: number[] = search.invoiceIDs || search.ids || [];
-    errors.push(`DEBUG invoice IDs found: ${invoiceIds.length}`);
+    const ticketIds: number[] = search.ticketIDs || [];
+    errors.push(`DEBUG ticket IDs found: ${ticketIds.length}`);
 
     const customerIdsNeeded = new Set<number>();
 
-    for (let i = 0; i < invoiceIds.length; i += 100) {
-      const batch = invoiceIds.slice(i, i + 100);
+    // Fetch tickets in batches of 100
+    for (let i = 0; i < ticketIds.length; i += 100) {
+      const batch = ticketIds.slice(i, i + 100);
       try {
-        const batchUrl = makeUrl(subdomain, "invoice", "get", { invoiceIDs: batch.join(",") }, key, token);
+        const batchUrl = makeUrl(subdomain, "ticket", "get", { ticketIDs: batch.join(",") }, key, token);
         const data = await frFetch(batchUrl);
-        const invoices = data.invoices || data.invoice || data.data || [];
+        const tickets = data.tickets || [];
 
-        for (const fi of invoices) {
+        for (const ft of tickets) {
           try {
-            if ((fi.balance || 0) <= 0) continue;
-            customerIdsNeeded.add(fi.customerID);
+            const balance = parseFloat(ft.balance || "0");
+            if (balance <= 0) continue;
+            customerIdsNeeded.add(parseInt(ft.customerID));
 
+            // Make sure customer exists first
             let customer = await prisma.customer.findFirst({
-              where: { externalId: String(fi.customerID), externalSource: "fieldroutes" }
+              where: { externalId: String(ft.customerID), externalSource: "fieldroutes" }
             });
 
             if (!customer) {
               customer = await prisma.customer.create({
                 data: {
-                  name: `Customer ${fi.customerID}`,
-                  externalId: String(fi.customerID),
+                  name: `Customer ${ft.customerID}`,
+                  externalId: String(ft.customerID),
                   externalSource: "fieldroutes",
                   terms: "Net 30",
                   status: "ACTIVE",
@@ -66,10 +70,13 @@ export async function POST(req: NextRequest) {
               customersCreated++;
             }
 
-            const paid = (fi.total || 0) - (fi.balance || 0);
-            const days = Math.round((new Date().getTime() - new Date(fi.dueDate).getTime()) / 86400000);
+            const total = parseFloat(ft.total || "0");
+            const paid = total - balance;
+            const invoiceDate = new Date(ft.invoiceDate || ft.dateCreated);
+            const days = Math.round((new Date().getTime() - invoiceDate.getTime()) / 86400000);
             const status = days > 90 ? "COLLECTIONS" : days > 0 ? "OVERDUE" : "CURRENT";
-            const invId = `FR-INV-${fi.invoiceID}`;
+            const invId = `FR-TKT-${ft.ticketID}`;
+
             const existing = await prisma.invoice.findUnique({ where: { id: invId } });
 
             if (existing) {
@@ -80,36 +87,39 @@ export async function POST(req: NextRequest) {
                 data: {
                   id: invId,
                   customerId: customer.id,
-                  date: new Date(fi.serviceDate || fi.date || new Date()),
-                  due: new Date(fi.dueDate),
-                  amount: fi.total || 0,
+                  date: invoiceDate,
+                  due: invoiceDate,
+                  amount: total,
                   paid,
                   status,
-                  externalId: String(fi.invoiceID),
+                  description: ft.invoiceNumber || `Ticket ${ft.ticketID}`,
+                  externalId: String(ft.ticketID),
                   externalSource: "fieldroutes",
                   serviceType: "FieldRoutes",
                 }
               });
               invoicesCreated++;
             }
-          } catch (e: any) { errors.push(`Invoice ${fi.invoiceID}: ${e.message}`); }
+          } catch (e: any) { errors.push(`Ticket ${ft.ticketID}: ${e.message}`); }
         }
-      } catch (e: any) { errors.push(`Invoice batch ${i}: ${e.message}`); }
+      } catch (e: any) { errors.push(`Ticket batch ${i}: ${e.message}`); }
     }
+
     errors.push(`DEBUG customers needed: ${customerIdsNeeded.size}`);
 
+    // Fetch real customer details
     const custIdArray = Array.from(customerIdsNeeded);
     for (let i = 0; i < custIdArray.length; i += 100) {
       const batch = custIdArray.slice(i, i + 100);
       try {
         const batchUrl = makeUrl(subdomain, "customer", "get", { customerIDs: batch.join(",") }, key, token);
         const data = await frFetch(batchUrl);
-        const customers = data.customers || data.customer || data.data || [];
+        const customers = data.customers || [];
 
         for (const fc of customers) {
           try {
             const name = [fc.fname, fc.lname].filter(Boolean).join(" ") || fc.companyName || `Customer ${fc.customerID}`;
-            const status = fc.status === 1 ? "ACTIVE" : "SUSPENDED";
+            const status = fc.status === 1 || fc.status === "1" ? "ACTIVE" : "SUSPENDED";
             const existing = await prisma.customer.findFirst({
               where: { externalId: String(fc.customerID), externalSource: "fieldroutes" }
             });
@@ -151,8 +161,7 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({
-    status
-: errors.length === 0 ? "success" : "partial",
+    status: errors.length === 0 ? "success" : "partial",
     customersCreated, customersUpdated,
     invoicesCreated, invoicesUpdated,
     errors
