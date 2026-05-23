@@ -257,7 +257,7 @@ function CustPage({customers,enriched,custMap,setModal,showToast,loadAll}: any) 
               <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>setModal({type:"customerDetail",customer:c})}>
                 <Td bold><div>{c.name}</div><div style={{fontSize:11,color:"#888780"}}>{c.email}</div></Td>
                 <Td><div>{c.contact}</div><div style={{fontSize:11,color:"#888780"}}>{c.phone}</div></Td>
-                <Td>{c.rep}</Td><Td>{c.terms}</Td>
+                <Td style={{fontSize:11,color:"#888780"}}>{c.externalId||"—"}</Td><Td>{c.rep}</Td><Td>{c.terms}</Td>
                 <Td><Badge status={c.status} small/></Td>
                 <Td right bold color={balBC[c.id]>0?"#2C2C2A":"#B4B2A9"}>{balBC[c.id]?fmt(balBC[c.id]):"—"}</Td>
                 <Td><div style={{display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
