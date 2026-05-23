@@ -341,7 +341,8 @@ function PayPage({payments,invoices,custMap,showToast,loadAll,setModal}: any) {
         <MC label="Total payments" value={payments.length}/>
       </div>
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"1rem"}}>
-        <Btn primary onClick={()=>setModal("newPayment")}>+ Record payment</Btn>
+        <Btn onClick={()=>setModal("importCustomers")}>↑ Import CSV</Btn>
+        <Btn primary onClick={()=>setModal("newCustomer")}>+ Add customer</Btn>
       </div>
       <Card noPad>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -608,4 +609,70 @@ function CustDetail({customer:c,enriched,notes,custMap,setModal,onClose}: any) {
       </>}
     </Modal>
   );
+} function ImportCustModal({onClose,showToast,loadAll}: any) {
+  const [text,setText]=useState("");
+  const [preview,setPreview]=useState<any[]>([]);
+  const [importing,setImporting]=useState(false);
+
+  const parse=()=>{
+    const lines=text.trim().split("\n");
+    const headers=lines[0].split(",").map((h:string)=>h.trim().toLowerCase().replace(/\s+/g,""));
+    const rows=lines.slice(1).map(line=>{
+      const vals=line.split(",").map((v:string)=>v.trim().replace(/^"|"$/g,""));
+      const obj:any={};
+      headers.forEach((h:string,i:number)=>obj[h]=vals[i]||"");
+      return {
+        name: obj.name||obj.customername||obj.customer||"",
+        email: obj.email||obj.emailaddress||"",
+        phone: obj.phone||obj.phonenumber||obj.phone1||"",
+        contact: obj.contact||obj.contactperson||"",
+        billingAddr: obj.address||obj.billingaddress||"",
+        status: (obj.status||"ACTIVE").toUpperCase(),
+        rep: obj.rep||"",
+        terms: obj.terms||"Net 30",
+        notes: obj.notes||"",
+        externalId: obj.customerid||obj.externalid||"",
+      };
+    }).filter((r:any)=>r.name);
+    setPreview(rows);
+  };
+
+  const importAll=async()=>{
+    setImporting(true);
+    try {
+      const res=await fetch("/api/customers/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customers:preview})});
+      const data=await res.json();
+      showToast(`Imported ${data.created} customers, skipped ${data.skipped}`);
+      loadAll();onClose();
+    } catch { showToast("Import failed","error"); }
+    setImporting(false);
+  };
+
+  return (
+    <Modal title="Import customers from CSV" onClose={onClose} wide>
+      <p style={{fontSize:12,color:"#888780",marginBottom:8}}>
+        CSV headers: <strong>name, email, phone, contact, address, status, rep, terms, notes, customerID</strong><br/>
+        Only <strong>name</strong> is required. customerID links to FieldRoutes.
+      </p>
+      <textarea value={text} onChange={e=>setText(e.target.value)} placeholder={"name,email,phone,customerID\nJohn Smith,john@example.com,555-1234,12345"} style={{width:"100%",height:130,fontSize:12,fontFamily:"monospace",padding:10,border:"1px solid #D3D1C7",borderRadius:8,resize:"vertical"}}/>
+      <div style={{display:"flex",gap:8,margin:"10px 0 14px"}}>
+        <Btn onClick={parse}>Preview</Btn>
+        <span style={{fontSize:12,color:"#888780",alignSelf:"center"}}>{preview.length>0?`${preview.length} customers ready`:""}</span>
+      </div>
+      {preview.length>0&&<>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginBottom:12}}>
+          <thead><tr><Th>Name</Th><Th>Email</Th><Th>Phone</Th><Th>FR ID</Th><Th>Status</Th></tr></thead>
+          <tbody>{preview.slice(0,10).map((c:any,i:number)=>(
+            <tr key={i}><Td>{c.name}</Td><Td>{c.email||"—"}</Td><Td>{c.phone||"—"}</Td><Td>{c.externalId||"—"}</Td><Td><Badge status={c.status} small/></Td>
+          ))}</tbody>
+        </table>
+        {preview.length>10&&<p style={{fontSize:12,color:"#888780",marginBottom:12}}>...and {preview.length-10} more</p>}
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+          <Btn onClick={onClose}>Cancel</Btn>
+          <Btn primary onClick={importAll} disabled={importing}>{importing?"Importing…":"↑ Import "+preview.length+" customers"}</Btn>
+        </div>
+      </>}
+    </Modal>
+  );
 }
+      
