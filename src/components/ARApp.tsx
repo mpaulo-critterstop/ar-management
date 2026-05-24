@@ -286,7 +286,7 @@ function CustPage({customers,enriched,custMap,setModal,showToast,loadAll,officeF
   );
 }
 
-function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll}: any) {
+function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll,officeFilter}: any) {
   const [search,setSearch]=useState("");
   const [statusF,setStatusF]=useState("");
   const [selected,setSelected]=useState<Set<string>>(new Set());
