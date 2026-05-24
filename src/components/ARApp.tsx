@@ -502,7 +502,7 @@ function CollPage({open,notes,custMap,setModal,showToast,loadAll,brokenPromises}
 function InvModal({customers,invoice,onClose,showToast,loadAll,officeFilter}: any) {
   const isEdit=!!invoice;
   const ts=new Date().toISOString().split("T")[0];
-  const [f,setF]=useState({customerId:invoice?.customerId||"",id:invoice?.id||"INV-"+Math.floor(1000+Math.random()*8000),date:invoice?.date?.split("T")[0]||ts,due:invoice?.due?.split("T")[0]||"",
+  const [f,setF]=useState({customerId:invoice?.customerId||"",id:invoice?.id||"INV-"+Math.floor(1000+Math.random()*8000),date:invoice?.date?.split("T")[0]||ts,due:invoice?.due?.split("T")[0]||"",amount:String(invoice?.amount||""),description:invoice?.description||"",serviceType:invoice?.serviceType||"Wildlife",status:invoice?.status||"CURRENT"});
   const set=(k:string,v:string)=>setF(p=>({...p,[k]:v}));
   const submit=async()=>{
     if(!f.customerId||!f.amount)return showToast("Fill required fields","error");
