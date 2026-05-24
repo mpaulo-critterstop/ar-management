@@ -518,7 +518,6 @@ function InvModal({customers,invoice,onClose,showToast,loadAll,officeFilter}: an
         <Inp label="Customer *" value={f.customerId} onChange={v=>set("customerId",v)} options={[{value:"",label:"Select customer…"},...customers.map((c:any)=>({value:c.id,label:c.name}))]}/>
         <Inp label="Invoice # *" value={f.id} onChange={v=>set("id",v)} disabled={isEdit}/>
         <Inp label="Issue date" value={f.date} onChange={v=>set("date",v)} type="date"/>
-        <Inp label="Due date" value={f.due} onChange={v=>set("due",v)} type="date"/>
         <Inp label="Amount ($) *" value={f.amount} onChange={v=>set("amount",v)} type="number" placeholder="5000"/>
         <Inp label="Status" value={f.status} onChange={v=>set("status",v)} options={["CURRENT","OVERDUE","COLLECTIONS","PAYMENT_PLAN","DISPUTED","PAID"].map(s=>({value:s,label:statusLabels[s]}))}/>
         <Inp label="Service Type" value={f.serviceType} onChange={v=>set("serviceType",v)} options={[{value:"Wildlife",label:"Wildlife"},{value:"Pest Control",label:"Pest Control"}]} />
