@@ -550,7 +550,7 @@ function CustModal({customer,onClose,showToast,loadAll,officeFilter}: any) {
         <Inp label="Phone" value={f.phone} onChange={v=>set("phone",v)}/>
         <Inp label="Billing address" value={f.billingAddr} onChange={v=>set("billingAddr",v)} style={{gridColumn:"span 2"}}/>
         <Inp label="Status" value={f.status} onChange={v=>set("status",v)} options={["ACTIVE","SUSPENDED","COLLECTIONS"].map(s=>({value:s,label:s[0]+s.slice(1).toLowerCase()}))}/>
-        <Inp label="Terms" value={f.terms} onChange={v=>set("terms",v)} options={["Net 15","Net 30","Net 45","Net 60","Due on receipt"].map(s=>({value:s,label:s}))}/>
+        <Inp label="Service Type" value={f.serviceType||"Wildlife"} onChange={v=>set("serviceType",v)} options={[{value:"Wildlife",label:"Wildlife"},{value:"Pest Control",label:"Pest Control"}]}/>
         <Inp label="Assigned rep" value={f.rep} onChange={v=>set("rep",v)} placeholder="Rep name"/>
         <Inp label="Notes" value={f.notes} onChange={v=>set("notes",v)} style={{gridColumn:"span 2"}}/>
       </div>
