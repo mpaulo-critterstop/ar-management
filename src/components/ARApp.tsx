@@ -241,7 +241,7 @@ function DashPage({open,totalAR,totalOverdue,collected30,collRate,agingTotals,pa
   );
 }
 
-function CustPage({customers,enriched,custMap,setModal,showToast,loadAll}: any) {
+function CustPage({customers,enriched,custMap,setModal,showToast,loadAll,officeFilter}: any) {
   const [search,setSearch]=useState("");
   const [statusF,setStatusF]=useState("");
   const balBC=useMemo(()=>{const m:any={};enriched.forEach((i:any)=>{if(i.status!=="PAID")m[i.customerId]=(m[i.customerId]||0)+i.balance});return m},[enriched]);
