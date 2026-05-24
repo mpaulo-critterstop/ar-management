@@ -86,18 +86,21 @@ export default function ARApp() {
   const [notes, setNotesState] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [officeFilter, setOfficeFilter] = useState("ALL");
 
   const showToast = useCallback((msg:string, type="success") => {
     setToast({msg,type}); setTimeout(()=>setToast(null),3000);
   },[]);
 
-  async function loadAll() {
+  async function loadAll(office?: string) {
     setLoading(true);
+    const o = office || officeFilter;
+    const oq = o !== "ALL" ? `?office=${o}` : "";
     try {
       const [c,i,p,n] = await Promise.all([
-        fetch("/api/customers").then(r=>r.json()),
-        fetch("/api/invoices").then(r=>r.json()),
-        fetch("/api/payments?days=365").then(r=>r.json()),
+        fetch(`/api/customers${oq}`).then(r=>r.json()),
+        fetch(`/api/invoices${oq}`).then(r=>r.json()),
+        fetch(`/api/payments?days=365${o !== "ALL" ? `&office=${o}` : ""}`).then(r=>r.json()),
         fetch("/api/notes").then(r=>r.json()),
       ]);
       setCustomersState(Array.isArray(c)?c:[]);
