@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const office = (session?.user as any)?.office;
+
     const body = await req.json();
     const { customers } = body;
 
@@ -13,7 +18,7 @@ export async function POST(req: NextRequest) {
       if (!c.name) { skipped++; continue; }
       try {
         const existing = c.externalId
-          ? await prisma.customer.findFirst({ where: { externalId: c.externalId, externalSource: "fieldroutes" } })
+          ? await prisma.customer.findFirst({ where: { externalId: c.externalId, externalSource: "fieldroutes", office: office !== "ALL" ? office : undefined } })
           : null;
         if (existing) { skipped++; continue; }
         await prisma.customer.create({
@@ -29,6 +34,7 @@ export async function POST(req: NextRequest) {
             notes: c.notes || undefined,
             externalId: c.externalId || undefined,
             externalSource: c.externalId ? "fieldroutes" : undefined,
+            office: office !== "ALL" ? office : "DFW",
           }
         });
         created++;
