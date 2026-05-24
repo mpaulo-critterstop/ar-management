@@ -532,7 +532,7 @@ function InvModal({customers,invoice,onClose,showToast,loadAll,officeFilter}: an
 
 function CustModal({customer,onClose,showToast,loadAll,officeFilter}: any) {
   const isEdit=!!customer;
-  const [f,setF]=useState({name:customer?.name||"",email:customer?.email||"",phone:customer?.phone||"",contact:customer?.contact||"",billingAddr:customer?.billingAddr||"",status:customer?.status||"ACTIVE",rep:customer?.rep||"",terms:customer?.terms||"Net 30",notes:customer?.notes||""});
+  const [f,setF]=useState({name:customer?.name||"",email:customer?.email||"",phone:customer?.phone||"",contact:customer?.contact||"",billingAddr:customer?.billingAddr||"",status:customer?.status||"ACTIVE",rep:customer?.rep||"",serviceType:customer?.serviceType||"Wildlife",notes:customer?.notes||""});
   const set=(k:string,v:string)=>setF(p=>({...p,[k]:v}));
   const submit=async()=>{
     if(!f.name)return showToast("Name required","error");
