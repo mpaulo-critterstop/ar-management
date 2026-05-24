@@ -161,6 +161,13 @@ export default function ARApp() {
         ))}
         <div style={{flex:1}}/>
         <button onClick={()=>setModal("newInvoice")} style={{background:"#2C2C2A",color:"#fff",border:"none",padding:"6px 14px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:500,margin:"6px 8px"}}>+ New invoice</button>
+        <select value={officeFilter} onChange={e=>{setOfficeFilter(e.target.value);loadAll(e.target.value);}} style={{fontSize:12,padding:"4px 8px",borderRadius:6,border:"1px solid #888780",background:"#3C3C3A",color:"#fff",margin:"6px 4px"}}>
+          <option value="ALL">All Offices</option>
+          <option value="DFW">DFW</option>
+          <option value="ATX">ATX</option>
+          <option value="CSTAT">CStat</option>
+          <option value="OKC">OKC</option>
+        </select>
         <button onClick={async()=>{setSyncing(true);try{const r=await fetch("/api/sync/fieldroutes",{method:"POST"});const d=await r.json();showToast(`Sync complete: ${d.customersCreated} customers, ${d.invoicesCreated} invoices`);loadAll();}catch{showToast("Sync failed","error");}setSyncing(false);}} style={{background:"#185FA5",color:"#fff",border:"none",padding:"6px 14px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:500,margin:"6px 8px 6px 0"}}>{syncing?"Syncing…":"↻ Sync FR"}</button>
       </div>
 
