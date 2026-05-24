@@ -11,10 +11,12 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const search = searchParams.get("search");
+    const officeParam = searchParams.get("office");
+    const officeFilter = officeParam || (office !== "ALL" ? office : null);
 
     const invoices = await prisma.invoice.findMany({
       where: {
-        ...(office && office !== "ALL" && { office }),
+        ...(officeFilter && { office: officeFilter }),
         ...(status && { status: status as any }),
         ...(search && {
           OR: [
