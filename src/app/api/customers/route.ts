@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const office = (session?.user as any)?.office;
+
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const search = searchParams.get("search");
+
     const customers = await prisma.customer.findMany({
       where: {
+        ...(office && office !== "ALL" && { office }),
         ...(status && { status: status as any }),
         ...(search && {
           OR: [
@@ -31,8 +38,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const office = (session?.user as any)?.office;
+
     const body = await req.json();
-    const customer = await prisma.customer.create({ data: body });
+    const customer = await prisma.customer.create({
+      data: { ...body, office: office !== "ALL" ? office : body.office }
+    });
     return NextResponse.json(customer, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
