@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const office = (session?.user as any)?.office;
+
     const { searchParams } = new URL(req.url);
     const days = parseInt(searchParams.get("days") || "90");
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
 
+    const officeFilter = office && office !== "ALL" ? { office } : {};
+
     const payments = await prisma.payment.findMany({
-      where: { date: { gte: cutoff } },
+      where: {
+        date: { gte: cutoff },
+        invoice: { ...officeFilter }
+      },
       include: {
         invoice: {
           include: {
