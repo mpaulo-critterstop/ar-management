@@ -499,7 +499,7 @@ function CollPage({open,notes,custMap,setModal,showToast,loadAll,brokenPromises}
   );
 }
 
-function InvModal({customers,invoice,onClose,showToast,loadAll}: any) {
+function InvModal({customers,invoice,onClose,showToast,loadAll,officeFilter}: any) {
   const isEdit=!!invoice;
   const ts=new Date().toISOString().split("T")[0];
   const due=new Date();due.setDate(due.getDate()+30);
@@ -509,7 +509,7 @@ function InvModal({customers,invoice,onClose,showToast,loadAll}: any) {
     if(!f.customerId||!f.amount)return showToast("Fill required fields","error");
     const method=isEdit?"PUT":"POST";
     const url=isEdit?`/api/invoices/${invoice.id}`:"/api/invoices";
-    await fetch(url,{method,headers:{"Content-Type":"application/json"},body:JSON.stringify({...f,amount:parseFloat(f.amount),paid:invoice?.paid||0})});
+    await fetch(url,{method,headers:{"Content-Type":"application/json"},body:JSON.stringify({...f,amount:parseFloat(f.amount),paid:invoice?.paid||0,office:officeFilter!=="ALL"?officeFilter:"DFW"})});
     showToast(isEdit?"Invoice updated":"Invoice created");loadAll();onClose();
   };
   return (
