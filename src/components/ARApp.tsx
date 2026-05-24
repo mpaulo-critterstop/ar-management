@@ -521,7 +521,7 @@ function InvModal({customers,invoice,onClose,showToast,loadAll,officeFilter}: an
         <Inp label="Due date" value={f.due} onChange={v=>set("due",v)} type="date"/>
         <Inp label="Amount ($) *" value={f.amount} onChange={v=>set("amount",v)} type="number" placeholder="5000"/>
         <Inp label="Status" value={f.status} onChange={v=>set("status",v)} options={["CURRENT","OVERDUE","COLLECTIONS","PAYMENT_PLAN","DISPUTED","PAID"].map(s=>({value:s,label:statusLabels[s]}))}/>
-        <Inp label="Service type" value={f.serviceType} onChange={v=>set("serviceType",v)} options={["Pest Control","Lawn Care","HVAC","Plumbing","Consulting","Other"].map(s=>({value:s,label:s}))} />
+        <Inp label="Service Type" value={f.serviceType} onChange={v=>set("serviceType",v)} options={[{value:"Wildlife",label:"Wildlife"},{value:"Pest Control",label:"Pest Control"}]} />
         <Inp label="Description" value={f.description} onChange={v=>set("description",v)} placeholder="Services…" style={{gridColumn:"span 2"}}/>
       </div>
       <div style={{display:"flex",gap:8,marginTop:16,justifyContent:"flex-end"}}>
