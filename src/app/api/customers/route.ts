@@ -44,8 +44,9 @@ export async function POST(req: NextRequest) {
     const office = (session?.user as any)?.office;
 
     const body = await req.json();
+    const customerOffice = body.office || (office !== "ALL" ? office : "DFW");
     const customer = await prisma.customer.create({
-      data: { ...body, office: office !== "ALL" ? office : body.office }
+      data: { ...body, office: customerOffice }
     });
     return NextResponse.json(customer, { status: 201 });
   } catch (e: any) {
