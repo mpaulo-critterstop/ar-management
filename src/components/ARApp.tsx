@@ -146,7 +146,7 @@ export default function ARApp() {
 
   if(loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:300,fontSize:13,color:"#888780"}}>Loading AR data…</div>;
 
-  const shared = {customers,invoices,payments,notes,custMap,enriched,open,setModal,showToast,loadAll};
+  const shared = {customers,invoices,payments,notes,custMap,enriched,open,setModal,showToast,loadAll,officeFilter};
 
   return (
     <div>
