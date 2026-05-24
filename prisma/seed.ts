@@ -10,10 +10,10 @@ async function main() {
 
   // Admin account — sees all offices
   await prisma.user.upsert({
-    where: { email: "admin@critterstoppest.com" },
+    where: { email: "admin@critterstop.com" },
     update: {},
     create: {
-      email: "admin@critterstoppest.com",
+      email: "admin@critterstop.com",
       name: "Admin",
       password: pw,
       role: "ADMIN",
@@ -44,7 +44,7 @@ async function main() {
     console.log(`✓ ${o.name} created — ${o.email}`);
   }
 
-  console.log("✓ Admin created — admin@critterstoppest.com");
+  console.log("✓ Admin created — admin@critterstop.com");
   console.log("All accounts password: CritterStop2026!");
   console.log("Seed complete!");
 }
