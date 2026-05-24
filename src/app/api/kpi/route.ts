@@ -1,21 +1,35 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const AR_BENCHMARK = 285000;
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    const office = (session?.user as any)?.office;
+
     const today = new Date();
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    const officeFilter = office && office !== "ALL" ? { office } : {};
+
     const [openInvoices, recentPayments] = await Promise.all([
-      prisma.invoice.findMany({ where: { status: { not: "PAID" } } }),
-      prisma.payment.findMany({ where: { date: { gte: thirtyDaysAgo } } }),
+      prisma.invoice.findMany({
+        where: { status: { not: "PAID" }, ...officeFilter }
+      }),
+      prisma.payment.findMany({
+        where: {
+          date: { gte: thirtyDaysAgo },
+          invoice: { ...officeFilter }
+        }
+      }),
     ]);
 
     const totalAR = openInvoices.reduce((s, i) => s + Number(i.amount) - Number(i.paid), 0);
-    const overdueAR = openInvoices.filter(i => ["OVERDUE","COLLECTIONS"].includes(i.status)).reduce((s, i) => s + Number(i.amount) - Number(i.paid), 0);
+    const overdueAR = openInvoices.filter(i => ["OVERDUE","COLLECTIONS"].includes(i.status) && i.due).reduce((s, i) => s + Number(i.amount) - Number(i.paid), 0);
     const collected30 = recentPayments.reduce((s, p) => s + Number(p.amount), 0);
     const collectionRate = (totalAR + collected30) > 0 ? collected30 / (totalAR + collected30) : 0;
     const avgDaysOut = openInvoices.length ? openInvoices.reduce((s, i) => s + Math.round((today.getTime() - new Date(i.date).getTime()) / 86400000), 0) / openInvoices.length : 0;
