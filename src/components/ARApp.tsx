@@ -327,9 +327,9 @@ function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll,officeFil
           {["CURRENT","OVERDUE","COLLECTIONS","PAYMENT_PLAN","PAID","DISPUTED"].map(s=><option key={s} value={s}>{statusLabels[s]}</option>)}
         </select>
         {selected.size>0 && <Btn danger onClick={bulkDelete}>🗑 Delete {selected.size} selected</Btn>}
-        <Btn onClick={()=>setModal("importInvoices")}>↑ Import CSV</Btn>
+        {officeFilter!=="ALL" && <Btn onClick={()=>setModal("importInvoices")}>↑ Import CSV</Btn>}
         <Btn onClick={csvExport}>↓ Export</Btn>
-        <Btn primary onClick={()=>setModal("newInvoice")}>+ New</Btn>
+        {officeFilter!=="ALL" && <Btn primary onClick={()=>setModal("newInvoice")}>+ New</Btn>}
       </div>
       <Card noPad>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
