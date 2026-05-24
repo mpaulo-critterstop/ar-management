@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const office = (session?.user as any)?.office;
+
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
-    const branch = searchParams.get("branch");
     const search = searchParams.get("search");
 
     const invoices = await prisma.invoice.findMany({
       where: {
+        ...(office && office !== "ALL" && { office }),
         ...(status && { status: status as any }),
-        ...(branch && { branch }),
         ...(search && {
           OR: [
             { id: { contains: search, mode: "insensitive" } },
@@ -34,13 +38,17 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const office = (session?.user as any)?.office;
+
     const body = await req.json();
     const { date, due, ...rest } = body;
     const invoice = await prisma.invoice.create({
       data: {
         ...rest,
+        office: office !== "ALL" ? office : rest.office,
         date: new Date(date),
-        due: new Date(due),
+        ...(due && { due: new Date(due) }),
       },
       include: { customer: true },
     });
