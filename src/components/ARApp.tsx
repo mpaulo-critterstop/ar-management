@@ -27,7 +27,7 @@ const Badge = ({status, label:lbl, small}: {status:string, label?:string, small?
 };
 
 const MC = ({label,value,sub,color}: {label:string,value:string|number,sub?:string,color?:string}) => (
-  <div style={{background:"#fff",borderRadius:8,padding:"14px 16px",border:"1px solid #E8E7E3"}}>
+  <div style={{background:"#F5F5F5",borderRadius:8,padding:"14px 16px",border:"1px solid #E8E7E3"}}>
     <div style={{fontSize:12,color:"#888780",marginBottom:4}}>{label}</div>
     <div style={{fontSize:22,fontWeight:700,color:color||"#2C2C2A"}}>{value}</div>
     {sub && <div style={{fontSize:11,color:"#B4B2A9",marginTop:2}}>{sub}</div>}
