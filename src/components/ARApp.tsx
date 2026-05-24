@@ -258,8 +258,8 @@ function CustPage({customers,enriched,custMap,setModal,showToast,loadAll,officeF
         <select value={statusF} onChange={e=>setStatusF(e.target.value)} style={{fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8}}>
           <option value="">All statuses</option><option value="ACTIVE">Active</option><option value="COLLECTIONS">Collections</option><option value="SUSPENDED">Suspended</option>
         </select>
-        <Btn onClick={()=>setModal("importCustomers")}>↑ Import CSV</Btn>
-        <Btn primary onClick={()=>setModal("newCustomer")}>+ Add customer</Btn>
+        {officeFilter!=="ALL" && <Btn onClick={()=>setModal("importCustomers")}>↑ Import CSV</Btn>}
+        {officeFilter!=="ALL" && <Btn primary onClick={()=>setModal("newCustomer")}>+ Add customer</Btn>}
       </div>
       <Card noPad>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
