@@ -13,12 +13,13 @@ export async function GET(req: NextRequest) {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
 
-    const officeFilter = office && office !== "ALL" ? { office } : {};
+    const officeParam = searchParams.get("office");
+    const officeFilter = officeParam || (office && office !== "ALL" ? office : null);
 
     const payments = await prisma.payment.findMany({
       where: {
         date: { gte: cutoff },
-        invoice: { ...officeFilter }
+        invoice: { ...(officeFilter && { office: officeFilter }) }
       },
       include: {
         invoice: {
