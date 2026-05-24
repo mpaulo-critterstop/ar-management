@@ -6,22 +6,46 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding database…");
 
-  // Create admin user
-  const pw = await bcrypt.hash("password123", 10);
+  const pw = await bcrypt.hash("CritterStop2026!", 10);
+
+  // Admin account — sees all offices
   await prisma.user.upsert({
-    where: { email: "admin@critterstop.com" },
+    where: { email: "admin@critterstoppest.com" },
     update: {},
     create: {
-      email: "admin@critterstop.com",
+      email: "admin@critterstoppest.com",
       name: "Admin",
       password: pw,
       role: "ADMIN",
+      office: "ALL",
     },
   });
 
-  console.log("✓ Admin user created");
-  console.log("  Email: admin@critterstop.com");
-  console.log("  Password: password123");
+  // Office accounts
+  const offices = [
+    { email: "dfw@critterstoppest.com", name: "DFW Office", office: "DFW" },
+    { email: "atx@critterstoppest.com", name: "ATX Office", office: "ATX" },
+    { email: "cstat@critterstoppest.com", name: "CStat Office", office: "CSTAT" },
+    { email: "okc@critterstoppest.com", name: "OKC Office", office: "OKC" },
+  ];
+
+  for (const o of offices) {
+    await prisma.user.upsert({
+      where: { email: o.email },
+      update: {},
+      create: {
+        email: o.email,
+        name: o.name,
+        password: pw,
+        role: "MANAGER",
+        office: o.office,
+      },
+    });
+    console.log(`✓ ${o.name} created — ${o.email}`);
+  }
+
+  console.log("✓ Admin created — admin@critterstoppest.com");
+  console.log("All accounts password: CritterStop2026!");
   console.log("Seed complete!");
 }
 
