@@ -172,8 +172,8 @@ export default function ARApp() {
       </div>
 
       {page==="dashboard" && <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected30={collected30} collRate={collRate} agingTotals={agingTotals} brokenPromises={brokenPromises} />}
-      {page==="customers" && <CustPage {...shared} />}
-      {page==="invoices" && <InvPage {...shared} />}
+      {page==="customers" && <CustPage {...shared} officeFilter={officeFilter} />}
+      {page==="invoices" && <InvPage {...shared} officeFilter={officeFilter} />}
       {page==="payments" && <PayPage {...shared} />}
       {page==="aging" && <AgePage {...shared} agingTotals={agingTotals} />}
       {page==="collections" && <CollPage {...shared} brokenPromises={brokenPromises} />}
