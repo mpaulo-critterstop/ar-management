@@ -15,7 +15,6 @@ export default async function DashboardPage() {
       <div style={{ background:"#2C2C2A", padding:"0 1.5rem", height:50, display:"flex", alignItems:"center", marginBottom:"1.5rem", borderRadius:12 }}>
         <span style={{ color:"#fff", fontWeight:700, fontSize:16 }}>Critter Stop — AR Management</span>
         <div style={{ flex:1 }} />
-        <span style={{ color:"#888780", fontSize:12, marginRight:16 }}>Office: <strong style={{color:"#fff",fontWeight:700}}>{officeName}</strong></span>
         <span style={{ color:"#888780", fontSize:13 }}>{session.user?.name}</span>
       </div>
       <ARApp />
