@@ -13,6 +13,7 @@ model User {
   name      String
   password  String
   role      Role     @default(COLLECTIONS)
+  office    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   notes     CollectionNote[]
@@ -38,6 +39,7 @@ model Customer {
   rep          String?
   terms        String         @default("Net 30")
   notes        String?
+  office       String?
   autoReminder Boolean        @default(true)
   externalId   String?
   externalSource String?
@@ -66,6 +68,7 @@ model Invoice {
   description    String?
   branch         String?
   serviceType    String?
+  office         String?
   externalId     String?
   externalSource String?
   createdAt      DateTime      @default(now())
