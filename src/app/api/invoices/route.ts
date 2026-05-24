@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     const invoice = await prisma.invoice.create({
       data: {
         ...rest,
-        office: office !== "ALL" ? office : rest.office,
+        office: rest.office || (office !== "ALL" ? office : "DFW"),
         date: new Date(date),
         ...(due && { due: new Date(due) }),
       },
