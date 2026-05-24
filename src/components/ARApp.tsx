@@ -35,7 +35,7 @@ const MC = ({label,value,sub,color}: {label:string,value:string|number,sub?:stri
 );
 
 const Card = ({title,action,children,noPad}: {title?:string,action?:React.ReactNode,children:React.ReactNode,noPad?:boolean}) => (
-  <div style={{background:"#fff",border:"1px solid #E8E7E3",borderRadius:12,padding:noPad?0:"1rem 1.25rem",marginBottom:"1rem",overflow:"hidden"}}>
+  <div style={{background:"#F5F5F5",border:"1px solid #E8E7E3",borderRadius:12,padding:noPad?0:"1rem 1.25rem",marginBottom:"1rem",overflow:"hidden"}}>
     {title && <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:noPad?0:"1rem",padding:noPad?"1rem 1.25rem 0.75rem":0,borderBottom:noPad?"1px solid #E8E7E3":"none"}}>
       <span style={{fontSize:14,fontWeight:600}}>{title}</span>{action}
     </div>}
