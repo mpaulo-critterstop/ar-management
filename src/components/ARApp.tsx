@@ -161,7 +161,7 @@ export default function ARApp() {
         ))}
         <div style={{flex:1}}/>
         <button onClick={()=>setModal("newInvoice")} style={{background:"#2C2C2A",color:"#fff",border:"none",padding:"6px 14px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:500,margin:"6px 8px"}}>+ New invoice</button>
-        <select value={officeFilter} onChange={e=>{setOfficeFilter(e.target.value);loadAll(e.target.value);}} style={{fontSize:12,padding:"4px 8px",borderRadius:6,border:"1px solid #888780",background:"#3C3C3A",color:"#fff",margin:"6px 4px"}}>
+        <select value={officeFilter} onChange={e=>{setOfficeFilter(e.target.value);loadAll(e.target.value);}} style={{fontSize:12,padding:"4px 8px",borderRadius:6,border:"1px solid #555",background:"#3C3C3A",color:"#fff",margin:"6px 4px",width:"110px",fontWeight:600,textAlign:"center"}}>
           <option value="ALL">All Offices</option>
           <option value="DFW">DFW</option>
           <option value="ATX">ATX</option>
