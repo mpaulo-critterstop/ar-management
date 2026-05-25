@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    const office = (session?.user as any)?.office;
-
     const body = await req.json();
     const { customers, office: bodyOffice } = body;
+
+    console.log("Import office:", bodyOffice);
+
     const effectiveOffice = bodyOffice && bodyOffice !== "ALL" ? bodyOffice : "DFW";
 
     let created = 0, skipped = 0;
@@ -19,7 +17,7 @@ export async function POST(req: NextRequest) {
       if (!c.name) { skipped++; continue; }
       try {
         const existing = c.externalId
-          ? await prisma.customer.findFirst({ where: { externalId: c.externalId, externalSource: "fieldroutes", office: office !== "ALL" ? office : undefined } })
+          ? await prisma.customer.findFirst({ where: { externalId: c.externalId, externalSource: "fieldroutes", office: effectiveOffice } })
           : null;
         if (existing) { skipped++; continue; }
         await prisma.customer.create({
@@ -42,7 +40,7 @@ export async function POST(req: NextRequest) {
       } catch (e: any) { errors.push(`${c.name}: ${e.message}`); }
     }
 
-    return NextResponse.json({ created, skipped, errors });
+    return NextResponse.json({ created, skipped, errors, office: effectiveOffice });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
   }
