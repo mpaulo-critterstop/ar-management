@@ -244,43 +244,57 @@ function DashPage({open,totalAR,totalOverdue,collected30,collRate,agingTotals,pa
 function CustPage({customers,enriched,custMap,setModal,showToast,loadAll,officeFilter}: any) {
   const [search,setSearch]=useState("");
   const [statusF,setStatusF]=useState("");
+  const [limit,setLimit]=useState(100);
   const balBC=useMemo(()=>{const m:any={};enriched.forEach((i:any)=>{if(i.status!=="PAID")m[i.customerId]=(m[i.customerId]||0)+i.balance});return m},[enriched]);
   const filtered=customers.filter((c:any)=>{
     if(statusF&&c.status!==statusF)return false;
     if(search&&!c.name?.toLowerCase().includes(search.toLowerCase())&&!c.email?.toLowerCase().includes(search.toLowerCase()))return false;
     return true;
   });
+  const displayed=filtered.slice(0,limit);
   const del=async(id:string)=>{if(!confirm("Delete this customer?"))return;await fetch(`/api/customers/${id}`,{method:"DELETE"});showToast("Customer deleted");loadAll();};
   return (
     <div>
-      <div style={{display:"flex",gap:8,marginBottom:"1rem",alignItems:"center",flexWrap:"wrap"}}>
-        <input placeholder="Search name or email…" value={search} onChange={e=>setSearch(e.target.value)} style={{flex:1,minWidth:160,fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8}}/>
-        <select value={statusF} onChange={e=>setStatusF(e.target.value)} style={{fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8}}>
-          <option value="">All statuses</option><option value="ACTIVE">Active</option><option value="COLLECTIONS">Collections</option><option value="SUSPENDED">Suspended</option>
-        </select>
-        {officeFilter!=="ALL" && <Btn onClick={()=>setModal("importCustomers")}>↑ Import CSV</Btn>}
-        {officeFilter!=="ALL" && <Btn primary onClick={()=>setModal("newCustomer")}>+ Add customer</Btn>}
+      <div style={{position:"sticky",top:0,zIndex:10,background:"#EFEFEF",paddingBottom:8}}>
+        <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center",flexWrap:"wrap"}}>
+          <input placeholder="Search name or email…" value={search} onChange={e=>setSearch(e.target.value)} style={{flex:1,minWidth:160,fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}/>
+          <select value={statusF} onChange={e=>setStatusF(e.target.value)} style={{fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}>
+            <option value="">All statuses</option><option value="ACTIVE">Active</option><option value="COLLECTIONS">Collections</option><option value="SUSPENDED">Suspended</option>
+          </select>
+          <select value={limit} onChange={e=>setLimit(Number(e.target.value))} style={{fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}>
+            <option value={100}>Show 100</option>
+            <option value={500}>Show 500</option>
+            <option value={1000}>Show 1000</option>
+          </select>
+          {officeFilter!=="ALL" && <Btn onClick={()=>setModal("importCustomers")}>↑ Import CSV</Btn>}
+          {officeFilter!=="ALL" && <Btn primary onClick={()=>setModal("newCustomer")}>+ Add customer</Btn>}
+        </div>
+        <div style={{fontSize:12,color:"#888780"}}>Showing {displayed.length} of {filtered.length} customers</div>
       </div>
       <Card noPad>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><Th>Customer</Th><Th>Contact</Th><Th>FR ID</Th><Th>Status</Th><Th right>Open AR</Th><Th>&nbsp;</Th></tr></thead>
-          <tbody>
-            {filtered.map((c:any)=>(
-              <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>setModal({type:"customerDetail",customer:c})}>
-                <Td bold><div>{c.name}</div><div style={{fontSize:11,color:"#888780"}}>{c.email}</div></Td>
-                <Td><div>{c.contact}</div><div style={{fontSize:11,color:"#888780"}}>{c.phone}</div></Td>
-                <Td style={{fontSize:11,color:"#888780"}}>{c.externalId||"—"}</Td>
-                <Td><Badge status={c.status} small/></Td>
-                <Td right bold color={balBC[c.id]>0?"#2C2C2A":"#B4B2A9"}>{balBC[c.id]?fmt(balBC[c.id]):"—"}</Td>
-                <Td><div style={{display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
-                  <Btn small onClick={()=>setModal({type:"editCustomer",customer:c})}>✎</Btn>
-                  <Btn small danger onClick={()=>del(c.id)}>✕</Btn>
-                </div></Td>
-              </tr>
-            ))}
-            {filtered.length===0&&<ER cols={7} msg="No customers match"/>}
-          </tbody>
-        </table>
+        <div style={{overflowY:"auto",maxHeight:"calc(100vh - 280px)"}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead style={{position:"sticky",top:0,zIndex:5}}>
+              <tr><Th>Customer</Th><Th>Contact</Th><Th>FR ID</Th><Th>Status</Th><Th right>Open AR</Th><Th>&nbsp;</Th></tr>
+            </thead>
+            <tbody>
+              {displayed.map((c:any)=>(
+                <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>setModal({type:"customerDetail",customer:c})}>
+                  <Td bold><div>{c.name}</div><div style={{fontSize:11,color:"#888780"}}>{c.email}</div></Td>
+                  <Td><div>{c.contact}</div><div style={{fontSize:11,color:"#888780"}}>{c.phone}</div></Td>
+                  <Td style={{fontSize:11,color:"#888780"}}>{c.externalId||"—"}</Td>
+                  <Td><Badge status={c.status} small/></Td>
+                  <Td right bold color={balBC[c.id]>0?"#2C2C2A":"#B4B2A9"}>{balBC[c.id]?fmt(balBC[c.id]):"—"}</Td>
+                  <Td><div style={{display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
+                    <Btn small onClick={()=>setModal({type:"editCustomer",customer:c})}>✎</Btn>
+                    <Btn small danger onClick={()=>del(c.id)}>✕</Btn>
+                  </div></Td>
+                </tr>
+              ))}
+              {displayed.length===0&&<ER cols={6} msg="No customers match"/>}
+            </tbody>
+          </table>
+        </div>
       </Card>
     </div>
   );
