@@ -283,27 +283,29 @@ function CustPage({customers,enriched,custMap,setModal,showToast,loadAll,officeF
         </div>
       </div>
       <Card noPad>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead>
-            <tr><Th>Customer</Th><Th>Contact</Th><Th>FR ID</Th><Th>Status</Th><Th right>Open AR</Th><Th>&nbsp;</Th></tr>
-          </thead>
-          <tbody>
-            {displayed.map((c:any)=>(
-              <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>setModal({type:"customerDetail",customer:c})}>
-                <Td bold><div>{c.name}</div><div style={{fontSize:11,color:"#888780"}}>{c.email}</div></Td>
-                <Td><div>{c.contact}</div><div style={{fontSize:11,color:"#888780"}}>{c.phone}</div></Td>
-                <Td style={{fontSize:11,color:"#888780"}}>{c.externalId||"—"}</Td>
-                <Td><Badge status={c.status} small/></Td>
-                <Td right bold color={balBC[c.id]>0?"#2C2C2A":"#B4B2A9"}>{balBC[c.id]?fmt(balBC[c.id]):"—"}</Td>
-                <Td><div style={{display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
-                  <Btn small onClick={()=>setModal({type:"editCustomer",customer:c})}>✎</Btn>
-                  <Btn small danger onClick={()=>del(c.id)}>✕</Btn>
-                </div></Td>
-              </tr>
-            ))}
-            {displayed.length===0&&<ER cols={6} msg="No customers match"/>}
-          </tbody>
-        </table>
+        <div style={{overflowY:"auto",maxHeight:"calc(100vh - 220px)"}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead style={{position:"sticky",top:0,zIndex:5,background:"#FAFAF8"}}>
+              <tr><Th>Customer</Th><Th>Contact</Th><Th>FR ID</Th><Th>Status</Th><Th right>Open AR</Th><Th>&nbsp;</Th></tr>
+            </thead>
+            <tbody>
+              {displayed.map((c:any)=>(
+                <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>setModal({type:"customerDetail",customer:c})}>
+                  <Td bold><div>{c.name}</div><div style={{fontSize:11,color:"#888780"}}>{c.email}</div></Td>
+                  <Td><div>{c.contact}</div><div style={{fontSize:11,color:"#888780"}}>{c.phone}</div></Td>
+                  <Td style={{fontSize:11,color:"#888780"}}>{c.externalId||"—"}</Td>
+                  <Td><Badge status={c.status} small/></Td>
+                  <Td right bold color={balBC[c.id]>0?"#2C2C2A":"#B4B2A9"}>{balBC[c.id]?fmt(balBC[c.id]):"—"}</Td>
+                  <Td><div style={{display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
+                    <Btn small onClick={()=>setModal({type:"editCustomer",customer:c})}>✎</Btn>
+                    <Btn small danger onClick={()=>del(c.id)}>✕</Btn>
+                  </div></Td>
+                </tr>
+              ))}
+              {displayed.length===0&&<ER cols={6} msg="No customers match"/>}
+            </tbody>
+          </table>
+        </div>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderTop:"1px solid #E8E7E3",background:"#FAFAF8",flexWrap:"wrap",gap:8}}>
           <div style={{fontSize:12,color:"#888780"}}>
             Showing {filtered.length===0?0:(currentPage-1)*pageSize+1} to {Math.min(currentPage*pageSize,filtered.length)} of {filtered.length} entries &nbsp;
