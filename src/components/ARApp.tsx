@@ -331,6 +331,8 @@ function CustPage({customers,enriched,custMap,setModal,showToast,loadAll,officeF
 function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll,officeFilter}: any) {
   const [search,setSearch]=useState("");
   const [statusF,setStatusF]=useState("");
+  const [pageSize,setPageSize]=useState(100);
+  const [currentPage,setCurrentPage]=useState(1);
   const [selected,setSelected]=useState<Set<string>>(new Set());
 
   const filtered=enriched.filter((i:any)=>{
@@ -339,12 +341,15 @@ function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll,officeFil
     return true;
   });
 
+  const totalPages=Math.ceil(filtered.length/pageSize);
+  const displayed=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
+
   const toggleSelect=(id:string)=>{
     setSelected(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
   };
   const toggleAll=()=>{
-    if(selected.size===filtered.length)setSelected(new Set());
-    else setSelected(new Set(filtered.map((i:any)=>i.id)));
+    if(selected.size===displayed.length)setSelected(new Set());
+    else setSelected(new Set(displayed.map((i:any)=>i.id)));
   };
   const bulkDelete=async()=>{
     if(!confirm(`Delete ${selected.size} selected invoices?`))return;
@@ -360,60 +365,90 @@ function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll,officeFil
     const a=document.createElement("a");a.href="data:text/csv,"+encodeURIComponent(rows.map(r=>r.join(",")).join("\n"));a.download="invoices.csv";a.click();
   };
 
+  const pageNums=()=>{
+    const pages=[];
+    const total=totalPages;
+    if(total<=7){for(let i=1;i<=total;i++)pages.push(i);}
+    else{
+      pages.push(1);
+      if(currentPage>3)pages.push(-1);
+      for(let i=Math.max(2,currentPage-1);i<=Math.min(total-1,currentPage+1);i++)pages.push(i);
+      if(currentPage<total-2)pages.push(-1);
+      pages.push(total);
+    }
+    return pages;
+  };
+
   return (
     <div>
-      <div style={{display:"flex",gap:8,marginBottom:"1rem",flexWrap:"wrap",alignItems:"center"}}>
-        <input placeholder="Search invoice # or customer…" value={search} onChange={e=>setSearch(e.target.value)} style={{flex:1,minWidth:160,fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8}}/>
-        <select value={statusF} onChange={e=>setStatusF(e.target.value)} style={{fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8}}>
-          <option value="">All statuses</option>
-          {["CURRENT","OVERDUE","COLLECTIONS","PAYMENT_PLAN","PAID","DISPUTED"].map(s=><option key={s} value={s}>{statusLabels[s]}</option>)}
-        </select>
-        {selected.size>0 && <Btn danger onClick={bulkDelete}>🗑 Delete {selected.size} selected</Btn>}
-        {officeFilter!=="ALL" && <Btn onClick={()=>setModal("importInvoices")}>↑ Import CSV</Btn>}
-        <Btn onClick={csvExport}>↓ Export</Btn>
-        {officeFilter!=="ALL" && <Btn primary onClick={()=>setModal("newInvoice")}>+ New</Btn>}
+      <div style={{position:"sticky",top:0,zIndex:10,background:"#EFEFEF",paddingBottom:8}}>
+        <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap",alignItems:"center"}}>
+          <input placeholder="Search invoice # or customer…" value={search} onChange={e=>{setSearch(e.target.value);setCurrentPage(1);}} style={{flex:1,minWidth:160,fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}/>
+          <select value={statusF} onChange={e=>{setStatusF(e.target.value);setCurrentPage(1);}} style={{fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}>
+            <option value="">All statuses</option>
+            {["CURRENT","OVERDUE","COLLECTIONS","PAYMENT_PLAN","PAID","DISPUTED"].map(s=><option key={s} value={s}>{statusLabels[s]}</option>)}
+          </select>
+          {selected.size>0 && <Btn danger onClick={bulkDelete}>🗑 Delete {selected.size} selected</Btn>}
+          {officeFilter!=="ALL" && <Btn onClick={()=>setModal("importInvoices")}>↑ Import CSV</Btn>}
+          <Btn onClick={csvExport}>↓ Export</Btn>
+          {officeFilter!=="ALL" && <Btn primary onClick={()=>setModal("newInvoice")}>+ New</Btn>}
+        </div>
       </div>
       <Card noPad>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr>
-            <th style={{padding:"8px 12px",borderBottom:"1px solid #E8E7E3",background:"#FAFAF8",width:32}}>
-              <input type="checkbox" checked={selected.size===filtered.length&&filtered.length>0} onChange={toggleAll}/>
-            </th>
-            <Th>Invoice #</Th><Th>Customer</Th><Th>Invoice Date</Th><Th>Due Date</Th><Th right>Amount</Th><Th right>Balance</Th><Th>Status</Th><Th>&nbsp;</Th>
-          </tr></thead>
-          <tbody>
-            {filtered.map((inv:any)=>(
-              <tr key={inv.id} style={{background:selected.has(inv.id)?"#F0F7FF":"inherit"}}>
-                <td style={{padding:"10px 12px",borderBottom:"1px solid #F0EEE8"}}>
-                  <input type="checkbox" checked={selected.has(inv.id)} onChange={()=>toggleSelect(inv.id)}/>
-                </td>
-                <Td bold>{inv.id}</Td>
-                <Td>{inv.customer?.name||"—"}</Td>
-                <Td>{inv.date?.split("T")[0]}</Td>
-                <Td color={inv.daysOverdue>0?"#E24B4A":"inherit"}>{inv.due?.split("T")[0]||"—"}</Td>
-                <Td right>{fmt(Number(inv.amount))}</Td>
-                <Td right bold>{fmt(inv.balance)}</Td>
-                <Td><Badge status={inv.status} small/></Td>
-                <Td><div style={{display:"flex",gap:4}}>
-                  {inv.balance>0&&<Btn small onClick={()=>setModal({type:"recordPayment",invoice:inv})}>Pay</Btn>}
-                  {inv.balance>0&&<Btn small onClick={()=>setModal({type:"addNote",item:inv})}>Note</Btn>}
-                  <Btn small onClick={()=>setModal({type:"closeOut",invoice:inv})}>Close Out</Btn>
-                  <Btn small onClick={()=>setModal({type:"editInvoice",invoice:inv})}>✎</Btn>
-                  <Btn small danger onClick={()=>del(inv.id)}>✕</Btn>
-                </div></Td>
+        <div style={{overflowY:"auto",maxHeight:"calc(100vh - 220px)"}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead style={{position:"sticky",top:0,zIndex:5,background:"#FAFAF8"}}>
+              <tr>
+                <th style={{padding:"8px 12px",borderBottom:"1px solid #E8E7E3",background:"#FAFAF8",width:32}}>
+                  <input type="checkbox" checked={selected.size===displayed.length&&displayed.length>0} onChange={toggleAll}/>
+                </th>
+                <Th>Invoice #</Th><Th>Customer</Th><Th>Invoice Date</Th><Th>Due Date</Th><Th right>Amount</Th><Th right>Balance</Th><Th>Status</Th><Th>&nbsp;</Th>
               </tr>
-            ))}
-            {filtered.length===0&&<ER cols={9} msg="No invoices match"/>}
-          </tbody>
-          {filtered.length>0&&<tfoot><tr style={{background:"#FAFAF8"}}>
-            <td/>
-            <td colSpan={3} style={{padding:"9px 12px",fontSize:13,fontWeight:600}}>Total ({filtered.length})</td>
-            <td/>
-            <td style={{padding:"9px 12px",textAlign:"right",fontSize:13,fontWeight:600}}>{fmt(filtered.reduce((s:number,i:any)=>s+Number(i.amount),0))}</td>
-            <td style={{padding:"9px 12px",textAlign:"right",fontSize:13,fontWeight:600}}>{fmt(filtered.reduce((s:number,i:any)=>s+i.balance,0))}</td>
-            <td colSpan={2}/>
-          </tr></tfoot>}
-        </table>
+            </thead>
+            <tbody>
+              {displayed.map((inv:any)=>(
+                <tr key={inv.id} style={{background:selected.has(inv.id)?"#F0F7FF":"inherit"}}>
+                  <td style={{padding:"10px 12px",borderBottom:"1px solid #F0EEE8"}}>
+                    <input type="checkbox" checked={selected.has(inv.id)} onChange={()=>toggleSelect(inv.id)}/>
+                  </td>
+                  <Td bold>{inv.id}</Td>
+                  <Td>{inv.customer?.name||"—"}</Td>
+                  <Td>{inv.date?.split("T")[0]}</Td>
+                  <Td color={inv.daysOverdue>0?"#E24B4A":"inherit"}>{inv.due?.split("T")[0]||"—"}</Td>
+                  <Td right>{fmt(Number(inv.amount))}</Td>
+                  <Td right bold>{fmt(inv.balance)}</Td>
+                  <Td><Badge status={inv.status} small/></Td>
+                  <Td><div style={{display:"flex",gap:4}}>
+                    {inv.balance>0&&<Btn small onClick={()=>setModal({type:"recordPayment",invoice:inv})}>Pay</Btn>}
+                    {inv.balance>0&&<Btn small onClick={()=>setModal({type:"addNote",item:inv})}>Note</Btn>}
+                    <Btn small onClick={()=>setModal({type:"closeOut",invoice:inv})}>Close Out</Btn>
+                    <Btn small onClick={()=>setModal({type:"editInvoice",invoice:inv})}>✎</Btn>
+                    <Btn small danger onClick={()=>del(inv.id)}>✕</Btn>
+                  </div></Td>
+                </tr>
+              ))}
+              {displayed.length===0&&<ER cols={9} msg="No invoices match"/>}
+            </tbody>
+          </table>
+        </div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderTop:"1px solid #E8E7E3",background:"#FAFAF8",flexWrap:"wrap",gap:8}}>
+          <div style={{fontSize:12,color:"#888780"}}>
+            Showing {filtered.length===0?0:(currentPage-1)*pageSize+1} to {Math.min(currentPage*pageSize,filtered.length)} of {filtered.length} entries &nbsp;
+            <select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setCurrentPage(1);}} style={{fontSize:12,padding:"2px 6px",border:"1px solid #B4B2A9",borderRadius:4}}>
+              <option value={100}>100</option>
+              <option value={500}>500</option>
+              <option value={1000}>1000</option>
+            </select> &nbsp; per page
+          </div>
+          <div style={{display:"flex",gap:4,alignItems:"center"}}>
+            <button onClick={()=>setCurrentPage(p=>Math.max(1,p-1))} disabled={currentPage===1} style={{padding:"3px 10px",fontSize:12,border:"1px solid #D3D1C7",borderRadius:4,background:currentPage===1?"#f5f5f5":"#fff",cursor:currentPage===1?"not-allowed":"pointer"}}>Previous</button>
+            {pageNums().map((p,i)=>p===-1
+              ?<span key={i} style={{padding:"3px 6px",fontSize:12}}>…</span>
+              :<button key={p} onClick={()=>setCurrentPage(p)} style={{padding:"3px 10px",fontSize:12,border:"1px solid #D3D1C7",borderRadius:4,background:currentPage===p?"#2C2C2A":"#fff",color:currentPage===p?"#fff":"#2C2C2A",cursor:"pointer"}}>{p}</button>
+            )}
+            <button onClick={()=>setCurrentPage(p=>Math.min(totalPages,p+1))} disabled={currentPage===totalPages} style={{padding:"3px 10px",fontSize:12,border:"1px solid #D3D1C7",borderRadius:4,background:currentPage===totalPages?"#f5f5f5":"#fff",cursor:currentPage===totalPages?"not-allowed":"pointer"}}>Next</button>
+          </div>
+        </div>
       </Card>
     </div>
   );
