@@ -1,0 +1,22 @@
+{
+  "name": "Critter Stop AR Management",
+  "short_name": "CS AR",
+  "description": "Accounts Receivable Management for Critter Stop",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#2C2C2A",
+  "theme_color": "#2C2C2A",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
