@@ -9,7 +9,8 @@ export async function POST(req: NextRequest) {
     const office = (session?.user as any)?.office;
 
     const body = await req.json();
-    const { invoices } = body;
+    const { invoices, office: bodyOffice } = body;
+    const effectiveOffice = bodyOffice && bodyOffice !== "ALL" ? bodyOffice : "DFW";
 
     let created = 0, skipped = 0, noCustomer = 0;
     const errors: string[] = [];
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
             externalId: String(inv.invoiceId),
             externalSource: "fieldroutes",
             serviceType: "FieldRoutes",
-            office: office !== "ALL" ? office : "DFW",
+            office: effectiveOffice,
           }
         });
         created++;
