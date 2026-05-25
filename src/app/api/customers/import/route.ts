@@ -9,7 +9,8 @@ export async function POST(req: NextRequest) {
     const office = (session?.user as any)?.office;
 
     const body = await req.json();
-    const { customers } = body;
+    const { customers, office: bodyOffice } = body;
+    const effectiveOffice = bodyOffice && bodyOffice !== "ALL" ? bodyOffice : (office !== "ALL" ? office : "DFW");
 
     let created = 0, skipped = 0;
     const errors: string[] = [];
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
             notes: c.notes || undefined,
             externalId: c.externalId || undefined,
             externalSource: c.externalId ? "fieldroutes" : undefined,
-            office: office !== "ALL" ? office : "DFW",
+            office: effectiveOffice,
           }
         });
         created++;
