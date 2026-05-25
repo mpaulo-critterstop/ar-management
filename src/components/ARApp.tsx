@@ -272,7 +272,7 @@ function CustPage({customers,enriched,custMap,setModal,showToast,loadAll,officeF
 
   return (
     <div>
-      <div style={{position:"sticky",top:0,zIndex:10,background:"#EFEFEF",paddingBottom:8}}>
+      <div style={{position:"sticky",top:0,zIndex:10,background:"rgba(239,239,239,0.92)",paddingBottom:8}}>
         <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center",flexWrap:"wrap"}}>
           <input placeholder="Search name or email…" value={search} onChange={e=>{setSearch(e.target.value);setCurrentPage(1);}} style={{flex:1,minWidth:160,fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}/>
           <select value={statusF} onChange={e=>{setStatusF(e.target.value);setCurrentPage(1);}} style={{fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}>
@@ -381,7 +381,7 @@ function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll,officeFil
 
   return (
     <div>
-      <div style={{position:"sticky",top:0,zIndex:10,background:"#EFEFEF",paddingBottom:8}}>
+      <div style={{position:"sticky",top:0,zIndex:10,background:"rgba(239,239,239,0.92)",paddingBottom:8}}>
         <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap",alignItems:"center"}}>
           <input placeholder="Search invoice # or customer…" value={search} onChange={e=>{setSearch(e.target.value);setCurrentPage(1);}} style={{flex:1,minWidth:160,fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}/>
           <select value={statusF} onChange={e=>{setStatusF(e.target.value);setCurrentPage(1);}} style={{fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}>
