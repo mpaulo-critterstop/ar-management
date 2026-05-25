@@ -948,7 +948,7 @@ function ImportCustModal({onClose,showToast,loadAll}: any) {
   async function importAll() {
     setImporting(true);
     try {
-      const res=await fetch("/api/customers/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customers:preview})});
+      const res=await fetch("/api/customers/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customers:preview,office:officeFilter})});
       const data=await res.json();
       showToast("Imported "+data.created+" customers, skipped "+data.skipped);
       loadAll();
