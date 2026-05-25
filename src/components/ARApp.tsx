@@ -531,7 +531,7 @@ function AgePage({open,agingTotals,custMap}: any) {
         <MC label="Total AR" value={fmt(Number(total))}/>
       </div>
       <Card title="Aging by customer" noPad>
-        <div>
+        <div style={{overflowX:"auto",maxHeight:"calc(100vh - 320px)",overflowY:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
             <thead style={{position:"sticky",top:0,zIndex:5,background:"#FAFAF8"}}>
               <tr><Th>Customer</Th>{buckets.map(b=><Th key={b} right>{b==="current"?"Current":b}</Th>)}<Th right>Total</Th></tr>
