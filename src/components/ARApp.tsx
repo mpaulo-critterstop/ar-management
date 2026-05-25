@@ -491,6 +491,8 @@ function PayPage({payments,invoices,custMap,showToast,loadAll,setModal}: any) {
 }
 
 function AgePage({open,agingTotals,custMap}: any) {
+  const [pageSize,setPageSize]=useState(100);
+  const [currentPage,setCurrentPage]=useState(1);
   const buckets=["current","1-30","31-60","61-90","90+"];
   const bC:any={current:"#1D9E75","1-30":"#EF9F27","31-60":"#D87020","61-90":"#E24B4A","90+":"#A32D2D"};
   const total=Object.values(agingTotals).reduce((a:any,b:any)=>a+b,0)||1;
@@ -504,6 +506,24 @@ function AgePage({open,agingTotals,custMap}: any) {
     });
     return Object.entries(m).map(([id,bkts]:any)=>({...bkts,customer:custMap[id],total:Object.values(bkts).reduce((a:any,b:any)=>a+b,0)})).sort((a:any,b:any)=>b.total-a.total);
   },[open,custMap]);
+
+  const totalPages=Math.ceil(byCust.length/pageSize);
+  const displayed=byCust.slice((currentPage-1)*pageSize,currentPage*pageSize);
+
+  const pageNums=()=>{
+    const pages=[];
+    const t=totalPages;
+    if(t<=7){for(let i=1;i<=t;i++)pages.push(i);}
+    else{
+      pages.push(1);
+      if(currentPage>3)pages.push(-1);
+      for(let i=Math.max(2,currentPage-1);i<=Math.min(t-1,currentPage+1);i++)pages.push(i);
+      if(currentPage<t-2)pages.push(-1);
+      pages.push(t);
+    }
+    return pages;
+  };
+
   return (
     <div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:10,marginBottom:"1.5rem"}}>
@@ -511,23 +531,45 @@ function AgePage({open,agingTotals,custMap}: any) {
         <MC label="Total AR" value={fmt(Number(total))}/>
       </div>
       <Card title="Aging by customer" noPad>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><Th>Customer</Th>{buckets.map(b=><Th key={b} right>{b==="current"?"Current":b}</Th>)}<Th right>Total</Th></tr></thead>
-          <tbody>
-            {byCust.map((r:any)=>(
-              <tr key={r.customer?.id}>
-                <Td bold>{r.customer?.name||"—"}</Td>
-                {buckets.map(b=><Td key={b} right color={r[b]>0?bC[b]:"#B4B2A9"} style={{fontWeight:r[b]>0?600:400}}>{r[b]>0?fmt(r[b]):"—"}</Td>)}
-                <Td right bold>{fmt(r.total)}</Td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot><tr style={{background:"#FAFAF8"}}>
-            <td style={{padding:"9px 12px",fontWeight:600,fontSize:13}}>Total</td>
-            {buckets.map(b=><td key={b} style={{padding:"9px 12px",textAlign:"right",fontWeight:600,fontSize:13}}>{fmt((agingTotals as any)[b])}</td>)}
-            <td style={{padding:"9px 12px",textAlign:"right",fontWeight:600,fontSize:13}}>{fmt(Number(total))}</td>
-          </tr></tfoot>
-        </table>
+        <div>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead style={{position:"sticky",top:0,zIndex:5,background:"#FAFAF8"}}>
+              <tr><Th>Customer</Th>{buckets.map(b=><Th key={b} right>{b==="current"?"Current":b}</Th>)}<Th right>Total</Th></tr>
+            </thead>
+            <tbody>
+              {displayed.map((r:any)=>(
+                <tr key={r.customer?.id}>
+                  <Td bold>{r.customer?.name||"—"}</Td>
+                  {buckets.map(b=><Td key={b} right color={r[b]>0?bC[b]:"#B4B2A9"} style={{fontWeight:r[b]>0?600:400}}>{r[b]>0?fmt(r[b]):"—"}</Td>)}
+                  <Td right bold>{fmt(r.total)}</Td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot><tr style={{background:"#FAFAF8"}}>
+              <td style={{padding:"9px 12px",fontWeight:600,fontSize:13}}>Total</td>
+              {buckets.map(b=><td key={b} style={{padding:"9px 12px",textAlign:"right",fontWeight:600,fontSize:13}}>{fmt((agingTotals as any)[b])}</td>)}
+              <td style={{padding:"9px 12px",textAlign:"right",fontWeight:600,fontSize:13}}>{fmt(Number(total))}</td>
+            </tr></tfoot>
+          </table>
+        </div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderTop:"1px solid #E8E7E3",background:"#FAFAF8",flexWrap:"wrap",gap:8}}>
+          <div style={{fontSize:12,color:"#888780"}}>
+            Showing {byCust.length===0?0:(currentPage-1)*pageSize+1} to {Math.min(currentPage*pageSize,byCust.length)} of {byCust.length} entries &nbsp;
+            <select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setCurrentPage(1);}} style={{fontSize:12,padding:"2px 6px",border:"1px solid #B4B2A9",borderRadius:4}}>
+              <option value={100}>100</option>
+              <option value={500}>500</option>
+              <option value={1000}>1000</option>
+            </select> &nbsp; per page
+          </div>
+          <div style={{display:"flex",gap:4,alignItems:"center"}}>
+            <button onClick={()=>setCurrentPage(p=>Math.max(1,p-1))} disabled={currentPage===1} style={{padding:"3px 10px",fontSize:12,border:"1px solid #D3D1C7",borderRadius:4,background:currentPage===1?"#f5f5f5":"#fff",cursor:currentPage===1?"not-allowed":"pointer"}}>Previous</button>
+            {pageNums().map((p,i)=>p===-1
+              ?<span key={i} style={{padding:"3px 6px",fontSize:12}}>…</span>
+              :<button key={p} onClick={()=>setCurrentPage(p)} style={{padding:"3px 10px",fontSize:12,border:"1px solid #D3D1C7",borderRadius:4,background:currentPage===p?"#2C2C2A":"#fff",color:currentPage===p?"#fff":"#2C2C2A",cursor:"pointer"}}>{p}</button>
+            )}
+            <button onClick={()=>setCurrentPage(p=>Math.min(totalPages,p+1))} disabled={currentPage===totalPages} style={{padding:"3px 10px",fontSize:12,border:"1px solid #D3D1C7",borderRadius:4,background:currentPage===totalPages?"#f5f5f5":"#fff",cursor:currentPage===totalPages?"not-allowed":"pointer"}}>Next</button>
+          </div>
+        </div>
       </Card>
     </div>
   );
