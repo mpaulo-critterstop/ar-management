@@ -617,8 +617,53 @@ function AgePage({open,agingTotals,custMap}: any) {
 }
 
 function CollPage({open,notes,custMap,setModal,showToast,loadAll,brokenPromises}: any) {
+  const [queuePage,setQueuePage]=useState(1);
+  const [notesPage,setNotesPage]=useState(1);
+  const [queueSize,setQueueSize]=useState(100);
+  const [notesSize,setNotesSize]=useState(100);
+
   const queue=[...open].filter((i:any)=>i.balance>0&&i.daysOverdue>=1).sort((a:any,b:any)=>b.balance-a.balance);
+  const sortedNotes=[...notes].sort((a:any,b:any)=>a.date>b.date?-1:1);
+
+  const queuePages=Math.ceil(queue.length/queueSize);
+  const notesPages=Math.ceil(sortedNotes.length/notesSize);
+  const displayedQueue=queue.slice((queuePage-1)*queueSize,queuePage*queueSize);
+  const displayedNotes=sortedNotes.slice((notesPage-1)*notesSize,notesPage*notesSize);
+
   const lastNote=(id:string)=>[...notes].filter((n:any)=>n.invoiceId===id).sort((a:any,b:any)=>a.date>b.date?-1:1)[0];
+
+  const pageNums=(current:number,total:number)=>{
+    const pages=[];
+    if(total<=7){for(let i=1;i<=total;i++)pages.push(i);}
+    else{
+      pages.push(1);
+      if(current>3)pages.push(-1);
+      for(let i=Math.max(2,current-1);i<=Math.min(total-1,current+1);i++)pages.push(i);
+      if(current<total-2)pages.push(-1);
+      pages.push(total);
+    }
+    return pages;
+  };
+
+  const Pagination=({current,total,pageSize,onPage,onSize}:any)=>(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderTop:"1px solid #E8E7E3",background:"#FAFAF8",flexWrap:"wrap",gap:8}}>
+      <div style={{fontSize:12,color:"#888780"}}>
+        Showing {total===0?0:(current-1)*pageSize+1} to {Math.min(current*pageSize,total)} of {total} entries &nbsp;
+        <select value={pageSize} onChange={e=>onSize(Number(e.target.value))} style={{fontSize:12,padding:"2px 6px",border:"1px solid #B4B2A9",borderRadius:4}}>
+          <option value={100}>100</option><option value={500}>500</option><option value={1000}>1000</option>
+        </select> &nbsp; per page
+      </div>
+      <div style={{display:"flex",gap:4,alignItems:"center"}}>
+        <button onClick={()=>onPage(Math.max(1,current-1))} disabled={current===1} style={{padding:"3px 10px",fontSize:12,border:"1px solid #D3D1C7",borderRadius:4,background:current===1?"#f5f5f5":"#fff",cursor:current===1?"not-allowed":"pointer"}}>Previous</button>
+        {pageNums(current,Math.ceil(total/pageSize)).map((p:number,i:number)=>p===-1
+          ?<span key={i} style={{padding:"3px 6px",fontSize:12}}>…</span>
+          :<button key={p} onClick={()=>onPage(p)} style={{padding:"3px 10px",fontSize:12,border:"1px solid #D3D1C7",borderRadius:4,background:current===p?"#2C2C2A":"#fff",color:current===p?"#fff":"#2C2C2A",cursor:"pointer"}}>{p}</button>
+        )}
+        <button onClick={()=>onPage(Math.min(Math.ceil(total/pageSize),current+1))} disabled={current===Math.ceil(total/pageSize)} style={{padding:"3px 10px",fontSize:12,border:"1px solid #D3D1C7",borderRadius:4,background:current===Math.ceil(total/pageSize)?"#f5f5f5":"#fff",cursor:current===Math.ceil(total/pageSize)?"not-allowed":"pointer"}}>Next</button>
+      </div>
+    </div>
+  );
+
   return (
     <div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:"1.5rem"}}>
@@ -627,33 +672,49 @@ function CollPage({open,notes,custMap,setModal,showToast,loadAll,brokenPromises}
         <MC label="Broken promises" value={brokenPromises.length} color={brokenPromises.length>0?"#E24B4A":"#888780"}/>
         <MC label="Disputed" value={notes.filter((n:any)=>n.status==="DISPUTED").length} color="#E24B4A"/>
       </div>
+
       <Card title="Collections queue" noPad action={<Btn small onClick={()=>setModal({type:"addNote",item:null})}>+ Log note</Btn>}>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><Th>Customer</Th><Th>Invoice</Th><Th>Days overdue</Th><Th right>Balance</Th><Th>Last contact</Th><Th>Status</Th><Th>&nbsp;</Th></tr></thead>
-          <tbody>
-            {queue.map((inv:any)=>{
-              const note=lastNote(inv.id);
-              return <tr key={inv.id}>
-                <Td bold>{inv.customer?.name||"—"}</Td><Td>{inv.id}</Td>
-                <Td><span style={{color:inv.daysOverdue>60?"#E24B4A":"#BA7517",fontWeight:600}}>{inv.daysOverdue}d</span></Td>
-                <Td right bold>{fmt(inv.balance)}</Td>
-                <Td style={{fontSize:12,color:"#888780",maxWidth:180}}>{note?<span><strong>{note.date?.split("T")[0]}</strong> · {note.text?.substring(0,40)}</span>:<span style={{color:"#B4B2A9"}}>No contact yet</span>}</Td>
-                <Td>{note?<Badge status={note.status} small/>:<Badge status="NO_CONTACT" small/>}</Td>
-                <Td><Btn small onClick={()=>setModal({type:"addNote",item:inv})}>Note</Btn></Td>
-              </tr>;
-            })}
-            {queue.length===0&&<ER cols={7} msg="No overdue invoices"/>}
-          </tbody>
-        </table>
+        <div style={{overflowX:"auto",maxHeight:"calc(100vh - 380px)",overflowY:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead style={{position:"sticky",top:0,zIndex:5,background:"#FAFAF8"}}>
+              <tr><Th>Customer</Th><Th>Invoice</Th><Th>Days overdue</Th><Th right>Balance</Th><Th>Last contact</Th><Th>Status</Th><Th>&nbsp;</Th></tr>
+            </thead>
+            <tbody>
+              {displayedQueue.map((inv:any)=>{
+                const note=lastNote(inv.id);
+                return <tr key={inv.id}>
+                  <Td bold>{inv.customer?.name||"—"}</Td><Td>{inv.id}</Td>
+                  <Td><span style={{color:inv.daysOverdue>60?"#E24B4A":"#BA7517",fontWeight:600}}>{inv.daysOverdue}d</span></Td>
+                  <Td right bold>{fmt(inv.balance)}</Td>
+                  <Td style={{fontSize:12,color:"#888780",maxWidth:180}}>{note?<span><strong>{note.date?.split("T")[0]}</strong> · {note.text?.substring(0,40)}</span>:<span style={{color:"#B4B2A9"}}>No contact yet</span>}</Td>
+                  <Td>{note?<Badge status={note.status} small/>:<Badge status="NO_CONTACT" small/>}</Td>
+                  <Td><Btn small onClick={()=>setModal({type:"addNote",item:inv})}>Note</Btn></Td>
+                </tr>;
+              })}
+              {displayedQueue.length===0&&<ER cols={7} msg="No overdue invoices"/>}
+            </tbody>
+          </table>
+        </div>
+        <Pagination current={queuePage} total={queue.length} pageSize={queueSize} onPage={setQueuePage} onSize={(s:number)=>{setQueueSize(s);setQueuePage(1);}}/>
       </Card>
+
       <Card title="Collection notes" noPad>
-        {notes.length===0?<div style={{padding:"1.5rem",textAlign:"center",fontSize:13,color:"#888780"}}>No notes yet.</div>:
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><Th>Date</Th><Th>Customer</Th><Th>Invoice</Th><Th>Status</Th><Th>Note</Th></tr></thead>
-          <tbody>{[...notes].sort((a:any,b:any)=>a.date>b.date?-1:1).map((n:any)=>(
-            <tr key={n.id}><Td>{n.date?.split("T")[0]}</Td><Td bold>{custMap[n.customerId]?.name||"—"}</Td><Td>{n.invoiceId}</Td><Td><Badge status={n.status} small/></Td><Td style={{fontSize:12,maxWidth:200}}>{n.text}</Td></tr>
-          ))}</tbody>
-        </table>}
+        {sortedNotes.length===0?<div style={{padding:"1.5rem",textAlign:"center",fontSize:13,color:"#888780"}}>No notes yet.</div>:
+        <>
+          <div style={{overflowX:"auto",maxHeight:"calc(100vh - 380px)",overflowY:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead style={{position:"sticky",top:0,zIndex:5,background:"#FAFAF8"}}>
+                <tr><Th>Date</Th><Th>Customer</Th><Th>Invoice</Th><Th>Status</Th><Th>Note</Th></tr>
+              </thead>
+              <tbody>
+                {displayedNotes.map((n:any)=>(
+                  <tr key={n.id}><Td>{n.date?.split("T")[0]}</Td><Td bold>{custMap[n.customerId]?.name||"—"}</Td><Td>{n.invoiceId}</Td><Td><Badge status={n.status} small/></Td><Td style={{fontSize:12,maxWidth:200}}>{n.text}</Td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pagination current={notesPage} total={sortedNotes.length} pageSize={notesSize} onPage={setNotesPage} onSize={(s:number)=>{setNotesSize(s);setNotesPage(1);}}/>
+        </>}
       </Card>
     </div>
   );
