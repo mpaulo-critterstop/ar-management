@@ -283,7 +283,7 @@ function CustPage({customers,enriched,custMap,setModal,showToast,loadAll,officeF
         </div>
       </div>
       <Card noPad>
-        <div style={{overflowY:"auto",maxHeight:"calc(100vh - 220px)"}}>
+        <div>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
             <thead style={{position:"sticky",top:0,zIndex:5,background:"#FAFAF8"}}>
               <tr><Th>Customer</Th><Th>Contact</Th><Th>FR ID</Th><Th>Status</Th><Th right>Open AR</Th><Th>&nbsp;</Th></tr>
@@ -395,7 +395,7 @@ function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll,officeFil
         </div>
       </div>
       <Card noPad>
-        <div style={{overflowY:"auto",maxHeight:"calc(100vh - 220px)"}}>
+        <div>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
             <thead style={{position:"sticky",top:0,zIndex:5,background:"#FAFAF8"}}>
               <tr>
