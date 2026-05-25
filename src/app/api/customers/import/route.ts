@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { customers, office: bodyOffice } = body;
-    const effectiveOffice = bodyOffice && bodyOffice !== "ALL" ? bodyOffice : (office !== "ALL" ? office : "DFW");
+    const effectiveOffice = bodyOffice && bodyOffice !== "ALL" ? bodyOffice : "DFW";
 
     let created = 0, skipped = 0;
     const errors: string[] = [];
