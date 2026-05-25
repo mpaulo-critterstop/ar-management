@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding database…");
 
-  const pw = await bcrypt.hash("CritterStop2026!", 10);
+  const pw = await bcrypt.hash("CritterstopAR!1", 10);
 
   // Admin account — sees all offices
   await prisma.user.upsert({
