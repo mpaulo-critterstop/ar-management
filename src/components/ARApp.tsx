@@ -246,6 +246,8 @@ function CustPage({customers,enriched,custMap,setModal,showToast,loadAll,officeF
   const [statusF,setStatusF]=useState("");
   const [pageSize,setPageSize]=useState(100);
   const [currentPage,setCurrentPage]=useState(1);
+  const [selected,setSelected]=useState<Set<string>>(new Set());
+
   const balBC=useMemo(()=>{const m:any={};enriched.forEach((i:any)=>{if(i.status!=="PAID")m[i.customerId]=(m[i.customerId]||0)+i.balance});return m},[enriched]);
   const filtered=customers.filter((c:any)=>{
     if(statusF&&c.status!==statusF)return false;
@@ -254,6 +256,22 @@ function CustPage({customers,enriched,custMap,setModal,showToast,loadAll,officeF
   });
   const totalPages=Math.ceil(filtered.length/pageSize);
   const displayed=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
+
+  const toggleSelect=(id:string)=>{
+    setSelected(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
+  };
+  const toggleAll=()=>{
+    if(selected.size===displayed.length&&displayed.length>0)setSelected(new Set());
+    else setSelected(new Set(displayed.map((c:any)=>c.id)));
+  };
+  const bulkDelete=async()=>{
+    if(!confirm(`Delete ${selected.size} selected customers?`))return;
+    await Promise.all([...selected].map(id=>fetch(`/api/customers/${id}`,{method:"DELETE"})));
+    showToast(`Deleted ${selected.size} customers`);
+    setSelected(new Set());
+    loadAll();
+  };
+
   const del=async(id:string)=>{if(!confirm("Delete this customer?"))return;await fetch(`/api/customers/${id}`,{method:"DELETE"});showToast("Customer deleted");loadAll();};
 
   const pageNums=()=>{
@@ -278,19 +296,28 @@ function CustPage({customers,enriched,custMap,setModal,showToast,loadAll,officeF
           <select value={statusF} onChange={e=>{setStatusF(e.target.value);setCurrentPage(1);}} style={{fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}>
             <option value="">All statuses</option><option value="ACTIVE">Active</option><option value="COLLECTIONS">Collections</option><option value="SUSPENDED">Suspended</option>
           </select>
+          {selected.size>0 && <Btn danger onClick={bulkDelete}>🗑 Delete {selected.size} selected</Btn>}
           {officeFilter!=="ALL" && <Btn onClick={()=>setModal("importCustomers")}>↑ Import CSV</Btn>}
           {officeFilter!=="ALL" && <Btn primary onClick={()=>setModal("newCustomer")}>+ Add customer</Btn>}
         </div>
       </div>
       <Card noPad>
-        <div style={{overflowY:"auto",maxHeight:"calc(100vh - 220px)"}}>
+        <div style={{overflowX:"auto",maxHeight:"calc(100vh - 220px)",overflowY:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
             <thead style={{position:"sticky",top:0,zIndex:5,background:"#FAFAF8"}}>
-              <tr><Th>Customer</Th><Th>Contact</Th><Th>FR ID</Th><Th>Status</Th><Th right>Open AR</Th><Th>&nbsp;</Th></tr>
+              <tr>
+                <th style={{padding:"8px 12px",borderBottom:"1px solid #E8E7E3",background:"#FAFAF8",width:32}}>
+                  <input type="checkbox" checked={selected.size===displayed.length&&displayed.length>0} onChange={toggleAll}/>
+                </th>
+                <Th>Customer</Th><Th>Contact</Th><Th>FR ID</Th><Th>Status</Th><Th right>Open AR</Th><Th>&nbsp;</Th>
+              </tr>
             </thead>
             <tbody>
               {displayed.map((c:any)=>(
-                <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>setModal({type:"customerDetail",customer:c})}>
+                <tr key={c.id} style={{cursor:"pointer",background:selected.has(c.id)?"#F0F7FF":"inherit"}} onClick={()=>setModal({type:"customerDetail",customer:c})}>
+                  <td style={{padding:"10px 12px",borderBottom:"1px solid #F0EEE8"}} onClick={e=>e.stopPropagation()}>
+                    <input type="checkbox" checked={selected.has(c.id)} onChange={()=>toggleSelect(c.id)}/>
+                  </td>
                   <Td bold><div>{c.name}</div><div style={{fontSize:11,color:"#888780"}}>{c.email}</div></Td>
                   <Td><div>{c.contact}</div><div style={{fontSize:11,color:"#888780"}}>{c.phone}</div></Td>
                   <Td style={{fontSize:11,color:"#888780"}}>{c.externalId||"—"}</Td>
@@ -302,7 +329,7 @@ function CustPage({customers,enriched,custMap,setModal,showToast,loadAll,officeF
                   </div></Td>
                 </tr>
               ))}
-              {displayed.length===0&&<ER cols={6} msg="No customers match"/>}
+              {displayed.length===0&&<ER cols={7} msg="No customers match"/>}
             </tbody>
           </table>
         </div>
