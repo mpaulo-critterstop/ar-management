@@ -904,7 +904,7 @@ function CustDetail({customer:c,enriched,notes,custMap,setModal,onClose}: any) {
   );
 }
 
-function ImportCustModal({onClose,showToast,loadAll,officeFilter}: any)
+function ImportCustModal({onClose,showToast,loadAll,officeFilter}: any) {
   const [text,setText]=useState("");
   const [preview,setPreview]=useState<any[]>([]);
   const [importing,setImporting]=useState(false);
