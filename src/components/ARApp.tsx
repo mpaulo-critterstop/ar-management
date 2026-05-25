@@ -1003,7 +1003,7 @@ function ImportCustModal({onClose,showToast,loadAll,officeFilter}: any) {
     </Modal>
   );
 }
-function ImportInvModal({onClose,showToast,loadAll}: any) {
+function ImportInvModal({onClose,showToast,loadAll,officeFilter}: any) {
   const [text,setText]=useState("");
   const [preview,setPreview]=useState<any[]>([]);
   const [importing,setImporting]=useState(false);
@@ -1036,7 +1036,7 @@ function ImportInvModal({onClose,showToast,loadAll}: any) {
   async function importAll() {
     setImporting(true);
     try {
-      const res=await fetch("/api/invoices/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({invoices:preview})});
+      const res=await fetch("/api/invoices/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({invoices:preview,office:officeFilter})});
       const data=await res.json();
       showToast(`Imported ${data.created} invoices, skipped ${data.skipped}, no customer match ${data.noCustomer}`);
       loadAll();onClose();
