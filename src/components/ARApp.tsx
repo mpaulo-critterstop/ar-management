@@ -152,7 +152,7 @@ export default function ARApp() {
     <div>
       {toast && <div style={{position:"fixed",top:16,right:16,zIndex:2000,background:toast.type==="error"?"#FCEBEB":"#E1F5EE",color:toast.type==="error"?"#791F1F":"#085041",border:`1px solid ${toast.type==="error"?"#F09595":"#5DCAA5"}`,borderRadius:8,padding:"10px 16px",fontSize:13,fontWeight:500,boxShadow:"0 4px 16px rgba(0,0,0,0.1)"}}>{toast.msg}</div>}
 
-      <div style={{display:"flex",gap:2,borderBottom:"1px solid #E8E7E3",marginBottom:"1.5rem",overflowX:"auto",background:"#fff"}}>
+      <div style={{display:"flex",gap:2,borderBottom:"1px solid #E8E7E3",marginBottom:"1.5rem",background:"rgba(245,245,245,0.97)"}}>
         {PAGES.map(p=>(
           <button key={p.id} onClick={()=>setPage(p.id)} style={{background:"none",border:"none",borderBottom:page===p.id?"2px solid #2C2C2A":"2px solid transparent",padding:"10px 14px",cursor:"pointer",fontSize:13,fontWeight:page===p.id?600:400,color:page===p.id?"#2C2C2A":"#888780",whiteSpace:"nowrap",marginBottom:"-1px",display:"flex",alignItems:"center",gap:5}}>
             {p.label}
