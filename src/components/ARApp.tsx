@@ -244,62 +244,88 @@ function DashPage({open,totalAR,totalOverdue,collected30,collRate,agingTotals,pa
 function CustPage({customers,enriched,custMap,setModal,showToast,loadAll,officeFilter}: any) {
   const [search,setSearch]=useState("");
   const [statusF,setStatusF]=useState("");
-  const [limit,setLimit]=useState(100);
+  const [pageSize,setPageSize]=useState(100);
+  const [currentPage,setCurrentPage]=useState(1);
   const balBC=useMemo(()=>{const m:any={};enriched.forEach((i:any)=>{if(i.status!=="PAID")m[i.customerId]=(m[i.customerId]||0)+i.balance});return m},[enriched]);
   const filtered=customers.filter((c:any)=>{
     if(statusF&&c.status!==statusF)return false;
     if(search&&!c.name?.toLowerCase().includes(search.toLowerCase())&&!c.email?.toLowerCase().includes(search.toLowerCase()))return false;
     return true;
   });
-  const displayed=filtered.slice(0,limit);
+  const totalPages=Math.ceil(filtered.length/pageSize);
+  const displayed=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
   const del=async(id:string)=>{if(!confirm("Delete this customer?"))return;await fetch(`/api/customers/${id}`,{method:"DELETE"});showToast("Customer deleted");loadAll();};
+
+  const pageNums=()=>{
+    const pages=[];
+    const total=totalPages;
+    if(total<=7){for(let i=1;i<=total;i++)pages.push(i);}
+    else{
+      pages.push(1);
+      if(currentPage>3)pages.push(-1);
+      for(let i=Math.max(2,currentPage-1);i<=Math.min(total-1,currentPage+1);i++)pages.push(i);
+      if(currentPage<total-2)pages.push(-1);
+      pages.push(total);
+    }
+    return pages;
+  };
+
   return (
     <div>
       <div style={{position:"sticky",top:0,zIndex:10,background:"#EFEFEF",paddingBottom:8}}>
         <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center",flexWrap:"wrap"}}>
-          <input placeholder="Search name or email…" value={search} onChange={e=>setSearch(e.target.value)} style={{flex:1,minWidth:160,fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}/>
-          <select value={statusF} onChange={e=>setStatusF(e.target.value)} style={{fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}>
+          <input placeholder="Search name or email…" value={search} onChange={e=>{setSearch(e.target.value);setCurrentPage(1);}} style={{flex:1,minWidth:160,fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}/>
+          <select value={statusF} onChange={e=>{setStatusF(e.target.value);setCurrentPage(1);}} style={{fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}>
             <option value="">All statuses</option><option value="ACTIVE">Active</option><option value="COLLECTIONS">Collections</option><option value="SUSPENDED">Suspended</option>
-          </select>
-          <select value={limit} onChange={e=>setLimit(Number(e.target.value))} style={{fontSize:13,padding:"7px 10px",border:"1px solid #B4B2A9",borderRadius:8,background:"#fff"}}>
-            <option value={100}>Show 100</option>
-            <option value={500}>Show 500</option>
-            <option value={1000}>Show 1000</option>
           </select>
           {officeFilter!=="ALL" && <Btn onClick={()=>setModal("importCustomers")}>↑ Import CSV</Btn>}
           {officeFilter!=="ALL" && <Btn primary onClick={()=>setModal("newCustomer")}>+ Add customer</Btn>}
         </div>
-        <div style={{fontSize:12,color:"#888780"}}>Showing {displayed.length} of {filtered.length} customers</div>
       </div>
       <Card noPad>
-        <div style={{overflowY:"auto",maxHeight:"calc(100vh - 280px)"}}>
-          <table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead style={{position:"sticky",top:0,zIndex:5}}>
-              <tr><Th>Customer</Th><Th>Contact</Th><Th>FR ID</Th><Th>Status</Th><Th right>Open AR</Th><Th>&nbsp;</Th></tr>
-            </thead>
-            <tbody>
-              {displayed.map((c:any)=>(
-                <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>setModal({type:"customerDetail",customer:c})}>
-                  <Td bold><div>{c.name}</div><div style={{fontSize:11,color:"#888780"}}>{c.email}</div></Td>
-                  <Td><div>{c.contact}</div><div style={{fontSize:11,color:"#888780"}}>{c.phone}</div></Td>
-                  <Td style={{fontSize:11,color:"#888780"}}>{c.externalId||"—"}</Td>
-                  <Td><Badge status={c.status} small/></Td>
-                  <Td right bold color={balBC[c.id]>0?"#2C2C2A":"#B4B2A9"}>{balBC[c.id]?fmt(balBC[c.id]):"—"}</Td>
-                  <Td><div style={{display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
-                    <Btn small onClick={()=>setModal({type:"editCustomer",customer:c})}>✎</Btn>
-                    <Btn small danger onClick={()=>del(c.id)}>✕</Btn>
-                  </div></Td>
-                </tr>
-              ))}
-              {displayed.length===0&&<ER cols={6} msg="No customers match"/>}
-            </tbody>
-          </table>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead>
+            <tr><Th>Customer</Th><Th>Contact</Th><Th>FR ID</Th><Th>Status</Th><Th right>Open AR</Th><Th>&nbsp;</Th></tr>
+          </thead>
+          <tbody>
+            {displayed.map((c:any)=>(
+              <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>setModal({type:"customerDetail",customer:c})}>
+                <Td bold><div>{c.name}</div><div style={{fontSize:11,color:"#888780"}}>{c.email}</div></Td>
+                <Td><div>{c.contact}</div><div style={{fontSize:11,color:"#888780"}}>{c.phone}</div></Td>
+                <Td style={{fontSize:11,color:"#888780"}}>{c.externalId||"—"}</Td>
+                <Td><Badge status={c.status} small/></Td>
+                <Td right bold color={balBC[c.id]>0?"#2C2C2A":"#B4B2A9"}>{balBC[c.id]?fmt(balBC[c.id]):"—"}</Td>
+                <Td><div style={{display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
+                  <Btn small onClick={()=>setModal({type:"editCustomer",customer:c})}>✎</Btn>
+                  <Btn small danger onClick={()=>del(c.id)}>✕</Btn>
+                </div></Td>
+              </tr>
+            ))}
+            {displayed.length===0&&<ER cols={6} msg="No customers match"/>}
+          </tbody>
+        </table>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderTop:"1px solid #E8E7E3",background:"#FAFAF8",flexWrap:"wrap",gap:8}}>
+          <div style={{fontSize:12,color:"#888780"}}>
+            Showing {filtered.length===0?0:(currentPage-1)*pageSize+1} to {Math.min(currentPage*pageSize,filtered.length)} of {filtered.length} entries &nbsp;
+            <select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setCurrentPage(1);}} style={{fontSize:12,padding:"2px 6px",border:"1px solid #B4B2A9",borderRadius:4}}>
+              <option value={100}>100</option>
+              <option value={500}>500</option>
+              <option value={1000}>1000</option>
+            </select> &nbsp; per page
+          </div>
+          <div style={{display:"flex",gap:4,alignItems:"center"}}>
+            <button onClick={()=>setCurrentPage(p=>Math.max(1,p-1))} disabled={currentPage===1} style={{padding:"3px 10px",fontSize:12,border:"1px solid #D3D1C7",borderRadius:4,background:currentPage===1?"#f5f5f5":"#fff",cursor:currentPage===1?"not-allowed":"pointer"}}>Previous</button>
+            {pageNums().map((p,i)=>p===-1
+              ?<span key={i} style={{padding:"3px 6px",fontSize:12}}>…</span>
+              :<button key={p} onClick={()=>setCurrentPage(p)} style={{padding:"3px 10px",fontSize:12,border:"1px solid #D3D1C7",borderRadius:4,background:currentPage===p?"#2C2C2A":"#fff",color:currentPage===p?"#fff":"#2C2C2A",cursor:"pointer"}}>{p}</button>
+            )}
+            <button onClick={()=>setCurrentPage(p=>Math.min(totalPages,p+1))} disabled={currentPage===totalPages} style={{padding:"3px 10px",fontSize:12,border:"1px solid #D3D1C7",borderRadius:4,background:currentPage===totalPages?"#f5f5f5":"#fff",cursor:currentPage===totalPages?"not-allowed":"pointer"}}>Next</button>
+          </div>
         </div>
       </Card>
     </div>
   );
 }
-
 function InvPage({enriched,invoices,custMap,setModal,showToast,loadAll,officeFilter}: any) {
   const [search,setSearch]=useState("");
   const [statusF,setStatusF]=useState("");
