@@ -127,7 +127,14 @@ export default function ARApp() {
   const open = useMemo(()=>enriched.filter((i:any)=>i.status!=="PAID"),[enriched]);
   const totalAR = open.reduce((s:number,i:any)=>s+i.balance,0);
   const totalOverdue = open.filter((i:any)=>["OVERDUE","COLLECTIONS"].includes(i.status)&&i.due).reduce((s:number,i:any)=>s+i.balance,0);
-  const collected30 = payments.filter((p:any)=>daysDiff(p.date)<=collectedDays).reduce((s:number,p:any)=>s+Number(p.amount),0);
+  const collected30 = payments.filter((p:any)=>{
+  if(collectedDays===0){
+    if(!customDateFrom||!customDateTo) return false;
+    const d=new Date(p.date);
+    return d>=new Date(customDateFrom) && d<=new Date(customDateTo);
+  }
+  return daysDiff(p.date)<=collectedDays;
+}).reduce((s:number,p:any)=>s+Number(p.amount),0);
   const collRate = (totalAR+collected30)>0?collected30/(totalAR+collected30):0;
   const brokenPromises = notes.filter((n:any)=>n.status==="PAYMENT_PROMISED"&&n.promisedDate&&daysDiff(n.promisedDate)>0);
 
