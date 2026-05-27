@@ -35,32 +35,18 @@ const OFFICES = {
 // SERVICE ID CLASSIFICATION
 // ============================================================
 
-// These invoices have NO due date until closed out
 const CLOSEOUT_SERVICE_IDS = new Set([
-  553,  // Exclusion
-  720,  // Trapping
-  510,  // Fogging
-  501,  // Full Attic Restoration
-  624,  // Insulation Blow-In - Cellulose
-  542,  // Insulation Blow-In - Fiberglass
-  541,  // Insulation Removal
-  479,  // Insulation Removal and Blow In
-  674,  // Insulation Top Off
+  553, 720, 510, 501, 624, 542, 541, 479, 674,
 ]);
 
-// These are Wildlife but due on creation date
 const WILDLIFE_SERVICE_IDS = new Set([
-  // Available to all offices
   533, 538, 509, 1065, 1060, 719, 1064, 1061,
   615, 671, 546, 620, 554, 687, 688,
   677, 619, 682, 496, 1058, 544, 487,
   683, 631, 526, 1062, 636, 504,
   1059, 1063, 189, 287, 685, 690, 691, 684, 489,
-  // ATX specific
   670, 485, 614, 502, 609, 520, 678, 517, 645, 686,
-  // CStat specific
   746, 884,
-  // OKC specific
   710, 705, 715, 716, 717, 722, 724, 725, 726, 727,
 ]);
 
@@ -194,7 +180,7 @@ async function syncInvoices(
 ): Promise<{ created: number; updated: number; errors: number }> {
   let created = 0, updated = 0, errors = 0;
 
-  // Fetch ALL tickets — no date filter, FieldRoutes ignores dateStart anyway
+  // Fetch ALL tickets — no date filter
   const searchData = await frFetch('ticket/search', '', key, token);
   if (!searchData.success) throw new Error('Ticket search failed');
 
@@ -210,7 +196,6 @@ async function syncInvoices(
 
   for (const t of tickets) {
     try {
-      // Skip inactive or zero amount
       if (t.active !== '1') continue;
       if (parseFloat(t.total) === 0) continue;
 
@@ -220,7 +205,6 @@ async function syncInvoices(
       const due = getDueDate(serviceId, invoiceDate);
       const amount = parseFloat(t.total);
       const balance = parseFloat(t.balance);
-      // Use FieldRoutes balance as source of truth for paid amount
       const paid = Math.max(0, amount - balance);
       const status = getInvoiceStatus(balance, due);
 
@@ -249,14 +233,15 @@ async function syncInvoices(
       const existingId = existingMap.get(String(t.ticketID));
 
       if (existingId) {
-        // Always update from FieldRoutes — it's the source of truth
         await prisma.invoice.update({
           where: { id: existingId },
           data: invoiceData,
         });
         updated++;
       } else {
-        await prisma.invoice.create({ data: invoiceData });
+        await prisma.invoice.create({
+          data: { id: String(t.ticketID), ...invoiceData },
+        });
         created++;
       }
     } catch (err: any) {
@@ -294,7 +279,6 @@ async function syncPayments(
   });
   const syncedIds = new Set(existing.map(p => p.externalId!));
 
-  // Only process new payments not yet synced for this office
   const newIds = allIds.filter(id => !syncedIds.has(String(id)));
   if (newIds.length === 0) return { created, updated, errors };
 
@@ -310,7 +294,6 @@ async function syncPayments(
         const appliedAmount = parseFloat(application.appliedAmount);
         if (appliedAmount <= 0) continue;
 
-        // Find matching invoice for this office only
         const invoice = await prisma.invoice.findFirst({
           where: { externalId: ticketId, office },
         });
@@ -320,8 +303,8 @@ async function syncPayments(
           continue;
         }
 
-        // Create payment record only — invoice paid/status is managed by syncInvoices
-        // using FieldRoutes balance as source of truth
+        // Payment record only — invoice paid/status is managed by syncInvoices
+        // using FieldRoutes balance as the source of truth
         await prisma.payment.create({
           data: {
             invoiceId: invoice.id,
