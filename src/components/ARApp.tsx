@@ -172,7 +172,7 @@ export default function ARApp() {
         <button onClick={async()=>{setSyncing(true);try{const r=await fetch("/api/sync/fieldroutes",{method:"POST"});const d=await r.json();showToast(`Sync complete: ${d.customersCreated} customers, ${d.invoicesCreated} invoices`);loadAll();}catch{showToast("Sync failed","error");}setSyncing(false);}} style={{background:"#185FA5",color:"#fff",border:"none",padding:"6px 14px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:500,margin:"6px 8px 6px 0"}}>{syncing?"Syncing…":"↻ Sync FR"}</button>
       </div>
 
-      {page==="dashboard" && <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected30={collected30} collRate={collRate} agingTotals={agingTotals} brokenPromises={brokenPromises} officeFilter={officeFilter} />}
+      {page==="dashboard" && <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected30={collected30} collRate={collRate} agingTotals={agingTotals} brokenPromises={brokenPromises} officeFilter={officeFilter} collectedDays={collectedDays} setCollectedDays={setCollectedDays} />}
       {page==="customers" && <CustPage {...shared} officeFilter={officeFilter} />}
       {page==="invoices" && <InvPage {...shared} officeFilter={officeFilter} />}
       {page==="payments" && <PayPage {...shared} />}
