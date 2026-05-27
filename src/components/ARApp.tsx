@@ -88,6 +88,8 @@ export default function ARApp() {
   const [syncing, setSyncing] = useState(false);
   const [officeFilter, setOfficeFilter] = useState("ALL");
   const [collectedDays, setCollectedDays] = useState(30);
+  const [customDateFrom, setCustomDateFrom] = useState('');
+  const [customDateTo, setCustomDateTo] = useState('');
 
   const showToast = useCallback((msg:string, type="success") => {
     setToast({msg,type}); setTimeout(()=>setToast(null),3000);
