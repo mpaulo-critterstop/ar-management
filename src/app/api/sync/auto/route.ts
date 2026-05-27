@@ -235,6 +235,9 @@ async function syncInvoices(
       // Skip inactive or zero amount
       if (t.active !== '1') continue;
       if (parseFloat(t.total) === 0) continue;
+      // Skip invoices before sync date
+      const invoiceDate = t.invoiceDate || t.dateCreated;
+      if (invoiceDate < SYNC_FROM_DATE) continue;
 
       const serviceId = parseInt(t.serviceID);
       const serviceType = getServiceType(serviceId);
