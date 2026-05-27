@@ -211,7 +211,29 @@ function DashPage({open,totalAR,totalOverdue,collected30,collRate,agingTotals,pa
         <MC label="AR benchmark" value={fmt(AR_BENCHMARK)} />
         <MC label="AR vs benchmark" value={pct(arVB)} color={arVB>1?"#E24B4A":"#0F6E56"} sub={arVB>1?"Over ▲":"Under ✓"} />
         <MC label="Total past due" value={fmt(totalOverdue)} color="#E24B4A" />
-        <MC label="Collected (30d)" value={fmt(collected30)} color="#0F6E56" sub={pct(collRate)+" rate"} />
+        <MC 
+  label={
+    <div style={{display:"flex",alignItems:"center",gap:6}}>
+      <span>Collected</span>
+      <select 
+        value={collectedDays} 
+        onChange={e=>setCollectedDays(Number(e.target.value))}
+        onClick={e=>e.stopPropagation()}
+        style={{fontSize:10,padding:"1px 4px",borderRadius:4,border:"1px solid #ccc",background:"#fff",cursor:"pointer"}}
+      >
+        <option value={7}>7d</option>
+        <option value={30}>30d</option>
+        <option value={60}>60d</option>
+        <option value={90}>90d</option>
+        <option value={180}>180d</option>
+        <option value={365}>YTD</option>
+      </select>
+    </div>
+  } 
+  value={fmt(collected30)} 
+  color="#0F6E56" 
+  sub={pct(collRate)+" rate"} 
+/>
         <MC label="Open invoices" value={open.length} />
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"1rem"}}>
