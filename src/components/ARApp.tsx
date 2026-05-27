@@ -87,6 +87,7 @@ export default function ARApp() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [officeFilter, setOfficeFilter] = useState("ALL");
+  const [collectedDays, setCollectedDays] = useState(30);
 
   const showToast = useCallback((msg:string, type="success") => {
     setToast({msg,type}); setTimeout(()=>setToast(null),3000);
