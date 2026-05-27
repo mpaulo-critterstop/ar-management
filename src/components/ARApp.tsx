@@ -214,7 +214,7 @@ function DashPage({open,totalAR,totalOverdue,collected30,collRate,agingTotals,pa
         <MC label="AR vs benchmark" value={pct(arVB)} color={arVB>1?"#E24B4A":"#0F6E56"} sub={arVB>1?"Over ▲":"Under ✓"} />
         <MC label="Total past due" value={fmt(totalOverdue)} color="#E24B4A" />
         <div style={{background:"rgba(245,245,245,0.97)",borderRadius:8,padding:"14px 16px",border:"1px solid #E8E7E3"}}>
-  <div style={{fontSize:12,color:"#888780",marginBottom:4,display:"flex",alignItems:"center",gap:6}}>
+  <div style={{fontSize:12,color:"#888780",marginBottom:4,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
     <span>Collected</span>
     <select
       value={collectedDays}
@@ -227,7 +227,25 @@ function DashPage({open,totalAR,totalOverdue,collected30,collRate,agingTotals,pa
       <option value={90}>90d</option>
       <option value={180}>180d</option>
       <option value={365}>YTD</option>
+      <option value={0}>Custom</option>
     </select>
+    {collectedDays===0 && (
+      <div style={{display:"flex",alignItems:"center",gap:4,marginTop:4,width:"100%"}}>
+        <input
+          type="date"
+          value={customDateFrom}
+          onChange={e=>setCustomDateFrom(e.target.value)}
+          style={{fontSize:10,padding:"2px 4px",borderRadius:4,border:"1px solid #ccc",width:"100px"}}
+        />
+        <span style={{fontSize:10,color:"#888780"}}>to</span>
+        <input
+          type="date"
+          value={customDateTo}
+          onChange={e=>setCustomDateTo(e.target.value)}
+          style={{fontSize:10,padding:"2px 4px",borderRadius:4,border:"1px solid #ccc",width:"100px"}}
+        />
+      </div>
+    )}
   </div>
   <div style={{fontSize:22,fontWeight:700,color:"#0F6E56"}}>{fmt(collected30)}</div>
   <div style={{fontSize:11,color:"#B4B2A9",marginTop:2}}>{pct(collRate)+" rate"}</div>
