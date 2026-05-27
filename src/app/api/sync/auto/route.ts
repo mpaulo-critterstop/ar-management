@@ -235,7 +235,7 @@ async function syncInvoices(
       // Skip inactive or zero amount
       if (t.active !== '1') continue;
       if (parseFloat(t.total) === 0) continue;
-      /const invoiceDate = t.invoiceDate || t.dateCreated;
+      const invoiceDate = t.invoiceDate || t.dateCreated;
       // Skip invoices before sync date
       if (invoiceDate < SYNC_FROM_DATE) continue;
 
