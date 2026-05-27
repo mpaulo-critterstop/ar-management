@@ -230,7 +230,6 @@ function DashPage({open,totalAR,totalOverdue,collected30,collRate,agingTotals,pa
   <div style={{fontSize:22,fontWeight:700,color:"#0F6E56"}}>{fmt(collected30)}</div>
   <div style={{fontSize:11,color:"#B4B2A9",marginTop:2}}>{pct(collRate)+" rate"}</div>
 </div> 
-/>
         <MC label="Open invoices" value={open.length} />
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"1rem"}}>
