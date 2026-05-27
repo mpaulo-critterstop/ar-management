@@ -193,7 +193,7 @@ export default function ARApp() {
     </div>
   );
 }
-function DashPage({open,totalAR,totalOverdue,collected30,collRate,agingTotals,payments,custMap,brokenPromises,invoices}: any) {
+function DashPage({open,totalAR,totalOverdue,collected30,collRate,agingTotals,payments,custMap,brokenPromises,invoices,collectedDays,setCollectedDays}: any) {
   const arVB = AR_BENCHMARK>0?totalAR/AR_BENCHMARK:0;
   const topOD = [...open].filter((i:any)=>i.balance>0&&i.daysOverdue>0&&i.due).sort((a:any,b:any)=>b.balance-a.balance).slice(0,5);
   const recentP = [...payments].sort((a:any,b:any)=>a.date>b.date?-1:1).slice(0,5);
