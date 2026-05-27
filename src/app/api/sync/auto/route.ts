@@ -65,7 +65,6 @@ const WILDLIFE_SERVICE_IDS = new Set([
 ]);
 
 const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
-const SYNC_FROM_DATE = '2024-01-01';
 const BATCH_SIZE = 100;
 
 // ============================================================
@@ -87,16 +86,6 @@ function getInvoiceStatus(balance: number, due: Date | null): string {
   if (balance === 0) return 'PAID';
   if (due && due < new Date()) return 'OVERDUE';
   return 'CURRENT';
-}
-
-function mapOfficeId(officeId: string): string {
-  const map: Record<string, string> = {
-    '1': 'DFW',
-    '5': 'ATX',
-    '3': 'OKC',
-    '4': 'CStat',
-  };
-  return map[officeId] || 'DFW';
 }
 
 async function frFetch(endpoint: string, params: string, key: string, token: string) {
@@ -136,25 +125,21 @@ async function syncCustomers(
 ): Promise<{ created: number; updated: number; errors: number }> {
   let created = 0, updated = 0, errors = 0;
 
-  // Get all active customer IDs
   const searchData = await frFetch('customer/search', 'status=1', key, token);
   if (!searchData.success) throw new Error('Customer search failed');
 
   const allIds: number[] = searchData.customerIDs || [];
 
-  // Get already synced customer externalIds
   const existing = await prisma.customer.findMany({
     where: { office, externalId: { not: null } },
     select: { externalId: true, id: true },
   });
   const existingMap = new Map(existing.map(c => [c.externalId!, c.id]));
 
-  // Fetch all customers in batches
   const customers = await fetchInBatches('customer/get', 'customerIDs', allIds, key, token);
 
   for (const c of customers) {
     try {
-      // Skip inactive or cancelled
       if (c.status !== '1') continue;
       if (c.dateCancelled && c.dateCancelled !== '0000-00-00 00:00:00') continue;
       if (c.pendingCancel === '1') continue;
@@ -209,25 +194,18 @@ async function syncInvoices(
 ): Promise<{ created: number; updated: number; errors: number }> {
   let created = 0, updated = 0, errors = 0;
 
-  // Search tickets from sync date
-  const searchData = await frFetch(
-    'ticket/search',
-    `dateStart=${SYNC_FROM_DATE}`,
-    key,
-    token
-  );
+  // Fetch ALL tickets — no date filter, FieldRoutes ignores dateStart anyway
+  const searchData = await frFetch('ticket/search', '', key, token);
   if (!searchData.success) throw new Error('Ticket search failed');
 
   const allIds: number[] = searchData.ticketIDs || [];
 
-  // Get already synced invoice externalIds
   const existing = await prisma.invoice.findMany({
     where: { office, externalId: { not: null } },
     select: { externalId: true, id: true },
   });
   const existingMap = new Map(existing.map(i => [i.externalId!, i.id]));
 
-  // Fetch tickets in batches
   const tickets = await fetchInBatches('ticket/get', 'ticketIDs', allIds, key, token);
 
   for (const t of tickets) {
@@ -235,19 +213,17 @@ async function syncInvoices(
       // Skip inactive or zero amount
       if (t.active !== '1') continue;
       if (parseFloat(t.total) === 0) continue;
-      const invoiceDate = t.invoiceDate || t.dateCreated;
-      // Skip invoices before sync date
-      if (invoiceDate < SYNC_FROM_DATE) continue;
 
+      const invoiceDate = t.invoiceDate || t.dateCreated;
       const serviceId = parseInt(t.serviceID);
       const serviceType = getServiceType(serviceId);
       const due = getDueDate(serviceId, invoiceDate);
       const amount = parseFloat(t.total);
       const balance = parseFloat(t.balance);
+      // Use FieldRoutes balance as source of truth for paid amount
       const paid = Math.max(0, amount - balance);
       const status = getInvoiceStatus(balance, due);
 
-      // Find the customer in our DB
       const customer = await prisma.customer.findFirst({
         where: { externalId: String(t.customerID), office },
       });
@@ -273,18 +249,14 @@ async function syncInvoices(
       const existingId = existingMap.get(String(t.ticketID));
 
       if (existingId) {
+        // Always update from FieldRoutes — it's the source of truth
         await prisma.invoice.update({
           where: { id: existingId },
           data: invoiceData,
         });
         updated++;
       } else {
-        await prisma.invoice.create({
-          data: {
-            id: String(t.ticketID),
-            ...invoiceData,
-          },
-        });
+        await prisma.invoice.create({ data: invoiceData });
         created++;
       }
     } catch (err: any) {
@@ -306,24 +278,26 @@ async function syncPayments(
 ): Promise<{ created: number; updated: number; errors: number }> {
   let created = 0, updated = 0, errors = 0;
 
-  // Search payments
   const searchData = await frFetch('payment/search', '', key, token);
   if (!searchData.success) throw new Error('Payment search failed');
 
   const allIds: number[] = searchData.paymentIDs || [];
 
-  // Get already synced payment externalIds
+  // FIX: Filter existing payments by office to avoid cross-office conflicts
   const existing = await prisma.payment.findMany({
-    where: { externalSource: 'fieldroutes', externalId: { not: null } },
+    where: {
+      externalSource: 'fieldroutes',
+      externalId: { not: null },
+      invoice: { office },
+    },
     select: { externalId: true },
   });
   const syncedIds = new Set(existing.map(p => p.externalId!));
 
-  // Filter to only new payments
+  // Only process new payments not yet synced for this office
   const newIds = allIds.filter(id => !syncedIds.has(String(id)));
   if (newIds.length === 0) return { created, updated, errors };
 
-  // Fetch new payments in batches
   const payments = await fetchInBatches('payment/get', 'paymentIDs', newIds, key, token);
 
   for (const p of payments) {
@@ -336,7 +310,7 @@ async function syncPayments(
         const appliedAmount = parseFloat(application.appliedAmount);
         if (appliedAmount <= 0) continue;
 
-        // Find matching invoice
+        // Find matching invoice for this office only
         const invoice = await prisma.invoice.findFirst({
           where: { externalId: ticketId, office },
         });
@@ -346,19 +320,8 @@ async function syncPayments(
           continue;
         }
 
-        // Update invoice paid amount and status
-        const newPaid = Math.min(Number(invoice.amount), Number(invoice.paid) + appliedAmount);
-        const isFullyPaid = newPaid >= Number(invoice.amount);
-
-        await prisma.invoice.update({
-          where: { id: invoice.id },
-          data: {
-            paid: newPaid,
-            status: isFullyPaid ? 'PAID' : invoice.status,
-          },
-        });
-
-        // Create payment record
+        // Create payment record only — invoice paid/status is managed by syncInvoices
+        // using FieldRoutes balance as source of truth
         await prisma.payment.create({
           data: {
             invoiceId: invoice.id,
@@ -408,16 +371,10 @@ export async function POST(req: NextRequest) {
     results[office] = { customers: null, invoices: null, payments: null, error: null };
 
     try {
-      // Step 1: Sync customers
       results[office].customers = await syncCustomers(office, key, token);
-
-      // Step 2: Sync invoices
       results[office].invoices = await syncInvoices(office, key, token);
-
-      // Step 3: Sync payments
       results[office].payments = await syncPayments(office, key, token);
 
-      // Log success
       await prisma.syncLog.create({
         data: {
           source: `fieldroutes_auto_${office}`,
