@@ -220,7 +220,7 @@ function DashPage({open,totalAR,totalOverdue,collected30,collRate,agingTotals,pa
         <MC label="AR benchmark" value={fmt(AR_BENCHMARK)} />
         <MC label="AR vs benchmark" value={pct(arVB)} color={arVB>1?"#E24B4A":"#0F6E56"} sub={arVB>1?"Over ▲":"Under ✓"} />
         <MC label="Total past due" value={fmt(totalOverdue)} color="#E24B4A" />
-        <div style={{background:"rgba(245,245,245,0.97)",borderRadius:8,padding:"14px 16px",border:"1px solid #E8E7E3"}}>
+        <div style={{background:"rgba(245,245,245,0.97)",borderRadius:8,padding:"14px 16px",border:"1px solid #E8E7E3",gridColumn:collectedDays===0?"span 2":"span 1"}}>
   <div style={{fontSize:12,color:"#888780",marginBottom:4,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
     <span>Collected</span>
     <select
