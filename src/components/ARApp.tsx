@@ -211,28 +211,25 @@ function DashPage({open,totalAR,totalOverdue,collected30,collRate,agingTotals,pa
         <MC label="AR benchmark" value={fmt(AR_BENCHMARK)} />
         <MC label="AR vs benchmark" value={pct(arVB)} color={arVB>1?"#E24B4A":"#0F6E56"} sub={arVB>1?"Over ▲":"Under ✓"} />
         <MC label="Total past due" value={fmt(totalOverdue)} color="#E24B4A" />
-        <MC 
-  label={
-    <div style={{display:"flex",alignItems:"center",gap:6}}>
-      <span>Collected</span>
-      <select 
-        value={collectedDays} 
-        onChange={e=>setCollectedDays(Number(e.target.value))}
-        onClick={e=>e.stopPropagation()}
-        style={{fontSize:10,padding:"1px 4px",borderRadius:4,border:"1px solid #ccc",background:"#fff",cursor:"pointer"}}
-      >
-        <option value={7}>7d</option>
-        <option value={30}>30d</option>
-        <option value={60}>60d</option>
-        <option value={90}>90d</option>
-        <option value={180}>180d</option>
-        <option value={365}>YTD</option>
-      </select>
-    </div>
-  } 
-  value={fmt(collected30)} 
-  color="#0F6E56" 
-  sub={pct(collRate)+" rate"} 
+        <div style={{background:"rgba(245,245,245,0.97)",borderRadius:8,padding:"14px 16px",border:"1px solid #E8E7E3"}}>
+  <div style={{fontSize:12,color:"#888780",marginBottom:4,display:"flex",alignItems:"center",gap:6}}>
+    <span>Collected</span>
+    <select
+      value={collectedDays}
+      onChange={e=>setCollectedDays(Number(e.target.value))}
+      style={{fontSize:10,padding:"1px 4px",borderRadius:4,border:"1px solid #ccc",background:"#fff",cursor:"pointer"}}
+    >
+      <option value={7}>7d</option>
+      <option value={30}>30d</option>
+      <option value={60}>60d</option>
+      <option value={90}>90d</option>
+      <option value={180}>180d</option>
+      <option value={365}>YTD</option>
+    </select>
+  </div>
+  <div style={{fontSize:22,fontWeight:700,color:"#0F6E56"}}>{fmt(collected30)}</div>
+  <div style={{fontSize:11,color:"#B4B2A9",marginTop:2}}>{pct(collRate)+" rate"}</div>
+</div> 
 />
         <MC label="Open invoices" value={open.length} />
       </div>
