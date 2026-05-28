@@ -201,6 +201,7 @@ async function syncInvoices(
     try {
       if (t.active !== '1') continue;
       if (parseFloat(t.total) === 0) continue;
+      if (t.billToAccountID !== t.customerID) continue;
 
       const invoiceDate = t.invoiceDate || t.dateCreated;
       const serviceId = parseInt(t.serviceID);
