@@ -397,15 +397,15 @@ export async function POST(req: NextRequest) {
           source: `fieldroutes_auto_${office}`,
           status: 'success',
           mode: 'auto_sync',
-          customersCreated: results[office].customers.created,
-          customersUpdated: results[office].customers.updated,
-          invoicesCreated: results[office].invoices.created,
-          invoicesUpdated: results[office].invoices.updated,
-          paymentsCreated: results[office].payments.created,
+          customersCreated: results[office].customers?.created ?? 0,
+          customersUpdated: results[office].customers?.updated ?? 0,
+          invoicesCreated: results[office].invoices?.created ?? 0,
+          invoicesUpdated: results[office].invoices?.updated ?? 0,
+          paymentsCreated: results[office].payments?.created ?? 0,
           errorCount:
-            results[office].customers.errors +
-            results[office].invoices.errors +
-            results[office].payments.errors,
+            (results[office].customers?.errors ?? 0) +
+            (results[office].invoices?.errors ?? 0) +
+            (results[office].payments?.errors ?? 0),
           startedAt,
           completedAt: new Date(),
         },
