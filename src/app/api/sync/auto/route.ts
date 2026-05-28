@@ -126,11 +126,8 @@ async function syncCustomers(
 
   for (const c of customers) {
     try {
-      // Skip if not active AND no responsible balance
       if (c.status !== '1' && parseFloat(c.responsibleBalance) <= 0) continue;
-      // Skip pending cancellations
       if (c.pendingCancel === '1') continue;
-      // Skip if customer doesn't belong to this office
       if (c.officeID !== OFFICES[office as keyof typeof OFFICES].officeId) continue;
 
       const name = c.companyName?.trim()
@@ -173,7 +170,7 @@ async function syncCustomers(
 }
 
 // ============================================================
-// SYNC INVOICES
+// SYNC INVOICES (INCREMENTAL)
 // ============================================================
 
 async function syncInvoices(
@@ -183,19 +180,42 @@ async function syncInvoices(
 ): Promise<{ created: number; updated: number; errors: number }> {
   let created = 0, updated = 0, errors = 0;
 
-  // Fetch ALL tickets — no date filter
+  // Fetch ALL ticket IDs from FieldRoutes (filters are ignored by API)
   const searchData = await frFetch('ticket/search', `officeID=${OFFICES[office as keyof typeof OFFICES].officeId}`, key, token);
   if (!searchData.success) throw new Error('Ticket search failed');
 
   const allIds: number[] = searchData.ticketIDs || [];
 
+  // Load existing invoices for this office
   const existing = await prisma.invoice.findMany({
     where: { office, externalId: { not: null } },
-    select: { externalId: true, id: true },
+    select: { externalId: true, id: true, status: true },
   });
   const existingMap = new Map(existing.map(i => [i.externalId!, i.id]));
 
-  const tickets = await fetchInBatches('ticket/get', 'ticketIDs', allIds, key, token);
+  // Find the highest ticket ID we already have synced
+  const maxExistingId = existing.length > 0
+    ? Math.max(...existing.map(i => parseInt(i.externalId!)).filter(n => !isNaN(n)))
+    : 0;
+
+  // Get all unpaid invoice external IDs (need balance updates)
+  const unpaidInvoices = await prisma.invoice.findMany({
+    where: { office, status: { not: 'PAID' }, externalId: { not: null } },
+    select: { externalId: true },
+  });
+  const unpaidSet = new Set(unpaidInvoices.map(i => parseInt(i.externalId!)));
+
+  // Incremental filter: only fetch new tickets + existing unpaid ones
+  const idsToFetch = allIds.filter(id => id > maxExistingId || unpaidSet.has(id));
+
+  console.log(`[${office}] Total IDs: ${allIds.length}, Fetching: ${idsToFetch.length} (${idsToFetch.length - unpaidSet.size} new + ${unpaidSet.size} unpaid updates)`);
+
+  if (idsToFetch.length === 0) {
+    console.log(`[${office}] Nothing to sync`);
+    return { created, updated, errors };
+  }
+
+  const tickets = await fetchInBatches('ticket/get', 'ticketIDs', idsToFetch, key, token);
 
   for (const t of tickets) {
     try {
@@ -272,7 +292,6 @@ async function syncPayments(
 
   const allIds: number[] = searchData.paymentIDs || [];
 
-  // FIX: Filter existing payments by office to avoid cross-office conflicts
   const existing = await prisma.payment.findMany({
     where: {
       externalSource: 'fieldroutes',
@@ -307,8 +326,6 @@ async function syncPayments(
           continue;
         }
 
-        // Payment record only — invoice paid/status is managed by syncInvoices
-        // using FieldRoutes balance as the source of truth
         await prisma.payment.create({
           data: {
             invoiceId: invoice.id,
