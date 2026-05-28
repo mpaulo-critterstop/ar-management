@@ -111,7 +111,7 @@ async function syncCustomers(
 ): Promise<{ created: number; updated: number; errors: number }> {
   let created = 0, updated = 0, errors = 0;
 
-  const searchData = await frFetch('customer/search', 'status=1', key, token);
+  const searchData = await frFetch('customer/search', '', key, token);
   if (!searchData.success) throw new Error('Customer search failed');
 
   const allIds: number[] = searchData.customerIDs || [];
