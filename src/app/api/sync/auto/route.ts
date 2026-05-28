@@ -383,7 +383,7 @@ export async function POST(req: NextRequest) {
 
     try {
       results[office].customers = await syncCustomers(office, key, token);
-      results[office].invoices = await syncInvoices(office, key, token);
+      results[office].invoices = await syncInvoices(office, key, token, fullSync);
       results[office].payments = await syncPayments(office, key, token);
 
       await prisma.syncLog.create({
