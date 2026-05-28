@@ -383,10 +383,15 @@ export async function POST(req: NextRequest) {
     results[office] = { customers: null, invoices: null, payments: null, error: null };
 
     try {
-      results[office].customers = await syncCustomers(office, key, token);
-      results[office].invoices = await syncInvoices(office, key, token, fullSync);
-      results[office].payments = await syncPayments(office, key, token);
-
+      if (syncType === 'all' || syncType === 'customers') {
+        results[office].customers = await syncCustomers(office, key, token);
+      }
+      if (syncType === 'all' || syncType === 'invoices') {
+        results[office].invoices = await syncInvoices(office, key, token, fullSync);
+      }
+      if (syncType === 'all' || syncType === 'payments') {
+        results[office].payments = await syncPayments(office, key, token);
+      }
       await prisma.syncLog.create({
         data: {
           source: `fieldroutes_auto_${office}`,
