@@ -127,7 +127,6 @@ async function syncCustomers(
   for (const c of customers) {
     try {
       if (c.status !== '1') continue;
-      if (c.dateCancelled && c.dateCancelled !== '0000-00-00 00:00:00') continue;
       if (c.pendingCancel === '1') continue;
 
       const name = c.companyName?.trim()
