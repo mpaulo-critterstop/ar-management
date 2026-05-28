@@ -126,9 +126,11 @@ async function syncCustomers(
 
   for (const c of customers) {
     try {
+      // Skip if not active AND no responsible balance
       if (c.status !== '1' && parseFloat(c.responsibleBalance) <= 0) continue;
+      // Skip pending cancellations
       if (c.pendingCancel === '1') continue;
-      // Verify customer belongs to this office
+      // Skip if customer doesn't belong to this office
       if (c.officeID !== OFFICES[office as keyof typeof OFFICES].officeId) continue;
 
       const name = c.companyName?.trim()
