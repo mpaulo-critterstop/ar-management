@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const payments = await prisma.payment.findMany({
       where: {
         date: { gte: cutoff },
-        invoice: { ...(officeFilter && { office: officeFilter }) }
+        invoice: { ...(officeFilter && { office: { equals: officeFilter, mode: 'insensitive' } }) }
       },
       include: {
         invoice: {
