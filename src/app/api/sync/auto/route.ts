@@ -128,6 +128,8 @@ async function syncCustomers(
     try {
       if (c.status !== '1') continue;
       if (c.pendingCancel === '1') continue;
+      // Verify customer belongs to this office
+      if (c.officeID !== OFFICES[office as keyof typeof OFFICES].officeId) continue;
 
       const name = c.companyName?.trim()
         ? c.companyName.trim()
