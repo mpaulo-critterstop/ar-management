@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
     const customers = await prisma.customer.findMany({
       where: {
-        ...(officeFilter && { office: officeFilter }),
+        ...(officeFilter && { office: { equals: officeFilter, mode: 'insensitive' } }),
         ...(status && { status: status as any }),
         ...(search && {
           OR: [
