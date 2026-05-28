@@ -207,9 +207,11 @@ async function syncInvoices(
   const unpaidSet = new Set(unpaidInvoices.map(i => parseInt(i.externalId!)));
 
   // Incremental filter: only fetch new tickets + existing unpaid ones
-  const idsToFetch = allIds.filter(id => id > maxExistingId || unpaidSet.has(id));
+  const idsToFetch = fullSync
+    ? allIds
+    : allIds.filter(id => id > maxExistingId || unpaidSet.has(id));
 
-  console.log(`[${office}] Total IDs: ${allIds.length}, Fetching: ${idsToFetch.length} (${idsToFetch.length - unpaidSet.size} new + ${unpaidSet.size} unpaid updates)`);
+  console.log(`[${office}] Total IDs: ${allIds.length}, Fetching: ${idsToFetch.length} (fullSync=${fullSync})`);
 
   if (idsToFetch.length === 0) {
     console.log(`[${office}] Nothing to sync`);
