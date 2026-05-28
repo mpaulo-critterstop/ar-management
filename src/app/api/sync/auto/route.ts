@@ -184,7 +184,7 @@ async function syncInvoices(
   let created = 0, updated = 0, errors = 0;
 
   // Fetch ALL tickets — no date filter
-  const searchData = await frFetch('ticket/search', '', key, token);
+  const searchData = await frFetch('ticket/search', `officeID=${OFFICES[office as keyof typeof OFFICES].officeId}`, key, token);
   if (!searchData.success) throw new Error('Ticket search failed');
 
   const allIds: number[] = searchData.ticketIDs || [];
