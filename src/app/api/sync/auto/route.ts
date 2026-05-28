@@ -176,7 +176,8 @@ async function syncCustomers(
 async function syncInvoices(
   office: string,
   key: string,
-  token: string
+  token: string,
+  fullSync = false
 ): Promise<{ created: number; updated: number; errors: number }> {
   let created = 0, updated = 0, errors = 0;
 
