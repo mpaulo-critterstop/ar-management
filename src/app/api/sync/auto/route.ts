@@ -178,7 +178,8 @@ async function syncInvoices(
   key: string,
   token: string,
   fullSync = false,
-  fromDate?: string
+  fromDate?: string,
+  specificIds?: number[]
 ): Promise<{ created: number; updated: number; errors: number }> {
   let created = 0, updated = 0, errors = 0;
 
