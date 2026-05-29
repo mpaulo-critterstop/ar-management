@@ -407,7 +407,7 @@ export async function POST(req: NextRequest) {
         results[office].customers = await syncCustomers(office, key, token);
       }
       if (syncType === 'all' || syncType === 'invoices') {
-        results[office].invoices = await syncInvoices(office, key, token, fullSync, fromDate);
+        results[office].invoices = await syncInvoices(office, key, token, fullSync, fromDate, specificIds);
       }
       if (syncType === 'all' || syncType === 'payments') {
         results[office].payments = await syncPayments(office, key, token);
