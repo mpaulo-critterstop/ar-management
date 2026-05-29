@@ -51,7 +51,7 @@ const WILDLIFE_SERVICE_IDS = new Set([
 ]);
 
 const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 1000;
 
 // ============================================================
 // HELPER FUNCTIONS
