@@ -28,3 +28,4 @@ export async function GET(req: NextRequest) {
   }).catch(err => console.error('Sync trigger error:', err));
 
   return NextResponse.json({ message: 'Sync triggered successfully' });
+}
