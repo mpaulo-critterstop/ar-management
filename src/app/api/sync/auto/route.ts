@@ -234,7 +234,10 @@ async function syncInvoices(
       // Skip if total is zero — nothing to invoice
       if (parseFloat(t.total) === 0) continue;
       if (t.active !== '1' && parseFloat(t.balance) === 0) continue;
-      if (t.billToAccountID !== t.customerID) continue;
+      // Use billToAccountID as the customer if different (billing account setup)
+      const resolvedCustomerID = t.billToAccountID !== '0' && t.billToAccountID !== t.customerID
+        ? t.billToAccountID
+        : t.customerID;
       if (t.officeID !== OFFICES[office as keyof typeof OFFICES].officeId) continue;
 
       const invoiceDate = t.invoiceDate || t.dateCreated;
