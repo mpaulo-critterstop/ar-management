@@ -17,15 +17,14 @@ export async function GET(req: NextRequest) {
 
   // Trigger sync for all offices
   const baseUrl = process.env.NEXTAUTH_URL;
-  const res = await fetch(`${baseUrl}/api/sync/auto`, {
+  // Fire and forget — don't wait for sync to complete
+  fetch(`${baseUrl}/api/sync/auto`, {
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',
       'x-cron-secret': process.env.CRON_SECRET || '',
     },
     body: JSON.stringify({}),
-  });
+  }).catch(err => console.error('Sync trigger error:', err));
 
-  const data = await res.json();
-  return NextResponse.json(data);
-}
+  return NextResponse.json({ message: 'Sync triggered successfully' });
