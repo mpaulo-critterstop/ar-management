@@ -17,15 +17,18 @@ export async function GET(req: NextRequest) {
 
   // Trigger sync for all offices
   const baseUrl = process.env.NEXTAUTH_URL;
-  // Fire and forget — don't wait for sync to complete
-  fetch(`${baseUrl}/api/sync/auto`, {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'x-cron-secret': process.env.CRON_SECRET || '',
-    },
-    body: JSON.stringify({}),
-  }).catch(err => console.error('Sync trigger error:', err));
+  // Fire and forget each office separately
+  const offices = ['ATX', 'OKC', 'CStat', 'DFW'];
+  for (const office of offices) {
+    fetch(`${baseUrl}/api/sync/auto`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-cron-secret': process.env.CRON_SECRET || '',
+      },
+      body: JSON.stringify({ office }),
+    }).catch(err => console.error(`Sync trigger error for ${office}:`, err));
+  }
 
-  return NextResponse.json({ message: 'Sync triggered successfully' });
+  return NextResponse.json({ message: 'Sync triggered for all offices' });
 }
