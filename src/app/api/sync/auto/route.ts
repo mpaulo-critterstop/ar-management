@@ -197,9 +197,9 @@ async function syncInvoices(
       orderBy: { completedAt: 'desc' },
       select: { completedAt: true },
     });
-    const dateFrom = lastSync?.completedAt
+    const dateFrom = fromDate || (lastSync?.completedAt
       ? lastSync.completedAt.toISOString().split('T')[0]
-      : '2020-01-01';
+      : '2020-01-01');
     console.log(`[${office}] Incremental sync from: ${dateFrom}`);
     const searchData = await frFetch('ticket/search', `dateUpdated=${dateFrom}`, key, token);
     if (!searchData.success) throw new Error('Ticket search failed');
