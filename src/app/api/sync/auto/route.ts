@@ -212,31 +212,12 @@ async function syncInvoices(
   });
   const existingMap = new Map(existing.map(i => [i.externalId!, i.id]));
 
-  // Find the highest ticket ID we already have synced
-  const maxExistingId = existing.length > 0
-    ? Math.max(...existing.map(i => parseInt(i.externalId!)).filter(n => !isNaN(n)))
-    : 0;
-
-  // Get all unpaid invoice external IDs (need balance updates)
-  const unpaidInvoices = await prisma.invoice.findMany({
-    where: { office, status: { not: 'PAID' }, externalId: { not: null } },
-    select: { externalId: true },
-  });
-  const unpaidSet = new Set(unpaidInvoices.map(i => parseInt(i.externalId!)));
-
-  // Incremental filter: only fetch new tickets + existing unpaid ones
-  const idsToFetch = fullSync
-    ? allIds
-    : allIds.filter(id => id > maxExistingId || unpaidSet.has(id));
-
-  console.log(`[${office}] Total IDs: ${allIds.length}, Fetching: ${idsToFetch.length} (fullSync=${fullSync})`);
-
-  if (idsToFetch.length === 0) {
+  if (allIds.length === 0) {
     console.log(`[${office}] Nothing to sync`);
     return { created, updated, errors };
   }
 
-  const tickets = await fetchInBatches('ticket/get', 'ticketIDs', idsToFetch, key, token);
+  const tickets = await fetchInBatches('ticket/get', 'ticketIDs', allIds, key, token);
 
   for (const t of tickets) {
     try {
