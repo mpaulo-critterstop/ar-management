@@ -7,10 +7,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const hour = new Date().getHours();
-  if (hour < 7 || hour >= 22) {
-    return NextResponse.json({ message: 'Outside sync hours' });
-  }
+  // Schedule is managed by cron-job.org
 
   const { searchParams } = new URL(req.url);
   const office = searchParams.get('office') || '';
