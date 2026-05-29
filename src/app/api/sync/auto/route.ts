@@ -380,8 +380,11 @@ async function syncPayments(
 // ============================================================
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const cronSecret = req.headers.get('x-cron-secret');
+  if (cronSecret !== process.env.CRON_SECRET) {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
  const body = await req.json().catch(() => ({}));
   const officesToSync = body.office
