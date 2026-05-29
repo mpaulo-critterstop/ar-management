@@ -181,11 +181,30 @@ async function syncInvoices(
 ): Promise<{ created: number; updated: number; errors: number }> {
   let created = 0, updated = 0, errors = 0;
 
-  // Fetch ALL ticket IDs (FieldRoutes ignores filter params, single fetch only)
-  const searchData = await frFetch('ticket/search', '', key, token);
-  if (!searchData.success) throw new Error('Ticket search failed');
-  const allIds: number[] = searchData.ticketIDs || [];
-  console.log(`[${office}] Total IDs: ${allIds.length}`);
+  let allIds: number[] = [];
+
+  if (fullSync) {
+    // Full sync — fetch all ticket IDs (50,000 limit, one-time use)
+    const searchData = await frFetch('ticket/search', '', key, token);
+    if (!searchData.success) throw new Error('Ticket search failed');
+    allIds = searchData.ticketIDs || [];
+    console.log(`[${office}] Total IDs: ${allIds.length} (fullSync=true)`);
+  } else {
+    // Incremental sync — use dateUpdated to get recent tickets (bypasses 50k limit!)
+    const lastSync = await prisma.syncLog.findFirst({
+      where: { source: `fieldroutes_auto_${office}`, status: 'success' },
+      orderBy: { completedAt: 'desc' },
+      select: { completedAt: true },
+    });
+    const dateFrom = lastSync?.completedAt
+      ? lastSync.completedAt.toISOString().split('T')[0]
+      : '2020-01-01';
+    console.log(`[${office}] Incremental sync from: ${dateFrom}`);
+    const searchData = await frFetch('ticket/search', `dateUpdated=${dateFrom}`, key, token);
+    if (!searchData.success) throw new Error('Ticket search failed');
+    allIds = searchData.ticketIDs || [];
+    console.log(`[${office}] Total IDs: ${allIds.length} (incremental, dateUpdated>=${dateFrom})`);
+  }
   // Load existing invoices for this office
   const existing = await prisma.invoice.findMany({
     where: { office, externalId: { not: null } },
