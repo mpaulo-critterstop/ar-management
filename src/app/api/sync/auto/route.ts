@@ -391,7 +391,7 @@ export async function POST(req: NextRequest) {
         results[office].customers = await syncCustomers(office, key, token);
       }
       if (syncType === 'all' || syncType === 'invoices') {
-        results[office].invoices = await syncInvoices(office, key, token, fullSync);
+        results[office].invoices = await syncInvoices(office, key, token, fullSync, fromDate);
       }
       if (syncType === 'all' || syncType === 'payments') {
         results[office].payments = await syncPayments(office, key, token);
