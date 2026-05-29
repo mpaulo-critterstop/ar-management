@@ -374,6 +374,7 @@ export async function POST(req: NextRequest) {
     : Object.keys(OFFICES);
   const fullSync: boolean = body.fullSync === true;
   const syncType: string = body.syncType || 'all';
+  const fromDate: string | undefined = body.fromDate;
 
   const startedAt = new Date();
   const results: Record<string, any> = {};
