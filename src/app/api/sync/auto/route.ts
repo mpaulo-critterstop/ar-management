@@ -191,33 +191,31 @@ async function syncInvoices(
     allIds = searchData.ticketIDs || [];
     console.log(`[${office}] Total IDs: ${allIds.length} (fullSync=true)`);
   } else {
-    // Incremental sync — loop through each day using invoiceDate (bypasses 50k limit!)
-    const lastSync = await prisma.syncLog.findFirst({
-      where: { source: `fieldroutes_auto_${office}`, status: 'success' },
-      orderBy: { completedAt: 'desc' },
-      select: { completedAt: true },
-    });
-    const dateFrom = fromDate || (lastSync?.completedAt
-      ? lastSync.completedAt.toISOString().split('T')[0]
-      : '2020-01-01');
-    const dateTo = new Date().toISOString().split('T')[0];
-    console.log(`[${office}] Incremental sync from: ${dateFrom} to: ${dateTo}`);
-
-    // Loop through each day and collect all ticket IDs
+    // Incremental sync — fetch ticket IDs directly from customer records
+    console.log(`[${office}] Incremental sync via customer ticketIDs`);
+    
+    // Get all customers for this office from FieldRoutes
+    const customerSearch = await frFetch('customer/search', '', key, token);
+    if (!customerSearch.success) throw new Error('Customer search failed');
+    const customerIds: number[] = customerSearch.customerIDs || [];
+    
+    // Fetch customers in batches to get their ticketIDs
     const idSet = new Set<number>();
-    let current = new Date(dateFrom);
-    const end = new Date(dateTo);
-    while (current <= end) {
-      const dateStr = current.toISOString().split('T')[0];
-      const searchData = await frFetch('ticket/search', `invoiceDate=${dateStr}`, key, token);
-      if (searchData.success && searchData.ticketIDs) {
-        searchData.ticketIDs.forEach((id: number) => idSet.add(id));
+    for (let i = 0; i < customerIds.length; i += BATCH_SIZE) {
+      const batch = customerIds.slice(i, i + BATCH_SIZE).join(',');
+      const customerData = await frFetch('customer/get', `customerIDs=${batch}`, key, token);
+      if (customerData.success && customerData.customers) {
+        for (const c of customerData.customers) {
+          if (c.ticketIDs) {
+            const ticketIds = c.ticketIDs.split(',').map((id: string) => parseInt(id.trim())).filter((id: number) => !isNaN(id));
+            ticketIds.forEach((id: number) => idSet.add(id));
+          }
+        }
       }
-      current.setDate(current.getDate() + 1);
       await new Promise(r => setTimeout(r, 150));
     }
     allIds = Array.from(idSet);
-    console.log(`[${office}] Total IDs: ${allIds.length} (incremental, invoiceDate ${dateFrom} to ${dateTo})`);
+    console.log(`[${office}] Total IDs: ${allIds.length} (incremental via customer ticketIDs)`);
   }
   // Load existing invoices for this office
   const existing = await prisma.invoice.findMany({
