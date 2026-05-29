@@ -181,21 +181,11 @@ async function syncInvoices(
 ): Promise<{ created: number; updated: number; errors: number }> {
   let created = 0, updated = 0, errors = 0;
 
-  // Fetch ALL ticket IDs with pagination (API limit is 50,000 per request)
-  const allIds: number[] = [];
-  let lastId = 0;
-  while (true) {
-    const params = lastId > 0
-      ? `ticketID[gt]=${lastId}`
-      : '';
-    const searchData = await frFetch('ticket/search', params, key, token);
-    if (!searchData.success) throw new Error('Ticket search failed');
-    const batch: number[] = searchData.ticketIDs || [];
-    allIds.push(...batch);
-    console.log(`[${office}] Fetched ${batch.length} IDs (total so far: ${allIds.length}, lastId: ${lastId})`);
-    if (batch.length < 50000) break;
-    lastId = Math.max(...batch);
-  }
+  // Fetch ALL ticket IDs (FieldRoutes ignores filter params, single fetch only)
+  const searchData = await frFetch('ticket/search', '', key, token);
+  if (!searchData.success) throw new Error('Ticket search failed');
+  const allIds: number[] = searchData.ticketIDs || [];
+  console.log(`[${office}] Total IDs: ${allIds.length}`);
   // Load existing invoices for this office
   const existing = await prisma.invoice.findMany({
     where: { office, externalId: { not: null } },
