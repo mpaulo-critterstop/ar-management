@@ -195,31 +195,20 @@ async function syncInvoices(
     allIds = searchData.ticketIDs || [];
     console.log(`[${office}] Total IDs: ${allIds.length} (fullSync=true)`);
   } else {
-    // Incremental sync — fetch ticket IDs directly from customer records
-    console.log(`[${office}] Incremental sync via customer ticketIDs`);
-    
-    // Get all customers for this office from FieldRoutes
-    const customerSearch = await frFetch('customer/search', '', key, token);
-    if (!customerSearch.success) throw new Error('Customer search failed');
-    const customerIds: number[] = customerSearch.customerIDs || [];
-    
-    // Fetch customers in batches to get their ticketIDs
-    const idSet = new Set<number>();
-    for (let i = 0; i < customerIds.length; i += BATCH_SIZE) {
-      const batch = customerIds.slice(i, i + BATCH_SIZE).join(',');
-      const customerData = await frFetch('customer/get', `customerIDs=${batch}`, key, token);
-      if (customerData.success && customerData.customers) {
-        for (const c of customerData.customers) {
-          if (c.ticketIDs) {
-            const ticketIds = c.ticketIDs.split(',').map((id: string) => parseInt(id.trim())).filter((id: number) => !isNaN(id));
-            ticketIds.forEach((id: number) => idSet.add(id));
-          }
-        }
-      }
-      await new Promise(r => setTimeout(r, 150));
-    }
-    allIds = Array.from(idSet);
-    console.log(`[${office}] Total IDs: ${allIds.length} (incremental via customer ticketIDs)`);
+    // Incremental sync — use dateUpdated for daily syncs (fast and efficient)
+    const lastSync = await prisma.syncLog.findFirst({
+      where: { source: `fieldroutes_auto_${office}`, status: 'success' },
+      orderBy: { completedAt: 'desc' },
+      select: { completedAt: true },
+    });
+    const dateFrom = fromDate || (lastSync?.completedAt
+      ? lastSync.completedAt.toISOString().split('T')[0]
+      : '2020-01-01');
+    console.log(`[${office}] Incremental sync from: ${dateFrom}`);
+    const searchData = await frFetch('ticket/search', `dateUpdated=${dateFrom}`, key, token);
+    if (!searchData.success) throw new Error('Ticket search failed');
+    allIds = searchData.ticketIDs || [];
+    console.log(`[${office}] Total IDs: ${allIds.length} (incremental, dateUpdated>=${dateFrom})`);
   }
   // Load existing invoices for this office
   const existing = await prisma.invoice.findMany({
