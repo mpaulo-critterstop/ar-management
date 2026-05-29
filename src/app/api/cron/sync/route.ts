@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
       'x-cron-secret': process.env.CRON_SECRET || '',
     },
     body: JSON.stringify({ office }),
+    // @ts-ignore
+    signal: AbortSignal.timeout(600000), // 10 minute timeout
   }).catch(err => console.error(`Sync trigger error for ${office}:`, err));
 
   return NextResponse.json({ message: `Sync triggered for ${office || 'all offices'}` });
