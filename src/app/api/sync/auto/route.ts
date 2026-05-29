@@ -250,7 +250,7 @@ async function syncInvoices(
       const status = getInvoiceStatus(balance, due);
 
       const customer = await prisma.customer.findFirst({
-        where: { externalId: String(t.customerID), office },
+        where: { externalId: String(resolvedCustomerID), office },
       });
 
       if (!customer) {
