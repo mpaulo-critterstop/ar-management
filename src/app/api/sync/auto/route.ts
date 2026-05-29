@@ -185,7 +185,10 @@ async function syncInvoices(
 
   let allIds: number[] = [];
 
-  if (fullSync) {
+  if (specificIds && specificIds.length > 0) {
+    allIds = specificIds;
+    console.log(`[${office}] Syncing ${allIds.length} specific ticket IDs`);
+  } else if (fullSync) {
     // Full sync — fetch all ticket IDs (50,000 limit, one-time use)
     const searchData = await frFetch('ticket/search', '', key, token);
     if (!searchData.success) throw new Error('Ticket search failed');
