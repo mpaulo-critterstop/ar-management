@@ -254,6 +254,7 @@ async function syncInvoices(
       });
 
       if (!customer) {
+        console.log(`[${office}] Customer not found: resolvedID=${resolvedCustomerID}, customerID=${t.customerID}, billToAccountID=${t.billToAccountID}, ticketID=${t.ticketID}`);
         errors++;
         continue;
       }
