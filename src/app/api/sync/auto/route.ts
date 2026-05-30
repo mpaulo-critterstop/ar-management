@@ -262,6 +262,7 @@ async function syncInvoices(
         paid,
         status: status as any,
         serviceType,
+        serviceId,
         office,
         externalId: String(t.ticketID),
         externalSource: 'fieldroutes',
