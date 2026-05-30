@@ -218,7 +218,7 @@ model DispatchJob {
   office          String
   customerId      String
   customer        Customer @relation(fields: [customerId], references: [id])
-  invoiceId       String?
+  invoiceId       String?  @unique
   invoice         Invoice? @relation(fields: [invoiceId], references: [id])
   pmName          String?
   hasTrapping     Boolean  @default(false)
