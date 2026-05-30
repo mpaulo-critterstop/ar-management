@@ -71,6 +71,7 @@ model Invoice {
   description    String?
   branch         String?
   serviceType    String?
+  serviceId      Int?
   office         String?
   externalId     String?
   externalSource String?
