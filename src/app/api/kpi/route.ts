@@ -32,7 +32,7 @@ export async function GET() {
     const overdueAR = openInvoices.filter((i: any) => ["OVERDUE","COLLECTIONS"].includes(i.status) && i.due).reduce((s: number, i: any) => s + Number(i.amount) - Number(i.paid), 0);
     const collected30 = recentPayments.reduce((s: number, p: any) => s + Number(p.amount), 0);
     const collectionRate = (totalAR + collected30) > 0 ? collected30 / (totalAR + collected30) : 0;
-    const avgDaysOut = openInvoices.length ? openInvoices.reduce((s, i) => s + Math.round((today.getTime() - new Date(i.date).getTime()) / 86400000), 0) / openInvoices.length : 0;
+    const avgDaysOut = openInvoices.length ? openInvoices.reduce((s: number, i: any) => s + Math.round((today.getTime() - new Date(i.date).getTime()) / 86400000), 0) / openInvoices.length : 0;
 
     const agingTotals: Record<string, number> = { current:0, "1-30":0, "31-60":0, "61-90":0, "90+":0 };
     for (const inv of openInvoices) {
