@@ -65,12 +65,26 @@ async function fetchInBatches(
 async function syncAppointments(office: string, key: string, token: string, fromDate?: string) {
   let created = 0, updated = 0, errors = 0;
 
-  // Fetch appointment IDs updated since fromDate or today
+  // Loop through each day using date filter
   const dateFrom = fromDate || new Date().toISOString().split('T')[0];
-  const searchData = await frFetch('appointment/search', `dateUpdated=${dateFrom}`, key, token);
-  if (!searchData.success) throw new Error('Appointment search failed');
+  const dateTo = new Date().toISOString().split('T')[0];
+  console.log(`[${office}] Appointment sync from: ${dateFrom} to: ${dateTo}`);
 
-  const allIds: number[] = searchData.appointmentIDs || [];
+  const idSet = new Set<number>();
+  let current = new Date(dateFrom);
+  const end = new Date(dateTo);
+  while (current <= end) {
+    const dateStr = current.toISOString().split('T')[0];
+    const searchData = await frFetch('appointment/search', `date=${dateStr}`, key, token);
+    if (searchData.success && searchData.appointmentIDs) {
+      searchData.appointmentIDs.forEach((id: number) => idSet.add(id));
+    }
+    current.setDate(current.getDate() + 1);
+    await new Promise(r => setTimeout(r, 150));
+  }
+
+  const allIds: number[] = Array.from(idSet);
+  console.log(`[${office}] Total appointment IDs: ${allIds.length}`);
   if (allIds.length === 0) return { created, updated, errors };
 
   const appointments = await fetchInBatches('appointment/get', 'appointmentIDs', allIds, key, token);
