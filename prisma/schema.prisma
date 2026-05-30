@@ -206,7 +206,7 @@ model Lead {
   pmName          String?
   inspectionDate  DateTime?
   status          String   @default("PENDING")
-  invoiceId       String?
+  invoiceId       String?  @unique
   invoice         Invoice? @relation(fields: [invoiceId], references: [id])
   amount          Float?
   createdAt       DateTime @default(now())
