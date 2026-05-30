@@ -111,7 +111,7 @@ async function syncAppointments(office: string, key: string, token: string, from
           where: {
             customerId: customer.id,
             office,
-            serviceId: 553,
+            serviceId: { in: [553, 716] },
             amount: { gt: 0 },
           },
           orderBy: { date: 'desc' },
