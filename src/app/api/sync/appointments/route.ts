@@ -111,9 +111,8 @@ async function syncAppointments(office: string, key: string, token: string, from
           where: {
             customerId: customer.id,
             office,
-            serviceType: 'Wildlife',
+            serviceId: 553,
             amount: { gt: 0 },
-            status: { not: 'PAID' },
           },
           orderBy: { date: 'desc' },
         });
