@@ -21,8 +21,19 @@ export async function GET(req: NextRequest) {
     },
     body: JSON.stringify({ office }),
     // @ts-ignore
-    signal: AbortSignal.timeout(600000), // 10 minute timeout
+    signal: AbortSignal.timeout(600000),
   }).catch(err => console.error(`Sync trigger error for ${office}:`, err));
+
+  fetch(`${baseUrl}/api/sync/appointments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-cron-secret': process.env.CRON_SECRET || '',
+    },
+    body: JSON.stringify({ office }),
+    // @ts-ignore
+    signal: AbortSignal.timeout(600000),
+  }).catch(err => console.error(`Appointment sync trigger error for ${office}:`, err));
 
   return NextResponse.json({ message: `Sync triggered for ${office || 'all offices'}` });
 }
