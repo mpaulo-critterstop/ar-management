@@ -215,7 +215,7 @@ async function syncInvoices(
     where: { office, externalId: { not: null } },
     select: { externalId: true, id: true, status: true },
   });
-  const existingMap = new Map(existing.map(i => [i.externalId!, i.id]));
+  const existingMap = new Map(existing.map((i: any) => [i.externalId!, i.id]));
 
   if (allIds.length === 0) {
     console.log(`[${office}] Nothing to sync`);
