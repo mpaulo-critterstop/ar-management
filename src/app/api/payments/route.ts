@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { invoiceId, amount, date, method, reference, note } = body;
 
-    const payment = await prisma.$transaction(async (tx) => {
+    const payment = await prisma.$transaction(async (tx: any) => {
       const pay = await tx.payment.create({
         data: { invoiceId, amount, date: new Date(date), method, reference, note },
       });
