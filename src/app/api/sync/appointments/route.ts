@@ -210,6 +210,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const officesToSync = body.office ? [body.office] : Object.keys(OFFICES);
+  const fromDate: string | undefined = body.fromDate;
 
   const results: Record<string, any> = {};
 
@@ -217,7 +218,7 @@ export async function POST(req: NextRequest) {
     const config = OFFICES[office as keyof typeof OFFICES];
     if (!config) continue;
     try {
-      results[office] = await syncAppointments(office, config.key, config.token);
+      results[office] = await syncAppointments(office, config.key, config.token, fromDate);
     } catch (err: any) {
       results[office] = { error: err.message };
     }
