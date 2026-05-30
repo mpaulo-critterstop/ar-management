@@ -313,7 +313,7 @@ async function syncPayments(
     },
     select: { externalId: true },
   });
-  const syncedIds = new Set(existing.map(p => p.externalId!));
+  const syncedIds = new Set(existing.map((p: any) => p.externalId!));
 
   const newIds = allIds.filter(id => !syncedIds.has(String(id)));
   if (newIds.length === 0) return { created, updated, errors };
