@@ -46,7 +46,9 @@ model Customer {
   externalSource String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
-  invoices     Invoice[]
+  invoices        Invoice[]
+  leads           Lead[]
+  dispatchJobs    DispatchJob[]
   collectionNotes CollectionNote[]
   paymentPlans PaymentPlan[]
   @@map("customers")
@@ -75,7 +77,9 @@ model Invoice {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   customer       Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  payments       Payment[]
+  payments        Payment[]
+  lead            Lead?
+  dispatchJob     DispatchJob?
   notes          CollectionNote[]
   plan           PaymentPlan?
   @@index([customerId])
@@ -191,4 +195,41 @@ model SyncLog {
   completedAt      DateTime?
   createdAt        DateTime  @default(now())
   @@map("sync_logs")
+}
+model Lead {
+  id              String   @id @default(cuid())
+  office          String
+  externalId      String   @unique
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id])
+  pmId            String?
+  pmName          String?
+  inspectionDate  DateTime?
+  status          String   @default("PENDING")
+  invoiceId       String?
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+  amount          Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model DispatchJob {
+  id              String   @id @default(cuid())
+  office          String
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id])
+  invoiceId       String?
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+  pmName          String?
+  hasTrapping     Boolean  @default(false)
+  hasFAR          Boolean  @default(false)
+  exclusionDone   Boolean  @default(false)
+  trappingDone    Boolean  @default(false)
+  farDone         Boolean  @default(false)
+  closeOutForm    String?
+  closedOut       Boolean  @default(false)
+  closedOutDate   DateTime?
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
