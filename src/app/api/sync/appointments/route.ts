@@ -123,9 +123,7 @@ async function syncAppointments(office: string, key: string, token: string, from
         });
       }
 
-      const status = a.statusText === 'Pending' ? 'PENDING'
-        : invoice ? 'SOLD'
-        : 'INSPECTED';
+      const status = invoice && Number(invoice.amount) > 0 ? 'SOLD' : 'INSPECTED';
 
       const pmName = employeeMap.get(String(a.completedBy)) || null;
 
