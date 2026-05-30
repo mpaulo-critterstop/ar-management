@@ -28,9 +28,9 @@ export async function GET() {
       }),
     ]);
 
-    const totalAR = openInvoices.reduce((s, i) => s + Number(i.amount) - Number(i.paid), 0);
-    const overdueAR = openInvoices.filter(i => ["OVERDUE","COLLECTIONS"].includes(i.status) && i.due).reduce((s, i) => s + Number(i.amount) - Number(i.paid), 0);
-    const collected30 = recentPayments.reduce((s, p) => s + Number(p.amount), 0);
+    const totalAR = openInvoices.reduce((s: number, i: any) => s + Number(i.amount) - Number(i.paid), 0);
+    const overdueAR = openInvoices.filter((i: any) => ["OVERDUE","COLLECTIONS"].includes(i.status) && i.due).reduce((s: number, i: any) => s + Number(i.amount) - Number(i.paid), 0);
+    const collected30 = recentPayments.reduce((s: number, p: any) => s + Number(p.amount), 0);
     const collectionRate = (totalAR + collected30) > 0 ? collected30 / (totalAR + collected30) : 0;
     const avgDaysOut = openInvoices.length ? openInvoices.reduce((s, i) => s + Math.round((today.getTime() - new Date(i.date).getTime()) / 86400000), 0) / openInvoices.length : 0;
 
