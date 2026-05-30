@@ -120,7 +120,7 @@ async function syncCustomers(
     where: { office, externalId: { not: null } },
     select: { externalId: true, id: true },
   });
-  const existingMap = new Map(existing.map(c => [c.externalId!, c.id]));
+  const existingMap = new Map(existing.map((c: any) => [c.externalId!, c.id]));
 
   const customers = await fetchInBatches('customer/get', 'customerIDs', allIds, key, token);
 
