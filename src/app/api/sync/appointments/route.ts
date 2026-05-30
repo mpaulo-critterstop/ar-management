@@ -75,10 +75,11 @@ async function syncAppointments(office: string, key: string, token: string, from
 
   const appointments = await fetchInBatches('appointment/get', 'appointmentIDs', allIds, key, token);
 
-  // Filter to wildlife inspection appointments only
+  // Filter to wildlife inspection appointments only, completed status
   const inspections = appointments.filter((a: any) =>
     WILDLIFE_INSPECTION_IDS.has(String(a.type)) && a.status === '1'
   );
+  console.log(`[${office}] Wildlife inspections found: ${inspections.length}`);
 
   // Get all employee IDs to fetch names
   const employeeIds = [...new Set(inspections.map((a: any) => a.completedBy).filter(Boolean))];
@@ -100,16 +101,26 @@ async function syncAppointments(office: string, key: string, token: string, from
       });
       if (!customer) { errors++; continue; }
 
-      // Check if sold — look for invoice with wildlife service IDs
-      const invoice = await prisma.invoice.findFirst({
-        where: {
-          customerId: customer.id,
-          office,
-          serviceType: 'Wildlife',
-          status: { not: 'PAID' },
-        },
-        orderBy: { date: 'desc' },
-      });
+      // Use ticketID directly from appointment to find invoice
+      let invoice = null;
+      if (a.ticketID && a.ticketID !== '0') {
+        invoice = await prisma.invoice.findFirst({
+          where: { externalId: String(a.ticketID), office },
+        });
+      }
+
+      // Fallback: search by customer if no direct ticketID match
+      if (!invoice) {
+        invoice = await prisma.invoice.findFirst({
+          where: {
+            customerId: customer.id,
+            office,
+            serviceType: 'Wildlife',
+            status: { not: 'PAID' },
+          },
+          orderBy: { date: 'desc' },
+        });
+      }
 
       const status = a.statusText === 'Pending' ? 'PENDING'
         : invoice ? 'SOLD'
@@ -143,18 +154,7 @@ async function syncAppointments(office: string, key: string, token: string, from
         });
         created++;
 
-        // If sold, create dispatch job
-        if (status === 'SOLD' && invoice) {
-          await createDispatchJob(customer.id, invoice.id, office, pmName, a.customerID, key, token);
-        }
-      }
-    } catch (err) {
-      errors++;
-    }
-  }
-
-  return { created, updated, errors };
-}
+        // If sold, create dispatch jo
 
 async function createDispatchJob(
   customerId: string,
