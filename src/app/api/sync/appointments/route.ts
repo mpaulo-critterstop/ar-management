@@ -154,7 +154,18 @@ async function syncAppointments(office: string, key: string, token: string, from
         });
         created++;
 
-        // If sold, create dispatch jo
+        // If sold, create dispatch job
+        if (status === 'SOLD' && invoice) {
+          await createDispatchJob(customer.id, invoice.id, office, pmName, String(a.customerID), key, token);
+        }
+      }
+    } catch (err) {
+      errors++;
+    }
+  }
+
+  return { created, updated, errors };
+}
 
 async function createDispatchJob(
   customerId: string,
