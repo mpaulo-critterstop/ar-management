@@ -109,13 +109,14 @@ async function syncAppointments(office: string, key: string, token: string, from
         });
       }
 
-      // Fallback: search by customer if no direct ticketID match
+      // Check for exclusion invoice (service 553) = SOLD
       if (!invoice) {
         invoice = await prisma.invoice.findFirst({
           where: {
             customerId: customer.id,
             office,
             serviceType: 'Wildlife',
+            amount: { gt: 0 },
             status: { not: 'PAID' },
           },
           orderBy: { date: 'desc' },
