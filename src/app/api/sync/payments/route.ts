@@ -70,17 +70,14 @@ export async function POST(req: NextRequest) {
   const errors: string[] = [];
 
   try {
-    // Step 1: Get all payment IDs from FieldRoutes
     const allPaymentIDs = await fetchPaymentIDs(key, token);
 
-    // Step 2: Get already-synced FR payment IDs to avoid duplicates
     const existingPayments = await prisma.payment.findMany({
       where: { externalSource: 'fieldroutes', externalId: { not: null } },
       select: { externalId: true },
     });
-    const syncedIds = new Set(existingPayments.map(p => p.externalId));
+    const syncedIds = new Set(existingPayments.map((p: any) => p.externalId));
 
-    // Step 3: Filter to only NEW payment IDs
     const newPaymentIDs = allPaymentIDs.filter(id => !syncedIds.has(String(id)));
 
     if (newPaymentIDs.length === 0) {
@@ -104,23 +101,18 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Step 4: Fetch full payment details in batches
     const frPayments = await fetchPayments(key, token, newPaymentIDs);
 
-    // Step 5: Process each payment
     for (const frPayment of frPayments) {
       try {
-        // Skip voided/reversed/negative payments
         if (parseFloat(frPayment.appliedAmount) <= 0) continue;
         if (!frPayment.paymentApplications || frPayment.paymentApplications.length === 0) continue;
 
-        // Process each invoice this payment was applied to
         for (const application of frPayment.paymentApplications) {
           const ticketId = String(application.ticketID);
           const appliedAmount = parseFloat(application.appliedAmount);
           if (appliedAmount <= 0) continue;
 
-          // Find matching invoice by externalId (FieldRoutes ticket ID) and office
           const invoice = await prisma.invoice.findFirst({
             where: { externalId: ticketId, office },
           });
@@ -131,13 +123,11 @@ export async function POST(req: NextRequest) {
             continue;
           }
 
-          // Calculate new paid amount and status
           const currentPaid = Number(invoice.paid);
           const totalAmount = Number(invoice.amount);
           const newPaid = Math.min(totalAmount, currentPaid + appliedAmount);
           const isFullyPaid = newPaid >= totalAmount;
 
-          // Update invoice paid amount and status
           await prisma.invoice.update({
             where: { id: invoice.id },
             data: {
@@ -146,7 +136,6 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          // Record the payment linked to the invoice
           await prisma.payment.create({
             data: {
               invoiceId: invoice.id,
@@ -171,7 +160,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Log the sync
     await prisma.syncLog.create({
       data: {
         source: `fieldroutes_payments_${office}`,
