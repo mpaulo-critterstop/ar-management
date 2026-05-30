@@ -62,7 +62,7 @@ async function fetchInBatches(
   return results;
 }
 
-async function syncAppointments(office: string, key: string, token: string) {
+async function syncAppointments(office: string, key: string, token: string, fromDate?: string) {
   let created = 0, updated = 0, errors = 0;
 
   // Fetch appointment IDs updated since fromDate or today
