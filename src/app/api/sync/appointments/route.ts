@@ -65,9 +65,9 @@ async function fetchInBatches(
 async function syncAppointments(office: string, key: string, token: string) {
   let created = 0, updated = 0, errors = 0;
 
-  // Fetch all appointment IDs updated today
-  const today = new Date().toISOString().split('T')[0];
-  const searchData = await frFetch('appointment/search', `dateUpdated=${today}`, key, token);
+  // Fetch appointment IDs updated since fromDate or today
+  const dateFrom = fromDate || new Date().toISOString().split('T')[0];
+  const searchData = await frFetch('appointment/search', `dateUpdated=${dateFrom}`, key, token);
   if (!searchData.success) throw new Error('Appointment search failed');
 
   const allIds: number[] = searchData.appointmentIDs || [];
