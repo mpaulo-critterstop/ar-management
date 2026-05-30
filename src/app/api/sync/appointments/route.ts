@@ -102,12 +102,8 @@ async function syncAppointments(office: string, key: string, token: string, from
       if (!customer) { errors++; continue; }
 
       // Use ticketID directly from appointment to find invoice
+      // Skip the $0 inspection invoice — look for real exclusion invoice
       let invoice = null;
-      if (a.ticketID && a.ticketID !== '0') {
-        invoice = await prisma.invoice.findFirst({
-          where: { externalId: String(a.ticketID), office },
-        });
-      }
 
       // Check for exclusion invoice (service 553) = SOLD
       if (!invoice) {
