@@ -388,11 +388,9 @@ function InvPage({enriched,setModal,showToast,loadAll}: any) {
                   <Td right>{fmt(Number(inv.amount))}</Td>
                   <Td right bold>{fmt(inv.balance)}</Td>
                   <Td><Badge status={inv.status} small/></Td>
-                  <Td><div style={{display:"flex",gap:4}}>
-                    {inv.balance>0&&<Btn small onClick={()=>setModal({type:"recordPayment",invoice:inv})}>Pay</Btn>}
+                  <Td>
                     {inv.balance>0&&<Btn small onClick={()=>setModal({type:"closeOut",invoice:inv})}>Close out</Btn>}
-                    <Btn small danger onClick={()=>del(inv.id)}>✕</Btn>
-                  </div></Td>
+                  </Td>
                 </tr>
               ))}
               {displayed.length===0&&<ER cols={8} msg="No invoices match"/>}
