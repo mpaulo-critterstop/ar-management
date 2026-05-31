@@ -255,14 +255,16 @@ async function syncInvoices(
                 externalId: String(t.ticketID),
                 externalSource: 'fieldroutes',
               };
-              const existingId = existingMap.get(String(t.ticketID));
-              if (existingId) {
-                await prisma.invoice.update({ where: { id: existingId }, data: invoiceData });
-                updated++;
-              } else {
-                await prisma.invoice.create({ data: { id: String(t.ticketID), ...invoiceData } });
-                created++;
-              }
+              const upsertResult = await prisma.invoice.upsert({
+        where: { id: String(t.ticketID) },
+        update: invoiceData,
+        create: { id: String(t.ticketID), ...invoiceData },
+      });
+      if (upsertResult.createdAt.getTime() === upsertResult.updatedAt.getTime()) {
+        created++;
+      } else {
+        updated++;
+      }
             } catch (err: any) {
               errors++;
             }
