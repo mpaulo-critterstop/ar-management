@@ -45,8 +45,9 @@ export async function POST(req: NextRequest) {
       const status = isSold ? 'SOLD' : 'INSPECTED';
 
       // Check if lead already exists for this ticket
+      const externalId = ticketId ? `csv_${ticketId}` : `csv_${frCustomerId}_${inspectionDate?.toISOString().split('T')[0]}`;
       const existing = await prisma.lead.findFirst({
-        where: { externalId: `csv_${ticketId}` },
+        where: { externalId },
       });
 
       const leadData = {
