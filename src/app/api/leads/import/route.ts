@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       const isSold = String(row.sold || '').toLowerCase() === 'yes';
       const amount = parseFloat(row.amount_booked) || 0;
 
-      if (!frCustomerId || !ticketId) { skipped++; skipReasons.push(`Missing FR ID or Invoice ID`); continue; }
+      if (!frCustomerId) { skipped++; skipReasons.push(`Missing FR ID`); continue; }
 
       // Find customer by FR ID
       const customer = await prisma.customer.findFirst({
