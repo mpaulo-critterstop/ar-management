@@ -295,7 +295,6 @@ async function syncInvoices(
     try {
       // Skip if total is zero — nothing to invoice
       if (parseFloat(t.total) === 0) continue;
-      if (parseFloat(t.total) === 0) continue;
       // Use billToAccountID as the customer if different (billing account setup)
       const resolvedCustomerID = t.billToAccountID !== '0' && t.billToAccountID !== t.customerID
         ? t.billToAccountID
