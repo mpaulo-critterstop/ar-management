@@ -279,7 +279,7 @@ async function syncInvoices(
       console.log(`[${office}] Total IDs: ${allIds.length} (incremental, dateUpdated>=${dateFrom})`);
     }
   }
-  // existingMap already loaded above
+ 
 
   if (allIds.length === 0) {
     console.log(`[${office}] Nothing to sync`);
