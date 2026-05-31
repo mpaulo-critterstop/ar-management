@@ -11,16 +11,13 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status");
     const search = searchParams.get("search");
     const officeParam = searchParams.get("office");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "100");
-    const skip = (page - 1) * limit;
     const officeFilter = officeParam || (office !== "ALL" ? office : null);
 
     const where: any = {
       ...(officeFilter && { office: { equals: officeFilter, mode: 'insensitive' } }),
       ...(status && { status: status as any }),
-      // Only show invoices with amount > 0 (hides $0 appointment invoices)
       amount: { gt: 0 },
+      ...(!status && { status: { not: 'PAID' } }),
       ...(search && {
         OR: [
           { id: { contains: search, mode: "insensitive" } },
@@ -29,22 +26,18 @@ export async function GET(req: NextRequest) {
       }),
     };
 
-    const [invoices, total] = await Promise.all([
-      prisma.invoice.findMany({
-        where,
-        include: {
-          customer: {
-            select: { id: true, name: true, email: true, contact: true, terms: true, rep: true },
-          },
+    const invoices = await prisma.invoice.findMany({
+      where,
+      include: {
+        customer: {
+          select: { id: true, name: true, email: true, contact: true, terms: true, rep: true },
         },
-        orderBy: { due: "asc" },
-        skip,
-        take: limit,
-      }),
-      prisma.invoice.count({ where }),
-    ]);
+      },
+      orderBy: { due: "asc" },
+      take: 5000,
+    });
 
-    return NextResponse.json({ invoices, total, page, limit, pages: Math.ceil(total / limit) });
+    return NextResponse.json(invoices);
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
