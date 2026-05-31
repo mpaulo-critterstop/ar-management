@@ -113,7 +113,10 @@ export default function LeadsPage() {
       });
       const data = await res.json();
       setImportResult(data);
-      if (data.created > 0 || data.updated > 0) fetchLeads();
+      if (data.created > 0 || data.updated > 0) {
+        fetchLeads();
+        setTimeout(() => setShowImport(false), 2000);
+      }
     } catch (err) {
       setImportResult({ error: 'Import failed' });
     }
