@@ -20,9 +20,10 @@ function pct(n: number) {
 function parseCSV(text: string): any[] {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return [];
-  const headers = lines[0].split('\t').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+  const delimiter = lines[0].includes('\t') ? '\t' : ',';
+  const headers = lines[0].split(delimiter).map(h => h.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''));
   return lines.slice(1).map(line => {
-    const values = line.split('\t');
+    const values = line.split(delimiter);
     const row: any = {};
     headers.forEach((h, i) => { row[h] = (values[i] || '').trim(); });
     // Map Excel column names to our format
