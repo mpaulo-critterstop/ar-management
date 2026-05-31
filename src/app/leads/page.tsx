@@ -35,7 +35,7 @@ function parseCSV(text: string): any[] {
       sold: row['sold?'] || row['sold'] || '',
       amount_booked: row['amount_booked'] || row['amount booked'] || row['amount'] || '0',
     };
-  }).filter(r => r.fr_id && r.invoice_id);
+  }).filter(r => r.fr_id);
 }
 
 export default function LeadsPage() {
