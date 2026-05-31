@@ -13,11 +13,12 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search");
     const officeParam = searchParams.get("office");
     const officeFilter = officeParam || (office !== "ALL" ? office : null);
-
+    const showAll = searchParams.get("showAll") === 'true';
+    const defaultStatus = (!status && !showAll) ? 'ACTIVE' : status;
     const customers = await prisma.customer.findMany({
       where: {
         ...(officeFilter && { office: { equals: officeFilter, mode: 'insensitive' } }),
-        ...(status && { status: status as any }),
+        ...(defaultStatus && { status: defaultStatus as any }),
         ...(search && {
           OR: [
             { name: { contains: search, mode: "insensitive" } },
