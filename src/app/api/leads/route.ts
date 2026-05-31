@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     where,
     include: {
       customer: { select: { name: true, serviceAddr: true } },
-      invoice: { select: { amount: true, paid: true, status: true, externalId: true } },
+      invoice: { select: { amount: true, paid: true, status: true, externalId: true, date: true } },
     },
     orderBy: { inspectionDate: 'desc' },
   });
