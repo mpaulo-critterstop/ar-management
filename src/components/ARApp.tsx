@@ -600,7 +600,21 @@ function PayModal({invoice,invoices,enriched,custMap,onClose,showToast,loadAll}:
 }
 
 function CustDetail({customer:c,enriched,custMap,setModal,onClose}: any) {
-  const invs=enriched.filter((i:any)=>i.customerId===c.id);
+  const [allInvs, setAllInvs] = useState<any[]>([]);
+  const [loadingInvs, setLoadingInvs] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/invoices?office=${c.office}&showPaid=true`)
+      .then(r => r.json())
+      .then(data => {
+        const arr = Array.isArray(data) ? data : [];
+        setAllInvs(arr.filter((i:any) => i.customerId === c.id)
+          .map((i:any) => ({...i, balance: Number(i.amount) - Number(i.paid)})));
+        setLoadingInvs(false);
+      });
+  }, [c.id]);
+
+  const invs = allInvs;
   const bal=invs.filter((i:any)=>i.status!=="PAID").reduce((s:number,i:any)=>s+i.balance,0);
   return (
     <Modal title={c.name} onClose={onClose} wide>
