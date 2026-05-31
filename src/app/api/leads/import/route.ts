@@ -16,6 +16,29 @@ export async function POST(req: NextRequest) {
   let created = 0, updated = 0, skipped = 0, errors = 0;
   const skipReasons: string[] = [];
 
+  // Pre-load all customers and invoices for this office in one query
+  const allCustomers = await prisma.customer.findMany({
+    where: { office },
+    select: { id: true, externalId: true },
+  });
+  const customerMap = new Map(allCustomers.map((c: any) => [c.externalId, c.id]));
+
+  const allInvoices = await prisma.invoice.findMany({
+    where: { office },
+    select: { id: true, externalId: true, amount: true, date: true },
+  });
+  const invoiceMap = new Map(allInvoices.map((i: any) => [i.externalId, i]));
+
+  // Pre-load existing leads
+  const existingLeads = await prisma.lead.findMany({
+    where: { office },
+    select: { id: true, externalId: true },
+  });
+  const existingMap = new Map(existingLeads.map((l: any) => [l.externalId, l.id]));
+
+  const toCreate: any[] = [];
+  const toUpdate: any[] = [];
+
   for (const row of rows) {
     try {
       const frCustomerId = String(row.fr_id || '').trim();
@@ -27,32 +50,20 @@ export async function POST(req: NextRequest) {
 
       if (!frCustomerId) { skipped++; skipReasons.push(`Missing FR ID`); continue; }
 
-      // Find customer by FR ID
-      const customer = await prisma.customer.findFirst({
-        where: { externalId: frCustomerId, office },
-      });
-      if (!customer) { 
-        skipped++; 
-        skipReasons.push(`Customer not found: FR ID ${frCustomerId}`); 
-        continue; 
+      const customerId = customerMap.get(frCustomerId);
+      if (!customerId) {
+        skipped++;
+        skipReasons.push(`Customer not found: FR ID ${frCustomerId}`);
+        continue;
       }
 
-      // Find invoice by ticket ID
-      const invoice = await prisma.invoice.findFirst({
-        where: { externalId: ticketId, office },
-      });
-
+      const invoice = ticketId ? invoiceMap.get(ticketId) : null;
       const status = isSold ? 'SOLD' : 'INSPECTED';
-
-      // Check if lead already exists for this ticket
       const externalId = ticketId ? `csv_${ticketId}` : `csv_${frCustomerId}_${inspectionDate?.toISOString().split('T')[0]}`;
-      const existing = await prisma.lead.findFirst({
-        where: { externalId },
-      });
 
       const leadData = {
         office,
-        customerId: customer.id,
+        customerId,
         pmName,
         inspectionDate,
         status,
@@ -60,20 +71,11 @@ export async function POST(req: NextRequest) {
         amount: isSold ? (invoice ? Number(invoice.amount) : amount) : null,
       };
 
-      if (existing) {
-        await prisma.lead.update({
-          where: { id: existing.id },
-          data: leadData,
-        });
-        updated++;
+      const existingId = existingMap.get(externalId);
+      if (existingId) {
+        toUpdate.push({ id: existingId, data: leadData });
       } else {
-        await prisma.lead.create({
-          data: {
-            externalId,
-            ...leadData,
-          },
-        });
-        created++;
+        toCreate.push({ externalId, ...leadData });
       }
     } catch (err: any) {
       errors++;
@@ -81,12 +83,24 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ 
-    success: true, 
-    created, 
-    updated, 
-    skipped, 
+  // Batch create
+  if (toCreate.length > 0) {
+    await prisma.lead.createMany({ data: toCreate, skipDuplicates: true });
+    created = toCreate.length;
+  }
+
+  // Batch update
+  for (const { id, data } of toUpdate) {
+    await prisma.lead.update({ where: { id }, data });
+    updated++;
+  }
+
+  return NextResponse.json({
+    success: true,
+    created,
+    updated,
+    skipped,
     errors,
-    skipReasons: skipReasons.slice(0, 20)
+    skipReasons: skipReasons.slice(0, 20),
   });
 }
