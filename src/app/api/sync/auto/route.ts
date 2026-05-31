@@ -207,22 +207,67 @@ async function syncInvoices(
     console.log(`[${office}] Incremental sync from: ${dateFrom} to: ${dateTo}`);
 
     if (fromDate) {
-      // Day-by-day invoiceDate loop to catch tickets beyond 50k limit
-      const idSet = new Set<number>();
+      // Day-by-day invoiceDate loop — process each day immediately to save memory
       let current = new Date(dateFrom);
       const end = new Date(dateTo);
       while (current <= end) {
         const dateStr = current.toISOString().split('T')[0];
         const searchData = await frFetch('ticket/search', `invoiceDate=${dateStr}`, key, token);
-        if (searchData.success && searchData.ticketIDs) {
-          searchData.ticketIDs.forEach((id: number) => idSet.add(id));
+        if (searchData.success && searchData.ticketIDs && searchData.ticketIDs.length > 0) {
+          const dayIds = searchData.ticketIDs as number[];
+          const dayTickets = await fetchInBatches('ticket/get', 'ticketIDs', dayIds, key, token);
+          for (const t of dayTickets) {
+            try {
+              if (parseFloat(t.total) === 0) continue;
+              if (t.officeID !== OFFICES[office as keyof typeof OFFICES].officeId) continue;
+              const resolvedCustomerID = t.billToAccountID !== '0' && t.billToAccountID !== t.customerID
+                ? t.billToAccountID
+                : t.customerID;
+              const invoiceDate = t.invoiceDate || t.dateCreated;
+              const serviceId = parseInt(t.serviceID);
+              const serviceType = getServiceType(serviceId);
+              const due = getDueDate(serviceId, invoiceDate);
+              const amount = parseFloat(t.total);
+              const balance = parseFloat(t.balance);
+              const paid = Math.max(0, amount - balance);
+              const status = getInvoiceStatus(balance, due);
+              const customer = await prisma.customer.findFirst({
+                where: { externalId: String(resolvedCustomerID), office },
+              });
+              if (!customer) { errors++; continue; }
+              const invoiceData = {
+                customerId: customer.id,
+                date: new Date(invoiceDate),
+                due,
+                amount,
+                paid,
+                status: status as any,
+                serviceType,
+                serviceId,
+                office,
+                externalId: String(t.ticketID),
+                externalSource: 'fieldroutes',
+              };
+              const existingId = existingMap.get(String(t.ticketID));
+              if (existingId) {
+                await prisma.invoice.update({ where: { id: existingId }, data: invoiceData });
+                updated++;
+              } else {
+                await prisma.invoice.create({ data: { id: String(t.ticketID), ...invoiceData } });
+                created++;
+              }
+            } catch (err: any) {
+              errors++;
+            }
+          }
         }
         current.setDate(current.getDate() + 1);
         await new Promise(r => setTimeout(r, 150));
       }
-      allIds = Array.from(idSet);
-      console.log(`[${office}] Total IDs: ${allIds.length} (invoiceDate loop ${dateFrom} to ${dateTo})`);
-    } else {
+      console.log(`[${office}] invoiceDate loop complete: created=${created}, updated=${updated}, errors=${errors}`);
+      return { created, updated, errors };
+    } 
+    else {
       // Regular incremental — dateUpdated filter
       const searchData = await frFetch('ticket/search', `dateUpdated=${dateFrom}`, key, token);
       if (!searchData.success) throw new Error('Ticket search failed');
