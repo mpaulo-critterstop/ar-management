@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       } else {
         await prisma.lead.create({
           data: {
-            externalId: `csv_${ticketId}`,
+            externalId,
             ...leadData,
           },
         });
