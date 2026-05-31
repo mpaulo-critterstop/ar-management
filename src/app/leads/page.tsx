@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
@@ -15,6 +15,26 @@ function fmt(n: number) {
 
 function pct(n: number) {
   return n.toFixed(1) + '%';
+}
+
+function parseCSV(text: string): any[] {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = lines[0].split('\t').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+  return lines.slice(1).map(line => {
+    const values = line.split('\t');
+    const row: any = {};
+    headers.forEach((h, i) => { row[h] = (values[i] || '').trim(); });
+    // Map Excel column names to our format
+    return {
+      fr_id: row['fr_id'] || row['fr id'] || row['customer_id'] || '',
+      invoice_id: row['invoice_id'] || row['invoice id'] || row['ticket_id'] || '',
+      pm: row['pm'] || row['pm_name'] || '',
+      inspection_date: row['inspection_date'] || row['inspection date'] || '',
+      sold: row['sold?'] || row['sold'] || '',
+      amount_booked: row['amount_booked'] || row['amount booked'] || row['amount'] || '0',
+    };
+  }).filter(r => r.fr_id && r.invoice_id);
 }
 
 export default function LeadsPage() {
@@ -33,6 +53,14 @@ export default function LeadsPage() {
   const [pmFilter, setPmFilter] = useState('All');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+
+  // Import state
+  const [showImport, setShowImport] = useState(false);
+  const [importOffice, setImportOffice] = useState('DFW');
+  const [importRows, setImportRows] = useState<any[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -59,6 +87,38 @@ export default function LeadsPage() {
 
   const pms = ['All', ...Array.from(new Set(leads.map((l: any) => l.pmName).filter(Boolean)))];
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const rows = parseCSV(text);
+      setImportRows(rows);
+      setImportResult(null);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImport = async () => {
+    if (!importRows.length || !importOffice) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await fetch('/api/leads/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ office: importOffice, rows: importRows }),
+      });
+      const data = await res.json();
+      setImportResult(data);
+      if (data.created > 0 || data.updated > 0) fetchLeads();
+    } catch (err) {
+      setImportResult({ error: 'Import failed' });
+    }
+    setImporting(false);
+  };
+
   if (status === 'loading') return null;
 
   return (
@@ -70,7 +130,7 @@ export default function LeadsPage() {
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
           {[{ label: 'Leads', href: '/leads', active: true }, { label: 'Dispatcher', href: '/dispatch', active: false }, { label: 'AR', href: '/dashboard', active: false }].map(tab => (
-            <a key={tab.href} href={tab.href} style={{ padding: '14px 16px', fontSize: 13, fontWeight: tab.active ? 500 : 400, color: tab.active ? '#1D9E75' : '#888780', borderBottom: tab.active ? '2px solid #1D9E75' : '2px solid transparent', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <a key={tab.href} href={tab.href} style={{ padding: '14px 16px', fontSize: 13, fontWeight: tab.active ? 500 : 400, color: tab.active ? '#1D9E75' : '#888780', borderBottom: tab.active ? '2px solid #1D9E75' : '2px solid transparent', textDecoration: 'none' }}>
               {tab.label}
             </a>
           ))}
@@ -79,14 +139,19 @@ export default function LeadsPage() {
       </div>
 
       <div style={{ padding: 20 }}>
-        {/* Office switcher */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: '#888780' }}>Office:</span>
-          {OFFICES.map(o => (
-            <button key={o} onClick={() => setOffice(o)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 20, border: '1px solid ' + (office === o ? '#1D9E75' : '#D3D1C7'), background: office === o ? '#1D9E75' : '#fff', color: office === o ? '#fff' : '#888780', cursor: 'pointer', fontWeight: office === o ? 500 : 400 }}>
-              {o}
-            </button>
-          ))}
+        {/* Office switcher + Import button */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: '#888780' }}>Office:</span>
+            {OFFICES.map(o => (
+              <button key={o} onClick={() => setOffice(o)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 20, border: '1px solid ' + (office === o ? '#1D9E75' : '#D3D1C7'), background: office === o ? '#1D9E75' : '#fff', color: office === o ? '#fff' : '#888780', cursor: 'pointer', fontWeight: office === o ? 500 : 400 }}>
+                {o}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => { setShowImport(true); setImportResult(null); setImportRows([]); }} style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, border: '1px solid #1D9E75', background: '#1D9E75', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>
+            ↑ Import CSV
+          </button>
         </div>
 
         {/* Filters */}
@@ -127,18 +192,19 @@ export default function LeadsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#F8F7F4' }}>
-                {['Customer', 'Date', 'PM', 'Status', 'Invoice', 'Amount', 'Office'].map(h => (
+                {['Customer', 'Inspection Date', 'Sold Date', 'PM', 'Status', 'Invoice', 'Amount', 'Office'].map(h => (
                   <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '1px solid #E8E7E3' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} style={{ padding: 20, textAlign: 'center', color: '#888780' }}>Loading...</td></tr>
+                <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: '#888780' }}>Loading...</td></tr>
               ) : leads.slice(0, 100).map((lead: any) => (
                 <tr key={lead.id} style={{ borderBottom: '1px solid #F1EFE8' }}>
                   <td style={{ padding: '10px 12px', fontWeight: 500 }}>{lead.customer?.name || '—'}</td>
                   <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.inspectionDate ? new Date(lead.inspectionDate).toLocaleDateString() : '—'}</td>
+                  <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.invoice?.date ? new Date(lead.invoice.date).toLocaleDateString() : '—'}</td>
                   <td style={{ padding: '10px 12px' }}>{lead.pmName || '—'}</td>
                   <td style={{ padding: '10px 12px' }}>
                     <span style={{
@@ -153,7 +219,7 @@ export default function LeadsPage() {
                 </tr>
               ))}
               {!loading && leads.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 20, textAlign: 'center', color: '#888780' }}>No leads found</td></tr>
+                <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: '#888780' }}>No leads found</td></tr>
               )}
             </tbody>
           </table>
@@ -195,6 +261,66 @@ export default function LeadsPage() {
           </table>
         </div>
       </div>
+
+      {/* Import Modal */}
+      {showImport && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 480, maxWidth: '90vw' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontWeight: 500, fontSize: 15 }}>Import Leads CSV</div>
+              <button onClick={() => setShowImport(false)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#888780' }}>✕</button>
+            </div>
+
+            <div style={{ fontSize: 12, color: '#888780', marginBottom: 12, background: '#F8F7F4', padding: 10, borderRadius: 8 }}>
+              Expected columns (tab-separated):<br/>
+              <strong>Inspection Date | Customer Name | FR ID | PM | Invoice ID | Sold? | Amount Booked | Date Sold</strong>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: '#888780', display: 'block', marginBottom: 4 }}>Office</label>
+              <select value={importOffice} onChange={e => setImportOffice(e.target.value)} style={{ width: '100%', fontSize: 13, padding: '8px 10px', borderRadius: 8, border: '1px solid #D3D1C7' }}>
+                {['DFW', 'ATX', 'OKC', 'CStat'].map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, color: '#888780', display: 'block', marginBottom: 4 }}>CSV / TSV File</label>
+              <input ref={fileRef} type="file" accept=".csv,.tsv,.txt" onChange={handleFileChange} style={{ fontSize: 12, width: '100%' }} />
+              {importRows.length > 0 && (
+                <div style={{ fontSize: 12, color: '#1D9E75', marginTop: 6 }}>
+                  ✓ {importRows.length} rows ready to import
+                </div>
+              )}
+            </div>
+
+            {importResult && (
+              <div style={{ marginBottom: 16, padding: 10, borderRadius: 8, background: importResult.error ? '#FCEBEB' : '#E1F5EE', fontSize: 12 }}>
+                {importResult.error ? (
+                  <span style={{ color: '#A32D2D' }}>❌ {importResult.error}</span>
+                ) : (
+                  <span style={{ color: '#0F6E56' }}>
+                    ✓ Created: {importResult.created} | Updated: {importResult.updated} | Skipped: {importResult.skipped} | Errors: {importResult.errors}
+                  </span>
+                )}
+                {importResult.skipReasons?.length > 0 && (
+                  <div style={{ marginTop: 6, color: '#888780' }}>
+                    {importResult.skipReasons.slice(0, 5).map((r: string, i: number) => <div key={i}>• {r}</div>)}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowImport(false)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: '1px solid #D3D1C7', background: '#fff', cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={handleImport} disabled={importing || importRows.length === 0} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: 'none', background: importRows.length === 0 ? '#D3D1C7' : '#1D9E75', color: '#fff', cursor: importRows.length === 0 ? 'not-allowed' : 'pointer', fontWeight: 500 }}>
+                {importing ? 'Importing...' : `Import ${importRows.length} rows`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
