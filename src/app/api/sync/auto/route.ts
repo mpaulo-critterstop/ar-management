@@ -126,8 +126,7 @@ async function syncCustomers(
 
   for (const c of customers) {
     try {
-      if (c.status !== '1' && parseFloat(c.responsibleBalance) <= 0) continue;
-      if (c.pendingCancel === '1') continue;
+     // Sync all customers regardless of status
       if (c.officeID !== OFFICES[office as keyof typeof OFFICES].officeId) continue;
 
       const name = c.companyName?.trim()
