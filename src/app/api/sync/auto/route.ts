@@ -203,11 +203,32 @@ async function syncInvoices(
     const dateFrom = fromDate || (lastSync?.completedAt
       ? lastSync.completedAt.toISOString().split('T')[0]
       : '2020-01-01');
-    console.log(`[${office}] Incremental sync from: ${dateFrom}`);
-    const searchData = await frFetch('ticket/search', `dateUpdated=${dateFrom}`, key, token);
-    if (!searchData.success) throw new Error('Ticket search failed');
-    allIds = searchData.ticketIDs || [];
-    console.log(`[${office}] Total IDs: ${allIds.length} (incremental, dateUpdated>=${dateFrom})`);
+    const dateTo = new Date().toISOString().split('T')[0];
+    console.log(`[${office}] Incremental sync from: ${dateFrom} to: ${dateTo}`);
+
+    if (fromDate) {
+      // Day-by-day invoiceDate loop to catch tickets beyond 50k limit
+      const idSet = new Set<number>();
+      let current = new Date(dateFrom);
+      const end = new Date(dateTo);
+      while (current <= end) {
+        const dateStr = current.toISOString().split('T')[0];
+        const searchData = await frFetch('ticket/search', `invoiceDate=${dateStr}`, key, token);
+        if (searchData.success && searchData.ticketIDs) {
+          searchData.ticketIDs.forEach((id: number) => idSet.add(id));
+        }
+        current.setDate(current.getDate() + 1);
+        await new Promise(r => setTimeout(r, 150));
+      }
+      allIds = Array.from(idSet);
+      console.log(`[${office}] Total IDs: ${allIds.length} (invoiceDate loop ${dateFrom} to ${dateTo})`);
+    } else {
+      // Regular incremental — dateUpdated filter
+      const searchData = await frFetch('ticket/search', `dateUpdated=${dateFrom}`, key, token);
+      if (!searchData.success) throw new Error('Ticket search failed');
+      allIds = searchData.ticketIDs || [];
+      console.log(`[${office}] Total IDs: ${allIds.length} (incremental, dateUpdated>=${dateFrom})`);
+    }
   }
   // Load existing invoices for this office
   const existing = await prisma.invoice.findMany({
