@@ -282,12 +282,7 @@ async function syncInvoices(
       console.log(`[${office}] Total IDs: ${allIds.length} (incremental, dateUpdated>=${dateFrom})`);
     }
   }
-  // Load existing invoices for this office
-  const existing = await prisma.invoice.findMany({
-    where: { office, externalId: { not: null } },
-    select: { externalId: true, id: true, status: true },
-  });
-  const existingMap = new Map(existing.map((i: any) => [i.externalId!, i.id]));
+  // existingMap already loaded above
 
   if (allIds.length === 0) {
     console.log(`[${office}] Nothing to sync`);
