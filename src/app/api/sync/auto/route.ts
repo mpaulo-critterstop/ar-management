@@ -184,6 +184,13 @@ async function syncInvoices(
 
   let allIds: number[] = [];
 
+  // Load existing invoices for this office (needed for all sync paths)
+  const existing = await prisma.invoice.findMany({
+    where: { office, externalId: { not: null } },
+    select: { externalId: true, id: true, status: true },
+  });
+  const existingMap = new Map(existing.map((i: any) => [i.externalId!, i.id]));
+
   if (specificIds && specificIds.length > 0) {
     allIds = specificIds;
     console.log(`[${office}] Syncing ${allIds.length} specific ticket IDs`);
