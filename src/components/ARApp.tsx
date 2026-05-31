@@ -413,12 +413,8 @@ function PayPage({payments,invoices,custMap,showToast,loadAll,setModal}: any) {
 
   return (
     <div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:"1.5rem"}}>
-        <MC label="Collected (30d)" value={fmt(t30)} color="#1D9E75"/>
-        <MC label="Total payments" value={payments.length}/>
-        <div style={{display:"flex",alignItems:"flex-end",justifyContent:"flex-end"}}>
-          <Btn primary onClick={()=>setModal("newPayment")}>+ Record payment</Btn>
-        </div>
+      <div style={{marginBottom:"1rem",fontSize:13,color:"#888780"}}>
+        {payments.length} payments
       </div>
       <Card noPad>
         <div style={{overflowX:"auto",maxHeight:"calc(100vh - 320px)",overflowY:"auto"}}>
