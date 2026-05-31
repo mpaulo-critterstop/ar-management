@@ -153,7 +153,7 @@ export default function LeadsPage() {
               </button>
             ))}
           </div>
-          <button onClick={() => { setShowImport(true); setImportResult(null); setImportRows([]); }} style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, border: '1px solid #1D9E75', background: '#1D9E75', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>
+          <button onClick={() => { setShowImport(true); setImportResult(null); setImportRows([]); setImporting(false); }} style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, border: '1px solid #1D9E75', background: '#1D9E75', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>
             ↑ Import CSV
           </button>
         </div>
