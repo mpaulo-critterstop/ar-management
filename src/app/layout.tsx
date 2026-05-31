@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Providers } from "@/components/Providers";
+import { TopNav } from "@/components/TopNav";
 
 export const metadata: Metadata = {
-  title: "Critter Stop AR Management",
-  description: "Accounts Receivable Management",
+  title: "Critter Stop — Wildlife Operations",
+  description: "Wildlife Operations Platform",
   manifest: "/manifest.json",
-  themeColor: "#2C2C2A",
   icons: {
     icon: "/favicon.ico",
     apple: "/favicon.png",
@@ -19,13 +20,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/favicon.png" />
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#2C2C2A" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="CS AR" />
+        <meta name="apple-mobile-web-app-title" content="Critter Stop" />
       </head>
       <body>
-        {children}
+        <Providers>
+          <TopNav />
+          {children}
+        </Providers>
         <script dangerouslySetInnerHTML={{__html: `
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
