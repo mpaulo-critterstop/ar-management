@@ -17,7 +17,6 @@ export async function GET(req: NextRequest) {
       ...(officeFilter && { office: { equals: officeFilter, mode: 'insensitive' } }),
       ...(status && { status: status as any }),
       amount: { gt: 0 },
-      ...(!status && { status: { not: 'PAID' } }),
       ...(search && {
         OR: [
           { id: { contains: search, mode: "insensitive" } },
