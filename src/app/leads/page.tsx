@@ -207,7 +207,7 @@ export default function LeadsPage() {
                 <tr key={lead.id} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
                   <td style={{ padding: '10px 12px', fontWeight: 500 }}>{lead.customer?.name || '—'}</td>
                   <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.inspectionDate ? new Date(lead.inspectionDate).toLocaleDateString() : '—'}</td>
-                  <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.invoice?.date ? new Date(lead.invoice.date).toLocaleDateString() : '—'}</td>
+                  <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.invoice?.date ? lead.invoice.date.split('T')[0] : '—'}</td>
                   <td style={{ padding: '10px 12px' }}>{lead.pmName || '—'}</td>
                   <td style={{ padding: '10px 12px' }}>
                     <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: lead.status === 'SOLD' ? '#E1F5EE' : lead.status === 'INSPECTED' ? '#E6F1FB' : '#FAEEDA', color: lead.status === 'SOLD' ? '#0F6E56' : lead.status === 'INSPECTED' ? '#185FA5' : '#854F0B' }}>
