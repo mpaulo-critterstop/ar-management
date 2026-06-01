@@ -300,6 +300,14 @@ async function syncInvoices(
     try {
       // Skip if total is zero — nothing to invoice
       if (parseFloat(t.total) === 0) continue;
+      if (t.active !== '1') {
+        // Mark deleted/inactive invoices as PAID in our DB
+        await prisma.invoice.updateMany({
+          where: { externalId: String(t.ticketID), office },
+          data: { status: 'PAID', paid: parseFloat(t.total) },
+        });
+        continue;
+      }
       // Use billToAccountID as the customer if different (billing account setup)
       const resolvedCustomerID = t.billToAccountID !== '0' && t.billToAccountID !== t.customerID
         ? t.billToAccountID
