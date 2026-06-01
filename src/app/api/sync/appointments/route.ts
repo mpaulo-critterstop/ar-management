@@ -106,17 +106,18 @@ async function syncAppointments(office: string, key: string, token: string, from
       // Skip the $0 inspection invoice — look for real exclusion invoice
       let invoice = null;
 
-      // Check for any sold service invoice = SOLD
-      invoice = await prisma.invoice.findFirst({
-        where: {
-          customerId: customer.id,
-          office,
-          serviceId: { in: [553, 716, 720, 501, 674, 479, 541, 542, 624, 510] },
-          amount: { gt: 0 },
-        },
-        orderBy: { date: 'desc' },
-      });
-
+      // Find the sold invoice closest to this inspection date
+      const inspectionDate = a.date ? new Date(a.date) : new Date();
+      invoice = await prisma.invoice.findFirst({
+        where: {
+          customerId: customer.id,
+          office,
+          serviceId: { in: [553, 716, 720, 501, 674, 479, 541, 542, 624, 510] },
+          amount: { gt: 0 },
+          date: { gte: inspectionDate },
+        },
+        orderBy: { date: 'asc' },
+      });
       const status = invoice && Number(invoice.amount) > 0 ? 'SOLD' : 'INSPECTED';
 
       const pmName = employeeMap.get(String(a.completedBy)) || null;
