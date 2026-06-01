@@ -299,6 +299,16 @@ async function syncInvoices(
           where: { externalId: String(t.ticketID), office },
           data: { status: 'PAID', paid: 0, amount: 0 },
         });
+        // Update any linked lead back to INSPECTED
+        const voidedInvoice = await prisma.invoice.findFirst({
+          where: { externalId: String(t.ticketID), office },
+        });
+        if (voidedInvoice) {
+          await prisma.lead.updateMany({
+            where: { invoiceId: voidedInvoice.id },
+            data: { status: 'INSPECTED', invoiceId: null, amount: null },
+          });
+        }
         continue;
       }
       if (t.active !== '1') {
