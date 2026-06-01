@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 const ACCENT = '#92c1e9';
 const TODAY = new Date();
 
-const fmt = (n: number) => "$" + Math.round(n).toLocaleString();
+const fmt = (n: number) => "$" + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pct = (n: number) => Math.round(n * 100) + "%";
 const daysDiff = (ds: string) => Math.round((TODAY.getTime() - new Date(ds).getTime()) / 86400000);
 
