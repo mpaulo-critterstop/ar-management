@@ -369,7 +369,14 @@ async function syncInvoices(
   for (const t of tickets) {
     try {
       // Skip if total is zero — nothing to invoice
-      if (parseFloat(t.total) === 0) continue;
+      if (parseFloat(t.total) === 0) {
+        // Voided invoice — mark as PAID in DB
+        await prisma.invoice.updateMany({
+          where: { externalId: String(t.ticketID), office },
+          data: { status: 'PAID', paid: 0, amount: 0 },
+        });
+        continue;
+      }
       if (t.active !== '1') {
         // Mark deleted/inactive invoices as PAID in our DB
         await prisma.invoice.updateMany({
