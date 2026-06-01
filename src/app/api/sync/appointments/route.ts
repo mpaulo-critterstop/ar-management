@@ -75,9 +75,11 @@ async function syncAppointments(office: string, key: string, token: string, from
 
   const appointments = await fetchInBatches('appointment/get', 'appointmentIDs', allIds, key, token);
 
-  // Filter to wildlife inspection appointments only, completed status
+  // Filter to wildlife inspection appointments only, completed status, 2026 onwards
   const inspections = appointments.filter((a: any) =>
-    WILDLIFE_INSPECTION_IDS.has(String(a.type)) && a.status === '1'
+    WILDLIFE_INSPECTION_IDS.has(String(a.type)) &&
+    a.status === '1' &&
+    a.date && new Date(a.date) >= new Date('2026-01-01')
   );
   console.log(`[${office}] Wildlife inspections found: ${inspections.length}`);
 
