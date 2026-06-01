@@ -190,11 +190,67 @@ async function syncInvoices(
     allIds = specificIds;
     console.log(`[${office}] Syncing ${allIds.length} specific ticket IDs`);
   } else if (fullSync) {
-    // Full sync — fetch all ticket IDs (50,000 limit, one-time use)
     const searchData = await frFetch('ticket/search', '', key, token);
     if (!searchData.success) throw new Error('Ticket search failed');
     allIds = searchData.ticketIDs || [];
     console.log(`[${office}] Total IDs: ${allIds.length} (fullSync=true)`);
+
+    // Process in chunks of 5000 to avoid OOM on large offices like DFW
+    const CHUNK_SIZE = 5000;
+    for (let i = 0; i < allIds.length; i += CHUNK_SIZE) {
+      const chunk = allIds.slice(i, i + CHUNK_SIZE);
+      console.log(`[${office}] Processing chunk ${Math.floor(i/CHUNK_SIZE)+1}/${Math.ceil(allIds.length/CHUNK_SIZE)} (${chunk.length} IDs)`);
+      const tickets = await fetchInBatches('ticket/get', 'ticketIDs', chunk, key, token);
+      for (const t of tickets) {
+        try {
+          if (parseFloat(t.total) === 0) continue;
+          if (t.active !== '1') {
+            await prisma.invoice.updateMany({
+              where: { externalId: String(t.ticketID), office },
+              data: { status: 'PAID', paid: parseFloat(t.total) },
+            });
+            continue;
+          }
+          if (t.officeID !== OFFICES[office as keyof typeof OFFICES].officeId && t.officeID !== '-1') continue;
+          const resolvedCustomerID = t.billToAccountID !== '0' && t.billToAccountID !== t.customerID ? t.billToAccountID : t.customerID;
+          const invoiceDate = t.invoiceDate || t.dateCreated;
+          const serviceId = parseInt(t.serviceID);
+          const serviceType = getServiceType(serviceId);
+          const due = getDueDate(serviceId, invoiceDate);
+          const amount = parseFloat(t.total);
+          const balance = parseFloat(t.balance);
+          const paid = Math.max(0, amount - balance);
+          const status = getInvoiceStatus(balance, due);
+          const customer = await prisma.customer.findFirst({
+            where: { externalId: String(resolvedCustomerID), office },
+          });
+          if (!customer) { errors++; continue; }
+          const invoiceData = {
+            customerId: customer.id,
+            date: new Date(invoiceDate),
+            due,
+            amount,
+            paid,
+            status: status as any,
+            serviceType,
+            serviceId,
+            office,
+            externalId: String(t.ticketID),
+            externalSource: 'fieldroutes',
+          };
+          await prisma.invoice.upsert({
+            where: { id: String(t.ticketID) },
+            update: invoiceData,
+            create: { id: String(t.ticketID), ...invoiceData },
+          });
+          created++;
+        } catch (err: any) {
+          errors++;
+        }
+      }
+    }
+    console.log(`[${office}] fullSync complete: created=${created}, errors=${errors}`);
+    return { created, updated, errors };
   } else {
     // Incremental sync — use dateUpdated for daily syncs (fast and efficient)
     const lastSync = await prisma.syncLog.findFirst({
