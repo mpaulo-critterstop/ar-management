@@ -203,7 +203,14 @@ async function syncInvoices(
       const tickets = await fetchInBatches('ticket/get', 'ticketIDs', chunk, key, token);
       for (const t of tickets) {
         try {
-          if (parseFloat(t.total) === 0) continue;
+          if (parseFloat(t.total) === 0) {
+        // Voided invoice — mark as PAID in DB
+        await prisma.invoice.updateMany({
+          where: { externalId: String(t.ticketID), office },
+          data: { status: 'PAID', paid: 0, amount: 0 },
+        });
+        continue;
+      }
           if (t.active !== '1') {
             await prisma.invoice.updateMany({
               where: { externalId: String(t.ticketID), office },
