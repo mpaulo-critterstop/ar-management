@@ -28,8 +28,8 @@ const OFFICES = {
   },
 };
 
-const WILDLIFE_INSPECTION_IDS = new Set(['645', '1037', '884', '722']);
-serviceId: { in: [553, 716, 720, 501, 674, 479, 541, 542, 624, 510] },
+const WILDLIFE_INSPECTION_IDS = new Set(['645', '1037', '884', '722', '544']);
+serviceId: { in: [553, 716, 720, 501, 674, 479, 541, 542, 624, 510, 544] },
 const TRAPPING_IDS = new Set(['720']);
 const FAR_IDS = new Set(['501', '674', '479', '541', '542', '624']);
 
