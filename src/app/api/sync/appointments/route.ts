@@ -128,6 +128,14 @@ async function syncAppointments(office: string, key: string, token: string, from
         where: { externalId: String(a.appointmentID) },
       });
 
+      // Skip if customer already has a SOLD lead from CSV import
+      if (!existingLead && status === 'INSPECTED') {
+        const soldLead = await prisma.lead.findFirst({
+          where: { customerId: customer.id, office, status: 'SOLD' },
+        });
+        if (soldLead) { updated++; continue; }
+      }
+
       const leadData = {
         office,
         customerId: customer.id,
