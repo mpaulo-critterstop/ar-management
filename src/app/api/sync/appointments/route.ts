@@ -103,6 +103,43 @@ async function syncLeads(office: string, key: string, token: string) {
   }
 
   console.log(`[${office}] Part 1 complete: ${updated} updated`);
+  // Part 1b: Check INSPECTED leads for new sold invoices
+  console.log(`[${office}] Part 1b: Checking INSPECTED leads for sold invoices...`);
+  const inspectedLeads = await prisma.lead.findMany({
+    where: { office, status: 'INSPECTED', invoiceId: null },
+    select: { id: true, customerId: true, inspectionDate: true },
+  });
+
+  for (const lead of inspectedLeads) {
+    try {
+      const invoice = await prisma.invoice.findFirst({
+        where: {
+          customerId: lead.customerId,
+          office,
+          serviceId: { in: SOLD_SERVICE_IDS },
+          amount: { gt: 0 },
+          ...(lead.inspectionDate && { date: { gte: new Date(lead.inspectionDate.toISOString().split('T')[0]) } }),
+        },
+        orderBy: { date: 'asc' },
+      });
+
+      if (invoice) {
+        const existingLink = await prisma.lead.findFirst({
+          where: { invoiceId: invoice.id, NOT: { id: lead.id } },
+        });
+        if (!existingLink) {
+          await prisma.lead.update({
+            where: { id: lead.id },
+            data: { status: 'SOLD', invoiceId: invoice.id, amount: Number(invoice.amount) },
+          });
+          updated++;
+        }
+      }
+    } catch (err) {
+      errors++;
+    }
+  }
+  console.log(`[${office}] Part 1b complete: ${updated} total updated`);
 
   // ============================================================
   // PART 2: Create new leads for appointments after CSV cutoff
