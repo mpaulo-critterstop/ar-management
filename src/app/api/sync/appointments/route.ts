@@ -20,9 +20,9 @@ const FAR_IDS = new Set(['501', '674', '479', '541', '542', '624']);
 // CSV cutoff date — appointments after this date will be created by sync
 const CSV_CUTOFF: Record<string, Date> = {
   DFW: new Date('2026-05-28'),
-  ATX: new Date('2025-12-31'),  // No CSV — sync all 2026
-  OKC: new Date('2025-12-31'),  // No CSV — sync all 2026
-  CStat: new Date('2025-12-31'), // No CSV — sync all 2026
+  ATX: new Date('2025-12-31'),
+  OKC: new Date('2025-12-31'),
+  CStat: new Date('2025-12-31'),
 };
 
 const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
@@ -52,12 +52,13 @@ async function syncLeads(office: string, key: string, token: string) {
   let created = 0, updated = 0, errors = 0;
 
   // ============================================================
-  // PART 1: Update existing leads when invoice is voided/cancelled/modified
+  // PART 1: Update existing leads ONLY when invoice is voided ($0 amount)
+  // NEVER unlink invoices that are PAID — paid = job complete, still SOLD
   // ============================================================
-  console.log(`[${office}] Part 1: Updating existing leads from FR invoices...`);
+  console.log(`[${office}] Part 1: Checking for voided invoices...`);
 
   const leads = await prisma.lead.findMany({
-    where: { office, invoiceId: { not: null } },
+    where: { office, invoiceId: { not: null }, status: 'SOLD' },
     select: { id: true, invoiceId: true, status: true, amount: true },
   });
 
@@ -67,26 +68,32 @@ async function syncLeads(office: string, key: string, token: string) {
 
       const invoice = await prisma.invoice.findUnique({
         where: { id: lead.invoiceId },
-        select: { amount: true, status: true, serviceId: true },
+        select: { amount: true, serviceId: true },
       });
 
       if (!invoice) continue;
 
-      const isVoided = Number(invoice.amount) === 0 || invoice.status === 'PAID' && Number(invoice.amount) === 0;
-      const isSold = SOLD_SERVICE_IDS.includes(invoice.serviceId || 0) && Number(invoice.amount) > 0;
-      const newStatus = isVoided ? 'INSPECTED' : isSold ? 'SOLD' : 'INSPECTED';
-      const newAmount = isVoided ? null : Number(invoice.amount);
+      const invoiceAmount = Number(invoice.amount);
 
-      // Only update status and amount — never touch inspectionDate, pmName, invoiceId
-      if (lead.status !== newStatus || lead.amount !== newAmount) {
+      // Only consider voided if amount is literally $0
+      // PAID invoices are NOT voided — they're collected!
+      if (invoiceAmount === 0) {
+        // Invoice was voided — revert lead to INSPECTED
         await prisma.lead.update({
           where: { id: lead.id },
           data: {
-            status: newStatus,
-            amount: newAmount,
-            // If voided, unlink the invoice
-            ...(isVoided && { invoiceId: null }),
+            status: 'INSPECTED',
+            amount: null,
+            invoiceId: null,
           },
+        });
+        updated++;
+        console.log(`[${office}] Voided invoice detected, lead reverted to INSPECTED`);
+      } else if (invoiceAmount !== lead.amount) {
+        // Amount changed — update amount only, keep SOLD status
+        await prisma.lead.update({
+          where: { id: lead.id },
+          data: { amount: invoiceAmount },
         });
         updated++;
       }
@@ -103,12 +110,10 @@ async function syncLeads(office: string, key: string, token: string) {
   const cutoff = CSV_CUTOFF[office] || new Date('2025-12-31');
   console.log(`[${office}] Part 2: Creating new leads after ${cutoff.toISOString().split('T')[0]}...`);
 
-  // Fetch 2026 appointments
   const apptSearch = await frFetch('appointment/search', 'dateStart=2026-01-01', key, token);
   const allApptIds: number[] = apptSearch.appointmentIDs || [];
   const appointments = await fetchInBatches('appointment/get', 'appointmentIDs', allApptIds, key, token);
 
-  // Filter to completed wildlife inspections AFTER CSV cutoff
   const newInspections = appointments.filter((a: any) =>
     WILDLIFE_INSPECTION_IDS.has(String(a.type)) &&
     a.status === '1' &&
@@ -116,7 +121,6 @@ async function syncLeads(office: string, key: string, token: string) {
   );
   console.log(`[${office}] New inspections after cutoff: ${newInspections.length}`);
 
-  // Fetch employee names
   const employeeIds = [...new Set(newInspections.map((a: any) => a.servicedBy || a.completedBy).filter(Boolean))];
   const employeeMap = new Map<string, string>();
   if (employeeIds.length > 0) {
@@ -138,7 +142,6 @@ async function syncLeads(office: string, key: string, token: string) {
       const pmName = employeeMap.get(String(a.servicedBy || a.completedBy)) || null;
       const inspectionDate = new Date(a.date);
 
-      // Find sold invoice for this customer on or after inspection date
       const invoice = await prisma.invoice.findFirst({
         where: {
           customerId: customer.id,
@@ -152,7 +155,7 @@ async function syncLeads(office: string, key: string, token: string) {
 
       const status = invoice ? 'SOLD' : 'INSPECTED';
 
-      // Check if lead already exists by appointmentID or invoiceId
+      // Check duplicates
       const existingByAppt = await prisma.lead.findUnique({
         where: { externalId: String(a.appointmentID) },
       });
@@ -165,7 +168,6 @@ async function syncLeads(office: string, key: string, token: string) {
         if (existingByInvoice) { updated++; continue; }
       }
 
-      // Check by customer + date
       const dayStart = new Date(a.date);
       dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(a.date);
@@ -175,7 +177,6 @@ async function syncLeads(office: string, key: string, token: string) {
       });
       if (existingByDate) { updated++; continue; }
 
-      // Create new lead
       await prisma.lead.create({
         data: {
           externalId: String(a.appointmentID),
@@ -190,7 +191,6 @@ async function syncLeads(office: string, key: string, token: string) {
       });
       created++;
 
-      // Create dispatch job if sold
       if (status === 'SOLD' && invoice) {
         await createDispatchJob(customer.id, invoice.id, office, pmName, String(a.customerID), key, token);
       }
@@ -201,7 +201,6 @@ async function syncLeads(office: string, key: string, token: string) {
   }
 
   console.log(`[${office}] Part 2 complete: ${created} created, ${errors} errors`);
-
   return { created, updated, errors };
 }
 
