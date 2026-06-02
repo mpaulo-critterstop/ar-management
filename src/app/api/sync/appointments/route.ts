@@ -40,26 +40,69 @@ async function fetchInBatches(endpoint: string, idParam: string, ids: number[], 
   return results;
 }
 
-async function syncAppointments(office: string, key: string, token: string) {
+async function syncLeads(office: string, key: string, token: string) {
   let created = 0, updated = 0, errors = 0;
 
-  console.log(`[${office}] Fetching 2026+ appointment IDs`);
-  const searchData = await frFetch('appointment/search', 'dateStart=2026-01-01', key, token);
-  if (!searchData.success) throw new Error('Appointment search failed');
-  const allIds: number[] = searchData.appointmentIDs || [];
-  console.log(`[${office}] Total appointment IDs: ${allIds.length}`);
-  if (allIds.length === 0) return { created, updated, errors };
+  // ============================================================
+  // STEP 1: SOLD LEADS — driven by sold invoices from 2026
+  // ============================================================
+  console.log(`[${office}] Step 1: Fetching sold invoices from 2026...`);
 
-  const appointments = await fetchInBatches('appointment/get', 'appointmentIDs', allIds, key, token);
+  // Get all sold invoices from our DB with invoiceDate >= 2026-01-01
+  const soldInvoices = await prisma.invoice.findMany({
+    where: {
+      office,
+      serviceId: { in: SOLD_SERVICE_IDS },
+      amount: { gt: 0 },
+      status: { not: 'PAID' as any },
+      date: { gte: new Date('2026-01-01') },
+    },
+    include: {
+      customer: { select: { id: true, externalId: true, name: true } },
+    },
+    orderBy: { date: 'asc' },
+  });
 
+  // Also get PAID sold invoices from 2026 (fully collected jobs)
+  const paidSoldInvoices = await prisma.invoice.findMany({
+    where: {
+      office,
+      serviceId: { in: SOLD_SERVICE_IDS },
+      amount: { gt: 0 },
+      status: 'PAID' as any,
+      date: { gte: new Date('2026-01-01') },
+    },
+    include: {
+      customer: { select: { id: true, externalId: true, name: true } },
+    },
+    orderBy: { date: 'asc' },
+  });
+
+  const allSoldInvoices = [...soldInvoices, ...paidSoldInvoices];
+  console.log(`[${office}] Sold invoices found: ${allSoldInvoices.length}`);
+
+  // Fetch all 2026+ appointments to get inspection dates and PM names
+  console.log(`[${office}] Fetching 2026+ appointments for PM/date lookup...`);
+  const apptSearch = await frFetch('appointment/search', 'dateStart=2026-01-01', key, token);
+  const allApptIds: number[] = apptSearch.appointmentIDs || [];
+  const appointments = await fetchInBatches('appointment/get', 'appointmentIDs', allApptIds, key, token);
+
+  // Filter to completed wildlife inspections
   const inspections = appointments.filter((a: any) =>
-    WILDLIFE_INSPECTION_IDS.has(String(a.type)) &&
-    a.status === '1' &&
-    a.date && new Date(a.date) >= new Date('2026-01-01')
+    WILDLIFE_INSPECTION_IDS.has(String(a.type)) && a.status === '1'
   );
   console.log(`[${office}] Wildlife inspections found: ${inspections.length}`);
 
-  // Pre-load all employee names
+  // Build customer → inspection map (most recent inspection per customer)
+  const customerInspectionMap = new Map<string, any>();
+  for (const a of inspections) {
+    const existing = customerInspectionMap.get(String(a.customerID));
+    if (!existing || new Date(a.date) > new Date(existing.date)) {
+      customerInspectionMap.set(String(a.customerID), a);
+    }
+  }
+
+  // Fetch employee names
   const employeeIds = [...new Set(inspections.map((a: any) => a.servicedBy || a.completedBy).filter(Boolean))];
   const employeeMap = new Map<string, string>();
   if (employeeIds.length > 0) {
@@ -71,72 +114,106 @@ async function syncAppointments(office: string, key: string, token: string) {
     }
   }
 
+  // Create/update SOLD leads for each sold invoice
+  for (const invoice of allSoldInvoices) {
+    try {
+      if (!invoice.customer) { errors++; continue; }
+
+      // Find the inspection appointment for this customer
+      const inspection = customerInspectionMap.get(invoice.customer.externalId);
+      const pmName = inspection ? employeeMap.get(String(inspection.servicedBy || inspection.completedBy)) || null : null;
+      const inspectionDate = inspection?.date ? new Date(inspection.date) : null;
+
+      // Check if lead already exists for this invoice
+      const existingLead = await prisma.lead.findFirst({
+        where: { invoiceId: invoice.id },
+      });
+
+      const leadData = {
+        office,
+        customerId: invoice.customer.id,
+        pmName,
+        inspectionDate,
+        status: 'SOLD' as const,
+        invoiceId: invoice.id,
+        amount: Number(invoice.amount),
+      };
+
+      if (existingLead) {
+        await prisma.lead.update({
+          where: { id: existingLead.id },
+          data: { ...leadData, pmName: leadData.pmName || existingLead.pmName, inspectionDate: leadData.inspectionDate || existingLead.inspectionDate },
+        });
+        updated++;
+      } else {
+        await prisma.lead.create({
+          data: { externalId: `inv_${invoice.id}`, ...leadData },
+        });
+        created++;
+
+        // Create dispatch job
+        await createDispatchJob(invoice.customer.id, invoice.id, office, pmName, invoice.customer.externalId, key, token);
+      }
+    } catch (err: any) {
+      errors++;
+      console.error(`[${office}] Error creating SOLD lead for invoice ${invoice.id}:`, err.message);
+    }
+  }
+
+  console.log(`[${office}] Step 1 complete: ${created} created, ${updated} updated, ${errors} errors`);
+
+  // ============================================================
+  // STEP 2: INSPECTED LEADS — appointments with no sold invoice
+  // ============================================================
+  console.log(`[${office}] Step 2: Creating INSPECTED leads...`);
+  let inspCreated = 0, inspUpdated = 0;
+
+  // Get all customers who already have a SOLD lead
+  const soldCustomerIds = new Set(
+    (await prisma.lead.findMany({
+      where: { office, status: 'SOLD' },
+      select: { customerId: true },
+    })).map((l: any) => l.customerId)
+  );
+
   for (const a of inspections) {
     try {
+      // Only process 2026 appointments
+      if (!a.date || new Date(a.date) < new Date('2026-01-01')) continue;
+
       const customer = await prisma.customer.findFirst({
         where: { externalId: String(a.customerID), office },
       });
-      if (!customer) { errors++; continue; }
+      if (!customer) continue;
 
-      const inspectionDate = a.date ? new Date(a.date) : new Date();
-      const invoice = await prisma.invoice.findFirst({
-        where: {
-          customerId: customer.id,
-          office,
-          serviceId: { in: SOLD_SERVICE_IDS },
-          amount: { gt: 0 },
-          date: { gte: inspectionDate },
-        },
-        orderBy: { date: 'asc' },
-      });
+      // Skip if customer already has a SOLD lead
+      if (soldCustomerIds.has(customer.id)) continue;
 
-      const status = invoice && Number(invoice.amount) > 0 ? 'SOLD' : 'INSPECTED';
       const pmName = employeeMap.get(String(a.servicedBy || a.completedBy)) || null;
+
+      // Check if INSPECTED lead already exists for this appointment
+      const existingLead = await prisma.lead.findUnique({
+        where: { externalId: String(a.appointmentID) },
+      });
 
       const leadData = {
         office,
         customerId: customer.id,
         pmName,
-        inspectionDate: a.date ? new Date(a.date) : null,
-        status,
-        invoiceId: invoice?.id || null,
-        amount: invoice ? Number(invoice.amount) : null,
+        inspectionDate: new Date(a.date),
+        status: 'INSPECTED' as const,
+        invoiceId: null,
+        amount: null,
       };
 
-      // 1. Check by appointmentID
-      const existingByAppointment = await prisma.lead.findUnique({
-        where: { externalId: String(a.appointmentID) },
-      });
-      if (existingByAppointment) {
+      if (existingLead) {
         await prisma.lead.update({
           where: { externalId: String(a.appointmentID) },
-          data: { status: leadData.status, pmName: leadData.pmName || existingByAppointment.pmName, invoiceId: leadData.invoiceId || existingByAppointment.invoiceId, amount: leadData.amount || existingByAppointment.amount },
+          data: leadData,
         });
-        updated++;
-        continue;
-      }
-
-      // 2. Check by invoiceId
-      if (leadData.invoiceId) {
-        const existingByInvoice = await prisma.lead.findFirst({
-          where: { invoiceId: leadData.invoiceId },
-        });
-        if (existingByInvoice) {
-          await prisma.lead.update({
-            where: { id: existingByInvoice.id },
-            data: {
-              status: leadData.status,
-              pmName: leadData.pmName || existingByInvoice.pmName,
-              amount: leadData.amount || existingByInvoice.amount,
-              inspectionDate: existingByInvoice.inspectionDate || leadData.inspectionDate,
-            },
-          });
-          updated++;
-          continue;
-        }
-      }
-      // 3. Check by customer + same date
-      if (leadData.inspectionDate) {
+        inspUpdated++;
+      } else {
+        // Check for duplicate by customer + date
         const dayStart = new Date(a.date);
         dayStart.setHours(0, 0, 0, 0);
         const dayEnd = new Date(a.date);
@@ -144,38 +221,21 @@ async function syncAppointments(office: string, key: string, token: string) {
         const existingByDate = await prisma.lead.findFirst({
           where: { customerId: customer.id, office, inspectionDate: { gte: dayStart, lte: dayEnd } },
         });
-        if (existingByDate) {
-          await prisma.lead.update({
-            where: { id: existingByDate.id },
-            data: { status: leadData.status, pmName: leadData.pmName || existingByDate.pmName, invoiceId: leadData.invoiceId || existingByDate.invoiceId, amount: leadData.amount || existingByDate.amount },
-          });
-          updated++;
-          continue;
-        }
-      }
+        if (existingByDate) { inspUpdated++; continue; }
 
-      // 4. Skip INSPECTED if customer already has any lead
-      if (status === 'INSPECTED') {
-        const anyLead = await prisma.lead.findFirst({
-          where: { customerId: customer.id, office },
+        await prisma.lead.create({
+          data: { externalId: String(a.appointmentID), ...leadData },
         });
-        if (anyLead) { updated++; continue; }
+        inspCreated++;
       }
-
-      // 5. Create new lead
-      await prisma.lead.create({
-        data: { externalId: String(a.appointmentID), ...leadData },
-      });
-      created++;
-
-      if (status === 'SOLD' && invoice) {
-        await createDispatchJob(customer.id, invoice.id, office, pmName, String(a.customerID), key, token);
-      }
-
     } catch (err) {
       errors++;
     }
   }
+
+  console.log(`[${office}] Step 2 complete: ${inspCreated} created, ${inspUpdated} updated`);
+  created += inspCreated;
+  updated += inspUpdated;
 
   return { created, updated, errors };
 }
@@ -219,7 +279,7 @@ export async function POST(req: NextRequest) {
     const config = OFFICES[office as keyof typeof OFFICES];
     if (!config) continue;
     try {
-      results[office] = await syncAppointments(office, config.key, config.token);
+      results[office] = await syncLeads(office, config.key, config.token);
     } catch (err: any) {
       results[office] = { error: err.message };
     }
@@ -231,5 +291,5 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  return NextResponse.json({ message: 'Appointment sync endpoint ready' });
+  return NextResponse.json({ message: 'Leads sync endpoint ready' });
 }
