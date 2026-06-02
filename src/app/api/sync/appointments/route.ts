@@ -28,7 +28,7 @@ const OFFICES = {
   },
 };
 
-const WILDLIFE_INSPECTION_IDS = new Set(['645', '1037', '884', '722', '544', '719']);
+const WILDLIFE_INSPECTION_IDS = new Set(['645', '1037', '884', '722', '544', '719', '619']);
 const TRAPPING_IDS = new Set(['720']);
 const FAR_IDS = new Set(['501', '674', '479', '541', '542', '624']);
 
