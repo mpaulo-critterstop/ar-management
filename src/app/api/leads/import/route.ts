@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   let created = 0, updated = 0, skipped = 0, errors = 0;
   const skipReasons: string[] = [];
 
-  // Pre-load all customers and invoices for this office in one query
+  // Pre-load all customers and invoices for this office
   const allCustomers = await prisma.customer.findMany({
     where: { office },
     select: { id: true, externalId: true },
@@ -25,28 +25,15 @@ export async function POST(req: NextRequest) {
 
   const allInvoices = await prisma.invoice.findMany({
     where: { office },
-    select: { id: true, externalId: true, amount: true, date: true },
+    select: { id: true, externalId: true, amount: true, date: true, status: true },
   });
   const invoiceMap = new Map(allInvoices.map((i: any) => [i.externalId, i]));
-
-  // Pre-load existing leads
-  const existingLeads = await prisma.lead.findMany({
-    where: { office },
-    select: { id: true, externalId: true },
-  });
-  const existingMap = new Map(existingLeads.map((l: any) => [l.externalId, l.id]));
-
-  const toCreate: any[] = [];
-  const toUpdate: any[] = [];
 
   for (const row of rows) {
     try {
       const frCustomerId = String(row.fr_id || '').trim();
       const ticketId = String(row.invoice_id || '').trim();
       const pmName = String(row.pm || '').trim() || null;
-      const inspectionDate = row.inspection_date ? new Date(row.inspection_date) : null;
-      const isSold = String(row.sold || '').toLowerCase() === 'yes';
-      const amount = parseFloat(row.amount_booked) || 0;
 
       if (!frCustomerId) { skipped++; skipReasons.push(`Missing FR ID`); continue; }
 
@@ -57,42 +44,53 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      // Find invoice from DB
       const invoice = ticketId ? invoiceMap.get(ticketId) : null;
+
+      // Determine status from invoice data (not CSV)
+      const isSold = invoice && Number(invoice.amount) > 0;
       const status = isSold ? 'SOLD' : 'INSPECTED';
-      const externalId = ticketId ? `csv_${ticketId}` : `csv_${frCustomerId}_${inspectionDate?.toISOString().split('T')[0]}`;
+      const amount = invoice ? Number(invoice.amount) : null;
+
+      // Use unique externalId based on ticket or customer+office
+      const externalId = ticketId ? `csv_${ticketId}` : `csv_${frCustomerId}`;
+
+      // Check if lead already exists
+      const existing = await prisma.lead.findFirst({
+        where: {
+          OR: [
+            { externalId },
+            ...(invoice ? [{ invoiceId: invoice.id }] : []),
+          ]
+        },
+      });
 
       const leadData = {
         office,
         customerId,
         pmName,
-        inspectionDate,
         status,
         invoiceId: invoice?.id || null,
-        amount: isSold ? (invoice ? Number(invoice.amount) : amount) : null,
+        amount,
+        // Don't set inspectionDate from CSV — let FR sync handle it
       };
 
-      const existingId = existingMap.get(externalId);
-      if (existingId) {
-        toUpdate.push({ id: existingId, data: leadData });
+      if (existing) {
+        await prisma.lead.update({
+          where: { id: existing.id },
+          data: { ...leadData, pmName: pmName || existing.pmName },
+        });
+        updated++;
       } else {
-        toCreate.push({ externalId, ...leadData });
+        await prisma.lead.create({
+          data: { externalId, ...leadData },
+        });
+        created++;
       }
     } catch (err: any) {
       errors++;
       skipReasons.push(`Error: ${err.message}`);
     }
-  }
-
-  // Batch create
-  if (toCreate.length > 0) {
-    await prisma.lead.createMany({ data: toCreate, skipDuplicates: true });
-    created = toCreate.length;
-  }
-
-  // Batch update
-  for (const { id, data } of toUpdate) {
-    await prisma.lead.update({ where: { id }, data });
-    updated++;
   }
 
   return NextResponse.json({
