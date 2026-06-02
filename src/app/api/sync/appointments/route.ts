@@ -119,7 +119,12 @@ async function syncLeads(office: string, key: string, token: string) {
       if (!invoice.customer) { errors++; continue; }
 
       // Find the inspection appointment for this customer
-      const inspection = invoice.customer.externalId ? customerInspectionMap.get(invoice.customer.externalId) : null;
+      // Find the inspection closest to but before the invoice date
+      const allInspections = invoice.customer.externalId ? customerInspectionsMap.get(invoice.customer.externalId) || [] : [];
+      const invoiceDate = new Date(invoice.date);
+      const inspection = allInspections
+        .filter((a: any) => new Date(a.date) <= invoiceDate)
+        .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] || null;
       const pmName = inspection ? employeeMap.get(String(inspection.servicedBy || inspection.completedBy)) || null : null;
       const inspectionDate = inspection?.date ? new Date(inspection.date) : null;
 
