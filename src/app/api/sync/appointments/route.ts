@@ -124,13 +124,17 @@ async function syncAppointments(office: string, key: string, token: string) {
         if (existingByInvoice) {
           await prisma.lead.update({
             where: { id: existingByInvoice.id },
-            data: { status: leadData.status, pmName: leadData.pmName || existingByInvoice.pmName, amount: leadData.amount || existingByInvoice.amount },
+            data: {
+              status: leadData.status,
+              pmName: leadData.pmName || existingByInvoice.pmName,
+              amount: leadData.amount || existingByInvoice.amount,
+              inspectionDate: existingByInvoice.inspectionDate || leadData.inspectionDate,
+            },
           });
           updated++;
           continue;
         }
       }
-
       // 3. Check by customer + same date
       if (leadData.inspectionDate) {
         const dayStart = new Date(a.date);
