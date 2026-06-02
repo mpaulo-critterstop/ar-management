@@ -10,7 +10,7 @@ const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
 const STATUSES = ['All', 'SOLD', 'INSPECTED', 'PENDING'];
 
 function fmt(n: number) {
-  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function pct(n: number) { return n.toFixed(1) + '%'; }
 
@@ -214,7 +214,7 @@ export default function LeadsPage() {
                       {lead.status}
                     </span>
                   </td>
-                  <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.invoice?.externalId ? '#' + lead.invoice.externalId : '—'}</td>
+                  <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.invoice?.externalId || '—'}</td>
                   <td style={{ padding: '10px 12px' }}>{lead.amount ? fmt(lead.amount) : '—'}</td>
                   <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.office}</td>
                 </tr>
