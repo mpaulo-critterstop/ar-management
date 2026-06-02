@@ -142,17 +142,34 @@ async function syncLeads(office: string, key: string, token: string) {
       if (existingLead) {
         await prisma.lead.update({
           where: { id: existingLead.id },
-          data: { ...leadData, pmName: leadData.pmName || existingLead.pmName, inspectionDate: leadData.inspectionDate || existingLead.inspectionDate },
+          data: {
+            pmName: leadData.pmName || existingLead.pmName,
+            inspectionDate: existingLead.inspectionDate || leadData.inspectionDate,
+          },
         });
         updated++;
       } else {
-        await prisma.lead.create({
-          data: { externalId: `inv_${invoice.id}`, ...leadData },
+        // Only create if no CSV lead exists for this customer
+        const csvLead = await prisma.lead.findFirst({
+          where: { customerId: invoice.customer.id, office, externalId: { startsWith: 'csv_' } },
         });
-        created++;
-
-        // Create dispatch job
-        await createDispatchJob(invoice.customer.id, invoice.id, office, pmName, invoice.customer.externalId || '', key, token);
+        if (csvLead) {
+          // Update the CSV lead instead
+          await prisma.lead.update({
+            where: { id: csvLead.id },
+            data: {
+              pmName: leadData.pmName || csvLead.pmName,
+              inspectionDate: csvLead.inspectionDate || leadData.inspectionDate,
+            },
+          });
+          updated++;
+        } else {
+          await prisma.lead.create({
+            data: { externalId: `inv_${invoice.id}`, ...leadData },
+          });
+          created++;
+          await createDispatchJob(invoice.customer.id, invoice.id, office, pmName, invoice.customer.externalId || '', key, token);
+        }
       }
     } catch (err: any) {
       errors++;
