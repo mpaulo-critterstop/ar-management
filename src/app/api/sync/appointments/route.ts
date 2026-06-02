@@ -83,7 +83,7 @@ async function syncLeads(office: string, key: string, token: string) {
 
   // Fetch all 2026+ appointments to get inspection dates and PM names
   console.log(`[${office}] Fetching 2026+ appointments for PM/date lookup...`);
-  const apptSearch = await frFetch('appointment/search', 'dateStart=2026-01-01', key, token);
+  const apptSearch = await frFetch('appointment/search', 'dateStart=2025-01-01', key, token);
   const allApptIds: number[] = apptSearch.appointmentIDs || [];
   const appointments = await fetchInBatches('appointment/get', 'appointmentIDs', allApptIds, key, token);
 
