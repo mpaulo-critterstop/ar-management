@@ -108,10 +108,11 @@ async function syncLeads(office: string, key: string, token: string) {
   const appointments = await fetchInBatches('appointment/get', 'appointmentIDs', allApptIds, key, token);
 
   // Filter to completed wildlife inspections AFTER CSV cutoff
+  const cutoff = CSV_CUTOFF[office] || new Date('2025-12-31');
   const newInspections = appointments.filter((a: any) =>
     WILDLIFE_INSPECTION_IDS.has(String(a.type)) &&
     a.status === '1' &&
-    a.date && new Date(a.date) > CSV_CUTOFF
+    a.date && new Date(a.date) > cutoff
   );
   console.log(`[${office}] New inspections after cutoff: ${newInspections.length}`);
 
