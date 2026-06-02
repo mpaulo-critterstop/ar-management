@@ -199,7 +199,8 @@ async function syncDispatch(office: string, key: string, token: string) {
 
       if (closeOutForm && !closedOut) {
         closedOut = true;
-        closedOutDate = new Date(closeOutForm.dateSigned);
+        const parsedCloseDate = new Date(closeOutForm.dateSigned);
+        closedOutDate = isNaN(parsedCloseDate.getTime()) ? new Date() : parsedCloseDate;
       }
       if (farForm) {
           farDone = true;
