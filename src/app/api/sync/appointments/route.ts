@@ -100,7 +100,8 @@ async function syncLeads(office: string, key: string, token: string) {
   // ============================================================
   // PART 2: Create new leads for appointments after CSV cutoff
   // ============================================================
-  console.log(`[${office}] Part 2: Creating new leads after ${CSV_CUTOFF.toISOString().split('T')[0]}...`);
+  const cutoff = CSV_CUTOFF[office] || new Date('2025-12-31');
+  console.log(`[${office}] Part 2: Creating new leads after ${cutoff.toISOString().split('T')[0]}...`);
 
   // Fetch 2026 appointments
   const apptSearch = await frFetch('appointment/search', 'dateStart=2026-01-01', key, token);
@@ -108,7 +109,6 @@ async function syncLeads(office: string, key: string, token: string) {
   const appointments = await fetchInBatches('appointment/get', 'appointmentIDs', allApptIds, key, token);
 
   // Filter to completed wildlife inspections AFTER CSV cutoff
-  const cutoff = CSV_CUTOFF[office] || new Date('2025-12-31');
   const newInspections = appointments.filter((a: any) =>
     WILDLIFE_INSPECTION_IDS.has(String(a.type)) &&
     a.status === '1' &&
