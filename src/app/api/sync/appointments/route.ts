@@ -18,7 +18,12 @@ const TRAPPING_IDS = new Set(['720']);
 const FAR_IDS = new Set(['501', '674', '479', '541', '542', '624']);
 
 // CSV cutoff date — appointments after this date will be created by sync
-const CSV_CUTOFF = new Date('2026-05-28');
+const CSV_CUTOFF: Record<string, Date> = {
+  DFW: new Date('2026-05-28'),
+  ATX: new Date('2025-12-31'),  // No CSV — sync all 2026
+  OKC: new Date('2025-12-31'),  // No CSV — sync all 2026
+  CStat: new Date('2025-12-31'), // No CSV — sync all 2026
+};
 
 const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
 const BATCH_SIZE = 1000;
