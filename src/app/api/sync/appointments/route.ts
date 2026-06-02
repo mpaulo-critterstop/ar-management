@@ -102,6 +102,105 @@ async function syncAppointments(office: string, key: string, token: string) {
       });
       if (!customer) { errors++; continue; }
 
+      const inspectionDate = a.date ? new Date(a.date) : new Date();
+      const invoice = await prisma.invoice.findFirst({
+        where: {
+          customerId: customer.id,
+          office,
+          serviceId: { in: SOLD_SERVICE_IDS },
+          amount: { gt: 0 },
+          date: { gte: inspectionDate },
+        },
+        orderBy: { date: 'asc' },
+      });
+
+      const status = invoice && Number(invoice.amount) > 0 ? 'SOLD' : 'INSPECTED';
+      const pmName = employeeMap.get(String(a.servicedBy || a.completedBy)) || null;
+
+      const leadData = {
+        office,
+        customerId: customer.id,
+        pmName,
+        inspectionDate: a.date ? new Date(a.date) : null,
+        status,
+        invoiceId: invoice?.id || null,
+        amount: invoice ? Number(invoice.amount) : null,
+      };
+
+      // Find ANY existing lead for this customer+office — prioritize by invoiceId, then date, then appointmentID
+      let existingLead = null;
+
+      // Check by appointmentID first
+      existingLead = await prisma.lead.findUnique({
+        where: { externalId: String(a.appointmentID) },
+      });
+
+      // Check by invoiceId
+      if (!existingLead && leadData.invoiceId) {
+        existingLead = await prisma.lead.findFirst({
+          where: { invoiceId: leadData.invoiceId },
+        });
+      }
+
+      // Check by same customer + same date (within same day)
+      if (!existingLead && leadData.inspectionDate) {
+        const dayStart = new Date(a.date);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(a.date);
+        dayEnd.setHours(23, 59, 59, 999);
+        existingLead = await prisma.lead.findFirst({
+          where: {
+            customerId: customer.id,
+            office,
+            inspectionDate: { gte: dayStart, lte: dayEnd },
+          },
+        });
+      }
+
+      if (existingLead) {
+        // Update existing lead — preserve CSV pmName if FR doesn't have one
+        await prisma.lead.update({
+          where: { id: existingLead.id },
+          data: {
+            status: leadData.status,
+            pmName: leadData.pmName || existingLead.pmName,
+            invoiceId: leadData.invoiceId || existingLead.invoiceId,
+            amount: leadData.amount || existingLead.amount,
+            inspectionDate: existingLead.inspectionDate || leadData.inspectionDate,
+          },
+        });
+        updated++;
+        continue;
+      }
+
+      // No existing lead found — only create if SOLD or no other lead exists for this customer
+      const anyLead = await prisma.lead.findFirst({
+        where: { customerId: customer.id, office },
+      });
+
+      if (status === 'INSPECTED' && anyLead) {
+        // Don't create duplicate INSPECTED leads if customer already has any lead
+        updated++;
+        continue;
+      }
+
+      await prisma.lead.create({
+        data: { externalId: String(a.appointmentID), ...leadData },
+      });
+      created++;
+
+      if (status === 'SOLD' && invoice) {
+        await createDispatchJob(customer.id, invoice.id, office, pmName, String(a.customerID), key, token);
+      }
+
+    } catch (err) {
+      errors++;
+    }
+  }
+
+  return { created, updated, errors };
+}
+
       // Find the sold invoice closest to this inspection date
       const inspectionDate = a.date ? new Date(a.date) : new Date();
       const invoice = await prisma.invoice.findFirst({
