@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
       const frCustomerId = String(row.fr_id || '').trim();
       const ticketId = String(row.invoice_id || '').trim();
       const pmName = String(row.pm || '').trim() || null;
+      const inspectionDate = row.inspection_date ? new Date(row.inspection_date) : null;
 
       if (!frCustomerId) { skipped++; skipReasons.push(`Missing FR ID`); continue; }
 
@@ -46,13 +47,12 @@ export async function POST(req: NextRequest) {
 
       // Find invoice from DB
       const invoice = ticketId ? invoiceMap.get(ticketId) : null;
-
-      // Determine status from invoice data (not CSV)
       const isSold = invoice && Number(invoice.amount) > 0;
       const status = isSold ? 'SOLD' : 'INSPECTED';
       const amount = invoice ? Number(invoice.amount) : null;
+      const soldDate = invoice?.date || null;
 
-      // Use unique externalId based on ticket or customer+office
+      // Unique externalId based on ticket ID
       const externalId = ticketId ? `csv_${ticketId}` : `csv_${frCustomerId}`;
 
       // Check if lead already exists
@@ -69,16 +69,22 @@ export async function POST(req: NextRequest) {
         office,
         customerId,
         pmName,
+        inspectionDate,  // FROM CSV
         status,
         invoiceId: invoice?.id || null,
-        amount,
-        // Don't set inspectionDate from CSV — let FR sync handle it
+        amount,          // FROM FR DB
       };
 
       if (existing) {
         await prisma.lead.update({
           where: { id: existing.id },
-          data: { ...leadData, pmName: pmName || existing.pmName },
+          data: {
+            pmName: pmName || existing.pmName,
+            inspectionDate: inspectionDate || existing.inspectionDate,
+            status,
+            amount,
+            invoiceId: invoice?.id || existing.invoiceId,
+          },
         });
         updated++;
       } else {
