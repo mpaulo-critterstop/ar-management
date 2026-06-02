@@ -151,6 +151,20 @@ async function syncAppointments(office: string, key: string, token: string, from
         });
         updated++;
       } else {
+        // Check if invoice is already linked to another lead
+        if (leadData.invoiceId) {
+          const invoiceLead = await prisma.lead.findFirst({
+            where: { invoiceId: leadData.invoiceId },
+          });
+          if (invoiceLead) {
+            await prisma.lead.update({
+              where: { id: invoiceLead.id },
+              data: { status: leadData.status, pmName: leadData.pmName || invoiceLead.pmName },
+            });
+            updated++;
+            continue;
+          }
+        }
         await prisma.lead.create({
           data: { externalId: String(a.appointmentID), ...leadData },
         });
