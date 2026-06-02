@@ -143,8 +143,8 @@ async function syncDispatch(office: string, key: string, token: string) {
         if (formIds.length > 0) {
           const formData = await frFetch('form/get', `contractIDs=${formIds.join(',')}`, key, token);
           const forms = formData.forms || [];
-          const closeOut = forms.find((f: any) => f.formDescription === CLOSEOUT_FORM && f.documentState === 'COMPLETED');
-          const far = forms.find((f: any) => f.formDescription === FAR_FORM && f.documentState === 'COMPLETED');
+          const closeOut = forms.find((f: any) => f.formDescription === CLOSEOUT_FORM && ['COMPLETED', 'WIP'].includes(f.documentState));
+          const far = forms.find((f: any) => f.formDescription === FAR_FORM && ['COMPLETED', 'WIP'].includes(f.documentState));
           if (closeOut) closeOutByCustomer.set(String(custId), closeOut);
           if (far) farByCustomer.set(String(custId), far);
         }
