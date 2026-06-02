@@ -147,6 +147,8 @@ async function syncLeads(office: string, key: string, token: string) {
         await prisma.lead.update({
           where: { id: existingLead.id },
           data: {
+            status: 'SOLD',
+            amount: leadData.amount || existingLead.amount,
             pmName: leadData.pmName || existingLead.pmName,
             inspectionDate: existingLead.inspectionDate || leadData.inspectionDate,
           },
