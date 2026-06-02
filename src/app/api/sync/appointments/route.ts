@@ -120,7 +120,7 @@ async function syncLeads(office: string, key: string, token: string) {
       if (!invoice.customer) { errors++; continue; }
 
       // Find the inspection appointment for this customer
-      const inspection = customerInspectionMap.get(invoice.customer.externalId);
+      const inspection = invoice.customer.externalId ? customerInspectionMap.get(invoice.customer.externalId) : null;
       const pmName = inspection ? employeeMap.get(String(inspection.servicedBy || inspection.completedBy)) || null : null;
       const inspectionDate = inspection?.date ? new Date(inspection.date) : null;
 
