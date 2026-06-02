@@ -83,7 +83,7 @@ async function syncAppointments(office: string, key: string, token: string, from
   console.log(`[${office}] Wildlife inspections found: ${inspections.length}`);
 
   // Get all employee IDs to fetch names
-  const employeeIds = [...new Set(inspections.map((a: any) => a.completedBy).filter(Boolean))];
+  const employeeIds = [...new Set(inspections.map((a: any) => a.servicedBy || a.completedBy).filter(Boolean))];
   const employeeMap = new Map<string, string>();
 
   if (employeeIds.length > 0) {
@@ -120,7 +120,7 @@ async function syncAppointments(office: string, key: string, token: string, from
       });
       const status = invoice && Number(invoice.amount) > 0 ? 'SOLD' : 'INSPECTED';
 
-      const pmName = employeeMap.get(String(a.completedBy)) || null;
+      const pmName = employeeMap.get(String(a.servicedBy || a.completedBy)) || null;
 
       const existingLead = await prisma.lead.findUnique({
         where: { externalId: String(a.appointmentID) },
