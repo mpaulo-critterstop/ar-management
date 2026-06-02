@@ -163,7 +163,7 @@ async function syncLeads(office: string, key: string, token: string) {
             where: { id: csvLead.id },
             data: {
               pmName: leadData.pmName || csvLead.pmName,
-              inspectionDate: csvLead.inspectionDate || leadData.inspectionDate,
+              inspectionDate: csvLead.inspectionDate || leadData.inspectionDate || null,
             },
           });
           updated++;
