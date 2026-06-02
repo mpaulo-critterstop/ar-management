@@ -152,7 +152,7 @@ async function syncLeads(office: string, key: string, token: string) {
         created++;
 
         // Create dispatch job
-        await createDispatchJob(invoice.customer.id, invoice.id, office, pmName, invoice.customer.externalId, key, token);
+        await createDispatchJob(invoice.customer.id, invoice.id, office, pmName, invoice.customer.externalId || '', key, token);
       }
     } catch (err: any) {
       errors++;
