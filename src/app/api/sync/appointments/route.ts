@@ -93,13 +93,12 @@ async function syncLeads(office: string, key: string, token: string) {
   );
   console.log(`[${office}] Wildlife inspections found: ${inspections.length}`);
 
-  // Build customer → inspection map (most recent inspection per customer)
-  const customerInspectionMap = new Map<string, any>();
+ // Build customer → inspections map (all inspections per customer)
+  const customerInspectionsMap = new Map<string, any[]>();
   for (const a of inspections) {
-    const existing = customerInspectionMap.get(String(a.customerID));
-    if (!existing || new Date(a.date) > new Date(existing.date)) {
-      customerInspectionMap.set(String(a.customerID), a);
-    }
+    const existing = customerInspectionsMap.get(String(a.customerID)) || [];
+    existing.push(a);
+    customerInspectionsMap.set(String(a.customerID), existing);
   }
 
   // Fetch employee names
