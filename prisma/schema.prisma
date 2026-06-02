@@ -215,22 +215,32 @@ model Lead {
 }
 
 model DispatchJob {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   office          String
   customerId      String
-  customer        Customer @relation(fields: [customerId], references: [id])
-  invoiceId       String?  @unique
-  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+  customer        Customer  @relation(fields: [customerId], references: [id])
+  invoiceId       String?   @unique
+  invoice         Invoice?  @relation(fields: [invoiceId], references: [id])
   pmName          String?
-  hasTrapping     Boolean  @default(false)
-  hasFAR          Boolean  @default(false)
-  exclusionDone   Boolean  @default(false)
-  trappingDone    Boolean  @default(false)
-  farDone         Boolean  @default(false)
-  closeOutForm    String?
-  closedOut       Boolean  @default(false)
+  
+  // What work is included (from invoice line items)
+  hasTrapping     Boolean   @default(false)
+  hasFAR          Boolean   @default(false)
+  
+  // Stage tracking
+  exclusionDone   Boolean   @default(false)
+  exclusionDate   DateTime?
+  trapCheckCount  Int       @default(0)
+  lastTrapCheck   DateTime?
+  farDone         Boolean   @default(false)
+  farDate         DateTime?
+  closedOut       Boolean   @default(false)
   closedOutDate   DateTime?
-  status          String   @default("ACTIVE")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  
+  // Notes
+  notes           String?
+  
+  status          String    @default("ACTIVE") // ACTIVE, CLOSED
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
