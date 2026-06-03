@@ -17,6 +17,7 @@ export default function HomePage() {
   const router = useRouter();
   const [kpis, setKpis] = useState<any>(null);
   const [leadsKpis, setLeadsKpis] = useState<any>(null);
+  const [dispatchKpis, setDispatchKpis] = useState<any>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -26,6 +27,7 @@ export default function HomePage() {
     if (status !== 'authenticated') return;
     fetch('/api/kpi').then(r => r.json()).then(setKpis).catch(() => {});
     fetch('/api/leads').then(r => r.json()).then(setLeadsKpis).catch(() => {});
+    fetch('/api/dispatch').then(r => r.json()).then(setDispatchKpis).catch(() => {});
   }, [status]);
 
   if (status === 'loading') return null;
