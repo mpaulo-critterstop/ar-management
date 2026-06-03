@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
       where.exclusionDone = true;
       where.hasFAR = true;
       where.farDone = false;
+      where.trapsDone = true;
       where.closedOut = false;
     } else if (stageFilter === 'needs_attention') {
       const sevenDaysAgo = new Date();
