@@ -38,9 +38,10 @@ export async function GET(req: NextRequest) {
     // Stage filters
     if (stageFilter === 'exclusion_pending') {
       where.exclusionDone = false;
-    } else if (stageFilter === 'trap_checks') {
+   } else if (stageFilter === 'trap_checks') {
       where.exclusionDone = true;
       where.hasTrapping = true;
+      where.trapsDone = false;
       where.closedOut = false;
     } else if (stageFilter === 'far_pending') {
       where.exclusionDone = true;
