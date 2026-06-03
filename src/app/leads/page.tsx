@@ -158,35 +158,41 @@ export default function LeadsPage() {
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, color: '#888780' }}>Filters:</span>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
-          {STATUSES.map(s => <option key={s}>{s}</option>)}
-        </select>
-        <select value={pmFilter} onChange={e => setPmFilter(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
-          {pms.map(p => <option key={p}>{p}</option>)}
-        </select>
-        <select value={dateField} onChange={e => setDateField(e.target.value as 'inspection' | 'sold')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
-          <option value="inspection">Inspection date</option>
-          <option value="sold">Sold date</option>
-        </select>
-        <input type="date" value={fromInput} onChange={e => setFromInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
-        <span style={{ fontSize: 12, color: '#888780' }}>to</span>
-        <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
-        <button
-          onClick={() => { setFrom(fromInput); setTo(toInput); }}
-          style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', cursor: 'pointer', fontWeight: 500 }}
-        >
-          Apply
-        </button>
-        {(from || to) && (
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: '#888780' }}>Filters:</span>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+            <option value="All">All</option>
+            <option value="SOLD">Sold</option>
+            <option value="INSPECTED">Inspected</option>
+          </select>
+          <select value={pmFilter} onChange={e => setPmFilter(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+            {pms.map(p => <option key={p}>{p}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select value={dateField} onChange={e => setDateField(e.target.value as 'inspection' | 'sold')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+            <option value="inspection">Inspection date</option>
+            <option value="sold">Sold date</option>
+          </select>
+          <input type="date" value={fromInput} onChange={e => setFromInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+          <span style={{ fontSize: 12, color: '#888780' }}>to</span>
+          <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
           <button
-            onClick={() => { setFrom(''); setTo(''); setFromInput(''); setToInput(''); }}
-            style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}
+            onClick={() => { setFrom(fromInput); setTo(toInput); }}
+            style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', cursor: 'pointer', fontWeight: 500 }}
           >
-            Clear
+            Apply
           </button>
-        )}
+          {(from || to) && (
+            <button
+              onClick={() => { setFrom(''); setTo(''); setFromInput(''); setToInput(''); }}
+              style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* KPI cards */}
