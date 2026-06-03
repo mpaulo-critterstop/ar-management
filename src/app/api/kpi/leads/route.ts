@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     if (period === 'monthly') {
       // Build 12 month periods (current month first)
-      const months = [];
+      const months: { year: number; month: number; start: Date; end: Date }[] = [];
       for (let i = 0; i < 12; i++) {
         const year = now.getMonth() - i < 0 ? now.getFullYear() - 1 : now.getFullYear();
         const month = ((now.getMonth() - i) + 12) % 12;
