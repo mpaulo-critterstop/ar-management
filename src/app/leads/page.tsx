@@ -301,7 +301,6 @@ export default function LeadsPage() {
           </tbody>
         </table>
       </div>
-
       
       {/* Import Modal */}
       {showImport && (
