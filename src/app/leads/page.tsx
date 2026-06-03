@@ -352,7 +352,7 @@ export default function LeadsPage() {
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setShowImport(false)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer' }}>Cancel</button>
               <button onClick={handleImport} disabled={importing || importRows.length === 0} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: 'none', background: importRows.length === 0 ? '#D3D1C7' : ACCENT, color: '#fff', cursor: importRows.length === 0 ? 'not-allowed' : 'pointer', fontWeight: 500 }}>
-                {importing ? 'Importing...' : `Import ${importRows.length} rows`}
+                {importing ? 'Importing...' : 'Import ' + importRows.length + ' rows'}
               </button>
             </div>
           </div>
