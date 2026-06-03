@@ -75,22 +75,22 @@ export async function GET(req: NextRequest) {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     const kpis = {
-      total: allActive.length,
-      exclusionPending: allActive.filter(j => !j.exclusionDone).length,
-      trapChecks: allActive.filter(j => j.exclusionDone && j.hasTrapping && !j.closedOut).length,
-      farPending: allActive.filter(j => j.hasFAR && !j.farDone && !j.closedOut).length,
-      needsAttention: allActive.filter(j => 
-        (!j.closedOut && j.updatedAt < sevenDaysAgo) ||
-        (j.hasTrapping && j.trapCheckCount >= 3 && !j.closedOut)
-      ).length,
-      closedThisMonth: await prisma.dispatchJob.count({
-        where: {
-          ...(officeFilter && { office: { equals: officeFilter, mode: 'insensitive' } }),
-          status: 'CLOSED',
-          closedOutDate: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
-        },
-      }),
-    };
+  total: allActive.length,
+  exclusionPending: allActive.filter(j => !j.exclusionDone).length,
+  trapChecks: allActive.filter(j => j.exclusionDone && j.hasTrapping && !j.trapsDone).length,
+  farPending: allActive.filter(j => j.exclusionDone && (!j.hasTrapping || j.trapsDone) && j.hasFAR && !j.farDone && !j.closedOut).length,
+  needsAttention: allActive.filter(j =>
+    (!j.closedOut && j.updatedAt < sevenDaysAgo) ||
+    (j.hasTrapping && j.trapCheckCount >= 3 && !j.trapsDone)
+  ).length,
+  closedThisMonth: await prisma.dispatchJob.count({
+    where: {
+      ...(officeFilter && { office: { equals: officeFilter, mode: 'insensitive' } }),
+      status: 'CLOSED',
+      closedOutDate: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+    },
+  }),
+};
 
     return NextResponse.json({ jobs, kpis });
   } catch (e: any) {
