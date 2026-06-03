@@ -131,7 +131,7 @@ async function syncDispatch(office: string, key: string, token: string) {
     String(a.type) === REMOVAL_ONLY_TYPE && a.status === '1'
   );
 
-  console.log(`[${office}] Exclusion: ${exclusionAppts.length}, Trap: ${trapAppts.length}, FAR: ${farAppts.length}, Removal-only: ${removalAppts.length}`);
+  console.log(`[${office}] Exclusion: ${exclusionAppts.length}, Trap: ${trapAppts.length}, FAR: ${farAppts.length}, Removal-only: ${removalAppts.length}, Trapping-only: ${allAppts.filter((a: any) => TRAPPING_ONLY_APPT_TYPES.has(String(a.type)) && a.status === '1').length}`);
 
   const buildCustomerMap = (appts: any[]) => {
     const map = new Map<string, any[]>();
