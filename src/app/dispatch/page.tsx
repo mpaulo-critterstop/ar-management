@@ -86,6 +86,11 @@ export default function DispatchPage() {
 
   useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const runSync = async () => {
     setSyncing(true);
     try {
@@ -118,11 +123,6 @@ export default function DispatchPage() {
       showToast('Save failed');
     }
     setSavingStage(false);
-  };
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
   };
 
   const getStage = (job: any) => {
