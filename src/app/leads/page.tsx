@@ -95,7 +95,6 @@ export default function LeadsPage() {
   const pms = ['All', ...Array.from(new Set(leads.map((l: any) => l.pmName).filter(Boolean)))];
 
   // Pagination logic
-  const totalPages = Math.ceil(leads.length / pageSize);
   const filtered = search ? leads.filter((l: any) => l.customer?.name?.toLowerCase().includes(search.toLowerCase())) : leads;
   const totalPages = Math.ceil(filtered.length / pageSize);
   const displayed = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
