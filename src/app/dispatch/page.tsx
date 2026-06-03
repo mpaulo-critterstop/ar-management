@@ -111,12 +111,12 @@ export default function DispatchPage() {
   };
 
   const getStage = (job: any) => {
-    if (job.closedOut) return { label: 'Closed out', color: '#1D9E75', bg: '#E1F5EE' };
-    if (job.hasFAR && job.exclusionDone && !job.farDone) return { label: 'FAR pending', color: '#854F0B', bg: '#FAEEDA' };
-    if (job.hasTrapping && job.exclusionDone) return { label: 'Trap checks', color: '#185FA5', bg: '#E6F1FB' };
-    if (!job.exclusionDone) return { label: 'Exclusion pending', color: '#A32D2D', bg: '#FCEBEB' };
-    return { label: 'Active', color: '#888780', bg: '#F1EFE8' };
-  };
+  if (job.closedOut) return { label: 'Closed out', color: '#1d9e75', bg: '#e1f5ee' };
+  if (!job.exclusionDone) return { label: 'Exclusion pending', color: '#a32d2d', bg: '#fcebeb' };
+  if (job.hasTrapping && !job.trapsDone) return { label: 'Trapping in progress', color: '#185fa5', bg: '#e6f1fb' };
+  if (job.hasFAR && !job.farDone) return { label: 'FAR pending', color: '#854f0b', bg: '#faeeda' };
+  return { label: 'Active', color: '#888780', bg: '#f1efe8' };
+};
 
   const getFlags = (job: any) => {
     const flags = [];
