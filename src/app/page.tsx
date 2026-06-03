@@ -50,12 +50,12 @@ export default function HomePage() {
       title: 'Dispatcher',
       desc: 'Manage active exclusion jobs, trap checks, FAR progress, and close-outs.',
       href: '/dispatch',
-      stats: [
-        { label: 'Active jobs', value: '—' },
-        { label: 'Pending close-out', value: '—', color: '#BA7517' },
-        { label: 'Closed this month', value: '—', color: '#1D9E75' },
-      ],
-      main: '—',
+      stats: dispatchKpis ? [
+       { label: 'Active jobs', value: dispatchKpis.kpis?.total || 0 },
+       { label: 'FAR pending', value: dispatchKpis.kpis?.farPending || 0, color: '#BA7517' },
+       { label: 'Closed this month', value: dispatchKpis.kpis?.closedThisMonth || 0, color: '#1D9E75' },
+      ] : null,
+      main: dispatchKpis?.kpis?.total || '—',
       mainLabel: 'Active jobs',
     },
     {
@@ -66,7 +66,7 @@ export default function HomePage() {
       stats: kpis ? [
         { label: 'Total AR', value: fmt(kpis.totalAR || 0), color: ACCENT },
         { label: 'Overdue', value: fmt(kpis.overdueAR || 0), color: '#A32D2D' },
-        { label: 'Open invoices', value: kpis.openInvoices || 0 },
+        { label: 'Open invoices', value: kpis.openCount || 0 },
       ] : null,
       main: kpis ? fmt(kpis.totalAR || 0) : '—',
       mainLabel: 'Total AR',
