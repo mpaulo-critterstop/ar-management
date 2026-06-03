@@ -25,8 +25,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Critter Stop" />
       </head>
-        <body style={{ margin: 0, minHeight: '100vh' }}>
-        <div style={{ position: 'fixed', inset: 0, zIndex: -1, backgroundImage: 'url(/bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat', opacity: 0.20 }} />
+        <body style={{ margin: 0, minHeight: '100vh', backgroundImage: 'url(/bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat', backgroundAttachment: 'fixed' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 0, background: 'rgba(255,255,255,0.88)' }} />
+        <div style={{ position: 'relative', zIndex: 1 }}>
         <Providers>
           <TopNav />
           {children}
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             });
           }
         `}} />
+          </div>
       </body>
     </html>
   );
