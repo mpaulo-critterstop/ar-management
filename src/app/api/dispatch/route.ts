@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
     const kpis = {
   total: allActive.length,
   exclusionPending: allActive.filter(j => !j.exclusionDone).length,
-  trapChecks: allActive.filter(j => j.exclusionDone && j.hasTrapping && !j.trapsDone).length,
+  trapChecks: allActive.filter(j => j.hasTrapping && !j.trapsDone).length,
   farPending: allActive.filter(j => j.exclusionDone && (!j.hasTrapping || j.trapsDone) && j.hasFAR && !j.farDone && !j.closedOut).length,
   needsAttention: allActive.filter(j =>
     (!j.closedOut && j.updatedAt < sevenDaysAgo) ||
