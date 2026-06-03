@@ -54,6 +54,9 @@ export async function GET(req: NextRequest) {
         { updatedAt: { lt: sevenDaysAgo }, closedOut: false },
         { hasTrapping: true, trapCheckCount: { gte: 3 }, closedOut: false },
       ];
+    } else if (stageFilter === 'closed_this_month') {
+      where.status = 'CLOSED';
+      where.closedOutDate = { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) };
     }
 
     const jobs = await prisma.dispatchJob.findMany({
