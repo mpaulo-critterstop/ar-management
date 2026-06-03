@@ -14,12 +14,12 @@ const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
 const BATCH_SIZE = 1000;
 const EXCLUSION_APPT_TYPES = new Set(['553', '716']);
 const TRAP_CHECK_APPT_TYPES = new Set(['504', '636']);
+const FAR_APPT_TYPES = new Set(['624', '542', '479', '674']);
+const REMOVAL_ONLY_TYPE = '1073';
 const TRAPPING_PRODUCT_IDS = new Set([8]);
 const FAR_PRODUCT_IDS = new Set([10]);
 const TRAPPING_KEYWORDS = ['trapping', 'trap'];
 const FAR_KEYWORDS = ['full attic', 'insulation', 'far', 'blow-in'];
-const CLOSEOUT_FORM = 'CLOSE-OUT CHECKLIST FORM';
-const FAR_FORM = 'Insulation Blow-In Checklist';
 
 async function frFetch(endpoint: string, params: string, key: string, token: string) {
   const url = `${FR_BASE}/${endpoint}?${params}&authenticationKey=${key}&authenticationToken=${token}`;
@@ -48,11 +48,17 @@ function hasTrapping(items: any[], serviceID: string): boolean {
 }
 
 function hasFAR(items: any[], serviceID: string): boolean {
-  if (['501','674','479','541','542','624'].includes(serviceID)) return true;
+  if (['501', '674', '479', '541', '542', '624'].includes(serviceID)) return true;
   return items.some(item =>
     FAR_PRODUCT_IDS.has(Number(item.productID)) ||
     FAR_KEYWORDS.some(k => item.description?.toLowerCase().includes(k))
   );
+}
+
+function safeDate(dateStr: string | null | undefined, fallback: Date | null = null): Date | null {
+  if (!dateStr) return fallback;
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? fallback : d;
 }
 
 async function syncDispatch(office: string, key: string, token: string) {
@@ -70,25 +76,10 @@ async function syncDispatch(office: string, key: string, token: string) {
   if (jobs.length === 0) return { updated: 0, errors: 0 };
   console.log(`[${office}] Syncing ${jobs.length} dispatch jobs...`);
 
-  // Build lookup maps
-  const customerFRIds = [...new Set(jobs.map(j => j.customer?.externalId).filter(Boolean))];
   const ticketIds = [...new Set(jobs.map(j => j.invoice?.externalId).filter(Boolean))];
-  const jobByCustomer = new Map<string, typeof jobs[0][]>();
-  const jobByTicket = new Map<string, typeof jobs[0]>();
-
-  for (const job of jobs) {
-    if (job.customer?.externalId) {
-      const arr = jobByCustomer.get(job.customer.externalId) || [];
-      arr.push(job);
-      jobByCustomer.set(job.customer.externalId, arr);
-    }
-    if (job.invoice?.externalId) {
-      jobByTicket.set(job.invoice.externalId, job);
-    }
-  }
 
   // ============================================================
-  // STEP 1: Fetch all tickets to get line items (hasTrapping, hasFAR)
+  // STEP 1: Fetch all tickets for hasTrapping / hasFAR detection
   // ============================================================
   console.log(`[${office}] Fetching ${ticketIds.length} tickets...`);
   const tickets = await fetchInBatches('ticket/get', 'ticketIDs', ticketIds, key, token);
@@ -96,67 +87,61 @@ async function syncDispatch(office: string, key: string, token: string) {
   for (const t of tickets) ticketMap.set(String(t.ticketID), t);
 
   // ============================================================
-  // STEP 2: Fetch all exclusion appointments since 2026-01-01
+  // STEP 2: Fetch ALL appointments since 2026-01-01, filter client-side
   // ============================================================
-  console.log(`[${office}] Fetching exclusion appointments...`);
-  const exclSearch = await frFetch('appointment/search', 'dateStart=2026-01-01', key, token);
-  const exclIds: number[] = exclSearch.appointmentIDs || [];
-  const allAppts = await fetchInBatches('appointment/get', 'appointmentIDs', exclIds, key, token);
+  console.log(`[${office}] Fetching all appointments...`);
+  const apptSearch = await frFetch('appointment/search', 'dateStart=2026-01-01', key, token);
+  const apptIds: number[] = apptSearch.appointmentIDs || [];
 
-  // Filter exclusion appointments (completed)
+  // Safety check - abort if no appointments to prevent data corruption
+  if (apptIds.length === 0) {
+    console.log(`[${office}] No appointments returned - aborting to prevent data corruption`);
+    return { updated: 0, errors: 0 };
+  }
+
+  console.log(`[${office}] Fetching ${apptIds.length} appointment details...`);
+  const allAppts = await fetchInBatches('appointment/get', 'appointmentIDs', apptIds, key, token);
+
+  // Safety check - abort if appointment details are empty
+  if (allAppts.length === 0) {
+    console.log(`[${office}] No appointment details returned - aborting to prevent data corruption`);
+    return { updated: 0, errors: 0 };
+  }
+
+  // Filter by type and completed status client-side
   const exclusionAppts = allAppts.filter((a: any) =>
     EXCLUSION_APPT_TYPES.has(String(a.type)) && a.status === '1'
   );
-  // Filter trap check appointments (completed)
   const trapAppts = allAppts.filter((a: any) =>
     TRAP_CHECK_APPT_TYPES.has(String(a.type)) && a.status === '1'
   );
+  const farAppts = allAppts.filter((a: any) =>
+    FAR_APPT_TYPES.has(String(a.type)) && a.status === '1'
+  );
+  const removalAppts = allAppts.filter((a: any) =>
+    String(a.type) === REMOVAL_ONLY_TYPE && a.status === '1'
+  );
 
-  // Build maps: customerID → appointments
-  const exclusionByCustomer = new Map<string, any[]>();
-  for (const a of exclusionAppts) {
-    const arr = exclusionByCustomer.get(String(a.customerID)) || [];
-    arr.push(a);
-    exclusionByCustomer.set(String(a.customerID), arr);
-  }
-  const trapByCustomer = new Map<string, any[]>();
-  for (const a of trapAppts) {
-    const arr = trapByCustomer.get(String(a.customerID)) || [];
-    arr.push(a);
-    trapByCustomer.set(String(a.customerID), arr);
-  }
+  console.log(`[${office}] Exclusion: ${exclusionAppts.length}, Trap: ${trapAppts.length}, FAR: ${farAppts.length}, Removal-only: ${removalAppts.length}`);
 
-  // ============================================================
-  // STEP 3: Fetch all forms for customers with dispatch jobs
-  // ============================================================
-  console.log(`[${office}] Fetching forms for ${customerFRIds.length} customers...`);
-  const closeOutByCustomer = new Map<string, any>();
-  const farByCustomer = new Map<string, any>();
-
-  // Fetch forms in batches of 100 customers
-  for (let i = 0; i < customerFRIds.length; i += 100) {
-    const batch = customerFRIds.slice(i, i + 100);
-    for (const custId of batch) {
-      try {
-        const formSearch = await frFetch('form/search', `customerID=${custId}`, key, token);
-        const formIds = formSearch.formIDs || [];
-        if (formIds.length > 0) {
-          const formData = await frFetch('form/get', `contractIDs=${formIds.join(',')}`, key, token);
-          const forms = formData.forms ? Object.values(formData.forms) : [];
-          const closeOut = forms.find((f: any) => f.formDescription === CLOSEOUT_FORM && ['COMPLETED', 'WIP'].includes(f.documentState));
-          const far = forms.find((f: any) => f.formDescription === FAR_FORM && ['COMPLETED', 'WIP'].includes(f.documentState));
-          if (closeOut) closeOutByCustomer.set(String(custId), closeOut);
-          if (far) farByCustomer.set(String(custId), far);
-        }
-      } catch { /* skip */ }
+  // Build customerID → appointments maps
+  const buildCustomerMap = (appts: any[]) => {
+    const map = new Map<string, any[]>();
+    for (const a of appts) {
+      const arr = map.get(String(a.customerID)) || [];
+      arr.push(a);
+      map.set(String(a.customerID), arr);
     }
-    await new Promise(r => setTimeout(r, 100));
-  }
+    return map;
+  };
 
-  console.log(`[${office}] Close-out forms found: ${closeOutByCustomer.size}, FAR forms: ${farByCustomer.size}`);
+  const exclusionByCustomer = buildCustomerMap(exclusionAppts);
+  const trapByCustomer = buildCustomerMap(trapAppts);
+  const farByCustomer = buildCustomerMap(farAppts);
+  const removalByCustomer = buildCustomerMap(removalAppts);
 
   // ============================================================
-  // STEP 4: Update each dispatch job
+  // STEP 3: Update each dispatch job
   // ============================================================
   for (const job of jobs) {
     try {
@@ -171,46 +156,56 @@ async function syncDispatch(office: string, key: string, token: string) {
       const jobHasTrapping = hasTrapping(items, serviceID);
       const jobHasFAR = hasFAR(items, serviceID);
 
-      // Exclusion done?
-      const custExclusionAppts = exclusionByCustomer.get(custFRId) || [];
+      // Exclusion
+      const custExclusionAppts = (exclusionByCustomer.get(custFRId) || [])
+        .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
       const exclusionDone = custExclusionAppts.length > 0;
-      const latestExclusion = custExclusionAppts.sort((a: any, b: any) =>
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      )[0];
-      const exclusionDate = latestExclusion ? new Date(latestExclusion.date) : job.exclusionDate;
+      const exclusionDate = custExclusionAppts[0]
+        ? safeDate(custExclusionAppts[0].date, job.exclusionDate)
+        : job.exclusionDate;
 
       // Trap checks
-      const custTrapAppts = trapByCustomer.get(custFRId) || [];
+      const custTrapAppts = (trapByCustomer.get(custFRId) || [])
+        .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
       const trapCheckCount = custTrapAppts.length;
-      const latestTrap = custTrapAppts.sort((a: any, b: any) =>
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      )[0];
-      const lastTrapCheck = latestTrap ? new Date(latestTrap.date) : job.lastTrapCheck;
+      const lastTrapCheck = custTrapAppts[0]
+        ? safeDate(custTrapAppts[0].date, job.lastTrapCheck)
+        : job.lastTrapCheck;
 
-      // Forms
-      const closeOutForm = closeOutByCustomer.get(custFRId);
-      const farForm = farByCustomer.get(custFRId);
+      // FAR - completed blow-in appointment
+      const custFarAppts = (farByCustomer.get(custFRId) || [])
+        .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const farDone = custFarAppts.length > 0;
+      const farDate = custFarAppts[0]
+        ? safeDate(custFarAppts[0].date, job.farDate)
+        : job.farDate;
 
+      // Removal only
+      const custRemovalAppts = (removalByCustomer.get(custFRId) || [])
+        .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const removalDone = custRemovalAppts.length > 0;
+      const removalDate = custRemovalAppts[0]
+        ? safeDate(custRemovalAppts[0].date, null)
+        : null;
+
+      // Close out logic
       let closedOut = job.closedOut;
       let closedOutDate = job.closedOutDate;
-      let farDone = job.farDone;
-      let farDate = job.farDate;
       let jobStatus = job.status;
 
-      if (closeOutForm && !closedOut) {
+      // FAR blow-in done = closed out
+      if (farDone && !closedOut) {
         closedOut = true;
-        const parsedCloseDate = new Date(closeOutForm.dateSigned);
-        closedOutDate = isNaN(parsedCloseDate.getTime()) ? new Date() : parsedCloseDate;
-      }
-      if (farForm) {
-          farDone = true;
-          const parsedFarDate = new Date(farForm.dateSigned);
-          farDate = isNaN(parsedFarDate.getTime()) ? new Date() : parsedFarDate;
-        closedOut = true;
-        closedOutDate = closedOutDate || new Date(farForm.dateSigned);
+        closedOutDate = farDate || new Date();
       }
 
-      // Auto close-out: exclusion done + no trapping + no FAR
+      // Removal only done = closed out (end of project, no blow-in)
+      if (removalDone && !closedOut) {
+        closedOut = true;
+        closedOutDate = removalDate || new Date();
+      }
+
+      // Auto close-out: exclusion done + no trapping + no FAR needed
       if (exclusionDone && !jobHasTrapping && !jobHasFAR && !closedOut) {
         closedOut = true;
         closedOutDate = exclusionDate || new Date();
@@ -235,7 +230,7 @@ async function syncDispatch(office: string, key: string, token: string) {
         },
       });
 
-      // Update invoice due date if closed out
+      // Update invoice due date if newly closed out
       if (closedOut && closedOutDate && job.invoice?.id) {
         const inv = await prisma.invoice.findUnique({
           where: { id: job.invoice.id },
@@ -255,7 +250,7 @@ async function syncDispatch(office: string, key: string, token: string) {
       updated++;
     } catch (err: any) {
       errors++;
-      console.error(`[${office}] Error:`, err.message);
+      console.error(`[${office}] Error updating job ${job.id}:`, err.message);
     }
   }
 
