@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
     // Calculate KPIs
     const allActive = await prisma.dispatchJob.findMany({
       where: { ...(officeFilter && { office: { equals: officeFilter, mode: 'insensitive' } }), status: 'ACTIVE' },
-      select: { exclusionDone: true, hasTrapping: true, hasFAR: true, farDone: true, closedOut: true, trapCheckCount: true, updatedAt: true, createdAt: true },
+      select: { exclusionDone: true, hasTrapping: true, hasFAR: true, farDone: true, closedOut: true, trapCheckCount: true, updatedAt: true, createdAt: true, trapsDone: true },
     });
 
     const sevenDaysAgo = new Date();
