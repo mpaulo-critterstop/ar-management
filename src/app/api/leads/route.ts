@@ -20,17 +20,24 @@ export async function GET(req: NextRequest) {
   if (office) where.office = office;
   if (status) where.status = status;
   if (pmName) where.pmName = pmName;
-  const dateField = searchParams.get('dateField') || 'inspection';
+ const dateField = searchParams.get('dateField') || 'all';
   if (from || to) {
-    const field = dateField === 'sold' ? 'invoice' : 'inspectionDate';
     if (dateField === 'sold') {
       where.invoice = { date: {} };
       if (from) where.invoice.date.gte = new Date(from);
       if (to) where.invoice.date.lte = new Date(to);
-    } else {
+    } else if (dateField === 'inspection') {
       where.inspectionDate = {};
       if (from) where.inspectionDate.gte = new Date(from);
       if (to) where.inspectionDate.lte = new Date(to);
+    } else {
+      // 'all' - filter by either inspection date OR sold date within range
+      const fromDate = from ? new Date(from) : undefined;
+      const toDate = to ? new Date(to) : undefined;
+      where.OR = [
+        { inspectionDate: { ...(fromDate && { gte: fromDate }), ...(toDate && { lte: toDate }) } },
+        { invoice: { date: { ...(fromDate && { gte: fromDate }), ...(toDate && { lte: toDate }) } } },
+      ];
     }
   }
 
