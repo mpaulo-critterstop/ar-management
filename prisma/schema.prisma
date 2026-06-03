@@ -226,6 +226,7 @@ model DispatchJob {
   // What work is included (from invoice line items)
   hasTrapping     Boolean   @default(false)
   hasFAR          Boolean   @default(false)
+  hasExclusion    Boolean   @default(true)
   
   // Stage tracking
   exclusionDone   Boolean   @default(false)
