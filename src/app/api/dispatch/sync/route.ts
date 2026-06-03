@@ -241,6 +241,7 @@ async function syncDispatch(office: string, key: string, token: string) {
         data: {
           hasTrapping: jobHasTrapping,
           hasFAR: jobHasFAR,
+          hasExclusion: jobHasExclusion,
           exclusionDone,
           exclusionDate,
           trapCheckCount,
