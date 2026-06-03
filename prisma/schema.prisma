@@ -231,6 +231,7 @@ model DispatchJob {
   exclusionDone   Boolean   @default(false)
   exclusionDate   DateTime?
   trapCheckCount  Int       @default(0)
+  trapsDone Boolean @default(false)
   lastTrapCheck   DateTime?
   farDone         Boolean   @default(false)
   farDate         DateTime?
