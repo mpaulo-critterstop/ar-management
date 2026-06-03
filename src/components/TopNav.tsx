@@ -9,7 +9,7 @@ const tabs = [
   { label: 'Home', href: '/' },
   { label: 'Leads tracker', href: '/leads' },
   { label: 'Dispatcher', href: '/dispatch' },
-  { label: 'AR', href: '/dashboard' },
+  { label: 'AR', href: '/accounts-receivable' },
 ];
 
 export function TopNav() {
