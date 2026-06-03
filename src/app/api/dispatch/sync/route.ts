@@ -20,6 +20,7 @@ const TRAPPING_PRODUCT_IDS = new Set([8]);
 const FAR_PRODUCT_IDS = new Set([10]);
 const TRAPPING_KEYWORDS = ['trapping', 'trap'];
 const FAR_KEYWORDS = ['full attic', 'insulation', 'far', 'blow-in'];
+const TRAPPING_DONE_KEYWORDS = ['ready for insulation', 'ready for far', 'close out', 'closed out'];
 
 async function frFetch(endpoint: string, params: string, key: string, token: string) {
   const url = `${FR_BASE}/${endpoint}?${params}&authenticationKey=${key}&authenticationToken=${token}`;
@@ -61,10 +62,19 @@ function safeDate(dateStr: string | null | undefined, fallback: Date | null = nu
   return isNaN(d.getTime()) ? fallback : d;
 }
 
+function hasTrappingDoneNote(appts: any[]): boolean {
+  return appts.some((a: any) =>
+    TRAPPING_DONE_KEYWORDS.some(k =>
+      a.officeNotes?.toLowerCase().includes(k) ||
+      a.appointmentNotes?.toLowerCase().includes(k) ||
+      a.notes?.toLowerCase().includes(k)
+    )
+  );
+}
+
 async function syncDispatch(office: string, key: string, token: string) {
   let updated = 0, errors = 0;
 
-  // Get all active dispatch jobs
   const jobs = await prisma.dispatchJob.findMany({
     where: { office, status: 'ACTIVE' },
     include: {
@@ -93,7 +103,6 @@ async function syncDispatch(office: string, key: string, token: string) {
   const apptSearch = await frFetch('appointment/search', 'dateStart=2026-01-01', key, token);
   const apptIds: number[] = apptSearch.appointmentIDs || [];
 
-  // Safety check - abort if no appointments to prevent data corruption
   if (apptIds.length === 0) {
     console.log(`[${office}] No appointments returned - aborting to prevent data corruption`);
     return { updated: 0, errors: 0 };
@@ -102,7 +111,6 @@ async function syncDispatch(office: string, key: string, token: string) {
   console.log(`[${office}] Fetching ${apptIds.length} appointment details...`);
   const allAppts = await fetchInBatches('appointment/get', 'appointmentIDs', apptIds, key, token);
 
-  // Safety check - abort if appointment details are empty
   if (allAppts.length === 0) {
     console.log(`[${office}] No appointment details returned - aborting to prevent data corruption`);
     return { updated: 0, errors: 0 };
@@ -172,6 +180,9 @@ async function syncDispatch(office: string, key: string, token: string) {
         ? safeDate(custTrapAppts[0].date, job.lastTrapCheck)
         : job.lastTrapCheck;
 
+      // Trapping done - check notes on any trap check appointment
+      const trapsDone = jobHasTrapping && hasTrappingDoneNote(custTrapAppts);
+
       // FAR - completed blow-in appointment
       const custFarAppts = (farByCustomer.get(custFRId) || [])
         .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -199,10 +210,16 @@ async function syncDispatch(office: string, key: string, token: string) {
         closedOutDate = farDate || new Date();
       }
 
-      // Removal only done = closed out (end of project, no blow-in)
+      // Removal only done = closed out
       if (removalDone && !closedOut) {
         closedOut = true;
         closedOutDate = removalDate || new Date();
+      }
+
+      // Trapping done note + no FAR needed = closed out
+      if (trapsDone && !jobHasFAR && !closedOut) {
+        closedOut = true;
+        closedOutDate = lastTrapCheck || new Date();
       }
 
       // Auto close-out: exclusion done + no trapping + no FAR needed
