@@ -246,3 +246,14 @@ model DispatchJob {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }
+
+model PM {
+  id        String   @id @default(cuid())
+  name      String
+  office    String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, office])
+}
