@@ -79,7 +79,7 @@ export default function LeadsPage() {
       if (to) params.set('to', to);
       params.set('dateField', dateField);
     }
-    const res = await fetch(`/api/leads?${params}`);
+    const res = await fetch('/api/leads?' + params.toString());
     const data = await res.json();
     setLeads(data.leads || []);
     setKpis(data.kpis || null);
