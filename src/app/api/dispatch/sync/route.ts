@@ -132,7 +132,6 @@ async function syncDispatch(office: string, key: string, token: string) {
 
   console.log(`[${office}] Exclusion: ${exclusionAppts.length}, Trap: ${trapAppts.length}, FAR: ${farAppts.length}, Removal-only: ${removalAppts.length}`);
 
-  // Build customerID → appointments maps
   const buildCustomerMap = (appts: any[]) => {
     const map = new Map<string, any[]>();
     for (const a of appts) {
@@ -216,13 +215,13 @@ async function syncDispatch(office: string, key: string, token: string) {
         closedOutDate = removalDate || new Date();
       }
 
-      // Trapping done note + no FAR needed = closed out
+      // Trapping done + no FAR = closed out
       if (trapsDone && !jobHasFAR && !closedOut) {
         closedOut = true;
         closedOutDate = lastTrapCheck || new Date();
       }
 
-      // Auto close-out: exclusion done + no trapping + no FAR needed
+      // Auto close-out: exclusion done + no trapping + no FAR
       if (exclusionDone && !jobHasTrapping && !jobHasFAR && !closedOut) {
         closedOut = true;
         closedOutDate = exclusionDate || new Date();
@@ -239,6 +238,7 @@ async function syncDispatch(office: string, key: string, token: string) {
           exclusionDate,
           trapCheckCount,
           lastTrapCheck,
+          trapsDone,
           farDone,
           farDate,
           closedOut,
