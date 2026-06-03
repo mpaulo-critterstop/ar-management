@@ -104,13 +104,32 @@ export async function PATCH(req: NextRequest) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { id, notes } = body;
+    const { id, notes, stageEdit } = body;
 
     if (!id) return NextResponse.json({ error: 'Job ID required' }, { status: 400 });
 
+    const data: any = {};
+    if (notes !== undefined) data.notes = notes;
+
+    if (stageEdit) {
+      if (stageEdit.exclusionDone !== undefined) data.exclusionDone = stageEdit.exclusionDone;
+      if (stageEdit.exclusionDate !== undefined) data.exclusionDate = stageEdit.exclusionDate ? new Date(stageEdit.exclusionDate) : null;
+      if (stageEdit.trapsDone !== undefined) data.trapsDone = stageEdit.trapsDone;
+      if (stageEdit.trapCheckCount !== undefined) data.trapCheckCount = stageEdit.trapCheckCount;
+      if (stageEdit.lastTrapCheck !== undefined) data.lastTrapCheck = stageEdit.lastTrapCheck ? new Date(stageEdit.lastTrapCheck) : null;
+      if (stageEdit.farDone !== undefined) data.farDone = stageEdit.farDone;
+      if (stageEdit.farDate !== undefined) data.farDate = stageEdit.farDate ? new Date(stageEdit.farDate) : null;
+      if (stageEdit.closedOut !== undefined) data.closedOut = stageEdit.closedOut;
+      if (stageEdit.closedOutDate !== undefined) data.closedOutDate = stageEdit.closedOutDate ? new Date(stageEdit.closedOutDate) : null;
+      
+      // Auto update status
+      if (stageEdit.closedOut === true) data.status = 'CLOSED';
+      if (stageEdit.closedOut === false) data.status = 'ACTIVE';
+    }
+
     const job = await prisma.dispatchJob.update({
       where: { id },
-      data: { notes },
+      data,
     });
 
     return NextResponse.json(job);
