@@ -160,14 +160,9 @@ export default function LeadsPage() {
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => router.push('/kpi')} style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, border: '0.5px solid ' + ACCENT, background: '#fff', color: ACCENT, cursor: 'pointer', fontWeight: 500 }}>
+        <button onClick={() => router.push('/kpi')} style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, border: '0.5px solid ' + ACCENT, background: '#fff', color: ACCENT, cursor: 'pointer', fontWeight: 500 }}>
             KPIs
           </button>
-          <button onClick={() => { setShowImport(true); setImportResult(null); setImportRows([]); setImporting(false); }} style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, border: '0.5px solid ' + ACCENT, background: ACCENT, color: '#fff', cursor: 'pointer', fontWeight: 500 }}>
-            Import CSV
-          </button>
-        </div>
       </div>
 
       {/* Filters */}
