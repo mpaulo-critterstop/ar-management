@@ -139,7 +139,7 @@ export default function DispatchPage() {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     if (new Date(job.updatedAt) < sevenDaysAgo && !job.closedOut) flags.push('No update 7+ days');
-    if (job.hasTrapping && job.trapCheckCount >= 3 && !job.trapsDone) flags.push(`${job.trapCheckCount} trap checks`);
+    if (job.hasTrapping && job.trapCheckCount >= 3 && !job.trapsDone) flags.push(job.trapCheckCount + ' trap checks');
     return flags;
   };
 
