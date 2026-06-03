@@ -177,7 +177,7 @@ export default function LeadsPage() {
           </select>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <select value={dateField} onChange={e => setDateField(e.target.value as 'inspection' | 'sold' | 'all')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+          <select value={dateFieldInput} onChange={e => setDateFieldInput(e.target.value as 'inspection' | 'sold' | 'all')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
             <option value="all">All</option>
             <option value="inspection">Inspection date</option>
             <option value="sold">Sold date</option>
