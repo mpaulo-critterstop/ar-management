@@ -50,7 +50,7 @@ export default function LeadsPage() {
   const [toInput, setToInput] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [dateField, setDateField] = useState<'inspection' | 'sold'>('inspection');
+  const [dateField, setDateField] = useState<'inspection' | 'sold' | 'all'>('all');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,9 +74,11 @@ export default function LeadsPage() {
     if (office !== 'All') params.set('office', office);
     if (statusFilter !== 'All') params.set('status', statusFilter);
     if (pmFilter !== 'All') params.set('pm', pmFilter);
-    if (from) params.set('from', from);
-    if (to) params.set('to', to);
-    params.set('dateField', dateField);
+    if (dateField !== 'all' && (from || to)) {
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+      params.set('dateField', dateField);
+    }
     const res = await fetch(`/api/leads?${params}`);
     const data = await res.json();
     setLeads(data.leads || []);
@@ -174,29 +176,33 @@ export default function LeadsPage() {
           </select>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <select value={dateField} onChange={e => setDateField(e.target.value as 'inspection' | 'sold')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+          <select value={dateField} onChange={e => setDateField(e.target.value as 'inspection' | 'sold' | 'all')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+            <option value="all">All dates</option>
             <option value="inspection">Inspection date</option>
             <option value="sold">Sold date</option>
           </select>
-          <input type="date" value={fromInput} onChange={e => setFromInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
-          <span style={{ fontSize: 12, color: '#888780' }}>to</span>
-          <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
-          <button
-            onClick={() => { setFrom(fromInput); setTo(toInput); }}
-            style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', cursor: 'pointer', fontWeight: 500 }}
-          >
-            Apply
-          </button>
-          {(from || to) && (
-            <button
-              onClick={() => { setFrom(''); setTo(''); setFromInput(''); setToInput(''); }}
-              style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}
-            >
-              Clear
-            </button>
+          {dateField !== 'all' && (
+            <>
+              <input type="date" value={fromInput} onChange={e => setFromInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+              <span style={{ fontSize: 12, color: '#888780' }}>to</span>
+              <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+              <button
+                onClick={() => { setFrom(fromInput); setTo(toInput); }}
+                style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', cursor: 'pointer', fontWeight: 500 }}
+              >
+                Apply
+              </button>
+              {(from || to) && (
+                <button
+                  onClick={() => { setFrom(''); setTo(''); setFromInput(''); setToInput(''); }}
+                  style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}
+                >
+                  Clear
+                </button>
+              )}
+            </>
           )}
         </div>
-      </div>
 
       {/* KPI cards */}
       {kpis && (
