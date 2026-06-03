@@ -186,7 +186,7 @@ export default function LeadsPage() {
           <span style={{ fontSize: 12, color: '#888780' }}>to</span>
           <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
           <button
-            onClick={() => { setFrom(fromInput); setTo(toInput); }}
+            onClick={() => { setFrom(fromInput); setTo(toInput); setDateField(dateFieldInput); }}
             style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', cursor: 'pointer', fontWeight: 500 }}
           >
             Apply
