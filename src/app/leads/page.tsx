@@ -74,6 +74,7 @@ export default function LeadsPage() {
     if (pmFilter !== 'All') params.set('pm', pmFilter);
     if (from) params.set('from', from);
     if (to) params.set('to', to);
+    params.set('dateField', dateField);
     const res = await fetch(`/api/leads?${params}`);
     const data = await res.json();
     setLeads(data.leads || []);
@@ -165,6 +166,10 @@ export default function LeadsPage() {
         </select>
         <select value={pmFilter} onChange={e => setPmFilter(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
           {pms.map(p => <option key={p}>{p}</option>)}
+        </select>
+        <select value={dateField} onChange={e => setDateField(e.target.value as 'inspection' | 'sold')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+          <option value="inspection">Inspection date</option>
+          <option value="sold">Sold date</option>
         </select>
         <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
         <span style={{ fontSize: 12, color: '#888780' }}>to</span>
