@@ -21,6 +21,7 @@ const FAR_PRODUCT_IDS = new Set([10]);
 const TRAPPING_KEYWORDS = ['trapping', 'trap'];
 const FAR_KEYWORDS = ['full attic', 'insulation', 'far', 'blow-in'];
 const TRAPPING_DONE_KEYWORDS = ['ready for insulation', 'ready for far', 'close out', 'closed out'];
+const TRAPPING_ONLY_APPT_TYPES = new Set(['720']);
 
 async function frFetch(endpoint: string, params: string, key: string, token: string) {
   const url = `${FR_BASE}/${endpoint}?${params}&authenticationKey=${key}&authenticationToken=${token}`;
