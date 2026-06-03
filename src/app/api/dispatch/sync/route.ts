@@ -166,6 +166,10 @@ async function syncDispatch(office: string, key: string, token: string) {
 
       const jobHasTrapping = hasTrapping(items, serviceID);
       const jobHasFAR = hasFAR(items, serviceID);
+      const jobHasExclusion = EXCLUSION_APPT_TYPES.has(serviceID) || items.some((item: any) =>
+        ['553', '716'].includes(String(item.serviceID)) ||
+        item.description?.toLowerCase().includes('exclusion')
+      );
 
       // Exclusion
       const custExclusionAppts = (exclusionByCustomer.get(custFRId) || [])
