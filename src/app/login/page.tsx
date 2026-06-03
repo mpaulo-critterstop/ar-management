@@ -14,7 +14,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true); setError("");
     const res = await signIn("credentials", { email, password, redirect: false });
-    if (res?.ok) router.push("/dashboard");
+    if (res?.ok) router.push("/accounts-receivable");
     else { setError("Invalid email or password"); setLoading(false); }
   };
 
