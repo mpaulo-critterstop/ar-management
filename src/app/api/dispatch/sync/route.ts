@@ -174,8 +174,7 @@ async function syncDispatch(office: string, key: string, token: string) {
       // Exclusion
       const custExclusionAppts = (exclusionByCustomer.get(custFRId) || [])
         .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      const exclusionDone = custExclusionAppts.length > 0;
-      const exclusionDate = custExclusionAppts[0]
+      const exclusionDone = custExclusionAppts.length > 0 || (!jobHasExclusion && trappingOnlyByCustomer.get(custFRId) !== undefined);      const exclusionDate = custExclusionAppts[0]
         ? safeDate(custExclusionAppts[0].date, job.exclusionDate)
         : job.exclusionDate;
 
