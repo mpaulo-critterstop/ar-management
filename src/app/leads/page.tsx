@@ -168,6 +168,13 @@ export default function LeadsPage() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, color: '#888780' }}>Filters:</span>
+          <input
+            type="text"
+            placeholder="Search customer..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', minWidth: 180 }}
+          />
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
             <option value="All">All</option>
             <option value="SOLD">Sold</option>
