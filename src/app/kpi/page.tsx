@@ -290,7 +290,7 @@ export default function KPIPage() {
                       {pmRows.map(row => (
                         <tr key={row.label}>
                           <td style={rowLabelStyle}>{row.label}</td>
-                          {(period === 'monthly' ? pm.months : pm.weeks).map((m: any, i: number) => (
+                          {(period === 'monthly' ? (pm.months || []) : (pm.weeks || [])).map((m: any, i: number) => (
                             <td key={i} style={{ ...tdStyle, fontWeight: row.bold ? 500 : 400, color: row.bold ? '#1D9E75' : '#2C2C2A' }}>
                               {row.fn(m)}
                             </td>
