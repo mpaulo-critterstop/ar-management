@@ -56,6 +56,9 @@ export default function DispatchPage() {
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+  const [editingJob, setEditingJob] = useState<any>(null);
+  const [stageEdit, setStageEdit] = useState<any>({});
+  const [savingStage, setSavingStage] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
