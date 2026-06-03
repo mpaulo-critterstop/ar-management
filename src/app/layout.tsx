@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-title" content="Critter Stop" />
       </head>
         <body style={{ margin: 0, minHeight: '100vh' }}>
-        <div style={{ position: 'fixed', inset: 0, zIndex: -1, backgroundImage: 'url(/bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat', opacity: 0.08 }} />
+        <div style={{ position: 'fixed', inset: 0, zIndex: -1, backgroundImage: 'url(/bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat', opacity: 0.20 }} />
         <Providers>
           <TopNav />
           {children}
