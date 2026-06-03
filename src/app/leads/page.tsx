@@ -203,6 +203,7 @@ export default function LeadsPage() {
             </>
           )}
         </div>
+      </div>
 
       {/* KPI cards */}
       {kpis && (
