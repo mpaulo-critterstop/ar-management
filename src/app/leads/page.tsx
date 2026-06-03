@@ -167,13 +167,13 @@ export default function LeadsPage() {
         <select value={pmFilter} onChange={e => setPmFilter(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
           {pms.map(p => <option key={p}>{p}</option>)}
         </select>
+        <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+        <span style={{ fontSize: 12, color: '#888780' }}>to</span>
+        <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
         <select value={dateField} onChange={e => setDateField(e.target.value as 'inspection' | 'sold')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
           <option value="inspection">Inspection date</option>
           <option value="sold">Sold date</option>
         </select>
-        <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
-        <span style={{ fontSize: 12, color: '#888780' }}>to</span>
-        <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
       </div>
 
       {/* KPI cards */}
