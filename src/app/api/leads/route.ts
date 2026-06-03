@@ -20,10 +20,18 @@ export async function GET(req: NextRequest) {
   if (office) where.office = office;
   if (status) where.status = status;
   if (pmName) where.pmName = pmName;
+  const dateField = searchParams.get('dateField') || 'inspection';
   if (from || to) {
-    where.inspectionDate = {};
-    if (from) where.inspectionDate.gte = new Date(from);
-    if (to) where.inspectionDate.lte = new Date(to);
+    const field = dateField === 'sold' ? 'invoice' : 'inspectionDate';
+    if (dateField === 'sold') {
+      where.invoice = { date: {} };
+      if (from) where.invoice.date.gte = new Date(from);
+      if (to) where.invoice.date.lte = new Date(to);
+    } else {
+      where.inspectionDate = {};
+      if (from) where.inspectionDate.gte = new Date(from);
+      if (to) where.inspectionDate.lte = new Date(to);
+    }
   }
 
   const leads = await prisma.lead.findMany({
