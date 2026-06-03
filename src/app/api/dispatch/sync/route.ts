@@ -147,6 +147,9 @@ async function syncDispatch(office: string, key: string, token: string) {
   const trapByCustomer = buildCustomerMap(trapAppts);
   const farByCustomer = buildCustomerMap(farAppts);
   const removalByCustomer = buildCustomerMap(removalAppts);
+  const trappingOnlyByCustomer = buildCustomerMap(allAppts.filter((a: any) =>
+    TRAPPING_ONLY_APPT_TYPES.has(String(a.type)) && a.status === '1'
+  ));
 
   // ============================================================
   // STEP 3: Update each dispatch job
