@@ -62,7 +62,7 @@ export default function HomePage() {
       icon: '📋',
       title: 'Accounts receivable',
       desc: 'Monitor AR aging, open invoices, and collections across all offices.',
-      href: '/dashboard',
+      href: '/accounts-receivable',
       stats: kpis ? [
         { label: 'Total AR', value: fmt(kpis.totalAR || 0), color: ACCENT },
         { label: 'Overdue', value: fmt(kpis.overdueAR || 0), color: '#A32D2D' },
