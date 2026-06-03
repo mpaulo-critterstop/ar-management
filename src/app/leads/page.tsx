@@ -52,6 +52,7 @@ export default function LeadsPage() {
   const [to, setTo] = useState('');
   const [dateField, setDateField] = useState<'inspection' | 'sold' | 'all'>('all');
   const [dateFieldInput, setDateFieldInput] = useState<'inspection' | 'sold' | 'all'>('all');
+  const [search, setSearch] = useState('');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
