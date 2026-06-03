@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
     } else {
       // Weekly - 12 weeks trailing from this Monday
       const thisMonday = getMondayOf(now);
-      const weeks = [];
+      const weeks: { start: Date; end: Date; label: string }[] = [];
       for (let i = 0; i < 12; i++) {
         const monday = new Date(thisMonday);
         monday.setDate(monday.getDate() - i * 7);
