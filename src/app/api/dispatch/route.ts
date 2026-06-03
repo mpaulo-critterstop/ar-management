@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
     const where: any = {
       ...(officeFilter && { office: { equals: officeFilter, mode: 'insensitive' } }),
-      ...(statusFilter !== 'ALL' && { status: statusFilter }),
+      ...(statusFilter !== 'ALL' && stageFilter !== 'closed_this_month' && { status: statusFilter }),
     };
 
     // Stage filters
