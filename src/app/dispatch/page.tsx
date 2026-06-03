@@ -217,7 +217,7 @@ export default function DispatchPage() {
                     <td style={{ padding: '10px 12px', minWidth: 200 }}>
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         <StageChip done={job.exclusionDone} label="Exclusion" date={job.exclusionDate} />
-                        {job.hasTrapping && <StageChip done={job.closedOut} label="Trapping" date={job.closedOutDate} />}
+                        {job.hasTrapping && <StageChip done={job.trapsDone} label="Trapping" date={job.lastTrapCheck} />}
                         {job.hasFAR && <StageChip done={job.farDone} label="FAR" date={job.farDate} />}
                       </div>
                     </td>
