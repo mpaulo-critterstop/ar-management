@@ -181,7 +181,7 @@ export default function LeadsPage() {
             <option value="inspection">Inspection date</option>
             <option value="sold">Sold date</option>
           </select>
-          {dateField !== 'all' && (
+          {(
             <>
               <input type="date" value={fromInput} onChange={e => setFromInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
               <span style={{ fontSize: 12, color: '#888780' }}>to</span>
