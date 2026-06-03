@@ -186,7 +186,7 @@ export default function DispatchPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <label style={{ fontSize: 11, color: '#888780', width: 80 }}>Date:</label>
                       <input type="date"
-                        value={stageEdit.exclusionDate ?? (editingJob.exclusionDate ? editingJob.exclusionDate.split('T')[0] : '')}
+                        value={stageEdit.exclusionDate || (editingJob.exclusionDate ? editingJob.exclusionDate.split('T')[0] : '')}
                         onChange={e => setStageEdit((p: any) => ({ ...p, exclusionDate: e.target.value }))}
                         style={{ fontSize: 12, padding: '3px 6px', border: '0.5px solid #B4B2A9', borderRadius: 4 }} />
                     </div>
@@ -206,7 +206,7 @@ export default function DispatchPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <label style={{ fontSize: 11, color: '#888780', width: 80 }}>Trap checks:</label>
                     <input type="number" min={0}
-                      value={stageEdit.trapCheckCount ?? editingJob.trapCheckCount}
+                      value={stageEdit.trapCheckCount || editingJob.trapCheckCount}
                       onChange={e => setStageEdit((p: any) => ({ ...p, trapCheckCount: Number(e.target.value) }))}
                       style={{ fontSize: 12, padding: '3px 6px', border: '0.5px solid #B4B2A9', borderRadius: 4, width: 60 }} />
                   </div>
@@ -214,7 +214,7 @@ export default function DispatchPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <label style={{ fontSize: 11, color: '#888780', width: 80 }}>Last check:</label>
                       <input type="date"
-                        value={stageEdit.lastTrapCheck ?? (editingJob.lastTrapCheck ? editingJob.lastTrapCheck.split('T')[0] : '')}
+                        value={stageEdit.lastTrapCheck || (editingJob.lastTrapCheck ? editingJob.lastTrapCheck.split('T')[0] : '')}
                         onChange={e => setStageEdit((p: any) => ({ ...p, lastTrapCheck: e.target.value }))}
                         style={{ fontSize: 12, padding: '3px 6px', border: '0.5px solid #B4B2A9', borderRadius: 4 }} />
                     </div>
@@ -235,7 +235,7 @@ export default function DispatchPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <label style={{ fontSize: 11, color: '#888780', width: 80 }}>Date:</label>
                       <input type="date"
-                        value={stageEdit.farDate ?? (editingJob.farDate ? editingJob.farDate.split('T')[0] : '')}
+                        value={stageEdit.farDate || (editingJob.farDate ? editingJob.farDate.split('T')[0] : '')}
                         onChange={e => setStageEdit((p: any) => ({ ...p, farDate: e.target.value }))}
                         style={{ fontSize: 12, padding: '3px 6px', border: '0.5px solid #B4B2A9', borderRadius: 4 }} />
                     </div>
@@ -255,7 +255,7 @@ export default function DispatchPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <label style={{ fontSize: 11, color: '#888780', width: 80 }}>Date:</label>
                     <input type="date"
-                      value={stageEdit.closedOutDate ?? (editingJob.closedOutDate ? editingJob.closedOutDate.split('T')[0] : '')}
+                      value={stageEdit.closedOutDate || (editingJob.closedOutDate ? editingJob.closedOutDate.split('T')[0] : '')}
                       onChange={e => setStageEdit((p: any) => ({ ...p, closedOutDate: e.target.value }))}
                       style={{ fontSize: 12, padding: '3px 6px', border: '0.5px solid #B4B2A9', borderRadius: 4 }} />
                   </div>
