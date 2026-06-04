@@ -1,4 +1,3 @@
-// src/app/api/cron/sync/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
@@ -11,37 +10,38 @@ export async function GET(req: NextRequest) {
   const office = searchParams.get('office') || '';
   const baseUrl = process.env.NEXTAUTH_URL;
 
-  try {
-    // Step 1 — AR sync first (must complete before leads sync)
-    console.log(`[cron] Starting AR sync for ${office || 'all offices'}...`);
-    await fetch(`${baseUrl}/api/sync/auto`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-cron-secret': process.env.CRON_SECRET || '',
-      },
-      body: JSON.stringify({ office }),
-      // @ts-ignore
-      signal: AbortSignal.timeout(600000),
-    });
-    console.log(`[cron] AR sync complete. Starting leads sync...`);
+  // Return 200 immediately so cron-job.org doesn't timeout
+  // Run syncs in background sequentially
+  (async () => {
+    try {
+      console.log(`[cron] Starting AR sync for ${office || 'all offices'}...`);
+      await fetch(`${baseUrl}/api/sync/auto`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-cron-secret': process.env.CRON_SECRET || '',
+        },
+        body: JSON.stringify({ office }),
+        // @ts-ignore
+        signal: AbortSignal.timeout(600000),
+      });
+      console.log(`[cron] AR sync complete. Starting leads sync...`);
 
-    // Step 2 — Leads sync after AR is done
-    await fetch(`${baseUrl}/api/sync/appointments`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-cron-secret': process.env.CRON_SECRET || '',
-      },
-      body: JSON.stringify({ office }),
-      // @ts-ignore
-      signal: AbortSignal.timeout(600000),
-    });
-    console.log(`[cron] Leads sync complete.`);
+      await fetch(`${baseUrl}/api/sync/appointments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-cron-secret': process.env.CRON_SECRET || '',
+        },
+        body: JSON.stringify({ office }),
+        // @ts-ignore
+        signal: AbortSignal.timeout(600000),
+      });
+      console.log(`[cron] Leads sync complete for ${office || 'all offices'}.`);
+    } catch (err) {
+      console.error(`[cron] Sync error:`, err);
+    }
+  })();
 
-  } catch (err) {
-    console.error(`[cron] Sync error:`, err);
-  }
-
-  return NextResponse.json({ message: `Sync complete for ${office || 'all offices'}` });
+  return NextResponse.json({ message: `Sync started for ${office || 'all offices'}` });
 }
