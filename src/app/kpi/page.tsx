@@ -8,7 +8,8 @@ import { useRouter } from 'next/navigation';
 const ACCENT = '#92c1e9';
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
 
-function fmt(n: number) {
+function fmt(n: number | null | undefined) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
   return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 function fmtD(n: number) {
