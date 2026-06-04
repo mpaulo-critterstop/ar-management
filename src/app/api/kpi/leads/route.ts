@@ -138,7 +138,8 @@ export async function GET(req: NextRequest) {
       const allLeads = await prisma.lead.findMany({
         where: {
           inspectionDate: { gte: weeks[11].start, lte: weeks[0].end },
-          ...(officeFilter && officeFilter !== 'All' && { office: { equals: officeFilter, mode: 'insensitive' } }),
+...(officeFilter && officeFilter !== 'All' && { office: { equals: officeFilter, mode: 'insensitive' } }),
+          ...(pmFilter && { pmName: pmFilter }),
         },
         include: { invoice: { select: { amount: true, date: true } } },
       });
