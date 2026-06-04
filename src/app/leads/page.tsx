@@ -92,6 +92,11 @@ export default function LeadsPage() {
    }, [office, statusFilter, pmFilter, from, to]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
+  useEffect(() => {
+    fetch('/api/pm')
+      .then(r => r.json())
+      .then(d => setAllPMs(['All', ...d.filter((p: any) => p.active).map((p: any) => p.name).sort()]));
+  }, []);
 
   const pms = ['All', ...pmKpis.map((p: any) => p.pmName).filter(Boolean).sort()];
 
