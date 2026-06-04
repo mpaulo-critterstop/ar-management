@@ -165,7 +165,7 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {/* Filters */}
+     {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, color: '#888780' }}>Filters:</span>
@@ -176,7 +176,7 @@ export default function LeadsPage() {
             onChange={e => setSearch(e.target.value)}
             style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', minWidth: 180 }}
           />
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+          <select value={statusInput} onChange={e => setStatusInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
             <option value="All">All</option>
             <option value="SOLD">Sold</option>
             <option value="INSPECTED">Inspected</option>
@@ -190,14 +190,14 @@ export default function LeadsPage() {
           <span style={{ fontSize: 12, color: '#888780' }}>to</span>
           <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
           <button
-            onClick={() => { setFrom(fromInput); setTo(toInput); }}
+            onClick={() => { setFrom(fromInput); setTo(toInput); setStatusFilter(statusInput); }}
             style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', cursor: 'pointer', fontWeight: 500 }}
           >
             Apply
           </button>
-          {(from || to) && (
+          {(from || to || statusFilter !== 'All') && (
             <button
-              onClick={() => { setFrom(''); setTo(''); setFromInput(''); setToInput(''); }}
+              onClick={() => { setFrom(''); setTo(''); setFromInput(''); setToInput(''); setStatusFilter('All'); setStatusInput('All'); }}
               style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}
             >
               Clear
