@@ -42,13 +42,12 @@ export default function KPIPage() {
     if (status !== 'authenticated') return;
     fetchKPIs();
     fetchPMs();
-  }, [office, period, status, pmFilter]);
+  }, [office, period, status]);
 
   async function fetchKPIs() {
     setLoading(true);
     const params = new URLSearchParams();
     if (office !== 'All') params.set('office', office);
-    if (pmFilter !== 'All') params.set('pm', pmFilter);
     params.set('period', period);
     const res = await fetch('/api/kpi/leads?' + params.toString());
     const d = await res.json();
@@ -88,7 +87,9 @@ export default function KPIPage() {
 
   const labels = data?.labels || [];
   const company = data?.company || [];
-  const pmData = (data?.pms || []).filter((pm: any) => office === 'All' || pm.office.toLowerCase() === office.toLowerCase());
+  const pmData = (data?.pms || [])
+    .filter((pm: any) => office === 'All' || pm.office.toLowerCase() === office.toLowerCase())
+    .filter((pm: any) => pmFilter === 'All' || pm.pm === pmFilter);
 
   const companyRows = period === 'monthly' ? [
     { label: 'Total Booked Revenue', fn: (m: any) => fmt(m.booked), bold: true },
