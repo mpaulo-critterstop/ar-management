@@ -6,7 +6,6 @@ import Link from 'next/link';
 const tabs = [
   { label: 'Home', href: '/' },
   { label: 'Leads Tracker', href: '/leads' },
-  { label: 'KPIs', href: '/kpi' },
   { label: 'Dispatcher', href: '/dispatch' },
   { label: 'AR', href: '/accounts-receivable' },
 ];
