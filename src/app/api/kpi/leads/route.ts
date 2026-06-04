@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const officeFilter = searchParams.get('office');
+    const pmFilter = searchParams.get('pm');
     const period = searchParams.get('period') || 'monthly';
 
     // Get all active PMs
