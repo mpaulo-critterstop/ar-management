@@ -281,37 +281,6 @@ export default function LeadsPage() {
           </div>
         </div>
       </div>
-
-      {/* PM KPIs table */}
-      <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 14 }}>KPIs by PM</div>
-      <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #E8E7E3', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead>
-            <tr style={{ background: '#F8F7F4' }}>
-              {['PM', 'Total leads', 'Sold', 'Close %', 'Avg sale', 'Booked revenue'].map(h => (
-                <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={6} style={{ padding: 20, textAlign: 'center', color: '#888780' }}>Loading...</td></tr>
-            ) : pmKpis.map((pm: any) => (
-              <tr key={pm.pmName} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
-                <td style={{ padding: '10px 12px', fontWeight: 500 }}>{pm.pmName}</td>
-                <td style={{ padding: '10px 12px' }}>{pm.total}</td>
-                <td style={{ padding: '10px 12px', color: '#1D9E75', fontWeight: 500 }}>{pm.sold}</td>
-                <td style={{ padding: '10px 12px' }}>{pct(pm.conversionRate)}</td>
-                <td style={{ padding: '10px 12px' }}>{fmt(pm.avgSale)}</td>
-                <td style={{ padding: '10px 12px', fontWeight: 500 }}>{fmt(pm.bookedRevenue)}</td>
-              </tr>
-            ))}
-            {!loading && pmKpis.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: 20, textAlign: 'center', color: '#888780' }}>No data</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
       
       {/* Import Modal */}
       {showImport && (
