@@ -185,16 +185,11 @@ export default function LeadsPage() {
           </select>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <select value={dateFieldInput} onChange={e => setDateFieldInput(e.target.value as 'inspection' | 'sold' | 'all')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
-            <option value="all">All</option>
-            <option value="inspection">Inspection date</option>
-            <option value="sold">Sold date</option>
-          </select>
           <input type="date" value={fromInput} onChange={e => setFromInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
           <span style={{ fontSize: 12, color: '#888780' }}>to</span>
           <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
           <button
-            onClick={() => { setFrom(fromInput); setTo(toInput); setDateField(dateFieldInput); }}
+            onClick={() => { setFrom(fromInput); setTo(toInput); }}
             style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', cursor: 'pointer', fontWeight: 500 }}
           >
             Apply
