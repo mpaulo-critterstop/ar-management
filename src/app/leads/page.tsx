@@ -44,7 +44,7 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
 
   const [office, setOffice] = useState('DFW');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [statusInput, setStatusInput] = useState('All');
   const [pmFilter, setPmFilter] = useState('All');
   const [fromInput, setFromInput] = useState('');
   const [toInput, setToInput] = useState('');
