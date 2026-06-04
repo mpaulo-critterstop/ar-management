@@ -3,7 +3,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
-const ACCENT = '#92c1e9';
+const ACCENT = '#0052cc';
 
 const tabs = [
   { label: 'Home', href: '/' },
