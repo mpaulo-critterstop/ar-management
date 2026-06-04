@@ -75,10 +75,10 @@ export default function LeadsPage() {
     if (office !== 'All') params.set('office', office);
     if (statusFilter !== 'All') params.set('status', statusFilter);
     if (pmFilter !== 'All') params.set('pm', pmFilter);
-    if (dateField !== 'all' && (from || to)) {
+    if (from || to) {
       if (from) params.set('from', from);
       if (to) params.set('to', to);
-      params.set('dateField', dateField);
+      params.set('dateField', statusFilter === 'SOLD' ? 'sold' : 'inspection');
     }
     const res = await fetch('/api/leads?' + params.toString());
     const data = await res.json();
