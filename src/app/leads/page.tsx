@@ -98,7 +98,7 @@ export default function LeadsPage() {
       .then(d => setAllPMs(['All', ...d.filter((p: any) => p.active).map((p: any) => p.name).sort()]));
   }, []);
 
-  const pms = ['All', ...pmKpis.map((p: any) => p.pmName).filter(Boolean).sort()];
+  const pms = allPMs.length > 1 ? allPMs : ['All'];
 
   // Pagination logic
   const filtered = search ? leads.filter((l: any) => l.customer?.name?.toLowerCase().includes(search.toLowerCase())) : leads;
