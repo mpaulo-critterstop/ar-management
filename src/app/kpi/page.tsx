@@ -240,6 +240,10 @@ export default function KPIPage() {
           <button onClick={() => { setShowPMManager(true); fetchPMs(); }} style={{ padding: '5px 14px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>
             Manage PMs
           </button>
+          <select value={pmFilter} onChange={e => setPmFilter(e.target.value)} style={{ fontSize: 12, padding: '8px 12px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', cursor: 'pointer' }}>
+            <option value="All">All PMs</option>
+            {pms.map((pm: any) => <option key={pm.id} value={pm.name}>{pm.name}</option>)}
+          </select>
         </div>
       </div>
 
