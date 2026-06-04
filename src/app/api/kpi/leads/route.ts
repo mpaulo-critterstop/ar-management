@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
           inspectionDate: { gte: months[11].start, lte: months[0].end },
           ...(officeFilter && officeFilter !== 'All' && { office: { equals: officeFilter, mode: 'insensitive' } }),
         },
-        include: { invoice: { select: { amount: true } } },
+        include: { invoice: { select: { amount: true, date: true } } },
       });
 
       const allPayments = await prisma.payment.findMany({
@@ -139,7 +139,7 @@ export async function GET(req: NextRequest) {
           inspectionDate: { gte: weeks[11].start, lte: weeks[0].end },
           ...(officeFilter && officeFilter !== 'All' && { office: { equals: officeFilter, mode: 'insensitive' } }),
         },
-        include: { invoice: { select: { amount: true } } },
+        include: { invoice: { select: { amount: true, date: true } } },
       });
 
       // Company weekly
