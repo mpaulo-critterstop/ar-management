@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo, useCallback } from "react";
 
-const ACCENT = '#92c1e9';
+const ACCENT = '#0052cc';
 const TODAY = new Date();
 
 const fmt = (n: number) => "$" + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
