@@ -244,7 +244,8 @@ export default function KPIPage() {
         <div style={{ padding: 40, textAlign: 'center', color: '#888780' }}>Loading...</div>
       ) : (
         <>
-          {/* Company-wide KPI table */}
+          {/* Company-wide KPI table - sticky */}
+          <div style={{ position: 'sticky', top: 52, zIndex: 10, background: 'white', paddingBottom: 12 }}>
           <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 14 }}>
             Company-wide {period === 'monthly' ? 'Monthly' : 'Weekly'} KPIs
             {office !== 'All' && ' — ' + office}
