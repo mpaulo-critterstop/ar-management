@@ -85,7 +85,7 @@ export default function KPIPage() {
 
   const labels = data?.labels || [];
   const company = data?.company || [];
-  const pmData = data?.pms || [];
+  const pmData = (data?.pms || []).filter((pm: any) => office === 'All' || pm.office.toLowerCase() === office.toLowerCase());
 
   const companyRows = period === 'monthly' ? [
     { label: 'Total Booked Revenue', fn: (m: any) => fmt(m.booked), bold: true },
