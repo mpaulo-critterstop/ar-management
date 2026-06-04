@@ -14,7 +14,10 @@ function fmt(n: number) {
 function fmtD(n: number) {
   return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-function pct(n: number) { return n.toFixed(1) + '%'; }
+function pct(n: number | null | undefined) { 
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return n.toFixed(1) + '%'; 
+}
 
 export default function KPIPage() {
   const { data: session, status } = useSession();
