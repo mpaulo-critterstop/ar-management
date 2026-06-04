@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
-const ACCENT = '#92c1e9';
+const ACCENT = '#0052cc';
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
 const STATUSES = ['All', 'SOLD', 'INSPECTED', 'PENDING'];
 
