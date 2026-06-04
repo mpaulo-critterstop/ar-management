@@ -159,9 +159,6 @@ export default function LeadsPage() {
             ))}
           </div>
         </div>
-        <button onClick={() => router.push('/kpi')} style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, border: '0.5px solid ' + ACCENT, background: '#fff', color: ACCENT, cursor: 'pointer', fontWeight: 500 }}>
-            KPIs
-          </button>
       </div>
 
       {/* Filters */}
