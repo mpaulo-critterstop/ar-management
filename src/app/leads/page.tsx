@@ -50,7 +50,6 @@ export default function LeadsPage() {
   const [toInput, setToInput] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [dateField, setDateField] = useState<'inspection' | 'sold' | 'all'>('all');
   const [dateFieldInput, setDateFieldInput] = useState<'inspection' | 'sold' | 'all'>('all');
   const [search, setSearch] = useState('');
 
