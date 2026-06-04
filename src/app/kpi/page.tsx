@@ -41,6 +41,7 @@ export default function KPIPage() {
   useEffect(() => {
     if (status !== 'authenticated') return;
     fetchKPIs();
+    fetchPMs();
   }, [office, period, status, pmFilter]);
 
   async function fetchKPIs() {
