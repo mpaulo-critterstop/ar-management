@@ -161,10 +161,11 @@ export async function GET(req: NextRequest) {
         const pmLeads = allLeads.filter(l => l.pmName === pm.name);
         const weekData = weeks.map(({ start, end }) => {
           const weekLeads = pmLeads.filter(l => l.inspectionDate && new Date(l.inspectionDate) >= start && new Date(l.inspectionDate) <= end);
-          const sold = weekLeads.filter(l => l.status === 'SOLD');
-          const booked = sold.reduce((s, l) => s + Number(l.amount || 0), 0);
           const totalLeads = weekLeads.length;
-          const totalClosed = sold.length;
+          const soldByInspection = weekLeads.filter(l => l.status === 'SOLD');
+          const totalClosed = soldByInspection.length;
+          const soldBySoldDate = pmLeads.filter(l => l.status === 'SOLD' && l.invoice?.date && new Date(l.invoice.date) >= start && new Date(l.invoice.date) <= end);
+          const booked = soldBySoldDate.reduce((s, l) => s + Number(l.amount || 0), 0);
           const closingPct = totalLeads > 0 ? (totalClosed / totalLeads) * 100 : 0;
           const avgSale = totalClosed > 0 ? booked / totalClosed : 0;
           const bookedPerLead = totalLeads > 0 ? booked / totalLeads : 0;
