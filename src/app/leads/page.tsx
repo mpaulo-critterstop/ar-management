@@ -87,7 +87,7 @@ export default function LeadsPage() {
     setPmKpis(data.pmKpis || []);
     setCurrentPage(1);
     setLoading(false);
-  }, [office, statusFilter, pmFilter, from, to, dateField]);
+   }, [office, statusFilter, pmFilter, from, to]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
