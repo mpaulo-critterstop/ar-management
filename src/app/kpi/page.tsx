@@ -274,6 +274,7 @@ export default function KPIPage() {
               </table>
             </div>
           </div>
+          </div>
 
           {/* PM KPI tables */}
           {pmData.map((pm: any) => (
