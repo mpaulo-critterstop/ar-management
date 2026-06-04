@@ -46,6 +46,7 @@ export default function LeadsPage() {
   const [office, setOffice] = useState('DFW');
   const [statusFilter, setStatusFilter] = useState('All');
   const [statusInput, setStatusInput] = useState('All');
+  const [pmInput, setPmInput] = useState('All');
   const [pmFilter, setPmFilter] = useState('All');
   const [fromInput, setFromInput] = useState('');
   const [toInput, setToInput] = useState('');
@@ -182,7 +183,7 @@ export default function LeadsPage() {
             <option value="SOLD">Sold</option>
             <option value="INSPECTED">Inspected</option>
           </select>
-          <select value={pmFilter} onChange={e => setPmFilter(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+          <select value={pmInput} onChange={e => setPmInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
             {pms.map(p => <option key={p}>{p}</option>)}
           </select>
         </div>
@@ -191,14 +192,14 @@ export default function LeadsPage() {
           <span style={{ fontSize: 12, color: '#888780' }}>to</span>
           <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
           <button
-            onClick={() => { setFrom(fromInput); setTo(toInput); setStatusFilter(statusInput); }}
+            onClick={() => { setFrom(fromInput); setTo(toInput); setStatusFilter(statusInput); setPmFilter(pmInput); }}
             style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', cursor: 'pointer', fontWeight: 500 }}
           >
             Apply
           </button>
-          {(from || to || statusFilter !== 'All') && (
+          {(from || to || statusFilter !== 'All' || pmFilter !== 'All') && (
             <button
-              onClick={() => { setFrom(''); setTo(''); setFromInput(''); setToInput(''); setStatusFilter('All'); setStatusInput('All'); }}
+              onClick={() => { setFrom(''); setTo(''); setFromInput(''); setToInput(''); setStatusFilter('All'); setStatusInput('All'); setPmFilter('All'); setPmInput('All'); }}
               style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}
             >
               Clear
