@@ -228,9 +228,9 @@ export default function KPIPage() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {/* Monthly / Weekly toggle */}
-          <div style={{ display: 'flex', borderRadius: 8, border: '0.5px solid #D3D1C7', overflow: 'hidden' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: 6, borderRadius: 14, background: '#f8fafc', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(15,23,42,0.06)' }}>
             {(['monthly', 'weekly'] as const).map(p => (
-              <button key={p} onClick={() => setPeriod(p)} style={{ padding: '5px 14px', fontSize: 12, border: 'none', background: period === p ? ACCENT : '#fff', color: period === p ? '#fff' : '#888780', cursor: 'pointer', fontWeight: period === p ? 500 : 400 }}>
+              <button key={p} onClick={() => setPeriod(p)} style={{ padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500, color: period === p ? '#0f172a' : '#475569', background: period === p ? '#ffffff' : 'transparent', border: period === p ? '1px solid #dbe3ee' : '1px solid transparent', boxShadow: period === p ? '0 1px 3px rgba(15,23,42,0.08)' : 'none', cursor: 'pointer', transition: 'all 0.15s' }}>
                 {p.charAt(0).toUpperCase() + p.slice(1)}
               </button>
             ))}
