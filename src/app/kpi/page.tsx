@@ -26,6 +26,7 @@ export default function KPIPage() {
 
   const [office, setOffice] = useState('All');
   const [period, setPeriod] = useState<'monthly' | 'weekly'>('monthly');
+  const [pmFilter, setPmFilter] = useState('All');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showPMManager, setShowPMManager] = useState(false);
