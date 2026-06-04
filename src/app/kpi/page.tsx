@@ -41,12 +41,13 @@ export default function KPIPage() {
   useEffect(() => {
     if (status !== 'authenticated') return;
     fetchKPIs();
-  }, [office, period, status]);
+  }, [office, period, status, pmFilter]);
 
   async function fetchKPIs() {
     setLoading(true);
     const params = new URLSearchParams();
     if (office !== 'All') params.set('office', office);
+    if (pmFilter !== 'All') params.set('pm', pmFilter);
     params.set('period', period);
     const res = await fetch('/api/kpi/leads?' + params.toString());
     const d = await res.json();
