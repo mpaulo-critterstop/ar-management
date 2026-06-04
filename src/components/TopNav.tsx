@@ -23,7 +23,7 @@ export function TopNav() {
       <div style={{ padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src="/logo.png" alt="Critter Stop" style={{ height: 32, width: 'auto' }} />
-          <span style={{ fontWeight: 500, fontSize: 15, color: '#0f172a' }}>The Hub</span>
+          <span style={{ fontWeight: 500, fontSize: 15, color: '#0f172a' }}>Critter Stop Hub</span>
         </div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: 6, borderRadius: 14, background: '#f8fafc', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(15,23,42,0.06)' }}>
           {tabs.map(tab => (
