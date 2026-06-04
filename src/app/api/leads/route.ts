@@ -59,12 +59,12 @@ export async function GET(req: NextRequest) {
   });
 
   // Calculate KPIs
-  const total = leads.length;
-  const sold = leads.filter(l => l.status === 'SOLD').length;
-  const inspected = leads.filter(l => l.status === 'INSPECTED').length;
-  const pending = leads.filter(l => l.status === 'PENDING').length;
+  const total = kpiLeads.length;
+  const sold = kpiLeads.filter(l => l.status === 'SOLD').length;
+  const inspected = kpiLeads.filter(l => l.status === 'INSPECTED').length;
+  const pending = kpiLeads.filter(l => l.status === 'PENDING').length;
   const conversionRate = total > 0 ? (sold / total) * 100 : 0;
-  const bookedRevenue = leads
+  const bookedRevenue = kpiLeads
     .filter(l => l.status === 'SOLD')
     .reduce((sum, l) => sum + (l.amount || 0), 0);
   const avgSale = sold > 0 ? bookedRevenue / sold : 0;
