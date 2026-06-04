@@ -50,6 +50,14 @@ export async function GET(req: NextRequest) {
     orderBy: { inspectionDate: 'desc' },
   });
 
+  // KPI query - ignores status filter so totals are always based on all leads
+  const kpiWhere = { ...where };
+  delete kpiWhere.status;
+  const kpiLeads = await prisma.lead.findMany({
+    where: kpiWhere,
+    select: { status: true, amount: true },
+  });
+
   // Calculate KPIs
   const total = leads.length;
   const sold = leads.filter(l => l.status === 'SOLD').length;
