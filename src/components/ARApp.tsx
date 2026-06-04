@@ -211,20 +211,21 @@ export default function ARApp() {
       {toast && <div style={{position:"fixed",top:16,right:16,zIndex:2000,background:toast.type==="error"?"#FCEBEB":"#E1F5EE",color:toast.type==="error"?"#791F1F":"#085041",border:`0.5px solid ${toast.type==="error"?"#F09595":"#5DCAA5"}`,borderRadius:8,padding:"10px 16px",fontSize:13,fontWeight:500}}>{toast.msg}</div>}
 
       {/* Sub-nav + office selector */}
-      <div style={{display:"flex",gap:2,borderBottom:"0.5px solid #E8E7E3",marginBottom:"1.5rem",alignItems:"center",background:"#fff",marginLeft:-24,marginRight:-24,padding:"0 24px"}}>
-        {PAGES.map(p=>(
-          <button key={p.id} onClick={()=>setPage(p.id)} style={{background:"none",border:"none",borderBottom:page===p.id?`2px solid ${ACCENT}`:"2px solid transparent",padding:"10px 14px",cursor:"pointer",fontSize:13,fontWeight:page===p.id?500:400,color:page===p.id?ACCENT:"#888780",whiteSpace:"nowrap",marginBottom:"-1px"}}>
-            {p.label}
-          </button>
-        ))}
-        <div style={{flex:1}}/>
-        <select value={officeFilter} onChange={e=>{setOfficeFilter(e.target.value);loadAll(e.target.value);}} style={{fontSize:12,padding:"5px 10px",borderRadius:6,border:"0.5px solid #D3D1C7",background:"#fff",color:"#2C2C2A",margin:"6px 0",fontWeight:500}}>
-          <option value="ALL">All offices</option>
-          <option value="DFW">DFW</option>
-          <option value="ATX">ATX</option>
-          <option value="CStat">CStat</option>
-          <option value="OKC">OKC</option>
-        </select>
+      <div style={{display:"flex",gap:8,marginBottom:"1.5rem",alignItems:"center",justifyContent:"space-between",paddingTop:20}}>
+        <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:6,borderRadius:14,background:"#f8fafc",border:"1px solid #e2e8f0",boxShadow:"0 2px 10px rgba(15,23,42,0.06)"}}>
+          {PAGES.map(p=>(
+            <button key={p.id} onClick={()=>setPage(p.id)} style={{padding:"8px 14px",borderRadius:10,fontSize:13,fontWeight:500,color:page===p.id?"#0f172a":"#475569",background:page===p.id?"#ffffff":"transparent",border:page===p.id?"1px solid #dbe3ee":"1px solid transparent",boxShadow:page===p.id?"0 1px 3px rgba(15,23,42,0.08)":"none",cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:6,borderRadius:14,background:"#f8fafc",border:"1px solid #e2e8f0",boxShadow:"0 2px 10px rgba(15,23,42,0.06)"}}>
+          {["ALL","DFW","ATX","OKC","CStat"].map(o=>(
+            <button key={o} onClick={()=>{setOfficeFilter(o);loadAll(o);}} style={{padding:"8px 14px",borderRadius:10,fontSize:13,fontWeight:500,color:officeFilter===o?"#0f172a":"#475569",background:officeFilter===o?"#ffffff":"transparent",border:officeFilter===o?"1px solid #dbe3ee":"1px solid transparent",boxShadow:officeFilter===o?"0 1px 3px rgba(15,23,42,0.08)":"none",cursor:"pointer",transition:"all 0.15s"}}>
+              {o==="ALL"?"All":o}
+            </button>
+          ))}
+        </div>
       </div>
 
       {page==="dashboard" && <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected={collected} agingTotals={agingTotals} collectedDays={collectedDays} setCollectedDays={setCollectedDays} customDateFrom={customDateFrom} customDateTo={customDateTo} setCustomDateFrom={setCustomDateFrom} setCustomDateTo={setCustomDateTo} prevMonthAR={prevMonthAR} />}
