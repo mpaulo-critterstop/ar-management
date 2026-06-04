@@ -92,7 +92,7 @@ export default function LeadsPage() {
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
-  const pms = ['All', ...Array.from(new Set(leads.map((l: any) => l.pmName).filter(Boolean)))];
+  const pms = ['All', ...pmKpis.map((p: any) => p.pmName).filter(Boolean).sort()];
 
   // Pagination logic
   const filtered = search ? leads.filter((l: any) => l.customer?.name?.toLowerCase().includes(search.toLowerCase())) : leads;
