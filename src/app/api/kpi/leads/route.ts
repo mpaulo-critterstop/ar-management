@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
         where: {
           inspectionDate: { gte: months[11].start, lte: months[0].end },
           ...(officeFilter && officeFilter !== 'All' && { office: { equals: officeFilter, mode: 'insensitive' } }),
-        },
+          ...(pmFilter && { pmName: pmFilter }),        },
         include: { invoice: { select: { amount: true, date: true } } },
       });
 
