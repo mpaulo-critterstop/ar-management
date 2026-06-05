@@ -500,14 +500,13 @@ async function syncPayments(
         if (appliedAmount <= 0) continue;
 
         const invoice = await prisma.invoice.findFirst({
-          where: { externalId: ticketId, office },
+          where: { externalId: ticketId },
         });
-
+        
         if (!invoice) {
           errors++;
           continue;
         }
-
         await prisma.payment.create({
           data: {
             invoiceId: invoice.id,
