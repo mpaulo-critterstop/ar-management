@@ -12,8 +12,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status");
     const search = searchParams.get("search");
     const officeParam = searchParams.get("office");
-    const officeFilter = officeParam || (office !== "ALL" ? office : null);
-    const showAll = searchParams.get("showAll") === 'true';
+    const officeFilter = (officeParam && officeParam !== "ALL") ? officeParam : (office !== "ALL" && office !== "ADMIN" ? office : null);    const showAll = searchParams.get("showAll") === 'true';
     const defaultStatus = (!status && !showAll) ? 'ACTIVE' : status;
     const customers = await prisma.customer.findMany({
       where: {
