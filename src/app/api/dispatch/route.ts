@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     const statusFilter = searchParams.get('status') || 'ACTIVE';
     const stageFilter = searchParams.get('stage');
     const office = (session.user as any)?.office;
-    const officeFilter = officeParam || (office !== 'ALL' ? office : null);
+    const officeFilter = (officeParam && officeParam !== 'ALL') ? officeParam : (office !== 'ALL' && office !== 'ADMIN' ? office : null);
 
     const where: any = {
       ...(officeFilter && { office: { equals: officeFilter, mode: 'insensitive' } }),
