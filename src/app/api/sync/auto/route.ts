@@ -508,21 +508,29 @@ async function syncPayments(
           continue;
         }
         await prisma.payment.create({
-          data: {
-            invoiceId: invoice.id,
-            date: new Date(p.date),
-            amount: appliedAmount,
-            method: p.cardType
-              ? `${p.cardType}${p.lastFour ? ` ****${p.lastFour}` : ''}`.trim()
-              : 'FieldRoutes',
-            reference: p.transactionID || null,
-            note: p.paymentSource || null,
-            externalId: String(p.paymentID),
-            externalSource: 'fieldroutes',
-          },
-        });
+  data: {
+    invoiceId: invoice.id,
+    date: new Date(p.date),
+    amount: appliedAmount,
+    method: p.cardType
+      ? `${p.cardType}${p.lastFour ? ` ****${p.lastFour}` : ''}`.trim()
+      : 'FieldRoutes',
+    reference: p.transactionID || null,
+    note: p.paymentSource || null,
+    externalId: String(p.paymentID),
+    externalSource: 'fieldroutes',
+  },
+});
 
-        created++;
+// Update invoice paid amount and status
+const newPaid = invoice.paid + appliedAmount;
+const newStatus = newPaid >= invoice.amount ? 'PAID' : invoice.status;
+await prisma.invoice.update({
+  where: { id: invoice.id },
+  data: { paid: newPaid, status: newStatus as any },
+});
+
+created++;
       }
     } catch (err: any) {
       errors++;
