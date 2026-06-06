@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
     cutoff.setDate(cutoff.getDate() - days);
 
     const officeParam = searchParams.get("office");
-    const officeFilter = officeParam || (office && office !== "ALL" ? office : null);
-
+const officeFilter = (officeParam && officeParam !== "ALL") ? officeParam : (office && office !== "ALL" && office !== "ADMIN" ? office : null);
+    
     const payments = await prisma.payment.findMany({
       where: {
         date: { gte: cutoff },
