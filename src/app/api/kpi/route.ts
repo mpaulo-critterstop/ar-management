@@ -14,7 +14,7 @@ export async function GET() {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const officeFilter = office && office !== "ALL" ? { office } : {};
+    const officeFilter = office && office !== "ALL" && office !== "ADMIN" ? { office } : {};
 
     const [openInvoices, recentPayments] = await Promise.all([
       prisma.invoice.findMany({
