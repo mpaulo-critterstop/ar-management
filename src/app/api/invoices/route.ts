@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search");
     const officeParam = searchParams.get("office");
     const showPaid = searchParams.get("showPaid") === "true";
-    const officeFilter = officeParam || (office !== "ALL" ? office : null);
+    const officeFilter = officeParam || (office !== "ALL" && office !== "ADMIN" ? office : null);
 
     const invoices = await prisma.invoice.findMany({
       where: {
