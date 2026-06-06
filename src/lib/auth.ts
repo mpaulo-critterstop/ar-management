@@ -14,19 +14,15 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-  if (!credentials?.email || !credentials?.password) return null;
-  const user = await prisma.user.findUnique({
-    where: { email: credentials.email },
-  });
-  if (!user) {
-    console.log('User not found:', credentials.email);
-    return null;
-  }
-  const valid = await bcrypt.compare(credentials.password, user.password);
-  console.log('Password valid:', valid, 'hash:', user.password.substring(0, 20));
-  if (!valid) return null;
-  return { id: user.id, email: user.email, name: user.name, role: user.role, office: user.office };
-},
+        if (!credentials?.email || !credentials?.password) return null;
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        });
+        if (!user) return null;
+        const valid = await bcrypt.compare(credentials.password, user.password);
+        if (!valid) return null;
+        return { id: user.id, email: user.email, name: user.name, role: user.role, office: user.office };
+      },
     }),
   ],
   callbacks: {
