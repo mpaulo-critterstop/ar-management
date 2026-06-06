@@ -4,8 +4,6 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 function getMonthStart(year: number, month: number) {
-
-function getMonthStart(year: number, month: number) {
   return new Date(year, month, 1);
 }
 function getMonthEnd(year: number, month: number) {
