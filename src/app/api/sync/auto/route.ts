@@ -523,8 +523,8 @@ async function syncPayments(
 });
 
 // Update invoice paid amount and status
-const newPaid = invoice.paid + appliedAmount;
-const newStatus = newPaid >= invoice.amount ? 'PAID' : invoice.status;
+const newPaid = parseFloat(invoice.paid.toString()) + appliedAmount;
+const newStatus = newPaid >= parseFloat(invoice.amount.toString()) ? 'PAID' : invoice.status;
 await prisma.invoice.update({
   where: { id: invoice.id },
   data: { paid: newPaid, status: newStatus as any },
