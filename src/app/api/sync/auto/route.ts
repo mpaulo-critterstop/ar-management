@@ -548,6 +548,7 @@ export async function POST(req: NextRequest) {
   const fullSync: boolean = body.fullSync === true;
   const syncType: string = body.syncType || 'all';
   const fromDate: string | undefined = body.fromDate;
+  const toDate: string | undefined = body.toDate;
   const specificIds: number[] | undefined = body.ticketIDs ? body.ticketIDs.split(',').map(Number) : undefined;
 
   const startedAt = new Date();
