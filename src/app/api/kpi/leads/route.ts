@@ -108,13 +108,9 @@ export async function GET(req: NextRequest) {
         const bookedPerLead = totalLeads > 0 ? booked / totalLeads : 0;
 
         // YoY - same month last year
-        const lastYearLeads = allLeads.filter(l => {
-          if (!l.inspectionDate) return false;
-          const d = new Date(l.inspectionDate);
-          return d.getFullYear() === year - 1 && d.getMonth() === month && l.status === 'SOLD';
-        });
-        const lastYearBooked = lastYearLeads.reduce((s, l) => s + Number(l.amount || 0), 0);
-        const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBooked) * 100 : null;
+        const histKey = `${year - 1}-${month}`;
+const lastYearBooked = HISTORICAL_BOOKED[histKey] ?? 0;
+const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBooked) * 100 : null;
 
         return {
           label: new Date(year, month, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
