@@ -279,7 +279,7 @@ async function syncInvoices(
     const dateFrom = fromDate || (lastSync?.completedAt
       ? lastSync.completedAt.toISOString().split('T')[0]
       : '2020-01-01');
-    const dateTo = new Date().toISOString().split('T')[0];
+    const dateTo = toDate || new Date().toISOString().split('T')[0];
     console.log(`[${office}] Incremental sync from: ${dateFrom} to: ${dateTo}`);
 
     if (fromDate) {
