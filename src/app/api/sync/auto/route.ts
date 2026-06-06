@@ -222,12 +222,12 @@ async function syncInvoices(
         continue;
       }
           if (t.active !== '1') {
-            await prisma.invoice.updateMany({
-              where: { externalId: String(t.ticketID), office },
-              data: { status: 'PAID', paid: parseFloat(t.total) },
-            });
-            continue;
-          }
+  await prisma.invoice.updateMany({
+    where: { externalId: String(t.ticketID), office },
+    data: { status: 'PAID', paid: parseFloat(t.total), amount: parseFloat(t.total) },
+  });
+  continue;
+}
           if (t.officeID !== OFFICES[office as keyof typeof OFFICES].officeId && t.officeID !== '-1') continue;
           const resolvedCustomerID = t.billToAccountID !== '0' && t.billToAccountID !== t.customerID ? t.billToAccountID : t.customerID;
           const invoiceDate = t.invoiceDate || t.dateCreated;
