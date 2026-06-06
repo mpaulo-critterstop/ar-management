@@ -3,28 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// Historical monthly booked revenue (hardcoded) — Jul 2024 through Dec 2025
-const HISTORICAL_BOOKED: Record<string, number> = {
-  '2024-6': 187334.00,   // Jul 2024
-  '2024-7': 192642.53,   // Aug 2024
-  '2024-8': 195843.17,   // Sep 2024
-  '2024-9': 261054.99,   // Oct 2024
-  '2024-10': 316184.32,  // Nov 2024
-  '2024-11': 413299.22,  // Dec 2024
-  '2025-0': 441981.36,   // Jan 2025
-  '2025-1': 456379.09,   // Feb 2025
-  '2025-2': 513299.59,   // Mar 2025
-  '2025-3': 595317.27,   // Apr 2025
-  '2025-4': 491557.80,   // May 2025
-  '2025-5': 387168.43,   // Jun 2025
-  '2025-6': 393330.75,   // Jul 2025
-  '2025-7': 321587.67,   // Aug 2025
-  '2025-8': 386202.19,   // Sep 2025
-  '2025-9': 511595.37,   // Oct 2025
-  '2025-10': 582926.77,  // Nov 2025
-  '2025-11': 573019.54,  // Dec 2025
-};
-
 function getMonthStart(year: number, month: number) {
 
 function getMonthStart(year: number, month: number) {
@@ -47,6 +25,29 @@ function getWeekEnd(monday: Date) {
   d.setHours(23, 59, 59, 999);
   return d;
 }
+
+  // Historical monthly booked revenue (hardcoded) — Jul 2024 through Dec 2025
+const HISTORICAL_BOOKED: Record<string, number> = {
+  '2024-6': 187334.00,   // Jul 2024
+  '2024-7': 192642.53,   // Aug 2024
+  '2024-8': 195843.17,   // Sep 2024
+  '2024-9': 261054.99,   // Oct 2024
+  '2024-10': 316184.32,  // Nov 2024
+  '2024-11': 413299.22,  // Dec 2024
+  '2025-0': 441981.36,   // Jan 2025
+  '2025-1': 456379.09,   // Feb 2025
+  '2025-2': 513299.59,   // Mar 2025
+  '2025-3': 595317.27,   // Apr 2025
+  '2025-4': 491557.80,   // May 2025
+  '2025-5': 387168.43,   // Jun 2025
+  '2025-6': 393330.75,   // Jul 2025
+  '2025-7': 321587.67,   // Aug 2025
+  '2025-8': 386202.19,   // Sep 2025
+  '2025-9': 511595.37,   // Oct 2025
+  '2025-10': 582926.77,  // Nov 2025
+  '2025-11': 573019.54,  // Dec 2025
+};
+
 
 export async function GET(req: NextRequest) {
   try {
