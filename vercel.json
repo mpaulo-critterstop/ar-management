@@ -2,19 +2,35 @@
   "crons": [
     {
       "path": "/api/cron/sync?office=ATX",
-      "schedule": "*/30 * * * *"
+      "schedule": "*/15 13-23,0-4 * * *"
     },
     {
       "path": "/api/cron/sync?office=OKC",
-      "schedule": "*/30 * * * *"
+      "schedule": "*/15 13-23,0-4 * * *"
     },
     {
       "path": "/api/cron/sync?office=CStat",
-      "schedule": "*/30 * * * *"
+      "schedule": "*/15 13-23,0-4 * * *"
     },
     {
       "path": "/api/cron/sync?office=DFW",
-      "schedule": "*/30 * * * *"
+      "schedule": "*/15 13-23,0-4 * * *"
+    },
+    {
+      "path": "/api/cron/sync?office=ATX",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/sync?office=OKC",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/sync?office=CStat",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/sync?office=DFW",
+      "schedule": "0 8 * * *"
     }
   ]
 }
