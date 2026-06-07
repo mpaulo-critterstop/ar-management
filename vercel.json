@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/sync?office=ATX",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/sync?office=OKC",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/sync?office=CStat",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/sync?office=DFW",
+      "schedule": "*/30 * * * *"
+    }
+  ]
+}
