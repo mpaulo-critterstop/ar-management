@@ -109,8 +109,6 @@ export default function DispatchPage() {
         setSyncing(false);
       }, 30000);
       return;
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       
       showToast('Sync complete!');
       fetchJobs();
