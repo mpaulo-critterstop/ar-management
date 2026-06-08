@@ -1,6 +1,6 @@
 {
   "name": "The Hub",
-  "short_name": "The Hub",
+  "short_name": "Critter Stop — The Hub",
   "description": "Operations Management for Critter Stop",
   "start_url": "/dashboard",
   "display": "standalone",
