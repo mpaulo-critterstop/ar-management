@@ -209,6 +209,8 @@ export default function LeadsPage() {
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
 
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
      {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
