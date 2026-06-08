@@ -176,11 +176,10 @@ export default function LeadsPage() {
           onClick={async () => {
             if (syncing) return;
             setSyncing(true);
-            const o = office !== 'All' ? office : undefined;
             fetch('/api/sync/appointments', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-cron-secret': 'critterstop-cron-2024' },
-              body: JSON.stringify({ ...(o && { office: o }) }),
+              body: JSON.stringify({}),
             });
             setTimeout(async () => {
               await fetchLeads();
