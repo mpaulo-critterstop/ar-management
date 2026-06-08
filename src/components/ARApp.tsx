@@ -159,19 +159,26 @@ export default function ARApp() {
     setSyncing(true);
     const office = officeFilter !== "ALL" ? officeFilter : undefined;
     try {
-      for (const syncType of ["invoices", "payments"]) {
-        await fetch("/api/sync/auto", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-cron-secret": "critterstop-cron-2024" },
-          body: JSON.stringify({ ...(office && { office }), syncType }),
-        });
-      }
-      showToast("Sync complete — refreshing data");
-      await loadAll();
+      fetch("/api/sync/auto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-cron-secret": "critterstop-cron-2024" },
+        body: JSON.stringify({ ...(office && { office }), syncType: "invoices" }),
+      });
+      fetch("/api/sync/auto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-cron-secret": "critterstop-cron-2024" },
+        body: JSON.stringify({ ...(office && { office }), syncType: "payments" }),
+      });
+      showToast("Sync triggered — refreshing in 30 seconds");
+      setTimeout(async () => {
+        await loadAll();
+        setSyncing(false);
+        showToast("Data refreshed!");
+      }, 30000);
     } catch (e) {
       showToast("Sync failed", "error");
+      setSyncing(false);
     }
-    setSyncing(false);
   }
 
   useEffect(()=>{ loadAll(); },[]);
