@@ -1,7 +1,7 @@
 {
-  "name": "Critter Stop AR Management",
+  "name": "Critter Stop - Hub",
   "short_name": "CS AR",
-  "description": "Accounts Receivable Management for Critter Stop",
+  "description": "Operations Management for Critter Stop",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#2C2C2A",
