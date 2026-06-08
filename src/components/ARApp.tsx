@@ -127,6 +127,7 @@ export default function ARApp() {
   const [invoices, setInvoicesState] = useState<any[]>([]);
   const [payments, setPaymentsState] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [officeFilter, setOfficeFilter] = useState("ALL");
   const [collectedDays, setCollectedDays] = useState(30);
   const [customDateFrom, setCustomDateFrom] = useState('');
@@ -151,6 +152,25 @@ export default function ARApp() {
       setPaymentsState(Array.isArray(p)?p:[]);
     } catch(e) { showToast("Failed to load data","error"); }
     setLoading(false);
+  }
+
+  async function syncFR() {
+    setSyncing(true);
+    const office = officeFilter !== "ALL" ? officeFilter : undefined;
+    try {
+      for (const syncType of ["invoices", "payments"]) {
+        await fetch("/api/sync/auto", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-cron-secret": "critterstop-cron-2024" },
+          body: JSON.stringify({ ...(office && { office }), syncType }),
+        });
+      }
+      showToast("Sync complete — refreshing data");
+      await loadAll();
+    } catch (e) {
+      showToast("Sync failed", "error");
+    }
+    setSyncing(false);
   }
 
   useEffect(()=>{ loadAll(); },[]);
@@ -185,11 +205,9 @@ export default function ARApp() {
     return t;
   },[open]);
 
-  // Previous month AR benchmark — approximate using payments
   const prevMonthAR = useMemo(()=>{
     const now = new Date();
     const firstThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    // Use totalAR + payments collected this month as approximation of last month's AR
     const thisMonthPayments = payments.filter((p:any)=>new Date(p.date)>=firstThisMonth).reduce((s:number,p:any)=>s+Number(p.amount),0);
     return totalAR + thisMonthPayments;
   },[totalAR, payments]);
@@ -211,7 +229,7 @@ export default function ARApp() {
       {toast && <div style={{position:"fixed",top:16,right:16,zIndex:2000,background:toast.type==="error"?"#FCEBEB":"#E1F5EE",color:toast.type==="error"?"#791F1F":"#085041",border:`0.5px solid ${toast.type==="error"?"#F09595":"#5DCAA5"}`,borderRadius:8,padding:"10px 16px",fontSize:13,fontWeight:500}}>{toast.msg}</div>}
 
       {/* Sub-nav + office selector */}
-      <div style={{display:"flex",gap:8,marginBottom:"1.5rem",alignItems:"center",justifyContent:"space-between",paddingTop:20}}>
+      <div style={{display:"flex",gap:8,marginBottom:"1.5rem",alignItems:"center",justifyContent:"space-between",paddingTop:20,flexWrap:"wrap"}}>
         <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:6,borderRadius:14,background:"#f8fafc",border:"1px solid #e2e8f0",boxShadow:"0 2px 10px rgba(15,23,42,0.06)"}}>
           {PAGES.map(p=>(
             <button key={p.id} onClick={()=>setPage(p.id)} style={{padding:"8px 14px",borderRadius:10,fontSize:13,fontWeight:500,color:page===p.id?"#0f172a":"#475569",background:page===p.id?"#ffffff":"transparent",border:page===p.id?"1px solid #dbe3ee":"1px solid transparent",boxShadow:page===p.id?"0 1px 3px rgba(15,23,42,0.08)":"none",cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}}>
@@ -219,14 +237,47 @@ export default function ARApp() {
             </button>
           ))}
         </div>
-        <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:6,borderRadius:14,background:"#f8fafc",border:"1px solid #e2e8f0",boxShadow:"0 2px 10px rgba(15,23,42,0.06)"}}>
-          {["ALL","DFW","ATX","OKC","CStat"].map(o=>(
-            <button key={o} onClick={()=>{setOfficeFilter(o);loadAll(o);}} style={{padding:"8px 14px",borderRadius:10,fontSize:13,fontWeight:500,color:officeFilter===o?"#0f172a":"#475569",background:officeFilter===o?"#ffffff":"transparent",border:officeFilter===o?"1px solid #dbe3ee":"1px solid transparent",boxShadow:officeFilter===o?"0 1px 3px rgba(15,23,42,0.08)":"none",cursor:"pointer",transition:"all 0.15s"}}>
-              {o==="ALL"?"All":o}
-            </button>
-          ))}
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:6,borderRadius:14,background:"#f8fafc",border:"1px solid #e2e8f0",boxShadow:"0 2px 10px rgba(15,23,42,0.06)"}}>
+            {["ALL","DFW","ATX","OKC","CStat"].map(o=>(
+              <button key={o} onClick={()=>{setOfficeFilter(o);loadAll(o);}} style={{padding:"8px 14px",borderRadius:10,fontSize:13,fontWeight:500,color:officeFilter===o?"#0f172a":"#475569",background:officeFilter===o?"#ffffff":"transparent",border:officeFilter===o?"1px solid #dbe3ee":"1px solid transparent",boxShadow:officeFilter===o?"0 1px 3px rgba(15,23,42,0.08)":"none",cursor:"pointer",transition:"all 0.15s"}}>
+                {o==="ALL"?"All":o}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={syncFR}
+            disabled={syncing}
+            style={{
+              background: syncing ? "#e2e8f0" : ACCENT,
+              color: syncing ? "#475569" : "#fff",
+              border: "none",
+              padding: "9px 16px",
+              borderRadius: 10,
+              cursor: syncing ? "not-allowed" : "pointer",
+              fontSize: 13,
+              fontWeight: 500,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              whiteSpace: "nowrap",
+              boxShadow: syncing ? "none" : "0 2px 10px rgba(15,23,42,0.12)",
+              transition: "all 0.15s",
+            }}
+          >
+            {syncing ? (
+              <>
+                <span style={{display:"inline-block",width:12,height:12,border:"2px solid #475569",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}} />
+                Syncing...
+              </>
+            ) : (
+              <>⟳ Sync FR</>
+            )}
+          </button>
         </div>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {page==="dashboard" && <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected={collected} agingTotals={agingTotals} collectedDays={collectedDays} setCollectedDays={setCollectedDays} customDateFrom={customDateFrom} customDateTo={customDateTo} setCustomDateFrom={setCustomDateFrom} setCustomDateTo={setCustomDateTo} prevMonthAR={prevMonthAR} />}
       {page==="customers" && <CustPage {...shared} />}
@@ -249,21 +300,18 @@ function DashPage({open,totalAR,totalOverdue,collected,agingTotals,payments,prev
 
   return (
     <div>
-      {/* Row 1 */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:12}}>
         <MC label="Total AR" value={fmt(totalAR)} sub={openInvoices+" open invoices"} color={ACCENT}/>
         <MC label="Open AR" value={fmt(totalAR)} sub={openInvoices+" invoices"}/>
         <MC label="Total past due" value={fmt(totalOverdue)} color="#A32D2D"/>
         <MC label="Open invoices" value={openInvoices}/>
       </div>
-      {/* Row 2 */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:12}}>
         <MC label="1–30 days AR" value={fmt(agingTotals["1-30"])} color="#1D9E75"/>
         <MC label="31–60 days AR" value={fmt(agingTotals["31-60"])} color="#BA7517"/>
         <MC label="61–90 days AR" value={fmt(agingTotals["61-90"])} color="#BA7517"/>
         <MC label="90+ days AR" value={fmt(agingTotals["90+"])} color="#A32D2D"/>
       </div>
-      {/* Row 3 */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
         <MC label="AR benchmark" value={fmt(prevMonthAR)} sub="Previous month"/>
         <MC label="AR vs benchmark" value={(arVsBenchmark>=0?"+":"")+arVsBenchmark.toFixed(1)+"%"} color={arVsBenchmark>0?"#A32D2D":"#1D9E75"} sub={arVsBenchmark>0?"Above last month":"Below last month"}/>
@@ -350,7 +398,6 @@ function InvPage({enriched,setModal,showToast,loadAll}: any) {
   const [pageSize,setPageSize]=useState(100);
   const [currentPage,setCurrentPage]=useState(1);
 
-  // Sort newest first
   const sorted = useMemo(()=>[...enriched].sort((a:any,b:any)=>new Date(b.date).getTime()-new Date(a.date).getTime()),[enriched]);
 
   const filtered=sorted.filter((i:any)=>{
@@ -408,7 +455,6 @@ function PayPage({payments,invoices,custMap,showToast,loadAll,setModal}: any) {
   const [pageSize,setPageSize]=useState(100);
   const [currentPage,setCurrentPage]=useState(1);
   const ep=payments.map((p:any)=>{const inv=invoices.find((i:any)=>i.id===p.invoiceId);return{...p,customer:inv?custMap[inv.customerId]:null}}).sort((a:any,b:any)=>a.date>b.date?-1:1);
-  const t30=payments.filter((p:any)=>daysDiff(p.date)<=30).reduce((s:number,p:any)=>s+Number(p.amount),0);
   const del=async(id:string)=>{if(!confirm("Delete this payment?"))return;await fetch(`/api/payments/${id}`,{method:"DELETE"});showToast("Payment deleted");loadAll();};
   const displayed=ep.slice((currentPage-1)*pageSize,currentPage*pageSize);
 
