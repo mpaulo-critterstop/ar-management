@@ -43,6 +43,7 @@ export default function LeadsPage() {
   const [pmKpis, setPmKpis] = useState<any[]>([]);
   const [allPMs, setAllPMs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   const [office, setOffice] = useState('DFW');
   const [statusFilter, setStatusFilter] = useState('All');
