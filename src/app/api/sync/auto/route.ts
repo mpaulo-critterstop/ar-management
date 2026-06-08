@@ -507,21 +507,33 @@ async function syncPayments(
           continue;
         }
         await prisma.payment.create({
-  data: {
-    invoiceId: invoice.id,
-    date: new Date(p.date),
-    amount: appliedAmount,
-    method: p.cardType
-      ? `${p.cardType}${p.lastFour ? ` ****${p.lastFour}` : ''}`.trim()
-      : 'FieldRoutes',
-    reference: p.transactionID || null,
-    note: p.paymentSource || null,
-    externalId: String(p.paymentID),
-    externalSource: 'fieldroutes',
-  },
-});
+          data: {
+            invoiceId: invoice.id,
+            date: new Date(p.date),
+            amount: appliedAmount,
+            method: p.cardType
+              ? `${p.cardType}${p.lastFour ? ` ****${p.lastFour}` : ''}`.trim()
+              : 'FieldRoutes',
+            reference: p.transactionID || null,
+            note: p.paymentSource || null,
+            externalId: String(p.paymentID),
+            externalSource: 'fieldroutes',
+          },
+        });
 
-created++;
+        // Recalculate total paid from all payments for this invoice
+        const allInvPayments = await prisma.payment.findMany({
+          where: { invoiceId: invoice.id },
+          select: { amount: true },
+        });
+        const totalPaid = allInvPayments.reduce((s, p) => s + parseFloat(p.amount.toString()), 0);
+        const newStatus = totalPaid >= parseFloat(invoice.amount.toString()) ? 'PAID' : invoice.status;
+        await prisma.invoice.update({
+          where: { id: invoice.id },
+          data: { paid: totalPaid, status: newStatus as any },
+        });
+
+        created++;
       }
     } catch (err: any) {
       errors++;
