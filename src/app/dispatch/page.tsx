@@ -309,9 +309,16 @@ export default function DispatchPage() {
           </div>
         </div>
         <button onClick={runSync} disabled={syncing} style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, border: '0.5px solid ' + ACCENT, background: ACCENT, color: '#fff', cursor: syncing ? 'not-allowed' : 'pointer', fontWeight: 500, opacity: syncing ? 0.7 : 1 }}>
-          {syncing ? '\u21BB Syncing...' : '\u21BB Sync FR'}
+       {syncing ? (
+            <>
+              <span style={{display:'inline-block',width:12,height:12,border:'2px solid #fff',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}} />
+              Syncing...
+            </>
+          ) : '⟳ Sync FR'}
         </button>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {kpis && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 20 }}>
