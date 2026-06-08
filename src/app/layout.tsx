@@ -7,7 +7,7 @@ import { Providers } from "@/components/Providers";
 import { TopNav } from "@/components/TopNav";
 
 export const metadata: Metadata = {
-  title: "Critter Stop — The Hub",
+  title: "The Hub",
   description: "Wildlife Operations Platform",
   manifest: "/manifest.json",
   icons: {
