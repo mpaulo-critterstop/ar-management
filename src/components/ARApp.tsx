@@ -699,3 +699,4 @@ function CloseOutModal({invoice,custMap,onClose,showToast,loadAll}: any) {
     </Modal>
   );
 }
+
