@@ -172,25 +172,41 @@ export default function LeadsPage() {
             </button>
           </div>
         </div>
-        <button
+      <button
           onClick={async () => {
+            if (syncing) return;
+            setSyncing(true);
             const o = office !== 'All' ? office : undefined;
             fetch('/api/sync/appointments', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-cron-secret': 'critterstop-cron-2024' },
               body: JSON.stringify({ ...(o && { office: o }) }),
             });
-            setTimeout(() => fetchLeads(), 30000);
+            setTimeout(async () => {
+              await fetchLeads();
+              setSyncing(false);
+            }, 30000);
           }}
+          disabled={syncing}
           style={{
-            background: ACCENT, color: '#fff', border: 'none',
-            padding: '9px 16px', borderRadius: 10, cursor: 'pointer',
+            background: syncing ? '#e2e8f0' : ACCENT,
+            color: syncing ? '#475569' : '#fff',
+            border: 'none',
+            padding: '9px 16px', borderRadius: 10,
+            cursor: syncing ? 'not-allowed' : 'pointer',
             fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap',
-            boxShadow: '0 2px 10px rgba(15,23,42,0.12)',
+            boxShadow: syncing ? 'none' : '0 2px 10px rgba(15,23,42,0.12)',
+            display: 'inline-flex', alignItems: 'center', gap: 6,
           }}
         >
-          ⟳ Sync FR
+          {syncing ? (
+            <>
+              <span style={{display:'inline-block',width:12,height:12,border:'2px solid #475569',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}} />
+              Syncing...
+            </>
+          ) : '⟳ Sync FR'}
         </button>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
 
      {/* Filters */}
