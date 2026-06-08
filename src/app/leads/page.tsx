@@ -171,6 +171,25 @@ export default function LeadsPage() {
             </button>
           </div>
         </div>
+        <button
+          onClick={async () => {
+            const o = office !== 'All' ? office : undefined;
+            fetch('/api/sync/appointments', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-cron-secret': 'critterstop-cron-2024' },
+              body: JSON.stringify({ ...(o && { office: o }) }),
+            });
+            setTimeout(() => fetchLeads(), 30000);
+          }}
+          style={{
+            background: ACCENT, color: '#fff', border: 'none',
+            padding: '9px 16px', borderRadius: 10, cursor: 'pointer',
+            fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap',
+            boxShadow: '0 2px 10px rgba(15,23,42,0.12)',
+          }}
+        >
+          ⟳ Sync FR
+        </button>
       </div>
 
      {/* Filters */}
