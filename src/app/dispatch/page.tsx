@@ -98,11 +98,20 @@ export default function DispatchPage() {
   async function runSync() {
     setSyncing(true);
     try {
-      await fetch('/api/dispatch/sync', {
+  fetch('/api/dispatch/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ office: office !== 'All' ? office : undefined }),
+        body: JSON.stringify({}),
       });
+      showToast('Sync triggered — refreshing in 30 seconds');
+      setTimeout(() => {
+        fetchJobs();
+        setSyncing(false);
+      }, 30000);
+      return;
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      
       showToast('Sync complete!');
       fetchJobs();
     } catch {
