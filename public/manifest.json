@@ -1,6 +1,6 @@
 {
-  "name": "Critter Stop - Hub",
-  "short_name": "CS AR",
+  "name": "",
+  "short_name": "",
   "description": "Operations Management for Critter Stop",
   "start_url": "/dashboard",
   "display": "standalone",
