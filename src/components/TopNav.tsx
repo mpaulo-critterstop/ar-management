@@ -3,21 +3,30 @@ import { useSession, signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
-const tabs = [
+const baseTabs = [
   { label: 'Home', href: '/' },
   { label: 'Leads Tracker', href: '/leads' },
   { label: 'Dispatcher', href: '/dispatch' },
   { label: 'AR', href: '/accounts-receivable' },
 ];
 
+const FP_ROLES = ['ADMIN', 'MANAGER', 'LEADERSHIP'];
+
 export function TopNav() {
   const { data: session } = useSession();
   const pathname = usePathname();
   if (!session || pathname === '/login') return null;
+
+  const role = (session.user as any)?.role;
+  const tabs = FP_ROLES.includes(role)
+    ? [...baseTabs, { label: 'Field Performance', href: '/field-performance' }]
+    : baseTabs;
+
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
+
   return (
     <div style={{ background: '#fff', borderBottom: '0.5px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 50 }}>
       <div style={{ padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>

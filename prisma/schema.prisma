@@ -25,6 +25,8 @@ enum Role {
   COLLECTIONS
   MANAGER
   ACCOUNTING
+  LEADERSHIP
+  TECHNICIAN
 }
 
 model Customer {
@@ -256,4 +258,137 @@ model PM {
   updatedAt DateTime @updatedAt
 
   @@unique([name, office])
+}
+
+model Technician {
+  id            String    @id @default(cuid())
+  techId        String    @unique
+  name          String
+  team          TechTeam
+  office        String
+  hrDays        Int       @default(8)
+  startTime     String    @default("8:00 AM")
+  siteLeader    String?
+  crewLeader    String?
+  hireDate      DateTime?
+  termDate      DateTime?
+  status        TechStatus @default(ACTIVE)
+  notes         String?
+  bouncieDevice BouncieDevice?
+  techWeeks     TechWeek[]
+  reviews       TechReview[]
+  manualAdjs    ManualAdj[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@map("technicians")
+}
+
+enum TechTeam {
+  WP
+  PMP
+  IP
+}
+
+enum TechStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model BouncieDevice {
+  id           String     @id @default(cuid())
+  technicianId String     @unique
+  bouncieName  String
+  deviceId     String?
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  @@map("bouncie_devices")
+}
+
+model TechWeek {
+  id              String     @id @default(cuid())
+  technicianId    String
+  techId          String
+  weekEnd         DateTime
+  office          String
+  team            TechTeam
+  siteLeader      String?
+  crewLeader      String?
+
+  // Scores (0.0 – 1.1)
+  totalScore      Float?
+  wpScore         Float?
+  pmpScore        Float?
+  ipScore         Float?
+  manualAdj       Float?     @default(0)
+
+  // WP metrics
+  closeOutPct     Float?
+  callbackRate    Float?
+  coJobs          Int?
+  callbackJobs    Int?
+
+  // PMP metrics
+  revenueEfficiency Float?
+  reseviceRate    Float?
+  completionPct   Float?
+  productionValue Float?
+
+  // Shared metrics
+  drivingScore    Float?
+  reliabilityScore Float?
+  reviewCount     Int?       @default(0)
+
+  // Raw driving inputs
+  maxSpeed        Float?
+  safetyAlertsPer1k Float?
+  idleRatio       Float?
+
+  // Raw reliability inputs
+  minutesLate     Float?
+  utilization     Float?
+
+  technician      Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([techId, weekEnd])
+  @@index([weekEnd])
+  @@index([technicianId])
+  @@map("tech_weeks")
+}
+
+model TechReview {
+  id           String     @id @default(cuid())
+  technicianId String
+  techId       String
+  reviewDate   DateTime
+  weekEnd      DateTime
+  gbpLocation  String?
+  reviewText   String?
+  customerName String?
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  @@index([techId, reviewDate])
+  @@map("tech_reviews")
+}
+
+model ManualAdj {
+  id              String     @id @default(cuid())
+  technicianId    String
+  techId          String
+  weekEnd         DateTime
+  totalPoints     Float      @default(0)
+  leadershipPts   Float?     @default(0)
+  leadershipNote  String?
+  frPts           Float?     @default(0)
+  frNote          String?
+  reviewsPts      Float?     @default(0)
+  reviewsNote     String?
+  enteredBy       String?
+  technician      Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  @@index([techId, weekEnd])
+  @@map("manual_adjs")
 }
