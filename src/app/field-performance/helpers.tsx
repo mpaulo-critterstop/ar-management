@@ -1,3 +1,6 @@
+import { useState, useEffect } from 'react';
+import React from 'react';
+
 export const ACCENT = '#0052cc';
 
 export function scoreBadge(score: number | null): React.ReactNode {

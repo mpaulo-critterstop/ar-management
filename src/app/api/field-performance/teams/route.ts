@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     include: { technician: { select: { name: true } } },
   });
 
-  const active = weeks.filter(w => w.totalScore !== null);
+  const active = weeks.filter((w: any) => w.totalScore !== null);
 
   // Crew leader rollup
   const crewMap = new Map<string, { leader: string; office: string; weeks: typeof active }>();
@@ -57,11 +57,11 @@ export async function GET(req: NextRequest) {
     leader: c.leader,
     office: c.office,
     techCount: c.weeks.length,
-    avgScore: avg(c.weeks.map(w => w.totalScore!)),
-    avgCloseOutPct: avg(c.weeks.filter(w => w.closeOutPct !== null).map(w => w.closeOutPct!)),
-    avgCallbackRate: avg(c.weeks.filter(w => w.callbackRate !== null).map(w => w.callbackRate!)),
-    avgDriving: avg(c.weeks.filter(w => w.drivingScore !== null).map(w => w.drivingScore!)),
-  })).sort((a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0));
+    avgScore: avg(c.weeks.map((w: any) => w.totalScore!)),
+    avgCloseOutPct: avg(c.weeks.filter((w: any) => w.closeOutPct !== null).map((w: any) => w.closeOutPct!)),
+    avgCallbackRate: avg(c.weeks.filter((w: any) => w.callbackRate !== null).map((w: any) => w.callbackRate!)),
+    avgDriving: avg(c.weeks.filter((w: any) => w.drivingScore !== null).map((w: any) => w.drivingScore!)),
+  })).sort((a: any, b: any) => (b.avgScore ?? 0) - (a.avgScore ?? 0));
 
   // Site leader rollup
   const siteMap = new Map<string, { leader: string; office: string; crews: Set<string>; weeks: typeof active }>();
@@ -74,19 +74,19 @@ export async function GET(req: NextRequest) {
     if (w.crewLeader) entry.crews.add(w.crewLeader);
   }
 
-  const siteLeaders = [...siteMap.values()].map(s => {
-    const wpWeeks = s.weeks.filter(w => w.team === 'WP');
-    const pmpWeeks = s.weeks.filter(w => w.team === 'PMP');
+  const siteLeaders = [...siteMap.values()].map((s: any) => {
+    const wpWeeks = s.weeks.filter((w: any) => w.team === 'WP');
+    const pmpWeeks = s.weeks.filter((w: any) => w.team === 'PMP');
     return {
       leader: s.leader,
       office: s.office,
       crewCount: s.crews.size,
       techCount: s.weeks.length,
-      avgScore: avg(s.weeks.map(w => w.totalScore!)),
-      wpAvg: avg(wpWeeks.map(w => w.totalScore!)),
-      pmpAvg: avg(pmpWeeks.map(w => w.totalScore!)),
+      avgScore: avg(s.weeks.map((w: any) => w.totalScore!)),
+      wpAvg: avg(wpWeeks.map((w: any) => w.totalScore!)),
+      pmpAvg: avg(pmpWeeks.map((w: any) => w.totalScore!)),
     };
-  }).sort((a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0));
+  }).sort((a: any, b: any) => (b.avgScore ?? 0) - (a.avgScore ?? 0));
 
   return NextResponse.json({ weekEnd, crewLeaders, siteLeaders });
 }

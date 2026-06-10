@@ -38,39 +38,39 @@ export async function GET(req: NextRequest) {
     include: { technician: { select: { name: true, techId: true, status: true } } },
   });
 
-  const active = weeks.filter(w => w.totalScore !== null);
+  const active = weeks.filter((w: any) => w.totalScore !== null);
 
   const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
-  const scores = active.map(w => w.totalScore!);
-  const coValues = active.filter(w => w.closeOutPct !== null).map(w => w.closeOutPct!);
-  const cbValues = active.filter(w => w.callbackRate !== null).map(w => w.callbackRate!);
-  const relValues = active.filter(w => w.reliabilityScore !== null).map(w => w.reliabilityScore!);
+  const scores = active.map((w: any) => w.totalScore!);
+  const coValues = active.filter((w: any) => w.closeOutPct !== null).map((w: any) => w.closeOutPct!);
+  const cbValues = active.filter((w: any) => w.callbackRate !== null).map((w: any) => w.callbackRate!);
+  const relValues = active.filter((w: any) => w.reliabilityScore !== null).map((w: any) => w.reliabilityScore!);
 
   const offices = ['DFW', 'ATX', 'OKC', 'CStat'];
   const officeBreakdown = offices.map(o => {
-    const oWeeks = active.filter(w => w.office === o);
+    const oWeeks = active.filter((w: any) => w.office === o);
     return {
       office: o,
-      avgScore: avg(oWeeks.map(w => w.totalScore!)),
+      avgScore: avg(oWeeks.map((w: any) => w.totalScore!)),
       techCount: oWeeks.length,
     };
   });
 
   const teams = ['WP', 'PMP', 'IP'];
   const teamBreakdown = teams.map(t => {
-    const tWeeks = active.filter(w => w.team === t);
+    const tWeeks = active.filter((w: any) => w.team === t);
     return {
       team: t,
-      avgScore: avg(tWeeks.map(w => w.totalScore!)),
+      avgScore: avg(tWeeks.map((w: any) => w.totalScore!)),
       techCount: tWeeks.length,
     };
   });
 
   // Top performers sorted by score
   const topPerformers = [...active]
-    .sort((a, b) => (b.totalScore ?? 0) - (a.totalScore ?? 0))
+    .sort((a: any, b: any) => (b.totalScore ?? 0) - (a.totalScore ?? 0))
     .slice(0, 10)
-    .map(w => ({
+    .map((w: any) => ({
       techId: w.techId,
       name: w.technician.name,
       team: w.team,
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
       avgCloseOutPct: avg(coValues),
       avgCallbackRate: avg(cbValues),
       avgReliability: avg(relValues),
-      aboveTarget: scores.filter(s => s >= 0.90).length,
+      aboveTarget: scores.filter((s: number) => s >= 0.90).length,
     },
     officeBreakdown,
     teamBreakdown,
