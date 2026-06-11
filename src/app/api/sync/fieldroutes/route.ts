@@ -131,6 +131,7 @@ export async function POST(req: NextRequest) {
                   email: fc.email || undefined,
                   phone: fc.phone1 || undefined,
                   billingAddr: [fc.address, fc.city, fc.state, fc.zip].filter(Boolean).join(", ") || undefined,
+                  serviceAddr: [fc.serviceAddress || fc.address, fc.serviceCity || fc.city, fc.serviceState || fc.state, fc.serviceZip || fc.zip].filter(Boolean).join(", ") || undefined,
                   status,
                 }
               });
@@ -144,6 +145,28 @@ export async function POST(req: NextRequest) {
   } catch (e: any) {
     errors.push(`Sync failed: ${e.message}`);
   }
+
+  // Geocode any customers that got a new serviceAddr but no lat/lng
+  try {
+    const toGeocode = await prisma.$queryRaw<Array<{id: string; serviceAddr: string}>>`
+      SELECT id, "serviceAddr" FROM customers
+      WHERE "serviceAddr" IS NOT NULL AND lat IS NULL
+      LIMIT 100
+    `;
+    for (const c of toGeocode) {
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(c.serviceAddr)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(5000) }).catch(() => null);
+      if (!res?.ok) continue;
+      const data = await res.json().catch(() => null);
+      if (data?.status === 'OK' && data.results?.[0]) {
+        const { lat, lng } = data.results[0].geometry.location;
+        await prisma.$executeRaw`UPDATE customers SET lat = ${lat}, lng = ${lng}, "geocodedAt" = NOW() WHERE id = ${c.id}`;
+      } else {
+        await prisma.$executeRaw`UPDATE customers SET lat = 0, lng = 0, "geocodedAt" = NOW() WHERE id = ${c.id}`;
+      }
+      await new Promise(r => setTimeout(r, 50));
+    }
+  } catch { /* geocoding is best-effort */ }
 
   await prisma.syncLog.create({
     data: {
