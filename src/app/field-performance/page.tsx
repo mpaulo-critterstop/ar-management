@@ -8,12 +8,17 @@ import { TeamsTab } from './TeamsTab';
 import { RosterTab } from './RosterTab';
 
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
-const WEEKS = Array.from({ length: 12 }, (_, i) => {
+
+function getMostRecentSaturday(offset = 0): Date {
   const d = new Date();
+  d.setHours(0, 0, 0, 0);
   const day = d.getDay();
-  d.setDate(d.getDate() - ((day === 6 ? 0 : day + 1) + i * 7));
+  const daysToSat = day === 6 ? 0 : day + 1;
+  d.setDate(d.getDate() - daysToSat - offset * 7);
   return d;
-});
+}
+
+const WEEKS = Array.from({ length: 26 }, (_, i) => getMostRecentSaturday(i));
 
 function fmtWeek(d: Date) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });

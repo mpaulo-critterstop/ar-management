@@ -10,7 +10,7 @@ export function ScoreboardTab({ office, weekEnd }: Props) {
 
   useEffect(() => {
     setLoading(true);
-    const wk = weekEnd.toISOString().split('T')[0];
+    const wk = weekEnd.toLocaleDateString('en-CA');
     fetch(`/api/field-performance/scoreboard?week=${wk}&office=${office}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })

@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     totalScore = ipScore + (metrics.manualAdj ?? 0);
   }
 
-  const weekEndDate = new Date(weekEnd);
+  const weekEndDate = new Date(weekEnd + "T00:00:00.000Z");
 
   const data = {
     technicianId: tech.id,

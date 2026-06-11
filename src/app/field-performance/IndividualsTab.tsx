@@ -15,7 +15,7 @@ export function IndividualsTab({ office, weekEnd }: Props) {
   useEffect(() => {
     setLoading(true);
     setSelected(null);
-    const wk = weekEnd.toISOString().split('T')[0];
+    const wk = weekEnd.toLocaleDateString('en-CA');
     fetch(`/api/field-performance/techweek?week=${wk}&office=${office === 'ALL' ? '' : office}`)
       .then(r => r.json())
       .then(d => { setWeeks(Array.isArray(d) ? d : []); setLoading(false); })
