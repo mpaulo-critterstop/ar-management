@@ -176,8 +176,8 @@ export async function POST(req: NextRequest) {
       let trips: any[] = [];
       try {
         // Bouncie window must be <= 7 days
-        // weekStart (Sat) to weekEnd+1 (Sat) = exactly 7 days
-        const tripsEndDate = new Date(weekEnd.getTime() + 24 * 60 * 60 * 1000);
+        // weekStart (Sat 00:00) to weekEnd end of day (Fri 23:59:59)
+        const tripsEndDate = new Date(weekEnd.getTime() + 24 * 60 * 60 * 1000 - 1);
         trips = await bouncieFetch('/trips', token, {
           imei,
           'gps-format':   'polyline',
