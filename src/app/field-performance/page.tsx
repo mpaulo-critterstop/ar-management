@@ -60,27 +60,39 @@ export default function FieldPerformancePage() {
     const wk = selectedWeek.toLocaleDateString('en-CA');
 
     if (type === 'geocode') {
-      // Loop until all customers are geocoded
       let totalGeocoded = 0;
       let remaining = 1;
-      while (remaining > 0) {
+      let consecutiveErrors = 0;
+      while (remaining > 0 && consecutiveErrors < 3) {
         try {
           const res = await fetch('/api/geocode/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({}),
           });
+          if (!res.ok) {
+            consecutiveErrors++;
+            await new Promise(r => setTimeout(r, 2000));
+            continue;
+          }
           const data = await res.json();
           totalGeocoded += data.geocoded ?? 0;
           remaining = data.remaining ?? 0;
+          consecutiveErrors = 0;
           setSyncMsg(`Geocoding... ${totalGeocoded} done, ${remaining} remaining`);
           if (data.status === 'done' || remaining === 0) break;
+          // Small pause between batches
+          await new Promise(r => setTimeout(r, 300));
         } catch {
-          setSyncMsg('Geocoding failed');
-          break;
+          consecutiveErrors++;
+          await new Promise(r => setTimeout(r, 2000));
         }
       }
-      setSyncMsg(`Geocoding complete — ${totalGeocoded} customers geocoded`);
+      if (consecutiveErrors >= 3) {
+        setSyncMsg(`Geocoding paused — ${totalGeocoded} done, ${remaining} remaining. Click again to continue.`);
+      } else {
+        setSyncMsg(`Geocoding complete — ${totalGeocoded} customers geocoded`);
+      }
       setSyncing(null);
       return;
     }
