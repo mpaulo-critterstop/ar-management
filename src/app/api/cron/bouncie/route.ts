@@ -60,7 +60,10 @@ async function bouncieFetch(path: string, token: string, params: Record<string, 
   const res = await fetch(url.toString(), {
     headers: { 'Authorization': token, 'Content-Type': 'application/json' },
   });
-  if (!res.ok) throw new Error(`Bouncie ${path} failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Bouncie ${path} failed: ${res.status} — ${body.slice(0, 200)}`);
+  }
   return res.json();
 }
 
@@ -172,10 +175,13 @@ export async function POST(req: NextRequest) {
       // Fetch trips for this vehicle in the week
       let trips: any[] = [];
       try {
+        // Bouncie window must be <= 7 days
+        // weekStart (Sat) to weekEnd+1 (Sat) = exactly 7 days
+        const tripsEndDate = new Date(weekEnd.getTime() + 24 * 60 * 60 * 1000);
         trips = await bouncieFetch('/trips', token, {
           imei,
-          'starts-after': fmtDate(weekStart),
-          'ends-before':  fmtDate(new Date(weekEnd.getTime() + 24 * 60 * 60 * 1000)),
+          'starts-after': weekStart.toISOString(),
+          'ends-before':  tripsEndDate.toISOString(),
         });
         if (!Array.isArray(trips)) trips = [];
       } catch (e: any) {
