@@ -35,7 +35,7 @@ export function AttendanceTab({ office, weekEnd }: Props) {
   const [search, setSearch] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
   const [editing, setEditing] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ startTime: '', finishTime: '', scheduledHrs: 8 });
+  const [editForm, setEditForm] = useState({ routeStartTime: '', scheduledHrs: 8 });
   const [saving, setSaving] = useState(false);
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
@@ -68,19 +68,12 @@ export function AttendanceTab({ office, weekEnd }: Props) {
   const saveEdit = async () => {
     if (!editing) return;
     setSaving(true);
-    // Convert local time inputs to UTC ISO strings
-    const date = new Date(editing.date).toLocaleDateString('en-CA', { timeZone: 'UTC' });
-    const toUTC = (timeStr: string) => {
-      if (!timeStr) return null;
-      return new Date(`${date}T${timeStr}:00-05:00`).toISOString(); // CST offset
-    };
     await fetch('/api/field-performance/attendance-update', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: editing.id,
-        startTime: toUTC(editForm.startTime),
-        finishTime: toUTC(editForm.finishTime),
+        routeStartTime: editForm.routeStartTime,
         scheduledHrs: editForm.scheduledHrs,
       }),
     });
@@ -95,15 +88,8 @@ export function AttendanceTab({ office, weekEnd }: Props) {
 
   const openEdit = (r: any) => {
     setEditing(r);
-    const toLocal = (dt: string | null) => {
-      if (!dt) return '';
-      const d = new Date(dt);
-      const h = d.toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Chicago' });
-      return h;
-    };
     setEditForm({
-      startTime: toLocal(r.startTime),
-      finishTime: toLocal(r.finishTime),
+      routeStartTime: r.routeStartTime || '7:00 AM',
       scheduledHrs: r.scheduledHrs || 8,
     });
   };
@@ -205,19 +191,16 @@ export function AttendanceTab({ office, weekEnd }: Props) {
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
               {editing.technician?.name} — {fmtDate(editing.date)}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              <div>
-                <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Start time</label>
-                <input type="time" value={editForm.startTime}
-                  onChange={e => setEditForm(f => ({ ...f, startTime: e.target.value }))}
-                  style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8 }} />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Finish time</label>
-                <input type="time" value={editForm.finishTime}
-                  onChange={e => setEditForm(f => ({ ...f, finishTime: e.target.value }))}
-                  style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8 }} />
-              </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Scheduled start time</label>
+              <select value={editForm.routeStartTime}
+                onChange={e => setEditForm(f => ({ ...f, routeStartTime: e.target.value }))}
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                <option value="6:00 AM">6:00 AM</option>
+                <option value="7:00 AM">7:00 AM</option>
+                <option value="8:00 AM">8:00 AM</option>
+                <option value="9:00 AM">9:00 AM</option>
+              </select>
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Scheduled hours</label>
@@ -228,7 +211,7 @@ export function AttendanceTab({ office, weekEnd }: Props) {
               </select>
             </div>
             <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 16 }}>
-              Scheduled start: {editing.routeStartTime} — editing will recalculate minutes late and reliability score.
+              Actual arrival: {fmtTime(editing.startTime)} — changing scheduled start will recalculate minutes late and reliability score.
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setEditing(null)}
