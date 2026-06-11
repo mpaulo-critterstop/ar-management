@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
   if (customers.length === 0) {
     const remaining = await prisma.$queryRaw<[{count: bigint}]>`
-      SELECT COUNT(*) as count FROM customers WHERE "billingAddr" IS NOT NULL AND lat IS NULL
+      SELECT COUNT(*) as count FROM customers WHERE "serviceAddr" IS NOT NULL AND lat IS NULL
     `;
     const rem = Number(remaining[0].count);
     return NextResponse.json({ status: 'done', message: 'All customers already geocoded', geocoded: 0, remaining: rem });
@@ -78,6 +78,11 @@ export async function POST(req: NextRequest) {
       `;
       geocoded++;
     } else {
+      // Mark with 0,0 so it doesn't block the queue — can be retried manually later
+      await prisma.$executeRaw`
+        UPDATE customers SET lat = 0, lng = 0, "geocodedAt" = NOW()
+        WHERE id = ${customer.id}
+      `;
       failed++;
       failures.push(`${customer.name}: ${address}`);
     }
@@ -86,7 +91,7 @@ export async function POST(req: NextRequest) {
   }
 
   const remaining = await prisma.$queryRaw<[{count: bigint}]>`
-    SELECT COUNT(*) as count FROM customers WHERE "billingAddr" IS NOT NULL AND lat IS NULL
+    SELECT COUNT(*) as count FROM customers WHERE "serviceAddr" IS NOT NULL AND lat IS NULL
   `;
   const rem = Number(remaining[0].count);
 
