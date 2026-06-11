@@ -180,6 +180,7 @@ export async function POST(req: NextRequest) {
         const tripsEndDate = new Date(weekEnd.getTime() + 24 * 60 * 60 * 1000);
         trips = await bouncieFetch('/trips', token, {
           imei,
+          'gps-format':   'polyline',
           'starts-after': weekStart.toISOString(),
           'ends-before':  tripsEndDate.toISOString(),
         });
