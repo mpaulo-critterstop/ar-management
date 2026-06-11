@@ -47,6 +47,9 @@ export async function POST(req: NextRequest) {
     LIMIT ${BATCH_SIZE}
   `;
 
+  // Debug: log what we found
+  console.log('Geocode query returned:', customers.length, 'customers');
+
   if (customers.length === 0) {
     const remaining = await prisma.$queryRaw<[{count: bigint}]>`
       SELECT COUNT(*) as count FROM customers WHERE "billingAddr" IS NOT NULL AND lat IS NULL
@@ -59,11 +62,14 @@ export async function POST(req: NextRequest) {
   let failed = 0;
   const failures: string[] = [];
 
+  console.log('First customer to geocode:', customers[0]?.id, customers[0]?.billingAddr);
+
   for (const customer of customers) {
     const address = customer.serviceAddr || customer.billingAddr;
     if (!address) continue;
 
     const coords = await geocodeAddress(address);
+    console.log('Geocode result for', address?.slice(0, 30), ':', coords ? 'OK' : 'FAILED');
 
     if (coords) {
       await prisma.$executeRaw`
