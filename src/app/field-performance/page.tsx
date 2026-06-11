@@ -58,7 +58,34 @@ export default function FieldPerformancePage() {
     setSyncing(type);
     setSyncMsg(null);
     const wk = selectedWeek.toLocaleDateString('en-CA');
-    const url = type === 'fp' ? '/api/field-performance/sync-test' : type === 'bouncie' ? '/api/bouncie/sync-test' : type === 'reliability' ? '/api/reliability/sync-test' : '/api/geocode/run';
+
+    if (type === 'geocode') {
+      // Loop until all customers are geocoded
+      let totalGeocoded = 0;
+      let remaining = 1;
+      while (remaining > 0) {
+        try {
+          const res = await fetch('/api/geocode/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+          });
+          const data = await res.json();
+          totalGeocoded += data.geocoded ?? 0;
+          remaining = data.remaining ?? 0;
+          setSyncMsg(`Geocoding... ${totalGeocoded} done, ${remaining} remaining`);
+          if (data.status === 'done' || remaining === 0) break;
+        } catch {
+          setSyncMsg('Geocoding failed');
+          break;
+        }
+      }
+      setSyncMsg(`Geocoding complete — ${totalGeocoded} customers geocoded`);
+      setSyncing(null);
+      return;
+    }
+
+    const url = type === 'fp' ? '/api/field-performance/sync-test' : type === 'bouncie' ? '/api/bouncie/sync-test' : '/api/reliability/sync-test';
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -66,10 +93,9 @@ export default function FieldPerformancePage() {
         body: JSON.stringify({ weekEnd: wk }),
       });
       const data = await res.json();
-      const label = type === 'fp' ? 'FR' : type === 'bouncie' ? 'Bouncie' : type === 'reliability' ? 'Reliability' : 'Geocode';
-      const detail = type === 'geocode' ? `${data.geocoded ?? 0} geocoded, ${data.remaining ?? 0} remaining` : `${data.techsUpdated ?? 0} techs updated`;
-      setSyncMsg(`${label}: ${data.status} — ${detail}`);
-    } catch (e) {
+      const label = type === 'fp' ? 'FR' : type === 'bouncie' ? 'Bouncie' : 'Reliability';
+      setSyncMsg(`${label} sync: ${data.status} — ${data.techsUpdated ?? 0} techs updated`);
+    } catch {
       setSyncMsg('Sync failed');
     }
     setSyncing(null);
