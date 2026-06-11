@@ -393,3 +393,11 @@ model ManualAdj {
   @@index([techId, weekEnd])
   @@map("manual_adjs")
 }
+
+model AppSetting {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("app_settings")
+}

@@ -1,0 +1,316 @@
+// src/app/api/cron/bouncie/route.ts
+// Weekly sync: pulls trip data from Bouncie, calculates driving scores per tech
+// Driving score = MIN((102 - alertsPer1k) - speedPenalty - idlePenalty, 105) / 100
+
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+const CLIENT_ID     = 'critter-stop-';
+const CLIENT_SECRET = process.env.BOUNCIE_CLIENT_SECRET!;
+const REDIRECT_URI  = 'https://hub.critterstop.com/api/bouncie/callback';
+const BASE_URL      = 'https://api.bouncie.dev/v1';
+
+// ─── TOKEN MANAGEMENT ────────────────────────────────────────────────────────
+async function getAccessToken(): Promise<string> {
+  const [tokenSetting, expiresSetting, refreshSetting] = await Promise.all([
+    prisma.appSetting.findUnique({ where: { key: 'bouncie_access_token' } }),
+    prisma.appSetting.findUnique({ where: { key: 'bouncie_token_expires_at' } }),
+    prisma.appSetting.findUnique({ where: { key: 'bouncie_refresh_token' } }),
+  ]);
+
+  if (!tokenSetting || !refreshSetting) {
+    throw new Error('Bouncie not connected — run OAuth flow first at /api/bouncie/connect');
+  }
+
+  // Refresh if expired or expiring within 5 minutes
+  const expiresAt = expiresSetting ? new Date(expiresSetting.value) : new Date(0);
+  const needsRefresh = expiresAt.getTime() - Date.now() < 5 * 60 * 1000;
+
+  if (!needsRefresh) return tokenSetting.value;
+
+  // Refresh the token
+  const res = await fetch('https://auth.bouncie.com/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id:     CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      grant_type:    'refresh_token',
+      refresh_token: refreshSetting.value,
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Token refresh failed: ${await res.text()}`);
+
+  const tokens = await res.json();
+  const newExpiresAt = new Date(Date.now() + (tokens.expires_in || 3600) * 1000);
+
+  await Promise.all([
+    prisma.appSetting.update({ where: { key: 'bouncie_access_token' }, data: { value: tokens.access_token } }),
+    prisma.appSetting.update({ where: { key: 'bouncie_refresh_token' }, data: { value: tokens.refresh_token } }),
+    prisma.appSetting.update({ where: { key: 'bouncie_token_expires_at' }, data: { value: newExpiresAt.toISOString() } }),
+  ]);
+
+  return tokens.access_token;
+}
+
+async function bouncieFetch(path: string, token: string, params: Record<string, string> = {}) {
+  const url = new URL(`${BASE_URL}${path}`);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString(), {
+    headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Bouncie ${path} failed: ${res.status}`);
+  return res.json();
+}
+
+// ─── DRIVING SCORE FORMULA (from spreadsheet) ────────────────────────────────
+// alertsPer1k = hard braking + hard acceleration per 1,000 miles
+// speedPenalty = 50 if maxSpeed > 90mph, 8 if > 80mph, 0 otherwise
+// idlePenalty = (idleRatio - 0.30) * 50 if idleRatio > 0.30, else 0
+function calcDrivingScore(alertsPer1k: number, maxSpeed: number, idleRatio: number): number {
+  const speedPenalty = maxSpeed > 90 ? 50 : maxSpeed > 80 ? 8 : 0;
+  const idlePenalty  = idleRatio > 0.30 ? (idleRatio - 0.30) * 50 : 0;
+  return Math.min((102 - alertsPer1k - speedPenalty - idlePenalty) / 100, 1.05);
+}
+
+function calcWPScore(coPct: number, cbRate: number | null, driving: number, reliability: number): number {
+  const coTerm = Math.min(coPct + (1 - 0.85), 1.1) * 0.45;
+  const cbTerm = cbRate !== null
+    ? ((1 + 0.15 * 2) - cbRate * 2) * 0.30
+    : Math.min(coPct + (1 - 0.85), 1.1) * 0.30;
+  return coTerm + cbTerm + driving * 0.10 + reliability * 0.15;
+}
+
+function calcPMPScore(revEff: number, reservice: number, completion: number, driving: number, reliability: number): number {
+  return revEff * 0.35 + (0.95 + 0.10 - reservice) * 0.20 +
+    (1 - (0.95 - completion) * 5) * 0.20 + driving * 0.10 + reliability * 0.15;
+}
+
+function calcIPScore(driving: number, reliability: number): number {
+  return driving * 0.50 + reliability * 0.50;
+}
+
+function fmtDate(d: Date) { return d.toISOString(); }
+function fmtDateOnly(d: Date) { return d.toISOString().split('T')[0]; }
+
+// ─── MAIN ────────────────────────────────────────────────────────────────────
+export async function POST(req: NextRequest) {
+  const authHeader = req.headers.get('authorization');
+  const isVercelCron = req.headers.get('x-vercel-cron') === '1';
+  if (!isVercelCron && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const body = await req.json().catch(() => ({}));
+
+  // Default to most recent Friday
+  const weekEnd = body.weekEnd
+    ? new Date(body.weekEnd + 'T00:00:00.000Z')
+    : (() => {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      const day = d.getDay();
+      d.setDate(d.getDate() - (day >= 5 ? day - 5 : day + 2));
+      return d;
+    })();
+
+  const weekStart = new Date(weekEnd);
+  weekStart.setDate(weekStart.getDate() - 6);
+  weekStart.setHours(0, 0, 0, 0);
+
+  const log: string[] = [`Bouncie sync: ${fmtDateOnly(weekStart)} → ${fmtDateOnly(weekEnd)}`];
+  const errors: string[] = [];
+  let updated = 0;
+
+  try {
+    const token = await getAccessToken();
+    log.push('Token obtained ✓');
+
+    // Get all vehicles
+    const vehicles = await bouncieFetch('/vehicles', token);
+    log.push(`Vehicles found: ${vehicles.length}`);
+
+    // Load all bouncie device mappings
+    const bouncieDevices = await prisma.bouncieDevice.findMany({
+      include: { technician: true },
+    });
+
+    // Build IMEI → tech map
+    const imeiToTech = new Map(bouncieDevices.map(d => [d.deviceId!, d.technician]));
+
+    // Also build nickName → tech map as fallback
+    const nameToTech = new Map(bouncieDevices.map(d => [
+      d.bouncieName.toLowerCase(),
+      d.technician,
+    ]));
+
+    log.push(`Bouncie device mappings: ${bouncieDevices.length}`);
+
+    // Aggregate trips per tech
+    const techTrips = new Map<string, {
+      totalMiles: number;
+      hardBraking: number;
+      hardAccel: number;
+      maxSpeed: number;
+      totalIdleSecs: number;
+      totalDriveSecs: number;
+    }>();
+
+    for (const vehicle of vehicles) {
+      const imei: string = vehicle.imei;
+      const nickName: string = (vehicle.nickName || '').toLowerCase();
+
+      // Find tech by IMEI or nickname
+      let tech = imeiToTech.get(imei);
+      if (!tech) tech = nameToTech.get(nickName);
+      if (!tech) {
+        log.push(`  No tech mapping for vehicle: ${vehicle.nickName} (${imei})`);
+        continue;
+      }
+
+      // Fetch trips for this vehicle in the week
+      let trips: any[] = [];
+      try {
+        trips = await bouncieFetch('/trips', token, {
+          imei,
+          'starts-after': fmtDate(weekStart),
+          'ends-before':  fmtDate(new Date(weekEnd.getTime() + 24 * 60 * 60 * 1000)),
+        });
+        if (!Array.isArray(trips)) trips = [];
+      } catch (e: any) {
+        log.push(`  ${tech.name}: trip fetch error — ${e.message}`);
+        continue;
+      }
+
+      if (trips.length === 0) {
+        log.push(`  ${tech.name}: no trips this week`);
+        continue;
+      }
+
+      // Aggregate across all trips
+      const agg = {
+        totalMiles:     0,
+        hardBraking:    0,
+        hardAccel:      0,
+        maxSpeed:       0,
+        totalIdleSecs:  0,
+        totalDriveSecs: 0,
+      };
+
+      for (const trip of trips) {
+        agg.totalMiles    += parseFloat(trip.distance || '0');
+        agg.hardBraking   += parseInt(trip.hardBrakingCount || '0');
+        agg.hardAccel     += parseInt(trip.hardAccelerationCount || '0');
+        agg.maxSpeed       = Math.max(agg.maxSpeed, parseFloat(trip.maxSpeed || '0'));
+        agg.totalIdleSecs += parseFloat(trip.totalIdleDuration || '0');
+        // Drive time = end - start in seconds
+        if (trip.startTime && trip.endTime) {
+          const driveSecs = (new Date(trip.endTime).getTime() - new Date(trip.startTime).getTime()) / 1000;
+          agg.totalDriveSecs += driveSecs;
+        }
+      }
+
+      techTrips.set(tech.techId, agg);
+      log.push(`  ${tech.name} (${tech.techId}): ${trips.length} trips, ${agg.totalMiles.toFixed(1)} miles, maxSpeed=${agg.maxSpeed}mph`);
+    }
+
+    // Calculate scores and upsert
+    for (const [techId, agg] of techTrips) {
+      const tech = [...imeiToTech.values(), ...nameToTech.values()]
+        .find(t => t.techId === techId);
+      if (!tech) continue;
+
+      // Alerts per 1,000 miles
+      const alertsPer1k = agg.totalMiles > 0
+        ? ((agg.hardBraking + agg.hardAccel) / agg.totalMiles) * 1000
+        : 0;
+
+      // Idle ratio = idle time / (idle + drive time)
+      const totalTime = agg.totalIdleSecs + agg.totalDriveSecs;
+      const idleRatio = totalTime > 0 ? agg.totalIdleSecs / totalTime : 0;
+
+      const drivingScore = calcDrivingScore(alertsPer1k, agg.maxSpeed, idleRatio);
+
+      const existing = await prisma.techWeek.findUnique({
+        where: { techId_weekEnd: { techId, weekEnd } },
+      });
+
+      const updateData: any = {
+        drivingScore,
+        maxSpeed:          agg.maxSpeed,
+        safetyAlertsPer1k: alertsPer1k,
+        idleRatio,
+        updatedAt:         new Date(),
+      };
+
+      // Recalculate total score if reliability also present
+      if (existing?.reliabilityScore !== null && existing?.reliabilityScore !== undefined) {
+        const rel = existing.reliabilityScore;
+        if (tech.team === 'WP' && existing.closeOutPct !== null) {
+          const wpScore = calcWPScore(existing.closeOutPct, existing.callbackRate ?? null, drivingScore, rel);
+          updateData.wpScore    = wpScore;
+          updateData.totalScore = wpScore + (existing.manualAdj ?? 0);
+        } else if (tech.team === 'PMP' && existing.revenueEfficiency !== null && existing.reseviceRate !== null && existing.completionPct !== null) {
+          const pmpScore = calcPMPScore(existing.revenueEfficiency, existing.reseviceRate, existing.completionPct, drivingScore, rel);
+          updateData.pmpScore   = pmpScore;
+          updateData.totalScore = pmpScore + (existing.manualAdj ?? 0);
+        } else if (tech.team === 'IP') {
+          const ipScore = calcIPScore(drivingScore, rel);
+          updateData.ipScore    = ipScore;
+          updateData.totalScore = ipScore + (existing.manualAdj ?? 0);
+        }
+      }
+
+      if (existing) {
+        await prisma.techWeek.update({
+          where: { techId_weekEnd: { techId, weekEnd } },
+          data: updateData,
+        });
+      } else {
+        await prisma.techWeek.create({
+          data: {
+            id:           crypto.randomUUID(),
+            technicianId: tech.id,
+            techId,
+            weekEnd,
+            office:       tech.office,
+            team:         tech.team,
+            siteLeader:   tech.siteLeader,
+            crewLeader:   tech.crewLeader,
+            drivingScore,
+            maxSpeed:     agg.maxSpeed,
+            safetyAlertsPer1k: alertsPer1k,
+            idleRatio,
+            manualAdj:    0,
+          },
+        });
+      }
+
+      updated++;
+      log.push(`  → ${techId} driving score: ${drivingScore.toFixed(3)} (alerts/1k=${alertsPer1k.toFixed(1)}, maxSpeed=${agg.maxSpeed}, idle=${(idleRatio*100).toFixed(1)}%)`);
+    }
+
+  } catch (e: any) {
+    errors.push(e.message);
+    log.push(`ERROR: ${e.message}`);
+  }
+
+  log.push(`\nTotal updated: ${updated}`);
+
+  return NextResponse.json({
+    status: errors.length === 0 ? 'success' : 'partial',
+    weekEnd: fmtDateOnly(weekEnd),
+    techsUpdated: updated,
+    errors,
+    log: log.join('\n'),
+  });
+}
+
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return POST(new NextRequest(req.url, { method: 'POST', headers: req.headers, body: '{}' }));
+}
