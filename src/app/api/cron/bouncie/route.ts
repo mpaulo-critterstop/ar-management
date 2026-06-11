@@ -228,10 +228,9 @@ export async function POST(req: NextRequest) {
         .find(t => t.techId === techId);
       if (!tech) continue;
 
-      // Alerts per 1,000 minutes (total drive time)
-      const totalMins = agg.totalDriveSecs / 60;
-      const alertsPer1k = totalMins > 0
-        ? ((agg.hardBraking + agg.hardAccel) / totalMins) * 1000
+      // Alerts per 1,000 miles
+      const alertsPer1k = agg.totalMiles > 0
+        ? ((agg.hardBraking + agg.hardAccel) / agg.totalMiles) * 1000
         : 0;
 
       // Idle ratio = idle time / total drive time (idle is within drive time)
