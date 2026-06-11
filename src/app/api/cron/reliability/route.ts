@@ -333,6 +333,37 @@ export async function POST(req: NextRequest) {
         workDays++;
 
         log.push(`  ${tech.name} ${date}: start=${startOfDay.toLocaleTimeString('en-US', {timeZone})}, end=${endOfDay.toLocaleTimeString('en-US', {timeZone})}, late=${minutesLate.toFixed(0)}min, util=${(utilization*100).toFixed(0)}%`);
+
+        // Save per-day attendance record
+        const dateObj = new Date(date + 'T00:00:00.000Z');
+        await prisma.techDayAttendance.upsert({
+          where: { techId_date: { techId: tech.techId, date: dateObj } },
+          update: {
+            startTime: startOfDay,
+            finishTime: endOfDay,
+            minutesLate,
+            hrsWorked: (endOfDay.getTime() - startOfDay.getTime()) / (1000 * 60 * 60),
+            weekEnd,
+            status: 'WORKED',
+            updatedAt: new Date(),
+          },
+          create: {
+            id: crypto.randomUUID(),
+            technicianId: tech.id,
+            techId: tech.techId,
+            date: dateObj,
+            weekEnd,
+            office: tech.office,
+            team: tech.team,
+            routeStartTime: tech.startTime,
+            scheduledHrs: tech.hrDays,
+            startTime: startOfDay,
+            finishTime: endOfDay,
+            minutesLate,
+            hrsWorked: (endOfDay.getTime() - startOfDay.getTime()) / (1000 * 60 * 60),
+            status: 'WORKED',
+          },
+        });
       }
 
       if (workDays === 0) {

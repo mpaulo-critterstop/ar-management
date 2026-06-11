@@ -282,6 +282,7 @@ model Technician {
   techWeeks     TechWeek[]
   reviews       TechReview[]
   manualAdjs    ManualAdj[]
+  attendance    TechDayAttendance[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   @@map("technicians")
@@ -403,4 +404,28 @@ model AppSetting {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@map("app_settings")
+}
+
+model TechDayAttendance {
+  id              String     @id @default(cuid())
+  technicianId    String
+  techId          String
+  date            DateTime
+  weekEnd         DateTime
+  office          String
+  team            TechTeam
+  routeStartTime  String?
+  scheduledHrs    Int        @default(8)
+  startTime       DateTime?
+  finishTime      DateTime?
+  minutesLate     Float?
+  hrsWorked       Float?
+  status          String?    @default("WORKED") // WORKED, OFF, CALL_OUT
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  technician      Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  @@unique([techId, date])
+  @@index([weekEnd])
+  @@index([techId])
+  @@map("tech_day_attendance")
 }
