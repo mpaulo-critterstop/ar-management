@@ -1,7 +1,6 @@
 // src/app/api/cron/field-performance/route.ts
-// Weekly cron: pulls Route Reporting + Tech Reservices from FieldRoutes
-// and upserts into tech_weeks for PMP techs.
-// Run every Friday night after routes close.
+// Weekly cron: pulls WP close-out%, callback rate, PMP route reporting + reservices
+// Run every Sunday 12am CST via cron-job.org
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -16,9 +15,21 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number }> 
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4 },
 };
 
-// Standard production rate per hr-day (used for revenue efficiency)
-const PROD_STANDARD_PER_DAY = 1150; // $1,150/day standard
+// ─── APPOINTMENT TYPE IDs ────────────────────────────────────────────────────
+const TRAP_CHECK_TYPES       = new Set(['504', '636']);
+const EXCLUSION_TYPES        = new Set(['553', '716']);
+const CALLBACK_TYPES         = new Set(['615', '671', '546', '554']);
+const CALLBACK_TC_TYPES      = new Set(['620']);
+const ANNUAL_INSP_TYPES      = new Set(['533']);
+const ANNUAL_INSP_TC_TYPES   = new Set(['538']);
 
+// Close-out keywords (same as dispatcher)
+const CLOSEOUT_KEYWORDS = ['ready for insulation', 'ready for far', 'close out', 'closed out'];
+
+// Standard production rate per hr-day for PMP revenue efficiency
+const PROD_STANDARD_PER_DAY = 1150;
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
 function frUrl(endpoint: string, action: string, params: Record<string, string>, key: string, token: string) {
   const url = new URL(`${BASE_URL}/${endpoint}/${action}`);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
@@ -29,37 +40,76 @@ function frUrl(endpoint: string, action: string, params: Record<string, string>,
 
 async function frFetch(url: string) {
   const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
-  if (!res.ok) throw new Error(`FR HTTP ${res.status}: ${url}`);
+  if (!res.ok) throw new Error(`FR HTTP ${res.status}`);
   return res.json();
 }
 
-// Get Friday-ending week dates
-function getWeekDates(weekEnd: Date) {
-  const end = new Date(weekEnd);
-  end.setHours(23, 59, 59, 999);
-  const start = new Date(weekEnd);
-  start.setDate(start.getDate() - 6); // previous Saturday
-  start.setHours(0, 0, 0, 0);
-  return { start, end };
+async function fetchInBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string): Promise<any[]> {
+  const results: any[] = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const batch = ids.slice(i, i + 100);
+    const url = frUrl(endpoint, action, { [idParam]: batch.join(',') }, key, token);
+    const data = await frFetch(url);
+    // FR returns data under a dynamic property name
+    const dataKey = Object.keys(data).find(k => Array.isArray(data[k]));
+    if (dataKey) results.push(...data[dataKey]);
+    else {
+      // Sometimes returns object map instead of array
+      const objKey = Object.keys(data).find(k => typeof data[k] === 'object' && data[k] !== null && !['success','count','errorMessage'].includes(k));
+      if (objKey) results.push(...Object.values(data[objKey] as object));
+    }
+    await new Promise(r => setTimeout(r, 150));
+  }
+  return results;
 }
 
 function fmtDate(d: Date) {
   return d.toISOString().split('T')[0];
 }
 
-// ─── ROUTE REPORTING ────────────────────────────────────────────────────────
-// Pulls from: Reporting -> Route Reporting in FR UI
-// API: appointment/search by date + officeId, then appointment/get
-async function pullRouteReporting(
-  office: string,
+function hasCloseoutNote(appt: any): boolean {
+  const text = [appt.officeNotes, appt.appointmentNotes, appt.notes, appt.techNotes]
+    .filter(Boolean).join(' ').toLowerCase();
+  return CLOSEOUT_KEYWORDS.some(k => text.includes(k));
+}
+
+function getMostRecentFriday(offsetWeeks = 0): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const daysToFri = day >= 5 ? day - 5 : day + 2;
+  d.setDate(d.getDate() - daysToFri - offsetWeeks * 7);
+  return d;
+}
+
+// ─── WP: CLOSE-OUT % + CALLBACK RATE ────────────────────────────────────────
+// Close-out opportunities:
+//   - TC #2+ (trap check where customer has >= 2 TCs after exclusion)
+//   - Call Back (615, 671, 546, 554) — opportunity itself
+//   - Call Back Trap Check (620)
+//   - Annual Inspection (533)
+//   - Annual Inspection Trap Check (538)
+// Close-out = appointment has close-out note in tech/office notes
+// Callback rate = CB appointments / jobs 60-120 days ago (handled separately)
+
+interface TechWPStats {
+  closeoutOpportunities: number;
+  closeouts: number;
+  callbacks: number;       // CB appts this week (for callback rate numerator)
+}
+
+async function pullWPMetrics(
   cfg: { key: string; token: string; officeId: number },
   weekStart: Date,
-  weekEnd: Date
-): Promise<Map<number, { totalScheduled: number; completed: number; productionValue: number; days: number }>> {
+  weekEnd: Date,
+  // Map of FR employeeId -> techId for WP techs in this office
+  wpTechs: Map<number, string>
+): Promise<Map<string, TechWPStats>> {
 
-  const result = new Map<number, { totalScheduled: number; completed: number; productionValue: number; days: number }>();
+  const result = new Map<string, TechWPStats>();
+  const initStats = (): TechWPStats => ({ closeoutOpportunities: 0, closeouts: 0, callbacks: 0 });
 
-  // Search for appointment IDs in date range for this office
+  // Search all appointments for the week
   const searchUrl = frUrl('appointment', 'search', {
     officeIDs: String(cfg.officeId),
     dateStart: fmtDate(weekStart),
@@ -68,120 +118,253 @@ async function pullRouteReporting(
 
   const searchData = await frFetch(searchUrl);
   const apptIds: number[] = searchData.appointmentIDs || [];
-
   if (apptIds.length === 0) return result;
 
-  // Fetch in batches of 100
-  for (let i = 0; i < apptIds.length; i += 100) {
-    const batch = apptIds.slice(i, i + 100);
-    const getUrl = frUrl('appointment', 'get', {
-      appointmentIDs: batch.join(','),
-    }, cfg.key, cfg.token);
+  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
 
-    const data = await frFetch(getUrl);
-    const appts = Array.isArray(data.appointments)
-      ? data.appointments
-      : Object.values(data.appointments || {});
+  // Only completed appointments
+  const completed = allAppts.filter((a: any) => String(a.status) === '1');
 
-    for (const appt of appts) {
-      const empId = parseInt(appt.employeeID || appt.technicianID || '0');
-      if (!empId) continue;
+  // Group trap checks by customer to determine TC count
+  // We need ALL trap checks (not just this week) to determine TC #
+  // Use the DispatchJob table which already tracks trapCheckCount per customer
+  const customerTCCounts = new Map<string, number>();
+  const dispatchJobs = await prisma.dispatchJob.findMany({
+    where: { status: { in: ['ACTIVE', 'CLOSED'] } },
+    select: { customer: { select: { externalId: true } }, trapCheckCount: true },
+  });
+  for (const job of dispatchJobs) {
+    if (job.customer?.externalId) {
+      customerTCCounts.set(job.customer.externalId, job.trapCheckCount ?? 0);
+    }
+  }
 
-      // Only count assigned (not unassigned) routes
-      const status = String(appt.status || '');
-      const isCompleted = status === '1' || status === 'Completed';
-      const isScheduled = isCompleted || status === '0' || status === 'Pending';
-      if (!isScheduled) continue;
+  for (const appt of completed) {
+    const empId = parseInt(appt.employeeID || appt.technicianID || '0');
+    if (!empId || !wpTechs.has(empId)) continue;
 
-      const prodValue = parseFloat(appt.total || appt.serviceTotal || '0');
-      const apptDate = appt.date || appt.start || '';
+    const techId = wpTechs.get(empId)!;
+    const typeStr = String(appt.type || appt.serviceTypeID || '');
+    const custId = String(appt.customerID);
 
-      if (!result.has(empId)) {
-        result.set(empId, { totalScheduled: 0, completed: 0, productionValue: 0, days: 0 });
+    if (!result.has(techId)) result.set(techId, initStats());
+    const stats = result.get(techId)!;
+
+    // ── TRAP CHECKS (TC #2+) ──
+    if (TRAP_CHECK_TYPES.has(typeStr)) {
+      const tcCount = customerTCCounts.get(custId) ?? 0;
+      if (tcCount >= 2) {
+        // This is TC #2 or later — it's a close-out opportunity
+        stats.closeoutOpportunities++;
+        if (hasCloseoutNote(appt)) stats.closeouts++;
       }
-      const entry = result.get(empId)!;
-      entry.totalScheduled++;
-      if (isCompleted) {
-        entry.completed++;
-        entry.productionValue += prodValue;
-      }
-      // Track unique days worked
-      if (apptDate) {
-        const dateKey = apptDate.split(' ')[0];
-        // We'll count days separately below
-      }
+      // TC #1 → not a close-out opportunity, skip
+    }
+
+    // ── CALLBACKS ── (opportunity + closed out if note present)
+    else if (CALLBACK_TYPES.has(typeStr)) {
+      stats.closeoutOpportunities++;
+      stats.callbacks++;
+      if (hasCloseoutNote(appt)) stats.closeouts++;
+    }
+
+    // ── CALLBACK TRAP CHECKS ── (same logic as TC #2+)
+    else if (CALLBACK_TC_TYPES.has(typeStr)) {
+      stats.closeoutOpportunities++;
+      if (hasCloseoutNote(appt)) stats.closeouts++;
+    }
+
+    // ── ANNUAL INSPECTIONS ── (opportunity itself)
+    else if (ANNUAL_INSP_TYPES.has(typeStr)) {
+      stats.closeoutOpportunities++;
+      if (hasCloseoutNote(appt)) stats.closeouts++;
+    }
+
+    // ── ANNUAL INSPECTION TRAP CHECKS ── (same as TC #2+)
+    else if (ANNUAL_INSP_TC_TYPES.has(typeStr)) {
+      stats.closeoutOpportunities++;
+      if (hasCloseoutNote(appt)) stats.closeouts++;
     }
   }
 
   return result;
 }
 
-// ─── TECH RESERVICES ────────────────────────────────────────────────────────
-// Pulls from: Reporting -> Tech Reservices in FR UI
-// API: reservice/search by date range
-async function pullReservices(
-  office: string,
+// ─── WP: CALLBACK RATE ───────────────────────────────────────────────────────
+// Callback rate = CB appts in last 60-90 days / jobs completed 60-120 days ago
+// Uses a rolling window, not the current week
+async function pullWPCallbackRate(
+  cfg: { key: string; token: string; officeId: number },
+  weekEnd: Date,
+  wpTechs: Map<number, string>
+): Promise<Map<string, number>> {
+
+  const result = new Map<string, number>();
+
+  // Window: 30-90 days ago for callbacks
+  const cbStart = new Date(weekEnd); cbStart.setDate(cbStart.getDate() - 90);
+  const cbEnd   = new Date(weekEnd); cbEnd.setDate(cbEnd.getDate() - 30);
+
+  // Window: 60-120 days ago for base jobs
+  const baseStart = new Date(weekEnd); baseStart.setDate(baseStart.getDate() - 120);
+  const baseEnd   = new Date(weekEnd); baseEnd.setDate(baseEnd.getDate() - 60);
+
+  // Fetch callbacks in window
+  const cbSearchUrl = frUrl('appointment', 'search', {
+    officeIDs: String(cfg.officeId),
+    dateStart: fmtDate(cbStart),
+    dateEnd: fmtDate(cbEnd),
+  }, cfg.key, cfg.token);
+  const cbSearch = await frFetch(cbSearchUrl);
+  const cbApptIds: number[] = cbSearch.appointmentIDs || [];
+
+  // Fetch base jobs in window (exclusions + TCs = completed jobs)
+  const baseSearchUrl = frUrl('appointment', 'search', {
+    officeIDs: String(cfg.officeId),
+    dateStart: fmtDate(baseStart),
+    dateEnd: fmtDate(baseEnd),
+  }, cfg.key, cfg.token);
+  const baseSearch = await frFetch(baseSearchUrl);
+  const baseApptIds: number[] = baseSearch.appointmentIDs || [];
+
+  if (cbApptIds.length === 0 && baseApptIds.length === 0) return result;
+
+  const [cbAppts, baseAppts] = await Promise.all([
+    cbApptIds.length > 0 ? fetchInBatches('appointment', 'get', 'appointmentIDs', cbApptIds, cfg.key, cfg.token) : [],
+    baseApptIds.length > 0 ? fetchInBatches('appointment', 'get', 'appointmentIDs', baseApptIds, cfg.key, cfg.token) : [],
+  ]);
+
+  // Count callbacks per tech
+  const cbByTech = new Map<string, number>();
+  for (const appt of cbAppts.filter((a: any) => String(a.status) === '1')) {
+    const empId = parseInt(appt.employeeID || appt.technicianID || '0');
+    if (!empId || !wpTechs.has(empId)) continue;
+    const typeStr = String(appt.type || '');
+    if (!CALLBACK_TYPES.has(typeStr)) continue;
+    const techId = wpTechs.get(empId)!;
+    cbByTech.set(techId, (cbByTech.get(techId) ?? 0) + 1);
+  }
+
+  // Count base completed jobs per tech (exclusions + TCs)
+  const baseByTech = new Map<string, number>();
+  for (const appt of baseAppts.filter((a: any) => String(a.status) === '1')) {
+    const empId = parseInt(appt.employeeID || appt.technicianID || '0');
+    if (!empId || !wpTechs.has(empId)) continue;
+    const typeStr = String(appt.type || '');
+    if (!EXCLUSION_TYPES.has(typeStr) && !TRAP_CHECK_TYPES.has(typeStr)) continue;
+    const techId = wpTechs.get(empId)!;
+    baseByTech.set(techId, (baseByTech.get(techId) ?? 0) + 1);
+  }
+
+  // Calculate rate per tech
+  for (const [techId, cbs] of cbByTech) {
+    const base = baseByTech.get(techId) ?? 0;
+    if (base > 0) result.set(techId, cbs / base);
+  }
+
+  return result;
+}
+
+// ─── PMP: ROUTE REPORTING ────────────────────────────────────────────────────
+async function pullRouteReporting(
   cfg: { key: string; token: string; officeId: number },
   weekStart: Date,
-  weekEnd: Date
-): Promise<Map<number, { totalReservices: number; avgServiced: number; reserviceRate: number }>> {
+  weekEnd: Date,
+  pmpTechs: Map<number, string>
+): Promise<Map<string, { totalScheduled: number; completed: number; productionValue: number }>> {
 
-  const result = new Map<number, { totalReservices: number; avgServiced: number; reserviceRate: number }>();
+  const result = new Map<string, { totalScheduled: number; completed: number; productionValue: number }>();
 
-  const searchUrl = frUrl('reservice', 'search', {
+  const searchUrl = frUrl('appointment', 'search', {
     officeIDs: String(cfg.officeId),
     dateStart: fmtDate(weekStart),
     dateEnd: fmtDate(weekEnd),
   }, cfg.key, cfg.token);
 
+  const searchData = await frFetch(searchUrl);
+  const apptIds: number[] = searchData.appointmentIDs || [];
+  if (apptIds.length === 0) return result;
+
+  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+
+  for (const appt of allAppts) {
+    const empId = parseInt(appt.employeeID || appt.technicianID || '0');
+    if (!empId || !pmpTechs.has(empId)) continue;
+
+    const techId = pmpTechs.get(empId)!;
+    const statusStr = String(appt.status || '');
+    const isCompleted = statusStr === '1';
+    const isPending   = statusStr === '0';
+    if (!isCompleted && !isPending) continue;
+
+    if (!result.has(techId)) result.set(techId, { totalScheduled: 0, completed: 0, productionValue: 0 });
+    const entry = result.get(techId)!;
+    entry.totalScheduled++;
+    if (isCompleted) {
+      entry.completed++;
+      entry.productionValue += parseFloat(appt.total || appt.serviceTotal || '0');
+    }
+  }
+
+  return result;
+}
+
+// ─── PMP: RESERVICES ─────────────────────────────────────────────────────────
+async function pullReservices(
+  cfg: { key: string; token: string; officeId: number },
+  weekStart: Date,
+  weekEnd: Date,
+  pmpTechs: Map<number, string>
+): Promise<Map<string, number>> {
+
+  const result = new Map<string, number>();
+
   let searchData: any;
   try {
+    const searchUrl = frUrl('reservice', 'search', {
+      officeIDs: String(cfg.officeId),
+      dateStart: fmtDate(weekStart),
+      dateEnd: fmtDate(weekEnd),
+    }, cfg.key, cfg.token);
     searchData = await frFetch(searchUrl);
-  } catch (e) {
-    // reservice endpoint may not exist on all offices
-    return result;
-  }
+  } catch { return result; }
 
   const reserviceIds: number[] = searchData.reserviceIDs || searchData.reServiceIDs || [];
   if (reserviceIds.length === 0) return result;
 
-  for (let i = 0; i < reserviceIds.length; i += 100) {
-    const batch = reserviceIds.slice(i, i + 100);
-    const getUrl = frUrl('reservice', 'get', {
-      reserviceIDs: batch.join(','),
-    }, cfg.key, cfg.token);
+  const reservices = await fetchInBatches('reservice', 'get', 'reserviceIDs', reserviceIds, cfg.key, cfg.token);
 
-    let data: any;
-    try {
-      data = await frFetch(getUrl);
-    } catch {
-      continue;
-    }
-
-    const reservices = Array.isArray(data.reservices)
-      ? data.reservices
-      : Object.values(data.reservices || {});
-
-    for (const rs of reservices) {
-      const empId = parseInt(rs.employeeID || rs.technicianID || '0');
-      if (!empId) continue;
-
-      if (!result.has(empId)) {
-        result.set(empId, { totalReservices: 0, avgServiced: 0, reserviceRate: 0 });
-      }
-      result.get(empId)!.totalReservices++;
-    }
+  for (const rs of reservices) {
+    const empId = parseInt(rs.employeeID || rs.technicianID || '0');
+    if (!empId || !pmpTechs.has(empId)) continue;
+    const techId = pmpTechs.get(empId)!;
+    result.set(techId, (result.get(techId) ?? 0) + 1);
   }
 
-  // Calculate reservice rates — need total serviced per tech for the period
-  // We'll use a rolling 30-day window from appointments for avg serviced
-  // For now store raw counts; rate calculated when we have appointment counts
   return result;
 }
 
-// ─── MAIN SYNC ──────────────────────────────────────────────────────────────
+// ─── SCORING ─────────────────────────────────────────────────────────────────
+function calcWPScore(coPct: number, cbRate: number | null, driving: number, reliability: number): number {
+  const coTerm  = Math.min(coPct + (1 - 0.85), 1.1) * 0.45;
+  const cbTerm  = cbRate !== null
+    ? ((1 + 0.15 * 2) - cbRate * 2) * 0.30
+    : Math.min(coPct + (1 - 0.85), 1.1) * 0.30; // carry-forward if no CB data
+  return coTerm + cbTerm + driving * 0.10 + reliability * 0.15;
+}
+
+function calcPMPScore(revEff: number, reservice: number, completion: number, driving: number, reliability: number): number {
+  return (
+    revEff * 0.35 +
+    (0.95 + 0.10 - reservice) * 0.20 +
+    (1 - (0.95 - completion) * 5) * 0.20 +
+    driving * 0.10 +
+    reliability * 0.15
+  );
+}
+
+// ─── MAIN ────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  // Auth check
   const authHeader = req.headers.get('authorization');
   const isVercelCron = req.headers.get('x-vercel-cron') === '1';
   if (!isVercelCron && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -190,104 +373,133 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
 
-  // Default to most recent Friday; allow override via body.weekEnd
-  const weekEnd = body.weekEnd ? new Date(body.weekEnd + 'T00:00:00.000Z') : (() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    const day = d.getDay();
-    const daysToFri = day >= 5 ? day - 5 : day + 2;
-    d.setDate(d.getDate() - daysToFri);
-    return d;
-  })();
+  // Default to most recent Friday; allow override
+  const weekEnd = body.weekEnd
+    ? new Date(body.weekEnd + 'T00:00:00.000Z')
+    : getMostRecentFriday();
 
-  const { start: weekStart } = getWeekDates(weekEnd);
+  const weekStart = new Date(weekEnd);
+  weekStart.setDate(weekStart.getDate() - 6);
+  weekStart.setHours(0, 0, 0, 0);
 
   // Load all active techs with FR employee IDs
   const techs = await prisma.technician.findMany({
     where: { status: 'ACTIVE', frEmployeeId: { not: null } },
   });
 
-  const empToTech = new Map(techs.map(t => [t.frEmployeeId!, t]));
-
-  const log: string[] = [`Week: ${fmtDate(weekStart)} to ${fmtDate(weekEnd)}`];
-  let updated = 0;
+  const log: string[] = [`Week: ${fmtDate(weekStart)} → ${fmtDate(weekEnd)}`];
   const errors: string[] = [];
+  let updated = 0;
 
   for (const [officeName, cfg] of Object.entries(OFFICES)) {
-    if (!cfg.key || !cfg.token) {
-      log.push(`${officeName}: skipped (no API key)`);
-      continue;
-    }
+    if (!cfg.key || !cfg.token) { log.push(`${officeName}: skipped (no API key)`); continue; }
 
     log.push(`\n--- ${officeName} ---`);
 
+    const officeTechs = techs.filter(t => t.office === officeName && t.frEmployeeId);
+    const wpTechs  = new Map(officeTechs.filter(t => t.team === 'WP').map(t => [t.frEmployeeId!, t.techId]));
+    const pmpTechs = new Map(officeTechs.filter(t => t.team === 'PMP').map(t => [t.frEmployeeId!, t.techId]));
+
     try {
-      // Pull route reporting
-      const routes = await pullRouteReporting(officeName, cfg, weekStart, weekEnd);
-      log.push(`${officeName}: ${routes.size} techs with route data`);
+      // ── WP DATA ──
+      const [wpMetrics, wpCallbacks] = await Promise.all([
+        wpTechs.size > 0 ? pullWPMetrics(cfg, weekStart, weekEnd, wpTechs) : Promise.resolve(new Map()),
+        wpTechs.size > 0 ? pullWPCallbackRate(cfg, weekEnd, wpTechs) : Promise.resolve(new Map()),
+      ]);
 
-      // Pull reservices
-      const reservices = await pullReservices(officeName, cfg, weekStart, weekEnd);
-      log.push(`${officeName}: ${reservices.size} techs with reservice data`);
+      // ── PMP DATA ──
+      const [pmpRoutes, pmpReservices] = await Promise.all([
+        pmpTechs.size > 0 ? pullRouteReporting(cfg, weekStart, weekEnd, pmpTechs) : Promise.resolve(new Map()),
+        pmpTechs.size > 0 ? pullReservices(cfg, weekStart, weekEnd, pmpTechs) : Promise.resolve(new Map()),
+      ]);
 
-      // Get office techs
-      const officeTechs = techs.filter(t => t.office === officeName && t.frEmployeeId);
+      log.push(`WP techs with data: ${wpMetrics.size}, PMP techs with route data: ${pmpRoutes.size}`);
 
-      for (const tech of officeTechs) {
-        const empId = tech.frEmployeeId!;
-        const routeData = routes.get(empId);
-        const resData = reservices.get(empId);
+      // ── UPSERT WP ──
+      for (const tech of officeTechs.filter(t => t.team === 'WP')) {
+        const metrics = wpMetrics.get(tech.techId);
+        const cbRate  = wpCallbacks.get(tech.techId) ?? null;
+        if (!metrics && cbRate === null) continue;
 
-        if (!routeData && !resData) continue;
+        const coOpps  = metrics?.closeoutOpportunities ?? 0;
+        const coCount = metrics?.closeouts ?? 0;
+        const coPct   = coOpps > 0 ? coCount / coOpps : null;
 
-        // Calculate metrics
-        let completionPct: number | null = null;
-        let revenueEfficiency: number | null = null;
-        let productionValue: number | null = null;
-        let reseviceRate: number | null = null;
-
-        if (routeData && routeData.totalScheduled > 0) {
-          completionPct = routeData.completed / routeData.totalScheduled;
-          productionValue = routeData.productionValue;
-
-          // Revenue efficiency: actual production / standard (days × $1150)
-          // Use hrDays to determine standard days in week
-          const stdDays = tech.hrDays === 10 ? 4 : 5;
-          const stdProduction = stdDays * PROD_STANDARD_PER_DAY;
-          revenueEfficiency = stdProduction > 0 ? Math.min(routeData.productionValue / stdProduction, 1.1) : null;
-        }
-
-        if (resData && routeData && routeData.completed > 0) {
-          // Reservice rate = reservices / avg serviced per period
-          // avg serviced = completed jobs in rolling window (use this week as proxy)
-          reseviceRate = resData.totalReservices / routeData.completed;
-        } else if (resData) {
-          reseviceRate = resData.totalReservices > 0 ? resData.totalReservices / 1 : 0;
-        }
-
-        // Upsert into tech_weeks — only update PMP-relevant fields
-        // Scoring will be recalculated when all data is present
         const existing = await prisma.techWeek.findUnique({
           where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
         });
 
-        const updateData: any = { updatedAt: new Date() };
-        if (completionPct !== null) updateData.completionPct = completionPct;
-        if (revenueEfficiency !== null) updateData.revenueEfficiency = revenueEfficiency;
-        if (productionValue !== null) updateData.productionValue = productionValue;
-        if (reseviceRate !== null) updateData.reseviceRate = reseviceRate;
+        const updateData: any = {
+          closeOutPct:  coPct,
+          callbackRate: cbRate,
+          coJobs:       coCount,
+          updatedAt:    new Date(),
+        };
 
-        // Recalculate PMP score if we have enough data
-        if (tech.team === 'PMP' && existing &&
-            revenueEfficiency !== null && reseviceRate !== null &&
-            existing.drivingScore !== null && existing.reliabilityScore !== null) {
-          const pmpScore =
-            revenueEfficiency * 0.35 +
-            (0.95 + 0.10 - reseviceRate) * 0.20 +
-            (1 - (0.95 - (completionPct ?? 0.95)) * 5) * 0.20 +
-            existing.drivingScore * 0.10 +
-            existing.reliabilityScore * 0.15;
-          updateData.pmpScore = pmpScore;
+        // Recalculate WP score if driving + reliability available
+        if (coPct !== null && existing?.drivingScore && existing?.reliabilityScore) {
+          const wpScore = calcWPScore(coPct, cbRate, existing.drivingScore, existing.reliabilityScore);
+          updateData.wpScore    = wpScore;
+          updateData.totalScore = wpScore + (existing.manualAdj ?? 0);
+        }
+
+        if (existing) {
+          await prisma.techWeek.update({
+            where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
+            data: updateData,
+          });
+        } else {
+          await prisma.techWeek.create({
+            data: {
+              id: crypto.randomUUID(),
+              technicianId: tech.id,
+              techId: tech.techId,
+              weekEnd,
+              office: tech.office,
+              team: tech.team,
+              siteLeader:   tech.siteLeader,
+              crewLeader:   tech.crewLeader,
+              closeOutPct:  coPct,
+              callbackRate: cbRate,
+              coJobs:       coCount,
+              manualAdj:    0,
+            },
+          });
+        }
+
+        updated++;
+        log.push(`  ${tech.techId} ${tech.name}: CO=${coPct !== null ? (coPct*100).toFixed(0)+'%' : '—'} (${coCount}/${coOpps}), CB=${cbRate !== null ? (cbRate*100).toFixed(1)+'%' : '—'}`);
+      }
+
+      // ── UPSERT PMP ──
+      for (const tech of officeTechs.filter(t => t.team === 'PMP')) {
+        const routes    = pmpRoutes.get(tech.techId);
+        const resvCount = pmpReservices.get(tech.techId) ?? 0;
+        if (!routes) continue;
+
+        const completionPct    = routes.totalScheduled > 0 ? routes.completed / routes.totalScheduled : null;
+        const stdDays          = tech.hrDays === 10 ? 4 : 5;
+        const revenueEff       = routes.productionValue > 0
+          ? Math.min(routes.productionValue / (stdDays * PROD_STANDARD_PER_DAY), 1.1)
+          : null;
+        const reseviceRate     = routes.completed > 0 ? resvCount / routes.completed : 0;
+
+        const existing = await prisma.techWeek.findUnique({
+          where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
+        });
+
+        const updateData: any = {
+          completionPct,
+          revenueEfficiency: revenueEff,
+          productionValue:   routes.productionValue,
+          reseviceRate,
+          updatedAt: new Date(),
+        };
+
+        if (revenueEff !== null && completionPct !== null &&
+            existing?.drivingScore && existing?.reliabilityScore) {
+          const pmpScore = calcPMPScore(revenueEff, reseviceRate, completionPct, existing.drivingScore, existing.reliabilityScore);
+          updateData.pmpScore   = pmpScore;
           updateData.totalScore = pmpScore + (existing.manualAdj ?? 0);
         }
 
@@ -305,11 +517,11 @@ export async function POST(req: NextRequest) {
               weekEnd,
               office: tech.office,
               team: tech.team,
-              siteLeader: tech.siteLeader,
-              crewLeader: tech.crewLeader,
+              siteLeader:        tech.siteLeader,
+              crewLeader:        tech.crewLeader,
               completionPct,
-              revenueEfficiency,
-              productionValue,
+              revenueEfficiency: revenueEff,
+              productionValue:   routes.productionValue,
               reseviceRate,
               manualAdj: 0,
             },
@@ -317,7 +529,7 @@ export async function POST(req: NextRequest) {
         }
 
         updated++;
-        log.push(`  ${tech.techId} (${tech.name}): completion=${completionPct?.toFixed(2) ?? '—'}, revEff=${revenueEfficiency?.toFixed(2) ?? '—'}, reservice=${reseviceRate?.toFixed(3) ?? '—'}`);
+        log.push(`  ${tech.techId} ${tech.name}: completion=${completionPct !== null ? (completionPct*100).toFixed(0)+'%' : '—'}, revEff=${revenueEff?.toFixed(2) ?? '—'}, reservice=${(reseviceRate*100).toFixed(1)}%`);
       }
 
     } catch (e: any) {
@@ -326,6 +538,8 @@ export async function POST(req: NextRequest) {
       log.push(msg);
     }
   }
+
+  log.push(`\nTotal techs updated: ${updated}`);
 
   return NextResponse.json({
     status: errors.length === 0 ? 'success' : 'partial',
@@ -337,11 +551,10 @@ export async function POST(req: NextRequest) {
   });
 }
 
-// Allow manual trigger via GET for testing
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  return POST(req);
+  return POST(new NextRequest(req.url, { method: 'POST', headers: req.headers, body: '{}' }));
 }
