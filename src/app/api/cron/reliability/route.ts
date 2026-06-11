@@ -224,19 +224,14 @@ export async function POST(req: NextRequest) {
     const imeiToTech = new Map(bouncieDevices.map(d => [d.deviceId!, d.technician]));
     const nameToTech = new Map(bouncieDevices.map(d => [d.bouncieName.toLowerCase(), d.technician]));
 
-    // Load customer lat/lng from DB (those that have been geocoded)
+    // Load geocoded customer coordinates
     const customers = await prisma.customer.findMany({
-      where: {
-        AND: [
-          { billingAddr: { not: null } },
-        ]
-      },
-      select: { id: true, billingAddr: true },
+      where: { lat: { not: null }, lng: { not: null } },
+      select: { id: true, lat: true, lng: true },
     });
+    const customerCoords = customers.map(c => ({ lat: c.lat!, lng: c.lng! }));
 
-    // For now we use business locations only for geofencing
-    // Customer geocoding will be added in a future pass
-    log.push(`Business locations: ${BUSINESS_LOCATIONS.length}, Customers in DB: ${customers.length}`);
+    log.push(`Business locations: ${BUSINESS_LOCATIONS.length}, Geocoded customers: ${customers.length}`);
 
     // Process each vehicle
     for (const vehicle of vehicles) {
@@ -303,17 +298,19 @@ export async function POST(req: NextRequest) {
           const tripEnd = new Date(trip.endTime);
           const tripStart = new Date(trip.startTime);
 
-          // Check if trip END is at a business location
+          // Check if trip END is at a business or customer location
           if (startOfDay === null) {
             const bizCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
-            if (bizCheck.match) {
+            const custCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, customerCoords);
+            if (bizCheck.match || custCheck) {
               startOfDay = tripEnd;
             }
           }
 
-          // Check if trip START is from a business location (for end of day)
-          const bizCheck = isBusinessLocation(endpoints.startLat, endpoints.startLng);
-          if (bizCheck.match) {
+          // Check if trip START is from a business or customer location (for end of day)
+          const bizStartCheck = isBusinessLocation(endpoints.startLat, endpoints.startLng);
+          const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, customerCoords);
+          if (bizStartCheck.match || custStartCheck) {
             endOfDay = tripStart;
           }
         }

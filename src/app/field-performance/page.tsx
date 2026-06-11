@@ -54,11 +54,11 @@ export default function FieldPerformancePage() {
 
   const selectedWeek = WEEKS[weekIdx];
 
-  const runSync = async (type: 'fp' | 'bouncie' | 'reliability') => {
+  const runSync = async (type: 'fp' | 'bouncie' | 'reliability' | 'geocode') => {
     setSyncing(type);
     setSyncMsg(null);
     const wk = selectedWeek.toLocaleDateString('en-CA');
-    const url = type === 'fp' ? '/api/field-performance/sync-test' : type === 'bouncie' ? '/api/bouncie/sync-test' : '/api/reliability/sync-test';
+    const url = type === 'fp' ? '/api/field-performance/sync-test' : type === 'bouncie' ? '/api/bouncie/sync-test' : type === 'reliability' ? '/api/reliability/sync-test' : '/api/geocode/run';
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -66,8 +66,9 @@ export default function FieldPerformancePage() {
         body: JSON.stringify({ weekEnd: wk }),
       });
       const data = await res.json();
-      const label = type === 'fp' ? 'FR' : type === 'bouncie' ? 'Bouncie' : 'Reliability';
-      setSyncMsg(`${label} sync: ${data.status} — ${data.techsUpdated ?? 0} techs updated`);
+      const label = type === 'fp' ? 'FR' : type === 'bouncie' ? 'Bouncie' : type === 'reliability' ? 'Reliability' : 'Geocode';
+      const detail = type === 'geocode' ? `${data.geocoded ?? 0} geocoded, ${data.remaining ?? 0} remaining` : `${data.techsUpdated ?? 0} techs updated`;
+      setSyncMsg(`${label}: ${data.status} — ${detail}`);
     } catch (e) {
       setSyncMsg('Sync failed');
     }
@@ -146,6 +147,10 @@ export default function FieldPerformancePage() {
               <button onClick={() => runSync('reliability')} disabled={!!syncing}
                 style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '1px solid #e2e8f0', background: syncing === 'reliability' ? '#f1f5f9' : '#f8fafc', cursor: syncing ? 'default' : 'pointer', color: '#475569', whiteSpace: 'nowrap' as const }}>
                 {syncing === 'reliability' ? 'Syncing...' : '↻ Reliability'}
+              </button>
+              <button onClick={() => runSync('geocode')} disabled={!!syncing}
+                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '1px solid #e2e8f0', background: syncing === 'geocode' ? '#f1f5f9' : '#f8fafc', cursor: syncing ? 'default' : 'pointer', color: '#475569', whiteSpace: 'nowrap' as const }}>
+                {syncing === 'geocode' ? 'Geocoding...' : '↻ Geocode'}
               </button>
             </div>
           )}

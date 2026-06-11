@@ -37,6 +37,9 @@ model Customer {
   contact      String?
   billingAddr  String?
   serviceAddr  String?
+  lat          Float?
+  lng          Float?
+  geocodedAt   DateTime?
   status       CustomerStatus @default(ACTIVE)
   rep          String?
   terms        String         @default("Net 30")
