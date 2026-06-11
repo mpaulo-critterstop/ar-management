@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
       <p style="color:#64748b;font-size:13px">Expires: ${expiresAt.toLocaleString()}</p>
       <a href="https://hub.critterstop.com/field-performance" 
          style="display:inline-block;margin-top:16px;padding:10px 20px;background:#0052cc;color:#fff;border-radius:8px;text-decoration:none">
-        Go to Field Performance →
+        Go to Field Professional Effort Meter →
       </a>
     </body></html>`,
     { headers: { 'Content-Type': 'text/html' } }

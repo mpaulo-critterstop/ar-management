@@ -19,7 +19,7 @@ export function TopNav() {
 
   const role = (session.user as any)?.role;
   const tabs = FP_ROLES.includes(role)
-    ? [...baseTabs, { label: 'Field Performance', href: '/field-performance' }]
+    ? [...baseTabs, { label: 'Field Professional Effort Meter', href: '/field-performance' }]
     : baseTabs;
 
   const isActive = (href: string) => {

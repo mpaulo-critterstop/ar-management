@@ -50,7 +50,7 @@ export default function FieldPerformancePage() {
 
   if (!canView) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#64748b' }}>
-      You don't have access to Field Performance.
+      You don't have access to Field Professional Effort Meter.
     </div>
   );
 
