@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   }>>`
     SELECT id, name, "billingAddr", "serviceAddr"
     FROM customers
-    WHERE "billingAddr" IS NOT NULL
+    WHERE "serviceAddr" IS NOT NULL
       AND lat IS NULL
     ORDER BY "createdAt" ASC
     LIMIT ${BATCH_SIZE}
