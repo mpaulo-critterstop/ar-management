@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { teamPill, card, th, td } from './helpers';
 
 interface Props { office: string; weekEnd: Date; }
@@ -33,6 +34,12 @@ export function AttendanceTab({ office, weekEnd }: Props) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
+  const [editing, setEditing] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ startTime: '', finishTime: '', scheduledHrs: 8 });
+  const [saving, setSaving] = useState(false);
+  const { data: session } = useSession();
+  const role = (session?.user as any)?.role;
+  const canEdit = ['ADMIN', 'LEADERSHIP'].includes(role);
 
   useEffect(() => {
     setLoading(true);
@@ -57,6 +64,49 @@ export function AttendanceTab({ office, weekEnd }: Props) {
     ? worked.reduce((a, b) => a + (b.minutesLate ?? 0), 0) / worked.length
     : null;
   const onTime = worked.filter(r => (r.minutesLate ?? 0) <= 10).length;
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    setSaving(true);
+    // Convert local time inputs to UTC ISO strings
+    const date = new Date(editing.date).toLocaleDateString('en-CA', { timeZone: 'UTC' });
+    const toUTC = (timeStr: string) => {
+      if (!timeStr) return null;
+      return new Date(`${date}T${timeStr}:00-05:00`).toISOString(); // CST offset
+    };
+    await fetch('/api/field-performance/attendance-update', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: editing.id,
+        startTime: toUTC(editForm.startTime),
+        finishTime: toUTC(editForm.finishTime),
+        scheduledHrs: editForm.scheduledHrs,
+      }),
+    });
+    setSaving(false);
+    setEditing(null);
+    // Reload records
+    const wk = weekEnd.toLocaleDateString('en-CA');
+    fetch(`/api/field-performance/attendance?week=${wk}&office=${office}`)
+      .then(r => r.json())
+      .then(d => setRecords(Array.isArray(d) ? d : []));
+  };
+
+  const openEdit = (r: any) => {
+    setEditing(r);
+    const toLocal = (dt: string | null) => {
+      if (!dt) return '';
+      const d = new Date(dt);
+      const h = d.toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Chicago' });
+      return h;
+    };
+    setEditForm({
+      startTime: toLocal(r.startTime),
+      finishTime: toLocal(r.finishTime),
+      scheduledHrs: r.scheduledHrs || 8,
+    });
+  };
 
   const inputStyle: React.CSSProperties = {
     fontSize: 12, padding: '6px 9px', border: '1px solid #e2e8f0',
@@ -109,6 +159,7 @@ export function AttendanceTab({ office, weekEnd }: Props) {
                 <th style={{ ...th, width: 90 }}>Punctuality</th>
                 <th style={{ ...th, width: 80 }}>Hrs worked</th>
                 <th style={{ ...th, width: 60 }}>Sched. hrs</th>
+                {canEdit && <th style={{ ...th, width: 36 }}></th>}
               </tr>
             </thead>
             <tbody>
@@ -132,6 +183,12 @@ export function AttendanceTab({ office, weekEnd }: Props) {
                   <td style={td}>{lateBadge(r.minutesLate)}</td>
                   <td style={{ ...td, fontSize: 12 }}>{r.hrsWorked ? r.hrsWorked.toFixed(1) + ' hrs' : '—'}</td>
                   <td style={{ ...td, fontSize: 12 }}>{r.scheduledHrs} hrs</td>
+                  {canEdit && (
+                    <td style={td}>
+                      <button onClick={() => openEdit(r)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 14, padding: 0 }}>✎</button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -139,6 +196,53 @@ export function AttendanceTab({ office, weekEnd }: Props) {
         </div>
       </div>
       <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>{filtered.length} day records</div>
+
+      {/* Edit Modal */}
+      {editing && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, padding: 24, width: 340 }}>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>Edit Attendance</div>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+              {editing.technician?.name} — {fmtDate(editing.date)}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Start time</label>
+                <input type="time" value={editForm.startTime}
+                  onChange={e => setEditForm(f => ({ ...f, startTime: e.target.value }))}
+                  style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8 }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Finish time</label>
+                <input type="time" value={editForm.finishTime}
+                  onChange={e => setEditForm(f => ({ ...f, finishTime: e.target.value }))}
+                  style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8 }} />
+              </div>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Scheduled hours</label>
+              <select value={editForm.scheduledHrs} onChange={e => setEditForm(f => ({ ...f, scheduledHrs: Number(e.target.value) }))}
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                <option value={8}>8 hrs</option>
+                <option value={10}>10 hrs</option>
+              </select>
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 16 }}>
+              Scheduled start: {editing.routeStartTime} — editing will recalculate minutes late and reliability score.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setEditing(null)}
+                style={{ padding: '7px 16px', fontSize: 13, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer', color: '#475569' }}>
+                Cancel
+              </button>
+              <button onClick={saveEdit} disabled={saving}
+                style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving ? '#94a3b8' : '#0052cc', color: '#fff', cursor: saving ? 'default' : 'pointer' }}>
+                {saving ? 'Saving...' : 'Save changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
