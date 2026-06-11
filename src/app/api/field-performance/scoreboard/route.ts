@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   const weekParam = searchParams.get('week');
   const officeParam = searchParams.get('office');
 
-  const weekEnd = weekParam ? new Date(weekParam + "T00:00:00.000Z") : getWeekEnd(new Date());
+  const weekEnd = weekParam ? new Date(weekParam + "T12:00:00.000Z") : getWeekEnd(new Date());
 
   const where: any = { weekEnd };
   if (officeParam && officeParam !== 'ALL' && officeParam !== 'ADMIN') {

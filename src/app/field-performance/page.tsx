@@ -9,16 +9,16 @@ import { RosterTab } from './RosterTab';
 
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
 
-function getMostRecentSaturday(offset = 0): Date {
+function getMostRecentFriday(offset = 0): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
-  const day = d.getDay();
-  const daysToSat = day === 6 ? 0 : day + 1;
-  d.setDate(d.getDate() - daysToSat - offset * 7);
+  const day = d.getDay(); // 0=Sun, 5=Fri
+  const daysToFri = day >= 5 ? day - 5 : day + 2;
+  d.setDate(d.getDate() - daysToFri - offset * 7);
   return d;
 }
 
-const WEEKS = Array.from({ length: 26 }, (_, i) => getMostRecentSaturday(i));
+const WEEKS = Array.from({ length: 26 }, (_, i) => getMostRecentFriday(i));
 
 function fmtWeek(d: Date) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
