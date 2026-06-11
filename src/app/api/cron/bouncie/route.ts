@@ -178,18 +178,21 @@ export async function POST(req: NextRequest) {
         // Bouncie window must be <= 7 days
         // Fetch trips that START within our week window
         // Add 24hr buffer on end to capture late CST trips, then filter by start date client-side
-        const tripsEndDate = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+        // CST is UTC-6 (CDT UTC-5). Use 6am UTC as day boundaries (= midnight CST)
+        // weekStart at 06:00 UTC = Saturday midnight CST
+        const cstWeekStart = new Date(weekStart.getTime() + 6 * 60 * 60 * 1000);
+        const tripsEndDate = new Date(cstWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
         log.push(`  Fetching trips: ${weekStart.toISOString()} to ${tripsEndDate.toISOString()}`);
         const allTrips = await bouncieFetch('/trips', token, {
           imei,
           'gps-format':   'polyline',
-          'starts-after': weekStart.toISOString(),
+          'starts-after': cstWeekStart.toISOString(),
           'ends-before':  tripsEndDate.toISOString(),
         });
         // Filter to only trips that START within our week (Sat 00:00 UTC to Sat 00:00 UTC next week)
         trips = Array.isArray(allTrips) ? allTrips.filter((t: any) => {
           const start = new Date(t.startTime).getTime();
-          return start >= weekStart.getTime() && start < tripsEndDate.getTime();
+          return start >= cstWeekStart.getTime() && start <= tripsEndDate.getTime();
         }) : [];
         // trips already filtered above
       } catch (e: any) {
