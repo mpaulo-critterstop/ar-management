@@ -35,5 +35,20 @@ export async function GET(req: NextRequest) {
     signal: AbortSignal.timeout(600000),
   }).catch(err => console.error(`Appointment sync trigger error for ${office}:`, err));
 
+  // Trigger field performance sync on Fridays only
+  const today = new Date();
+  if (today.getDay() === 5) {
+    fetch(`${baseUrl}/api/cron/field-performance`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'authorization': `Bearer ${process.env.CRON_SECRET || ''}`,
+      },
+      body: JSON.stringify({}),
+      // @ts-ignore
+      signal: AbortSignal.timeout(600000),
+    }).catch(err => console.error('Field performance sync error:', err));
+  }
+
   return NextResponse.json({ message: `Sync triggered for ${office || 'all offices'}` });
 }

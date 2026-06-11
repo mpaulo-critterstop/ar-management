@@ -274,6 +274,7 @@ model Technician {
   termDate      DateTime?
   status        TechStatus @default(ACTIVE)
   notes         String?
+  frEmployeeId  Int?
   bouncieDevice BouncieDevice?
   techWeeks     TechWeek[]
   reviews       TechReview[]
