@@ -233,9 +233,8 @@ export async function POST(req: NextRequest) {
         ? ((agg.hardBraking + agg.hardAccel) / agg.totalMiles) * 1000
         : 0;
 
-      // Idle ratio = idle time / (idle + drive time)
-      const totalTime = agg.totalIdleSecs + agg.totalDriveSecs;
-      const idleRatio = totalTime > 0 ? agg.totalIdleSecs / totalTime : 0;
+      // Idle ratio = idle time / total drive time (idle is within drive time)
+      const idleRatio = agg.totalDriveSecs > 0 ? agg.totalIdleSecs / agg.totalDriveSecs : 0;
 
       const drivingScore = calcDrivingScore(alertsPer1k, agg.maxSpeed, idleRatio);
 
