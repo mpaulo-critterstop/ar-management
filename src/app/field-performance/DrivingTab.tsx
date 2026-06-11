@@ -119,8 +119,8 @@ export function DrivingTab({ office, weekEnd }: Props) {
                 <th style={{ ...th, width: 85 }}>Max speed</th>
                 <th style={{ ...th, width: 95 }}>Alerts / 1k mi</th>
                 <th style={{ ...th, width: 75 }}>Idle ratio</th>
-                <th style={{ ...th, width: 80 }}>Speed penalty</th>
-                <th style={{ ...th, width: 75 }}>Idle penalty</th>
+<th style={{ ...th, width: 80 }}>Speed penalty</th>
+                <th style={{ ...th, width: 75 }}>Idle bonus</th>
               </tr>
             </thead>
             <tbody>
@@ -130,9 +130,7 @@ export function DrivingTab({ office, weekEnd }: Props) {
                 <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>No driving data for this week yet.</td></tr>
               ) : filtered.map(w => {
                 const speedPenalty = (w.maxSpeed ?? 0) > 90 ? 50 : (w.maxSpeed ?? 0) > 80 ? 8 : 0;
-                const idlePenalty = (w.idleRatio ?? 0) > 0.30
-                  ? ((w.idleRatio - 0.30) * 50).toFixed(1)
-                  : '0';
+                const idleBonus = Math.max(0.08 - Math.max((w.idleRatio ?? 0) - 0.35, 0) * 0.50, 0);
                 return (
                   <tr key={w.id}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f8fafc'}
@@ -154,8 +152,8 @@ export function DrivingTab({ office, weekEnd }: Props) {
                     <td style={{ ...td, fontSize: 12, color: speedPenalty > 0 ? '#791F1F' : '#94a3b8' }}>
                       {speedPenalty > 0 ? `-${speedPenalty}` : '0'}
                     </td>
-                    <td style={{ ...td, fontSize: 12, color: parseFloat(idlePenalty) > 0 ? '#854F0B' : '#94a3b8' }}>
-                      {parseFloat(idlePenalty) > 0 ? `-${idlePenalty}` : '0'}
+                    <td style={{ ...td, fontSize: 12, color: idleBonus > 0 ? '#27500A' : '#94a3b8' }}>
+                      {idleBonus > 0 ? `+${(idleBonus).toFixed(3)}` : '0'}
                     </td>
                   </tr>
                 );

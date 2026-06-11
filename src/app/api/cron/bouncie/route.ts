@@ -73,8 +73,9 @@ async function bouncieFetch(path: string, token: string, params: Record<string, 
 // idlePenalty = (idleRatio - 0.30) * 50 if idleRatio > 0.30, else 0
 function calcDrivingScore(alertsPer1k: number, maxSpeed: number, idleRatio: number): number {
   const speedPenalty = maxSpeed > 90 ? 50 : maxSpeed > 80 ? 8 : 0;
-  const idlePenalty  = idleRatio > 0.30 ? (idleRatio - 0.30) * 50 : 0;
-  return Math.min((102 - alertsPer1k - speedPenalty - idlePenalty) / 100, 1.05);
+  // Idle is now a bonus (max +0.08) that decreases when idle > 35%
+  const idleBonus = Math.max(0.08 - Math.max(idleRatio - 0.35, 0) * 0.50, 0);
+  return Math.min((102 - alertsPer1k - speedPenalty) / 100 + idleBonus, 1.05);
 }
 
 function calcWPScore(coPct: number, cbRate: number | null, driving: number, reliability: number): number {
