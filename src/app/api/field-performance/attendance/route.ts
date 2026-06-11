@@ -16,13 +16,13 @@ export async function GET(req: NextRequest) {
 
   if (!weekParam) return NextResponse.json({ error: 'week required' }, { status: 400 });
 
-  const dayStart = new Date(weekParam + 'T00:00:00.000Z');
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-  const weekStart = new Date(dayStart);
-  weekStart.setDate(weekStart.getDate() - 6);
+  // Use noon UTC to avoid timezone day-shift issues (records stored as noon UTC)
+  const weekEndNoon = new Date(weekParam + 'T12:00:00.000Z');
+  const weekStartNoon = new Date(weekEndNoon);
+  weekStartNoon.setDate(weekStartNoon.getDate() - 6);
 
   const where: any = {
-    date: { gte: weekStart, lt: dayEnd },
+    date: { gte: weekStartNoon, lte: weekEndNoon },
   };
   if (officeParam && officeParam !== 'ALL') where.office = officeParam;
   if (teamParam) where.team = teamParam;

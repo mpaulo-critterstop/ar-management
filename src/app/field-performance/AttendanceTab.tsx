@@ -13,9 +13,10 @@ function fmtTime(dt: string | null) {
 }
 
 function fmtDate(dt: string) {
+  // Parse as noon UTC to avoid timezone day-shift issues
   const d = new Date(dt);
-  const day = d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/Chicago' });
-  const date = d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'America/Chicago' });
+  const day = d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+  const date = d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' });
   return `${day} ${date}`;
 }
 

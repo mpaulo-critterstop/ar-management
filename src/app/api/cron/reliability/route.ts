@@ -335,7 +335,7 @@ export async function POST(req: NextRequest) {
         log.push(`  ${tech.name} ${date}: start=${startOfDay.toLocaleTimeString('en-US', {timeZone})}, end=${endOfDay.toLocaleTimeString('en-US', {timeZone})}, late=${minutesLate.toFixed(0)}min, util=${(utilization*100).toFixed(0)}%`);
 
         // Save per-day attendance record
-        const dateObj = new Date(date + 'T00:00:00.000Z');
+        const dateObj = new Date(date + 'T12:00:00.000Z'); // noon UTC to avoid timezone day shift
         await prisma.techDayAttendance.upsert({
           where: { techId_date: { techId: tech.techId, date: dateObj } },
           update: {
