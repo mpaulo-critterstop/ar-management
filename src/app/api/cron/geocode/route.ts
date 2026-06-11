@@ -1,15 +1,12 @@
 // src/app/api/cron/geocode/route.ts
-// One-time + ongoing: geocodes customer addresses using Google Maps Geocoding API
-// Stores lat/lng on Customer record for use in reliability geofencing
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY!;
-const BATCH_SIZE = 50; // Process 50 at a time to avoid timeout
-const DELAY_MS = 50;  // 50ms between requests = ~20/sec, well within Google limits
+const BATCH_SIZE = 50;
+const DELAY_MS = 50;
 
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
   try {
@@ -26,7 +23,6 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
 }
 
 export async function POST(req: NextRequest) {
-  // Auth: allow cron or admin
   const authHeader = req.headers.get('authorization');
   const isVercelCron = req.headers.get('x-vercel-cron') === '1';
   if (!isVercelCron && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -36,22 +32,27 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const body = await req.json().catch(() => ({}));
-  const forceAll = body.forceAll === true; // re-geocode all even if already done
-
-  // Find customers needing geocoding
-  const customers = await prisma.customer.findMany({
-    where: {
-      billingAddr: { not: null },
-      ...(forceAll ? {} : { lat: null }),
-    },
-    select: { id: true, name: true, billingAddr: true, serviceAddr: true },
-    take: BATCH_SIZE,
-    orderBy: { createdAt: 'asc' },
-  });
+  // Use raw SQL to find customers without lat — avoids Prisma client cache issues
+  const customers = await prisma.$queryRaw<Array<{
+    id: string;
+    name: string;
+    billingAddr: string | null;
+    serviceAddr: string | null;
+  }>>`
+    SELECT id, name, "billingAddr", "serviceAddr"
+    FROM customers
+    WHERE "billingAddr" IS NOT NULL
+      AND lat IS NULL
+    ORDER BY "createdAt" ASC
+    LIMIT ${BATCH_SIZE}
+  `;
 
   if (customers.length === 0) {
-    return NextResponse.json({ status: 'done', message: 'All customers already geocoded', geocoded: 0 });
+    const remaining = await prisma.$queryRaw<[{count: bigint}]>`
+      SELECT COUNT(*) as count FROM customers WHERE "billingAddr" IS NOT NULL AND lat IS NULL
+    `;
+    const rem = Number(remaining[0].count);
+    return NextResponse.json({ status: 'done', message: 'All customers already geocoded', geocoded: 0, remaining: rem });
   }
 
   let geocoded = 0;
@@ -59,50 +60,48 @@ export async function POST(req: NextRequest) {
   const failures: string[] = [];
 
   for (const customer of customers) {
-    // Prefer serviceAddr over billingAddr for accuracy
     const address = customer.serviceAddr || customer.billingAddr;
     if (!address) continue;
 
     const coords = await geocodeAddress(address);
 
     if (coords) {
-      await prisma.customer.update({
-        where: { id: customer.id },
-        data: { lat: coords.lat, lng: coords.lng, geocodedAt: new Date() },
-      });
+      await prisma.$executeRaw`
+        UPDATE customers SET lat = ${coords.lat}, lng = ${coords.lng}, "geocodedAt" = NOW()
+        WHERE id = ${customer.id}
+      `;
       geocoded++;
     } else {
       failed++;
       failures.push(`${customer.name}: ${address}`);
     }
 
-    // Rate limit
     await new Promise(r => setTimeout(r, DELAY_MS));
   }
 
-  // Check how many still need geocoding
-  const remaining = await prisma.customer.count({
-    where: { billingAddr: { not: null }, lat: null },
-  });
+  const remaining = await prisma.$queryRaw<[{count: bigint}]>`
+    SELECT COUNT(*) as count FROM customers WHERE "billingAddr" IS NOT NULL AND lat IS NULL
+  `;
+  const rem = Number(remaining[0].count);
 
   return NextResponse.json({
     status: 'success',
     geocoded,
     failed,
-    remaining,
-    needsMoreRuns: remaining > 0,
-    failures: failures.slice(0, 10), // show first 10 failures
+    remaining: rem,
+    needsMoreRuns: rem > 0,
+    failures: failures.slice(0, 10),
   });
 }
 
 export async function GET(req: NextRequest) {
-  // Status check
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const total = await prisma.customer.count({ where: { billingAddr: { not: null } } });
-  const geocoded = await prisma.customer.count({ where: { lat: { not: null } } });
-  const remaining = total - geocoded;
+  const total = await prisma.$queryRaw<[{count: bigint}]>`SELECT COUNT(*) as count FROM customers WHERE "billingAddr" IS NOT NULL`;
+  const geocoded = await prisma.$queryRaw<[{count: bigint}]>`SELECT COUNT(*) as count FROM customers WHERE lat IS NOT NULL`;
+  const t = Number(total[0].count);
+  const g = Number(geocoded[0].count);
 
-  return NextResponse.json({ total, geocoded, remaining, pctDone: total > 0 ? ((geocoded/total)*100).toFixed(1) + '%' : '0%' });
+  return NextResponse.json({ total: t, geocoded: g, remaining: t - g, pctDone: t > 0 ? ((g/t)*100).toFixed(1) + '%' : '0%' });
 }
