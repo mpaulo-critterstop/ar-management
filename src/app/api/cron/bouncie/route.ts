@@ -176,9 +176,9 @@ export async function POST(req: NextRequest) {
       let trips: any[] = [];
       try {
         // Bouncie window must be <= 7 days
-        // weekStart to weekEnd + 1 full day to capture late evening trips in CST
-        // (CST is UTC-5/6, so Friday 11:59 PM CST = Saturday 4:59/5:59 AM UTC)
-        const tripsEndDate = new Date(weekEnd.getTime() + 30 * 60 * 60 * 1000); // weekEnd + 30 hours
+        // Use exactly 7 days: weekStart 00:00 UTC to weekStart + 7 days
+        // This covers Sat 00:00 UTC through Fri 23:59 UTC (enough for CST)
+        const tripsEndDate = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
         log.push(`  Fetching trips: ${weekStart.toISOString()} to ${tripsEndDate.toISOString()}`);
         trips = await bouncieFetch('/trips', token, {
           imei,
