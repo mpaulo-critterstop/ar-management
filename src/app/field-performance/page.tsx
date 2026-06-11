@@ -30,6 +30,8 @@ export default function FieldPerformancePage() {
   const [activeTab, setActiveTab] = useState<'scoreboard' | 'individuals' | 'teams' | 'roster'>('scoreboard');
   const [office, setOffice] = useState('All');
   const [weekIdx, setWeekIdx] = useState(0);
+  const [syncing, setSyncing] = useState<string | null>(null);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -51,6 +53,25 @@ export default function FieldPerformancePage() {
   );
 
   const selectedWeek = WEEKS[weekIdx];
+
+  const runSync = async (type: 'fp' | 'bouncie') => {
+    setSyncing(type);
+    setSyncMsg(null);
+    const wk = selectedWeek.toLocaleDateString('en-CA');
+    const url = type === 'fp' ? '/api/field-performance/sync-test' : '/api/bouncie/sync-test';
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weekEnd: wk }),
+      });
+      const data = await res.json();
+      setSyncMsg(`${type === 'fp' ? 'FR' : 'Bouncie'} sync: ${data.status} — ${data.techsUpdated ?? 0} techs updated`);
+    } catch (e) {
+      setSyncMsg('Sync failed');
+    }
+    setSyncing(null);
+  };
   const officeParam = office === 'All' ? 'ALL' : office;
 
   const navStyle = (active: boolean): React.CSSProperties => ({
@@ -111,7 +132,20 @@ export default function FieldPerformancePage() {
             </div>
           )}
         </div>
+          {role === 'ADMIN' && (
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <button onClick={() => runSync('fp')} disabled={!!syncing}
+                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '1px solid #e2e8f0', background: syncing === 'fp' ? '#f1f5f9' : '#f8fafc', cursor: syncing ? 'default' : 'pointer', color: '#475569', whiteSpace: 'nowrap' as const }}>
+                {syncing === 'fp' ? 'Syncing...' : '↻ FR Sync'}
+              </button>
+              <button onClick={() => runSync('bouncie')} disabled={!!syncing}
+                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '1px solid #e2e8f0', background: syncing === 'bouncie' ? '#f1f5f9' : '#f8fafc', cursor: syncing ? 'default' : 'pointer', color: '#475569', whiteSpace: 'nowrap' as const }}>
+                {syncing === 'bouncie' ? 'Syncing...' : '↻ Bouncie'}
+              </button>
+            </div>
+          )}
       </div>
+      {syncMsg && <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8, padding: '6px 10px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>{syncMsg}</div>}
 
       {/* Tab content */}
       {activeTab === 'scoreboard' && <ScoreboardTab office={officeParam} weekEnd={selectedWeek} />}
