@@ -11,6 +11,7 @@ const baseTabs = [
 ];
 
 const FP_ROLES = ['ADMIN', 'MANAGER', 'LEADERSHIP'];
+const TECH_ROLES = ['TECHNICIAN'];
 
 export function TopNav() {
   const { data: session } = useSession();
@@ -18,7 +19,9 @@ export function TopNav() {
   if (!session || pathname === '/login') return null;
 
   const role = (session.user as any)?.role;
-  const tabs = FP_ROLES.includes(role)
+  const tabs = TECH_ROLES.includes(role)
+    ? [{ label: 'My Performance', href: '/my-performance' }]
+    : FP_ROLES.includes(role)
     ? [...baseTabs, { label: 'Field Professional Effort Meter', href: '/field-performance' }]
     : baseTabs;
 

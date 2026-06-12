@@ -278,6 +278,7 @@ model Technician {
   status        TechStatus @default(ACTIVE)
   notes         String?
   frEmployeeId  Int?
+  email         String?  @unique
   bouncieDevice BouncieDevice?
   techWeeks     TechWeek[]
   reviews       TechReview[]
