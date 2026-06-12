@@ -239,10 +239,30 @@ async function syncInvoices(
           const balance = parseFloat(t.balance);
           const paid = Math.max(0, amount - balance);
           const status = getInvoiceStatus(balance, due);
-          const customer = await prisma.customer.findFirst({
+          let customer = await prisma.customer.findFirst({
             where: { externalId: String(resolvedCustomerID), office },
           });
-          if (!customer) { errors++; continue; }
+          // Fallback: try without office filter (customer may have been created without office)
+          if (!customer) {
+            customer = await prisma.customer.findFirst({
+              where: { externalId: String(resolvedCustomerID) },
+            });
+          }
+          // Last resort: create the customer so the invoice isn't lost
+          if (!customer) {
+            try {
+              customer = await prisma.customer.create({
+                data: {
+                  name: `Customer ${resolvedCustomerID}`,
+                  externalId: String(resolvedCustomerID),
+                  externalSource: 'fieldroutes',
+                  office,
+                  status: 'ACTIVE',
+                  terms: 'Net 30',
+                },
+              });
+            } catch { errors++; continue; }
+          }
           const invoiceData = {
             customerId: customer.id,
             date: new Date(invoiceDate),
@@ -334,7 +354,25 @@ async function syncInvoices(
               const customer = await prisma.customer.findFirst({
                 where: { externalId: String(resolvedCustomerID), office },
               });
-              if (!customer) { errors++; continue; }
+              if (!customer) {
+                customer = await prisma.customer.findFirst({
+                  where: { externalId: String(resolvedCustomerID) },
+                });
+              }
+              if (!customer) {
+                try {
+                  customer = await prisma.customer.create({
+                    data: {
+                      name: `Customer ${resolvedCustomerID}`,
+                      externalId: String(resolvedCustomerID),
+                      externalSource: 'fieldroutes',
+                      office,
+                      status: 'ACTIVE',
+                      terms: 'Net 30',
+                    },
+                  });
+                } catch { errors++; continue; }
+              }
               const invoiceData = {
                 customerId: customer.id,
                 date: new Date(invoiceDate),
