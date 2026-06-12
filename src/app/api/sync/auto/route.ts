@@ -457,14 +457,33 @@ async function syncInvoices(
       const paid = Math.max(0, amount - balance);
       const status = getInvoiceStatus(balance, due);
 
-      const customer = await prisma.customer.findFirst({
+      let customer = await prisma.customer.findFirst({
         where: { externalId: String(resolvedCustomerID), office },
       });
 
       if (!customer) {
-        console.log(`[${office}] Customer not found: resolvedID=${resolvedCustomerID}, customerID=${t.customerID}, billToAccountID=${t.billToAccountID}, ticketID=${t.ticketID}`);
-        errors++;
-        continue;
+        customer = await prisma.customer.findFirst({
+          where: { externalId: String(resolvedCustomerID) },
+        });
+      }
+
+      if (!customer) {
+        try {
+          customer = await prisma.customer.create({
+            data: {
+              name: `Customer ${resolvedCustomerID}`,
+              externalId: String(resolvedCustomerID),
+              externalSource: 'fieldroutes',
+              office,
+              status: 'ACTIVE',
+              terms: 'Net 30',
+            },
+          });
+        } catch {
+          console.log(`[${office}] Could not create customer ${resolvedCustomerID} for ticket ${t.ticketID}`);
+          errors++;
+          continue;
+        }
       }
 
       const invoiceData = {
