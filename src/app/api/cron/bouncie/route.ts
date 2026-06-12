@@ -1,6 +1,6 @@
 // src/app/api/cron/bouncie/route.ts
 // Weekly sync: pulls trip data from Bouncie, calculates driving scores per tech
-// Driving score = MIN((102 - alertsPer1k) - speedPenalty - idlePenalty, 105) / 100
+// Driving score = MIN((102 - alertsPer1k - speedPenalty) / 100 + idleBonus, 1.05)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
