@@ -189,19 +189,20 @@ export default function MyPerformancePage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
                   {[
                     ...(technician.team === 'WP' ? [
-                      { label: 'CO%', value: pct(w.closeOutPct) },
-                      { label: 'CB rate', value: pct(w.callbackRate) },
+                      { label: 'CO%', value: pct(w.closeOutPct), good: (w.closeOutPct ?? 0) >= 0.85 },
+                      { label: 'CB rate', value: pct(w.callbackRate), good: (w.callbackRate ?? 1) <= 0.15 },
                     ] : []),
                     ...(technician.team === 'PMP' ? [
-                      { label: 'Rev eff', value: pct(w.revenueEfficiency) },
-                      { label: 'Reservice', value: pct(w.reseviceRate) },
+                      { label: 'Rev eff', value: pct(w.revenueEfficiency), good: (w.revenueEfficiency ?? 0) >= 0.90 },
+                      { label: 'Reservice', value: pct(w.reseviceRate), good: (w.reseviceRate ?? 1) <= 0.10 },
+                      { label: 'Completion', value: pct(w.completionPct), good: (w.completionPct ?? 0) >= 0.95 },
                     ] : []),
-                    { label: 'Driving', value: pct(w.drivingScore) },
-                    { label: 'Reliability', value: pct(w.reliabilityScore) },
+                    { label: 'Driving', value: pct(w.drivingScore), good: (w.drivingScore ?? 0) >= 0.90 },
+                    { label: 'Reliability', value: pct(w.reliabilityScore), good: (w.reliabilityScore ?? 0) >= 0.90 },
                   ].map(item => (
-                    <div key={item.label} style={{ textAlign: 'center', padding: '7px 4px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
+                    <div key={item.label} style={{ textAlign: 'center', padding: '7px 4px', background: item.good ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.08)', borderRadius: 8, border: `1px solid ${item.good ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.15)'}` }}>
                       <div style={{ fontSize: 10, color: '#475569', marginBottom: 2 }}>{item.label}</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#cbd5e1' }}>{item.value}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: item.good ? '#22c55e' : '#f59e0b' }}>{item.value}</div>
                     </div>
                   ))}
                 </div>
