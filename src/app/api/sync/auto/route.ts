@@ -351,7 +351,7 @@ async function syncInvoices(
               const balance = parseFloat(t.balance);
               const paid = Math.max(0, amount - balance);
               const status = getInvoiceStatus(balance, due);
-              const customer = await prisma.customer.findFirst({
+              let customer = await prisma.customer.findFirst({
                 where: { externalId: String(resolvedCustomerID), office },
               });
               if (!customer) {
