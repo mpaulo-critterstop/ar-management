@@ -22,9 +22,9 @@ function fmtDate(dt: string) {
 }
 
 function lateBadge(mins: number | null) {
-  if (mins === null || mins === undefined) return <span style={{ color: '#94a3b8' }}>—</span>;
+  if (mins === null || mins === undefined) return <span style={{ color: '#b0aea6' }}>—</span>;
   if (mins <= 0) return <span style={{ color: '#27500A', fontSize: 12 }}>{Math.abs(mins).toFixed(0)}m early</span>;
-  if (mins <= 10) return <span style={{ color: '#64748b', fontSize: 12 }}>{mins.toFixed(0)}m late</span>;
+  if (mins <= 10) return <span style={{ color: '#888780', fontSize: 12 }}>{mins.toFixed(0)}m late</span>;
   if (mins <= 20) return <span style={{ color: '#854F0B', fontSize: 12 }}>{mins.toFixed(0)}m late</span>;
   return <span style={{ color: '#791F1F', fontWeight: 500, fontSize: 12 }}>{mins.toFixed(0)}m late</span>;
 }
@@ -95,8 +95,8 @@ export function AttendanceTab({ office, weekEnd }: Props) {
   };
 
   const inputStyle: React.CSSProperties = {
-    fontSize: 12, padding: '6px 9px', border: '1px solid #e2e8f0',
-    borderRadius: 8, background: '#fff', color: '#0f172a'
+    fontSize: 12, padding: '6px 9px', border: '1px solid #E8E7E3',
+    borderRadius: 8, background: '#fff', color: '#2C2C2A'
   };
 
   return (
@@ -109,9 +109,9 @@ export function AttendanceTab({ office, weekEnd }: Props) {
           { label: 'On time / early', value: `${onTime}/${worked.length}` },
           { label: 'Late (>10 min)', value: worked.filter(r => (r.minutesLate ?? 0) > 10).length },
         ].map(k => (
-          <div key={k.label} style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px' }}>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>{k.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 500, color: (k as any).color || '#0f172a' }}>{k.value}</div>
+          <div key={k.label} style={{ background: '#F8F7F4', borderRadius: 8, padding: '10px 14px' }}>
+            <div style={{ fontSize: 11, color: '#888780', marginBottom: 3 }}>{k.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 500, color: (k as any).color || '#2C2C2A' }}>{k.value}</div>
           </div>
         ))}
       </div>
@@ -150,15 +150,15 @@ export function AttendanceTab({ office, weekEnd }: Props) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>Loading...</td></tr>
+                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>No attendance data for this week yet.</td></tr>
+                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No attendance data for this week yet.</td></tr>
               ) : filtered.map(r => (
                 <tr key={r.id}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f8fafc'}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                 >
-                  <td style={{ ...td, fontSize: 11, color: '#64748b' }}>{r.techId}</td>
+                  <td style={{ ...td, fontSize: 11, color: '#888780' }}>{r.techId}</td>
                   <td style={{ ...td, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.technician?.name}</td>
                   <td style={td}>{teamPill(r.team)}</td>
                   <td style={{ ...td, fontSize: 12 }}>{r.office}</td>
@@ -172,7 +172,7 @@ export function AttendanceTab({ office, weekEnd }: Props) {
                   {canEdit && (
                     <td style={td}>
                       <button onClick={() => openEdit(r)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 14, padding: 0 }}>✎</button>
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888780', fontSize: 14, padding: 0 }}>✎</button>
                     </td>
                   )}
                 </tr>
@@ -181,21 +181,21 @@ export function AttendanceTab({ office, weekEnd }: Props) {
           </table>
         </div>
       </div>
-      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>{filtered.length} day records</div>
+      <div style={{ fontSize: 12, color: '#b0aea6', marginTop: 8 }}>{filtered.length} day records</div>
 
       {/* Edit Modal */}
       {editing && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, padding: 24, width: 340 }}>
+          <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, padding: 24, width: 340 }}>
             <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>Edit Attendance</div>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: '#888780', marginBottom: 16 }}>
               {editing.technician?.name} — {fmtDate(editing.date)}
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Scheduled start time</label>
+              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Scheduled start time</label>
               <select value={editForm.routeStartTime}
                 onChange={e => setEditForm(f => ({ ...f, routeStartTime: e.target.value }))}
-                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }}>
                 <option value="6:00 AM">6:00 AM</option>
                 <option value="7:00 AM">7:00 AM</option>
                 <option value="8:00 AM">8:00 AM</option>
@@ -203,23 +203,23 @@ export function AttendanceTab({ office, weekEnd }: Props) {
               </select>
             </div>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Scheduled hours</label>
+              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Scheduled hours</label>
               <select value={editForm.scheduledHrs} onChange={e => setEditForm(f => ({ ...f, scheduledHrs: Number(e.target.value) }))}
-                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }}>
                 <option value={8}>8 hrs</option>
                 <option value={10}>10 hrs</option>
               </select>
             </div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: '#b0aea6', marginBottom: 16 }}>
               Actual arrival: {fmtTime(editing.startTime)} — changing scheduled start will recalculate minutes late and reliability score.
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setEditing(null)}
-                style={{ padding: '7px 16px', fontSize: 13, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer', color: '#475569' }}>
+                style={{ padding: '7px 16px', fontSize: 13, borderRadius: 8, border: '1px solid #E8E7E3', background: '#F8F7F4', cursor: 'pointer', color: '#888780' }}>
                 Cancel
               </button>
               <button onClick={saveEdit} disabled={saving}
-                style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving ? '#94a3b8' : '#0052cc', color: '#fff', cursor: saving ? 'default' : 'pointer' }}>
+                style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving ? '#b0aea6' : '#0052cc', color: '#fff', cursor: saving ? 'default' : 'pointer' }}>
                 {saving ? 'Saving...' : 'Save changes'}
               </button>
             </div>

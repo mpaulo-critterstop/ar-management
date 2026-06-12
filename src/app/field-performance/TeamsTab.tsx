@@ -17,8 +17,8 @@ export function TeamsTab({ office, weekEnd }: Props) {
       .catch(() => setLoading(false));
   }, [office, weekEnd]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Loading...</div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>No data available.</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#b0aea6' }}>Loading...</div>;
+  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: '#b0aea6' }}>No data available.</div>;
 
   const { crewLeaders, siteLeaders } = data;
 
@@ -43,10 +43,10 @@ export function TeamsTab({ office, weekEnd }: Props) {
             </thead>
             <tbody>
               {crewLeaders.length === 0 ? (
-                <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 24 }}>No data for this week yet.</td></tr>
+                <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 24 }}>No data for this week yet.</td></tr>
               ) : crewLeaders.map((c: any) => (
                 <tr key={c.leader}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f8fafc'}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                 >
                   <td style={{ ...td, fontWeight: 500 }}>{c.leader}</td>
@@ -80,10 +80,10 @@ export function TeamsTab({ office, weekEnd }: Props) {
             </thead>
             <tbody>
               {siteLeaders.length === 0 ? (
-                <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 24 }}>No data for this week yet.</td></tr>
+                <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 24 }}>No data for this week yet.</td></tr>
               ) : siteLeaders.map((s: any) => (
                 <tr key={s.leader}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f8fafc'}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                 >
                   <td style={{ ...td, fontWeight: 500 }}>{s.leader}</td>

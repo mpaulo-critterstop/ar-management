@@ -1,46 +1,79 @@
 import { useState, useEffect } from 'react';
 import React from 'react';
 
-export const ACCENT = '#0052cc';
+// ─── DESIGN TOKENS (matches Hub AR/Dispatch warm neutral palette) ─────────────
+export const ACCENT   = '#0052cc';
+export const BG_PAGE  = '#F0F2F5';
+export const BG_CARD  = '#ffffff';
+export const BG_ALT   = '#F8F7F4';
+export const BG_TILE  = '#F1EFE8';
+export const BORDER   = '#E8E7E3';
+export const BORDER_MED = '#D3D1C7';
+export const TEXT_PRIMARY = '#2C2C2A';
+export const TEXT_SECONDARY = '#888780';
+export const TEXT_MUTED = '#b0aea6';
 
-export function scoreBadge(score: number | null): React.ReactNode {
-  if (score === null || score === undefined) return <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>;
-  const { bg, text } = scoreColors(score);
-  return (
-    <span style={{ background: bg, color: text, fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 99, display: 'inline-block' }}>
-      {(score * 100).toFixed(1) + '%'}
-    </span>
-  );
+// Team colors
+export const TEAM_COLORS = {
+  WP:  { bg: '#E6F0FB', text: '#0C447C', border: '#B8D4F5' },
+  PMP: { bg: '#E1F5EE', text: '#085041', border: '#9ADEC8' },
+  IP:  { bg: '#F5EBF9', text: '#5B1E7A', border: '#D4AAEC' },
+};
+
+// Score thresholds
+export const SCORE_GREEN = { bg: '#EAFBF0', text: '#0A5C2A', bar: '#22C55E' };
+export const SCORE_AMBER = { bg: '#FEF6E4', text: '#7A4500', bar: '#F59E0B' };
+export const SCORE_RED   = { bg: '#FEF0F0', text: '#7A1A1A', bar: '#EF4444' };
+
+export function scoreColors(score: number | null) {
+  if (score === null || score === undefined) return { bg: BG_ALT, text: TEXT_MUTED, bar: BORDER };
+  if (score >= 0.90) return SCORE_GREEN;
+  if (score >= 0.75) return SCORE_AMBER;
+  return SCORE_RED;
 }
 
-export function scoreColors(score: number) {
-  if (score >= 0.90) return { bg: '#EAF3DE', text: '#27500A' };
-  if (score >= 0.75) return { bg: '#FAEEDA', text: '#633806' };
-  return { bg: '#FCEBEB', text: '#791F1F' };
+export function scoreBadge(score: number | null): React.ReactNode {
+  if (score === null || score === undefined) return <span style={{ color: TEXT_MUTED, fontSize: 12 }}>—</span>;
+  const { bg, text } = scoreColors(score);
+  return (
+    <span style={{
+      background: bg, color: text,
+      fontSize: 11, fontWeight: 600,
+      padding: '2px 8px', borderRadius: 99,
+      display: 'inline-block', letterSpacing: '0.01em',
+    }}>
+      {(score * 100).toFixed(1)}%
+    </span>
+  );
 }
 
 export function scoreBar(score: number | null, width = 72) {
   if (score === null || score === undefined) return null;
   const pct = Math.min((score / 1.1) * 100, 100);
-  const color = score >= 0.90 ? '#639922' : score >= 0.75 ? '#BA7517' : '#E24B4A';
+  const { bar } = scoreColors(score);
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, verticalAlign: 'middle' }}>
-      <div style={{ width, height: 5, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3 }} />
+      <div style={{ width, height: 6, background: BORDER, borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{
+          width: `${pct}%`, height: '100%', borderRadius: 3,
+          background: `linear-gradient(90deg, ${bar}cc, ${bar})`,
+          transition: 'width 0.3s ease',
+        }} />
       </div>
     </div>
   );
 }
 
 export function teamPill(team: string) {
-  const styles: Record<string, { bg: string; color: string }> = {
-    WP:  { bg: '#E6F1FB', color: '#0C447C' },
-    PMP: { bg: '#E1F5EE', color: '#085041' },
-    IP:  { bg: '#FBEAF0', color: '#72243E' },
-  };
-  const s = styles[team] || { bg: '#f1f5f9', color: '#475569' };
+  const s = TEAM_COLORS[team as keyof typeof TEAM_COLORS] || { bg: BG_TILE, text: TEXT_SECONDARY, border: BORDER };
   return (
-    <span style={{ background: s.bg, color: s.color, fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 99 }}>
+    <span style={{
+      background: s.bg, color: s.text,
+      border: `0.5px solid ${s.border}`,
+      fontSize: 10, fontWeight: 600,
+      padding: '2px 7px', borderRadius: 99,
+      letterSpacing: '0.03em',
+    }}>
       {team}
     </span>
   );
@@ -49,7 +82,13 @@ export function teamPill(team: string) {
 export function statusPill(status: string) {
   const active = status === 'ACTIVE';
   return (
-    <span style={{ background: active ? '#EAF3DE' : '#FCEBEB', color: active ? '#27500A' : '#791F1F', fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 99 }}>
+    <span style={{
+      background: active ? '#EAFBF0' : '#FEF0F0',
+      color: active ? '#0A5C2A' : '#7A1A1A',
+      border: `0.5px solid ${active ? '#9ADEC8' : '#F5A0A0'}`,
+      fontSize: 10, fontWeight: 600,
+      padding: '2px 7px', borderRadius: 99,
+    }}>
       {active ? 'Active' : 'Inactive'}
     </span>
   );
@@ -60,16 +99,10 @@ export function pctFmt(v: number | null) {
   return (v * 100).toFixed(0) + '%';
 }
 
-export function deltaFmt(d: number | null) {
-  if (d === null || d === undefined) return '—';
-  if (d > 0) return <span style={{ color: '#3B6D11', fontSize: 11 }}>▲ +{d.toFixed(2)}</span>;
-  if (d < 0) return <span style={{ color: '#A32D2D', fontSize: 11 }}>▼ {d.toFixed(2)}</span>;
-  return <span style={{ color: '#94a3b8', fontSize: 11 }}>— 0.00</span>;
-}
-
+// Card styles
 export const card: React.CSSProperties = {
-  background: '#fff',
-  border: '0.5px solid #e2e8f0',
+  background: BG_CARD,
+  border: `0.5px solid ${BORDER}`,
   borderRadius: 12,
   marginBottom: 10,
   overflow: 'hidden',
@@ -78,9 +111,9 @@ export const card: React.CSSProperties = {
 export const cardHead: React.CSSProperties = {
   padding: '12px 16px 0',
   fontSize: 11,
-  fontWeight: 500,
-  color: '#64748b',
-  letterSpacing: '0.04em',
+  fontWeight: 600,
+  color: TEXT_SECONDARY,
+  letterSpacing: '0.06em',
   textTransform: 'uppercase',
   marginBottom: 10,
 };
@@ -88,29 +121,43 @@ export const cardHead: React.CSSProperties = {
 export const th: React.CSSProperties = {
   textAlign: 'left',
   fontSize: 11,
-  fontWeight: 500,
-  color: '#64748b',
+  fontWeight: 600,
+  color: TEXT_SECONDARY,
   padding: '7px 12px',
-  borderBottom: '0.5px solid #e2e8f0',
-  background: '#f8fafc',
+  borderBottom: `0.5px solid ${BORDER}`,
+  background: BG_ALT,
   whiteSpace: 'nowrap',
+  letterSpacing: '0.02em',
 };
 
 export const td: React.CSSProperties = {
   padding: '8px 12px',
-  borderBottom: '0.5px solid #f1f5f9',
+  borderBottom: `0.5px solid #F3F2EF`,
   fontSize: 13,
-  color: '#0f172a',
+  color: TEXT_PRIMARY,
   verticalAlign: 'middle',
 };
 
-export const kpiCard = (value: React.ReactNode, label: string, sub?: string, valueColor?: string): React.ReactNode => (
-  <div style={{ background: '#f8fafc', borderRadius: 8, padding: '12px 14px' }}>
-    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>{label}</div>
-    <div style={{ fontSize: 21, fontWeight: 500, color: valueColor || '#0f172a' }}>{value}</div>
-    {sub && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>{sub}</div>}
-  </div>
-);
+export function kpiTile(
+  value: React.ReactNode,
+  label: string,
+  sub?: string,
+  accent?: string
+): React.ReactNode {
+  return (
+    <div style={{
+      background: BG_CARD,
+      border: `0.5px solid ${BORDER}`,
+      borderLeft: `3px solid ${accent || BORDER_MED}`,
+      borderRadius: 10,
+      padding: '12px 16px',
+    }}>
+      <div style={{ fontSize: 11, color: TEXT_SECONDARY, marginBottom: 4, fontWeight: 500 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 600, color: TEXT_PRIMARY, lineHeight: 1.2 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 3 }}>{sub}</div>}
+    </div>
+  );
+}
 
 export function initials(name: string) {
   return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();

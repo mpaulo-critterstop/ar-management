@@ -124,11 +124,13 @@ export default function FieldPerformancePage() {
     borderRadius: 9,
     fontSize: 13,
     fontWeight: 500,
-    color: active ? '#0f172a' : '#475569',
+    color: active ? '#2C2C2A' : '#888780',
     background: active ? '#ffffff' : 'transparent',
-    border: active ? '1px solid #dbe3ee' : '1px solid transparent',
+    border: active ? '0.5px solid #D3D1C7' : '0.5px solid transparent',
+    boxShadow: active ? '0 1px 3px rgba(44,44,42,0.08)' : 'none',
     cursor: 'pointer',
     whiteSpace: 'nowrap' as const,
+    transition: 'all 0.15s',
   });
 
   const offBtnStyle = (active: boolean): React.CSSProperties => ({
@@ -136,10 +138,11 @@ export default function FieldPerformancePage() {
     borderRadius: 8,
     fontSize: 12,
     fontWeight: 500,
-    color: active ? '#0f172a' : '#475569',
+    color: active ? '#2C2C2A' : '#888780',
     background: active ? '#ffffff' : 'transparent',
-    border: active ? '1px solid #dbe3ee' : '1px solid transparent',
+    border: active ? '0.5px solid #D3D1C7' : '0.5px solid transparent',
     cursor: 'pointer',
+    transition: 'all 0.15s',
   });
 
   return (
@@ -147,7 +150,7 @@ export default function FieldPerformancePage() {
       {/* Controls row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
         {/* Tab nav */}
-        <div style={{ display: 'inline-flex', gap: 2, padding: 4, borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'inline-flex', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
           {(['scoreboard', 'individuals', 'teams', 'roster', 'attendance', 'driving', 'mom', 'adjustments'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} style={navStyle(activeTab === tab)}>
               {tab === 'mom' ? 'MoM' : tab === 'adjustments' ? 'Adjustments' : tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -157,7 +160,7 @@ export default function FieldPerformancePage() {
 
         {/* Office + week */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 10, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
             {OFFICES.map(o => (
               <button key={o} onClick={() => setOffice(o)} style={offBtnStyle(office === o)}>{o}</button>
             ))}
@@ -166,13 +169,13 @@ export default function FieldPerformancePage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <button
                 onClick={() => setWeekIdx(i => Math.min(i + 1, WEEKS.length - 1))}
-                style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888780' }}
               >‹</button>
-              <span style={{ fontSize: 12, color: '#64748b', minWidth: 90, textAlign: 'center' }}>Wk of {fmtWeek(selectedWeek)}</span>
+              <span style={{ fontSize: 12, color: '#888780', minWidth: 90, textAlign: 'center', fontWeight: 500 }}>Wk of {fmtWeek(selectedWeek)}</span>
               <button
                 onClick={() => setWeekIdx(i => Math.max(i - 1, 0))}
                 disabled={weekIdx === 0}
-                style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid #e2e8f0', background: weekIdx === 0 ? '#f1f5f9' : '#f8fafc', cursor: weekIdx === 0 ? 'default' : 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: weekIdx === 0 ? 0.4 : 1 }}
+                style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #D3D1C7', background: weekIdx === 0 ? '#F1EFE8' : '#fff', cursor: weekIdx === 0 ? 'default' : 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888780', opacity: weekIdx === 0 ? 0.4 : 1 }}
               >›</button>
             </div>
           )}
@@ -180,29 +183,29 @@ export default function FieldPerformancePage() {
           {role === 'ADMIN' && (
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <button onClick={() => runSync('fp')} disabled={!!syncing}
-                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '1px solid #e2e8f0', background: syncing === 'fp' ? '#f1f5f9' : '#f8fafc', cursor: syncing ? 'default' : 'pointer', color: '#475569', whiteSpace: 'nowrap' as const }}>
+                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'fp' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
                 {syncing === 'fp' ? 'Syncing...' : '↻ FR Sync'}
               </button>
               <button onClick={() => runSync('bouncie')} disabled={!!syncing}
-                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '1px solid #e2e8f0', background: syncing === 'bouncie' ? '#f1f5f9' : '#f8fafc', cursor: syncing ? 'default' : 'pointer', color: '#475569', whiteSpace: 'nowrap' as const }}>
+                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'bouncie' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
                 {syncing === 'bouncie' ? 'Syncing...' : '↻ Bouncie'}
               </button>
               <button onClick={() => runSync('reliability')} disabled={!!syncing}
-                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '1px solid #e2e8f0', background: syncing === 'reliability' ? '#f1f5f9' : '#f8fafc', cursor: syncing ? 'default' : 'pointer', color: '#475569', whiteSpace: 'nowrap' as const }}>
+                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'reliability' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
                 {syncing === 'reliability' ? 'Syncing...' : '↻ Reliability'}
               </button>
               <button onClick={() => runSync('geocode')} disabled={!!syncing}
-                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '1px solid #e2e8f0', background: syncing === 'geocode' ? '#f1f5f9' : '#f8fafc', cursor: syncing ? 'default' : 'pointer', color: '#475569', whiteSpace: 'nowrap' as const }}>
+                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'geocode' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
                 {syncing === 'geocode' ? 'Geocoding...' : '↻ Geocode'}
               </button>
               <button onClick={() => runSync('addresses')} disabled={!!syncing}
-                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '1px solid #e2e8f0', background: syncing === 'addresses' ? '#f1f5f9' : '#f8fafc', cursor: syncing ? 'default' : 'pointer', color: '#475569', whiteSpace: 'nowrap' as const }}>
+                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'addresses' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
                 {syncing === 'addresses' ? 'Syncing...' : '↻ Addresses'}
               </button>
             </div>
           )}
       </div>
-      {syncMsg && <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8, padding: '6px 10px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>{syncMsg}</div>}
+      {syncMsg && <div style={{ fontSize: 12, color: '#888780', marginBottom: 8, padding: '6px 12px', background: '#F8F7F4', borderRadius: 8, border: '0.5px solid #E8E7E3', fontWeight: 500 }}>{syncMsg}</div>}
 
       {/* Tab content */}
       {activeTab === 'scoreboard' && <ScoreboardTab office={officeParam} weekEnd={selectedWeek} />}

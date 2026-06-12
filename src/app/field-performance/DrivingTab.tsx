@@ -5,19 +5,19 @@ import { teamPill, scoreBadge, scoreBar, card, th, td } from './helpers';
 interface Props { office: string; weekEnd: Date; }
 
 function speedBadge(mph: number | null) {
-  if (!mph) return <span style={{ color: '#94a3b8' }}>—</span>;
+  if (!mph) return <span style={{ color: '#b0aea6' }}>—</span>;
   const color = mph > 90 ? '#791F1F' : mph > 80 ? '#854F0B' : '#27500A';
   return <span style={{ color, fontSize: 12, fontWeight: mph > 80 ? 500 : 400 }}>{mph.toFixed(1)} mph</span>;
 }
 
 function alertsBadge(per1k: number | null) {
-  if (per1k === null || per1k === undefined) return <span style={{ color: '#94a3b8' }}>—</span>;
+  if (per1k === null || per1k === undefined) return <span style={{ color: '#b0aea6' }}>—</span>;
   const color = per1k > 30 ? '#791F1F' : per1k > 15 ? '#854F0B' : '#27500A';
   return <span style={{ color, fontSize: 12, fontWeight: per1k > 30 ? 500 : 400 }}>{per1k.toFixed(1)}</span>;
 }
 
 function idleBadge(ratio: number | null) {
-  if (ratio === null || ratio === undefined) return <span style={{ color: '#94a3b8' }}>—</span>;
+  if (ratio === null || ratio === undefined) return <span style={{ color: '#b0aea6' }}>—</span>;
   const pct = (ratio * 100).toFixed(1);
   const color = ratio > 0.40 ? '#791F1F' : ratio > 0.30 ? '#854F0B' : '#27500A';
   return <span style={{ color, fontSize: 12 }}>{pct}%</span>;
@@ -66,8 +66,8 @@ export function DrivingTab({ office, weekEnd }: Props) {
   const highAlerts = filtered.filter(w => (w.safetyAlertsPer1k ?? 0) > 30).length;
 
   const inputStyle: React.CSSProperties = {
-    fontSize: 12, padding: '6px 9px', border: '1px solid #e2e8f0',
-    borderRadius: 8, background: '#fff', color: '#0f172a'
+    fontSize: 12, padding: '6px 9px', border: '1px solid #E8E7E3',
+    borderRadius: 8, background: '#fff', color: '#2C2C2A'
   };
 
   return (
@@ -80,9 +80,9 @@ export function DrivingTab({ office, weekEnd }: Props) {
           { label: 'Speed violations (>80mph)', value: speedViolations, color: speedViolations > 0 ? '#791F1F' : undefined },
           { label: 'High alerts (>30/1k mi)', value: highAlerts, color: highAlerts > 0 ? '#791F1F' : undefined },
         ].map(k => (
-          <div key={k.label} style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px' }}>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>{k.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 500, color: k.color || '#0f172a' }}>{k.value}</div>
+          <div key={k.label} style={{ background: '#F8F7F4', borderRadius: 8, padding: '10px 14px' }}>
+            <div style={{ fontSize: 11, color: '#888780', marginBottom: 3 }}>{k.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 500, color: k.color || '#2C2C2A' }}>{k.value}</div>
           </div>
         ))}
       </div>
@@ -125,18 +125,18 @@ export function DrivingTab({ office, weekEnd }: Props) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>Loading...</td></tr>
+                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>No driving data for this week yet.</td></tr>
+                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No driving data for this week yet.</td></tr>
               ) : filtered.map(w => {
                 const speedPenalty = (w.maxSpeed ?? 0) > 90 ? 50 : (w.maxSpeed ?? 0) > 80 ? 8 : 0;
                 const idleBonus = Math.max(0.08 - Math.max((w.idleRatio ?? 0) - 0.35, 0) * 0.50, 0);
                 return (
                   <tr key={w.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f8fafc'}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                   >
-                    <td style={{ ...td, fontSize: 11, color: '#64748b' }}>{w.techId}</td>
+                    <td style={{ ...td, fontSize: 11, color: '#888780' }}>{w.techId}</td>
                     <td style={{ ...td, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.technician?.name}</td>
                     <td style={td}>{teamPill(w.team)}</td>
                     <td style={{ ...td, fontSize: 12 }}>{w.office}</td>
@@ -149,10 +149,10 @@ export function DrivingTab({ office, weekEnd }: Props) {
                     <td style={td}>{speedBadge(w.maxSpeed)}</td>
                     <td style={td}>{alertsBadge(w.safetyAlertsPer1k)}</td>
                     <td style={td}>{idleBadge(w.idleRatio)}</td>
-                    <td style={{ ...td, fontSize: 12, color: speedPenalty > 0 ? '#791F1F' : '#94a3b8' }}>
+                    <td style={{ ...td, fontSize: 12, color: speedPenalty > 0 ? '#791F1F' : '#b0aea6' }}>
                       {speedPenalty > 0 ? `-${speedPenalty}` : '0'}
                     </td>
-                    <td style={{ ...td, fontSize: 12, color: idleBonus > 0 ? '#27500A' : '#94a3b8' }}>
+                    <td style={{ ...td, fontSize: 12, color: idleBonus > 0 ? '#27500A' : '#b0aea6' }}>
                       {idleBonus > 0 ? `+${(idleBonus).toFixed(3)}` : '0'}
                     </td>
                   </tr>
@@ -162,7 +162,7 @@ export function DrivingTab({ office, weekEnd }: Props) {
           </table>
         </div>
       </div>
-      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>{filtered.length} techs with driving data</div>
+      <div style={{ fontSize: 12, color: '#b0aea6', marginTop: 8 }}>{filtered.length} techs with driving data</div>
     </div>
   );
 }

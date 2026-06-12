@@ -98,14 +98,14 @@ export function RosterTab({ office }: Props) {
     load();
   };
 
-  const inputStyle: React.CSSProperties = { width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', color: '#0f172a' };
-  const labelStyle: React.CSSProperties = { fontSize: 11, color: '#64748b', marginBottom: 4, display: 'block' };
+  const inputStyle: React.CSSProperties = { width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#2C2C2A' };
+  const labelStyle: React.CSSProperties = { fontSize: 11, color: '#888780', marginBottom: 4, display: 'block' };
 
   if (showForm) {
     return (
       <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 12, padding: 32, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', minHeight: 540 }}>
-        <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, width: '100%', maxWidth: 500, padding: 24 }}>
-          <div style={{ fontSize: 15, fontWeight: 500, color: '#0f172a', marginBottom: 18 }}>
+        <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, width: '100%', maxWidth: 500, padding: 24 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, color: '#2C2C2A', marginBottom: 18 }}>
             {editing ? `Edit — ${editing.name}` : 'Add new technician'}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -148,8 +148,8 @@ export function RosterTab({ office }: Props) {
           </div>
           <div style={{ marginTop: 12 }}><label style={labelStyle}>Notes</label><input style={inputStyle} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
-            <button onClick={() => setShowForm(false)} style={{ padding: '7px 16px', fontSize: 13, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer', color: '#475569' }}>Cancel</button>
-            <button onClick={save} disabled={saving || !form.name || !form.techId} style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving ? '#94a3b8' : '#0052cc', color: '#fff', cursor: saving ? 'default' : 'pointer' }}>
+            <button onClick={() => setShowForm(false)} style={{ padding: '7px 16px', fontSize: 13, borderRadius: 8, border: '1px solid #E8E7E3', background: '#F8F7F4', cursor: 'pointer', color: '#888780' }}>Cancel</button>
+            <button onClick={save} disabled={saving || !form.name || !form.techId} style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving ? '#b0aea6' : '#0052cc', color: '#fff', cursor: saving ? 'default' : 'pointer' }}>
               {saving ? 'Saving...' : editing ? 'Save changes' : 'Add technician'}
             </button>
           </div>
@@ -162,15 +162,15 @@ export function RosterTab({ office }: Props) {
     <div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
         <input type="text" placeholder="Search name or Tech ID..." value={search} onChange={e => setSearch(e.target.value)}
-          style={{ flex: 1, fontSize: 12, padding: '6px 9px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', color: '#0f172a' }}
+          style={{ flex: 1, fontSize: 12, padding: '6px 9px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#2C2C2A' }}
         />
-        <select value={teamFilter} onChange={e => setTeamFilter(e.target.value)} style={{ fontSize: 12, padding: '6px 9px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', color: '#0f172a' }}>
+        <select value={teamFilter} onChange={e => setTeamFilter(e.target.value)} style={{ fontSize: 12, padding: '6px 9px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#2C2C2A' }}>
           <option value="">All teams</option><option value="WP">WP</option><option value="PMP">PMP</option><option value="IP">IP</option>
         </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ fontSize: 12, padding: '6px 9px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', color: '#0f172a' }}>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ fontSize: 12, padding: '6px 9px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#2C2C2A' }}>
           <option value="ACTIVE">Active only</option><option value="">All</option><option value="INACTIVE">Inactive</option>
         </select>
-        <button onClick={openAdd} style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer', color: '#0f172a', whiteSpace: 'nowrap' }}>
+        <button onClick={openAdd} style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #E8E7E3', background: '#F8F7F4', cursor: 'pointer', color: '#2C2C2A', whiteSpace: 'nowrap' }}>
           + Add tech
         </button>
       </div>
@@ -194,28 +194,28 @@ export function RosterTab({ office }: Props) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>Loading...</td></tr>
+                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>No technicians found.</td></tr>
+                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No technicians found.</td></tr>
               ) : filtered.map(t => (
                 <tr key={t.id} style={{ opacity: t.status === 'INACTIVE' ? 0.5 : 1 }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f8fafc'}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                 >
-                  <td style={{ ...td, fontSize: 11, color: '#64748b' }}>{t.techId}</td>
+                  <td style={{ ...td, fontSize: 11, color: '#888780' }}>{t.techId}</td>
                   <td style={{ ...td, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</td>
                   <td style={td}>{teamPill(t.team)}</td>
                   <td style={td}>{t.office}</td>
                   <td style={{ ...td, fontSize: 12 }}>{t.hrDays} hr</td>
                   <td style={{ ...td, fontSize: 12 }}>{t.startTime}</td>
                   <td style={{ ...td, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.crewLeader ?? '—'}</td>
-                  <td style={{ ...td, fontSize: 11, color: '#64748b' }}>{t.hireDate ? new Date(t.hireDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}</td>
+                  <td style={{ ...td, fontSize: 11, color: '#888780' }}>{t.hireDate ? new Date(t.hireDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}</td>
                   <td style={td}>{statusPill(t.status)}</td>
                   <td style={td}>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => openEdit(t)} title="Edit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 14, padding: 0 }}>✎</button>
+                      <button onClick={() => openEdit(t)} title="Edit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888780', fontSize: 14, padding: 0 }}>✎</button>
                       {t.status === 'ACTIVE' && (
-                        <button onClick={() => deactivate(t)} title="Deactivate" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 14, padding: 0 }}>×</button>
+                        <button onClick={() => deactivate(t)} title="Deactivate" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b0aea6', fontSize: 14, padding: 0 }}>×</button>
                       )}
                     </div>
                   </td>
@@ -225,7 +225,7 @@ export function RosterTab({ office }: Props) {
           </table>
         </div>
       </div>
-      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>{filtered.length} technician{filtered.length !== 1 ? 's' : ''}</div>
+      <div style={{ fontSize: 12, color: '#b0aea6', marginTop: 8 }}>{filtered.length} technician{filtered.length !== 1 ? 's' : ''}</div>
     </div>
   );
 }

@@ -37,7 +37,7 @@ export function IndividualsTab({ office, weekEnd }: Props) {
       return 0;
     });
 
-  const inputStyle: React.CSSProperties = { fontSize: 12, padding: '6px 9px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', color: '#0f172a' };
+  const inputStyle: React.CSSProperties = { fontSize: 12, padding: '6px 9px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#2C2C2A' };
 
   return (
     <div style={{ display: 'flex', gap: 10 }}>
@@ -82,18 +82,18 @@ export function IndividualsTab({ office, weekEnd }: Props) {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>Loading...</td></tr>
+                  <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>Loading...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>No scores recorded for this week yet.</td></tr>
+                  <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No scores recorded for this week yet.</td></tr>
                 ) : filtered.map((w, i) => (
                   <tr key={w.id}
                     onClick={() => setSelected(selected?.id === w.id ? null : w)}
                     style={{ cursor: 'pointer', background: selected?.id === w.id ? '#f0f7ff' : '' }}
-                    onMouseEnter={e => { if (selected?.id !== w.id) (e.currentTarget as HTMLElement).style.background = '#f8fafc'; }}
+                    onMouseEnter={e => { if (selected?.id !== w.id) (e.currentTarget as HTMLElement).style.background = '#F8F7F4'; }}
                     onMouseLeave={e => { if (selected?.id !== w.id) (e.currentTarget as HTMLElement).style.background = ''; }}
                   >
-                    <td style={{ ...td, color: '#94a3b8', fontSize: 11 }}>{i + 1}</td>
-                    <td style={{ ...td, fontSize: 11, color: '#64748b' }}>{w.techId}</td>
+                    <td style={{ ...td, color: '#b0aea6', fontSize: 11 }}>{i + 1}</td>
+                    <td style={{ ...td, fontSize: 11, color: '#888780' }}>{w.techId}</td>
                     <td style={{ ...td, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.technician?.name ?? '—'}</td>
                     <td style={td}>{teamPill(w.team)}</td>
                     <td style={{ ...td, fontSize: 12 }}>{w.office}</td>
@@ -118,22 +118,22 @@ export function IndividualsTab({ office, weekEnd }: Props) {
       {/* Detail drawer */}
       {selected && (
         <div style={{ width: 220, flexShrink: 0 }}>
-          <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, padding: 16 }}>
+          <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#E6F1FB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 500, color: '#0C447C', flexShrink: 0 }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#E6F0FB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 500, color: '#0C447C', flexShrink: 0 }}>
                 {initials(selected.technician?.name ?? '?')}
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', lineHeight: 1.3 }}>{selected.technician?.name}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>{selected.techId} · {teamPill(selected.team)}</div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: '#2C2C2A', lineHeight: 1.3 }}>{selected.technician?.name}</div>
+                <div style={{ fontSize: 11, color: '#888780' }}>{selected.techId} · {teamPill(selected.team)}</div>
               </div>
             </div>
 
-            <button onClick={() => setSelected(null)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 16 }}>✕</button>
+            <button onClick={() => setSelected(null)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#b0aea6', fontSize: 16 }}>✕</button>
 
-            <div style={{ fontSize: 11, fontWeight: 500, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>This week</div>
-            <div style={{ fontSize: 30, fontWeight: 500, marginBottom: 12, color: '#0f172a' }}>
+            <div style={{ fontSize: 11, fontWeight: 500, color: '#888780', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>This week</div>
+            <div style={{ fontSize: 30, fontWeight: 500, marginBottom: 12, color: '#2C2C2A' }}>
               {selected.totalScore ? (selected.totalScore * 100).toFixed(1) + '%' : '—'}
             </div>
 
@@ -149,9 +149,9 @@ export function IndividualsTab({ office, weekEnd }: Props) {
               { label: 'Manual adj.', val: selected.manualAdj !== null && selected.manualAdj !== 0 ? (selected.manualAdj > 0 ? '+' : '') + selected.manualAdj?.toFixed(2) : '—' },
               { label: 'Office', val: selected.office },
             ].map(row => (
-              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '0.5px solid #f1f5f9' }}>
-                <span style={{ fontSize: 12, color: '#64748b' }}>{row.label}</span>
-                <span style={{ fontSize: 12, fontWeight: 500, color: '#0f172a' }}>{row.val}</span>
+              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '0.5px solid #F1EFE8' }}>
+                <span style={{ fontSize: 12, color: '#888780' }}>{row.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 500, color: '#2C2C2A' }}>{row.val}</span>
               </div>
             ))}
           </div>
