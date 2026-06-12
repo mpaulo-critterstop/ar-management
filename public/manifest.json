@@ -1,11 +1,11 @@
 {
   "name": "Critter Stop — The Hub",
-  "short_name": "Critter Stop — The Hub",
+  "short_name": "CS Hub",
   "description": "Operations Management for Critter Stop",
-  "start_url": "/dashboard",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#2C2C2A",
-  "theme_color": "#2C2C2A",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "orientation": "portrait-primary",
   "icons": [
     {
