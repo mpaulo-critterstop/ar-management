@@ -30,10 +30,6 @@ export default function HomePage() {
     }
   }, [status, router, session]);
 
-  // Don't render anything for TECHNICIAN role
-  const role = (session?.user as any)?.role;
-  if (status === 'loading' || role === 'TECHNICIAN') return null;
-
   useEffect(() => {
     if (status !== 'authenticated') return;
     fetch('/api/kpi').then(r => r.json()).then(setKpis).catch(() => {});
@@ -41,8 +37,10 @@ export default function HomePage() {
     fetch('/api/dispatch').then(r => r.json()).then(setDispatchKpis).catch(() => {});
   }, [status]);
 
-  if (status === 'loading') return null;
   if (!session) return null;
+
+  const role = (session?.user as any)?.role;
+  if (role === 'TECHNICIAN') return null;
 
   const cards = [
     {
