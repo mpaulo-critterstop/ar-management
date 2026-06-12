@@ -23,3 +23,8 @@ a {
 button, input, select, textarea {
   font-family: inherit;
 }
+
+/* Force light mode globally */
+:root {
+  color-scheme: light;
+}

@@ -75,7 +75,7 @@ export default function MyPerformancePage() {
   });
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', background: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', background: '#f8fafc', fontFamily: 'system-ui, sans-serif', colorScheme: 'light' as const }}>
       
       {/* Header */}
       <div style={{ background: '#fff', padding: '20px 20px 0', borderBottom: '0.5px solid #e2e8f0' }}>

@@ -21,7 +21,11 @@ export default function HomePage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
-  }, [status, router]);
+    if (status === 'authenticated') {
+      const role = (session?.user as any)?.role;
+      if (role === 'TECHNICIAN') router.push('/my-performance');
+    }
+  }, [status, router, session]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
