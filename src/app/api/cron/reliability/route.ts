@@ -14,7 +14,6 @@ const CLIENT_SECRET = process.env.BOUNCIE_CLIENT_SECRET!;
 const BASE_URL      = 'https://api.bouncie.dev/v1';
 
 // ─── BUSINESS LOCATIONS ──────────────────────────────────────────────────────
-// All offices and known suppliers — trips starting/ending here are "business"
 const BUSINESS_LOCATIONS = [
   // DFW Offices
   { name: 'Southlake HQ',          lat: 32.9400,  lng: -97.1336 },
@@ -33,6 +32,38 @@ const BUSINESS_LOCATIONS = [
   { name: 'Control Source',         lat: 33.0376,  lng: -97.0641 },
   { name: 'Veseris Dallas',         lat: 32.8972,  lng: -96.7537 },
   { name: 'Veseris Grand Prairie',  lat: 32.7459,  lng: -97.0208 },
+  { name: 'SiteOne Southlake',      lat: 32.9321,  lng: -97.1268 },
+  // Home Depot DFW
+  { name: 'Home Depot Dallas FW Ave',    lat: 32.7560, lng: -96.8645 },
+  { name: 'Home Depot Irving 8555',      lat: 32.9234, lng: -96.9804 },
+  { name: 'Home Depot Irving 3200',      lat: 32.8336, lng: -96.9911 },
+  { name: 'Home Depot Dallas Lemmon',    lat: 32.8340, lng: -96.8275 },
+  { name: 'Home Depot Dallas Grissom',   lat: 32.9080, lng: -96.8845 },
+  { name: 'Home Depot Euless',           lat: 32.8348, lng: -97.0982 },
+  { name: 'Home Depot Dallas Skillman',  lat: 32.8607, lng: -96.7497 },
+  { name: 'Home Depot FW N Fwy',         lat: 32.8704, lng: -97.3130 },
+  { name: 'Home Depot FW S Fwy',         lat: 32.6332, lng: -97.3239 },
+  { name: 'Home Depot Plano',            lat: 33.0990, lng: -96.7943 },
+  { name: 'Home Depot Lewisville',       lat: 33.0538, lng: -97.0128 },
+  { name: 'Home Depot Flower Mound',     lat: 32.9927, lng: -97.0606 },
+  // Lowes DFW
+  { name: 'Lowes Dallas Lemmon',         lat: 32.8306, lng: -96.8288 },
+  { name: 'Lowes Dallas Chalk Hill',     lat: 32.7645, lng: -96.9012 },
+  { name: 'Lowes Euless',                lat: 32.8800, lng: -97.0962 },
+  { name: 'Lowes Dallas Inwood',         lat: 32.9118, lng: -96.8166 },
+  { name: 'Lowes Southlake',             lat: 32.9417, lng: -97.1139 },
+  { name: 'Lowes Keller',                lat: 32.8975, lng: -97.2393 },
+  { name: 'Lowes FW Eastchase',          lat: 32.7640, lng: -97.1654 },
+  { name: 'Lowes Hurst',                 lat: 32.8586, lng: -97.1837 },
+  { name: 'Lowes Dallas Preston',        lat: 33.0105, lng: -96.7914 },
+  { name: 'Lowes McKinney',              lat: 33.1293, lng: -96.7258 },
+  { name: 'Lowes Allen',                 lat: 33.1023, lng: -96.6860 },
+  { name: 'Lowes Frisco',                lat: 33.1064, lng: -96.8028 },
+  { name: 'Lowes Plano',                 lat: 33.0534, lng: -96.6983 },
+  { name: 'Lowes Denton',                lat: 33.1969, lng: -97.0903 },
+  { name: 'Lowes Lewisville',            lat: 33.0575, lng: -97.0154 },
+  { name: 'Lowes Flower Mound',          lat: 33.0710, lng: -97.0810 },
+  { name: 'Lowes Carrollton',            lat: 32.9863, lng: -96.9026 },
 ];
 
 const GEOFENCE_RADIUS_M = 300; // 300 meter radius
