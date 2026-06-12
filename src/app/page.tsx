@@ -23,9 +23,16 @@ export default function HomePage() {
     if (status === 'unauthenticated') router.push('/login');
     if (status === 'authenticated') {
       const role = (session?.user as any)?.role;
-      if (role === 'TECHNICIAN') router.push('/my-performance');
+      if (role === 'TECHNICIAN') {
+        router.replace('/my-performance');
+        return;
+      }
     }
   }, [status, router, session]);
+
+  // Don't render anything for TECHNICIAN role
+  const role = (session?.user as any)?.role;
+  if (status === 'loading' || role === 'TECHNICIAN') return null;
 
   useEffect(() => {
     if (status !== 'authenticated') return;

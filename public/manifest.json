@@ -4,8 +4,8 @@
   "description": "Operations Management for Critter Stop",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#0052cc",
+  "theme_color": "#0052cc",
   "orientation": "portrait-primary",
   "icons": [
     {

@@ -48,13 +48,13 @@ export default function MyPerformancePage() {
   }, [status]);
 
   if (status === 'loading' || loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100svh', background: '#0f172a' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100svh', background: '#0052cc' }}>
       <div style={{ color: '#94a3b8', fontSize: 14 }}>Loading...</div>
     </div>
   );
 
   if (!data || data.error) return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100svh', background: '#0f172a', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100svh', background: '#0052cc', gap: 12 }}>
       <div style={{ color: '#94a3b8', fontSize: 14, textAlign: 'center', padding: '0 32px' }}>{data?.error || 'No performance data found.'}</div>
       <button onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 13, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer' }}>Sign out</button>
     </div>
@@ -64,7 +64,7 @@ export default function MyPerformancePage() {
   const score = latest?.totalScore ?? null;
 
   return (
-    <div style={{ background: '#0f172a', minHeight: '100svh', color: '#f8fafc', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', maxWidth: 480, margin: '0 auto' }}>
+    <div style={{ background: '#001a4d', minHeight: '100svh', color: '#f8fafc', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', maxWidth: 480, margin: '0 auto' }}>
       
       {/* Status bar spacer */}
       <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
