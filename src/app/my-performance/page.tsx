@@ -80,6 +80,7 @@ export default function MyPerformancePage() {
             <div style={{ fontSize: 11, color: '#64748b', display: 'flex', gap: 6, alignItems: 'center', marginTop: 1 }}>
               <span style={{ color: teamColor(technician.team), fontWeight: 500 }}>{technician.team}</span>
               <span>·</span><span>{technician.office}</span>
+              {technician.crewLeader && technician.crewLeader !== technician.name && <><span>·</span><span>{technician.crewLeader}</span></>}
             </div>
           </div>
         </div>
@@ -130,19 +131,17 @@ export default function MyPerformancePage() {
                 <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>Score Breakdown</div>
                 {[
                   ...(technician.team === 'WP' ? [
-                    { label: 'Close-out %', sub: '45% weight', value: pct(latest.closeOutPct), good: (latest.closeOutPct ?? 0) >= 0.85 },
-                    { label: 'Callback rate', sub: '30% weight', value: pct(latest.callbackRate), good: (latest.callbackRate ?? 1) <= 0.15 },
+                    { label: 'Close-out %', sub: '45% weight · Target ≥85%', value: pct(latest.closeOutPct), good: (latest.closeOutPct ?? 0) >= 0.85 },
+                    { label: 'Callback rate', sub: '30% weight · Target ≤15%', value: pct(latest.callbackRate), good: (latest.callbackRate ?? 1) <= 0.15 },
                   ] : []),
                   ...(technician.team === 'PMP' ? [
-                    { label: 'Revenue efficiency', sub: '35% weight', value: pct(latest.revenueEfficiency), good: (latest.revenueEfficiency ?? 0) >= 0.90 },
-                    { label: 'Reservice rate', sub: '20% weight', value: pct(latest.reseviceRate), good: (latest.reseviceRate ?? 1) <= 0.10 },
-                    { label: 'Completion %', sub: '20% weight', value: pct(latest.completionPct), good: (latest.completionPct ?? 0) >= 0.95 },
+                    { label: 'Revenue efficiency', sub: '35% weight · Target ≥90%', value: pct(latest.revenueEfficiency), good: (latest.revenueEfficiency ?? 0) >= 0.90 },
+                    { label: 'Reservice rate', sub: '20% weight · Target ≤10%', value: pct(latest.reseviceRate), good: (latest.reseviceRate ?? 1) <= 0.10 },
+                    { label: 'Completion %', sub: '20% weight · Target ≥95%', value: pct(latest.completionPct), good: (latest.completionPct ?? 0) >= 0.95 },
                   ] : []),
-                  { label: 'Driving score', sub: technician.team === 'IP' ? '50% weight' : '10% weight', value: pct(latest.drivingScore), good: (latest.drivingScore ?? 0) >= 0.90 },
-                  { label: 'Reliability', sub: technician.team === 'IP' ? '50% weight' : '15% weight', value: pct(latest.reliabilityScore), good: (latest.reliabilityScore ?? 0) >= 0.90 },
-                  ...(latest.manualAdj && latest.manualAdj !== 0 ? [
-                    { label: 'Adjustment', sub: 'Manual', value: (latest.manualAdj > 0 ? '+' : '') + (latest.manualAdj * 100).toFixed(1) + '%', good: latest.manualAdj > 0 },
-                  ] : []),
+                  { label: 'Driving score', sub: (technician.team === 'IP' ? '50%' : '10%') + ' weight · Target ≥90%', value: pct(latest.drivingScore), good: (latest.drivingScore ?? 0) >= 0.90 },
+                  { label: 'Reliability', sub: (technician.team === 'IP' ? '50%' : '15%') + ' weight · Target ≥90%', value: pct(latest.reliabilityScore), good: (latest.reliabilityScore ?? 0) >= 0.90 },
+// Manual adjustment hidden from tech view
                 ].map((row, i, arr) => (
                   <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 0', borderBottom: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
                     <div>
