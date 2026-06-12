@@ -17,9 +17,9 @@ export function TopNav() {
   const { data: session } = useSession();
   const pathname = usePathname();
   if (!session || pathname === '/login') return null;
-  if (role === 'TECHNICIAN') return null;
 
   const role = (session.user as any)?.role;
+  if (role === 'TECHNICIAN') return null;
   const tabs = TECH_ROLES.includes(role)
     ? [{ label: 'My Performance', href: '/my-performance' }]
     : FP_ROLES.includes(role)
