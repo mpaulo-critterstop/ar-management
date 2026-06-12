@@ -34,7 +34,7 @@ export function MoMTab({ office }: Props) {
     if (score === null || score === undefined) return <td style={{ ...td, textAlign: 'center', color: '#e2e8f0', fontSize: 11 }}>—</td>;
     const bg = score >= 0.90 ? '#EAF3DE' : score >= 0.75 ? '#FAEEDA' : '#FCEBEB';
     const color = score >= 0.90 ? '#27500A' : score >= 0.75 ? '#633806' : '#791F1F';
-    return <td style={{ ...td, textAlign: 'center', background: bg, color, fontSize: 11, fontWeight: 500, padding: '6px 4px' }}>{score.toFixed(2)}</td>;
+    return <td style={{ ...td, textAlign: 'center', background: bg, color, fontSize: 11, fontWeight: 500, padding: '6px 4px' }}>{(score * 100).toFixed(1) + '%'}</td>;
   }
 
   const inputStyle: React.CSSProperties = {

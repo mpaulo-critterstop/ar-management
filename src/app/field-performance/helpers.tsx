@@ -8,7 +8,7 @@ export function scoreBadge(score: number | null): React.ReactNode {
   const { bg, text } = scoreColors(score);
   return (
     <span style={{ background: bg, color: text, fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 99, display: 'inline-block' }}>
-      {score.toFixed(2)}
+      {(score * 100).toFixed(1) + '%'}
     </span>
   );
 }

@@ -134,7 +134,7 @@ export function IndividualsTab({ office, weekEnd }: Props) {
 
             <div style={{ fontSize: 11, fontWeight: 500, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>This week</div>
             <div style={{ fontSize: 30, fontWeight: 500, marginBottom: 12, color: '#0f172a' }}>
-              {selected.totalScore?.toFixed(2) ?? '—'}
+              {selected.totalScore ? (selected.totalScore * 100).toFixed(1) + '%' : '—'}
             </div>
 
             {[

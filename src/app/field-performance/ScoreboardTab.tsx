@@ -29,12 +29,12 @@ export function ScoreboardTab({ office, weekEnd }: Props) {
     <div>
       {/* KPI cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 10 }}>
-        {kpiCard(summary.avgScore?.toFixed(2) ?? '—', 'Company avg', 'Target ≥0.90', (summary.avgScore ?? 0) >= 0.90 ? '#27500A' : (summary.avgScore ?? 0) >= 0.75 ? '#633806' : '#791F1F')}
+        {kpiCard(summary.avgScore ? (summary.avgScore * 100).toFixed(1) + '%' : '—', 'Company avg', 'Target ≥90%', (summary.avgScore ?? 0) >= 0.90 ? '#27500A' : (summary.avgScore ?? 0) >= 0.75 ? '#633806' : '#791F1F')}
         {kpiCard(summary.activeTechs ?? 0, 'Active techs', 'WP · PMP · IP')}
         {kpiCard(summary.avgCloseOutPct ? (summary.avgCloseOutPct * 100).toFixed(0) + '%' : '—', 'Avg CO%', 'Target 85%')}
         {kpiCard(summary.avgCallbackRate ? (summary.avgCallbackRate * 100).toFixed(0) + '%' : '—', 'Avg CB rate', 'Target ≤15%', (summary.avgCallbackRate ?? 0) > 0.15 ? '#854F0B' : undefined)}
         {kpiCard(summary.avgReliability ? (summary.avgReliability * 100).toFixed(0) + '%' : '—', 'Avg reliability', 'Target 90%', (summary.avgReliability ?? 0) >= 0.90 ? '#27500A' : undefined)}
-        {kpiCard(<>{summary.aboveTarget}<span style={{ fontSize: 13, fontWeight: 400, color: '#94a3b8' }}>/{summary.activeTechs}</span></>, 'Above target', '≥0.90 score')}
+        {kpiCard(<>{summary.aboveTarget}<span style={{ fontSize: 13, fontWeight: 400, color: '#94a3b8' }}>/{summary.activeTechs}</span></>, 'Above target', '≥90% score')}
       </div>
 
       {/* Office breakdown */}
@@ -45,7 +45,7 @@ export function ScoreboardTab({ office, weekEnd }: Props) {
             <div key={o.office} style={{ flex: 1, background: '#f8fafc', borderRadius: 8, padding: '12px', textAlign: 'center' }}>
               <div style={{ fontSize: 11, fontWeight: 500, color: '#64748b', marginBottom: 5 }}>{o.office}</div>
               <div style={{ fontSize: 22, fontWeight: 500, color: (o.avgScore ?? 0) >= 0.90 ? '#27500A' : (o.avgScore ?? 0) >= 0.75 ? '#633806' : o.avgScore ? '#791F1F' : '#94a3b8' }}>
-                {o.avgScore ? o.avgScore.toFixed(2) : '—'}
+                {o.avgScore ? (o.avgScore * 100).toFixed(1) + '%' : '—'}
               </div>
               <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{o.techCount} techs</div>
             </div>
@@ -64,7 +64,7 @@ export function ScoreboardTab({ office, weekEnd }: Props) {
               <div key={t.team} style={{ flex: 1, background: '#f8fafc', borderRadius: 8, padding: 12, textAlign: 'center' }}>
                 <div style={{ fontSize: 11, fontWeight: 500, color: labelColors[t.team], marginBottom: 5 }}>{labels[t.team]}</div>
                 <div style={{ fontSize: 22, fontWeight: 500, color: (t.avgScore ?? 0) >= 0.90 ? '#27500A' : (t.avgScore ?? 0) >= 0.75 ? '#633806' : t.avgScore ? '#791F1F' : '#94a3b8' }}>
-                  {t.avgScore ? t.avgScore.toFixed(2) : '—'}
+                  {t.avgScore ? (t.avgScore * 100).toFixed(1) + '%' : '—'}
                 </div>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{t.techCount} active</div>
               </div>
