@@ -249,6 +249,17 @@ async function syncInvoices(
             });
           }
           // Last resort: create the customer so the invoice isn't lost
+          // Fall back to actual customerID if billToAccountID not found
+          if (!customer && String(resolvedCustomerID) !== String(t.customerID)) {
+            customer = await prisma.customer.findFirst({
+              where: { externalId: String(t.customerID), office },
+            });
+            if (!customer) {
+              customer = await prisma.customer.findFirst({
+                where: { externalId: String(t.customerID) },
+              });
+            }
+          }
           if (!customer) {
             try {
               customer = await prisma.customer.create({
@@ -359,6 +370,17 @@ async function syncInvoices(
                   where: { externalId: String(resolvedCustomerID) },
                 });
               }
+              // Fall back to actual customerID if billToAccountID not found
+              if (!customer && String(resolvedCustomerID) !== String(t.customerID)) {
+                customer = await prisma.customer.findFirst({
+                  where: { externalId: String(t.customerID), office },
+                });
+                if (!customer) {
+                  customer = await prisma.customer.findFirst({
+                    where: { externalId: String(t.customerID) },
+                  });
+                }
+              }
               if (!customer) {
                 try {
                   customer = await prisma.customer.create({
@@ -467,6 +489,18 @@ async function syncInvoices(
         });
       }
 
+      // If billToAccountID customer not found, fall back to actual customerID
+      if (!customer && resolvedCustomerID !== t.customerID) {
+        customer = await prisma.customer.findFirst({
+          where: { externalId: String(t.customerID), office },
+        });
+        if (!customer) {
+          customer = await prisma.customer.findFirst({
+            where: { externalId: String(t.customerID) },
+          });
+        }
+      }
+
       if (!customer) {
         try {
           customer = await prisma.customer.create({
@@ -480,7 +514,6 @@ async function syncInvoices(
             },
           });
         } catch {
-          console.log(`[${office}] Could not create customer ${resolvedCustomerID} for ticket ${t.ticketID}`);
           errors++;
           continue;
         }
