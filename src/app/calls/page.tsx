@@ -181,6 +181,8 @@ export default function CallsPage() {
     setImporting(false);
     loadData(); loadConfig();
   };
+
+  const role = (session?.user as any)?.role;
   if (status === 'loading') return null;
 
   const answerRate = data ? Math.round((data.answered / Math.max(data.total, 1)) * 100) : 0;
