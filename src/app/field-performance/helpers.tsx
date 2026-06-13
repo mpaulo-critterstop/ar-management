@@ -41,6 +41,7 @@ export function scoreBadge(score: number | null): React.ReactNode {
       fontSize: 11, fontWeight: 600,
       padding: '2px 8px', borderRadius: 99,
       display: 'inline-block', letterSpacing: '0.01em',
+      fontFamily: 'var(--font-mono-data, "DM Mono", monospace)',
     }}>
       {(score * 100).toFixed(1)}%
     </span>
@@ -153,7 +154,7 @@ export function kpiTile(
       padding: '12px 16px',
     }}>
       <div style={{ fontSize: 11, color: TEXT_SECONDARY, marginBottom: 4, fontWeight: 500 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 600, color: TEXT_PRIMARY, lineHeight: 1.2 }}>{value}</div>
+      <div style={{ fontSize: 22, fontWeight: 600, color: TEXT_PRIMARY, lineHeight: 1.2, fontFamily: 'var(--font-mono-data, "DM Mono", monospace)' }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 3 }}>{sub}</div>}
     </div>
   );

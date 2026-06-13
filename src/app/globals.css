@@ -28,3 +28,5 @@ button, input, select, textarea {
 :root {
   color-scheme: light;
 }
+
+.score-mono { font-family: var(--font-mono-data, "DM Mono", monospace); }

@@ -32,40 +32,46 @@ export function TopNav() {
   };
 
   return (
-    <div style={{ background: '#fff', borderBottom: '0.5px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 50 }}>
+    <div style={{ background: '#fff', borderBottom: '0.5px solid #E8E7E3', position: 'sticky', top: 0, zIndex: 50 }}>
       <div style={{ padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
+        {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src="/logo.png" alt="Critter Stop" style={{ height: 32, width: 'auto' }} />
-          <span style={{ fontWeight: 500, fontSize: 18, color: '#0f172a' }}>Critter Stop</span>
+          <span style={{ fontWeight: 600, fontSize: 16, color: '#2C2C2A', letterSpacing: '-0.01em' }}>Critter Stop</span>
         </div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: 6, borderRadius: 14, background: '#f8fafc', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(15,23,42,0.06)' }}>
+
+        {/* Nav tabs */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
           {tabs.map(tab => (
             <Link
               key={tab.href}
               href={tab.href}
               style={{
-                padding: '8px 14px',
-                borderRadius: 10,
+                padding: '7px 14px',
+                borderRadius: 9,
                 fontSize: 13,
                 fontWeight: 500,
-                color: isActive(tab.href) ? '#0f172a' : '#475569',
+                color: isActive(tab.href) ? '#2C2C2A' : '#888780',
                 background: isActive(tab.href) ? '#ffffff' : 'transparent',
-                border: isActive(tab.href) ? '1px solid #dbe3ee' : '1px solid transparent',
-                boxShadow: isActive(tab.href) ? '0 1px 3px rgba(15,23,42,0.08)' : 'none',
+                border: isActive(tab.href) ? '0.5px solid #D3D1C7' : '0.5px solid transparent',
+                boxShadow: isActive(tab.href) ? '0 1px 3px rgba(44,44,42,0.08)' : 'none',
                 textDecoration: 'none',
                 display: 'inline-block',
                 transition: 'all 0.15s',
+                whiteSpace: 'nowrap',
               }}
             >
               {tab.label}
             </Link>
           ))}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#475569' }}>
+
+        {/* User */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#888780' }}>
           <span>{(session.user as any)?.email}</span>
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
-            style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer', color: '#475569' }}
+            style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#F8F7F4', cursor: 'pointer', color: '#888780' }}
           >
             Sign out
           </button>
