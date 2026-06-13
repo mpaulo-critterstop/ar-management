@@ -154,7 +154,7 @@ export default function CallsPage() {
           {/* Range selector */}
           <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 10, background: '#F1EFE8', border: '1px solid #E8E7E3' }}>
             {RANGES.map(r => (
-              <button key={r.value} onClick={() => setRange(r.value)}
+              <button key={r.value}
                     onClick={() => { setRange(r.value); setShowCustom(r.value === 'custom'); }}
                 style={{
                   padding: '5px 10px', fontSize: 11, fontWeight: 500, borderRadius: 8,
