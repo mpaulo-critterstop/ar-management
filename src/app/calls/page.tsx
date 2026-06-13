@@ -41,24 +41,10 @@ export default function CallsPage() {
   const [showCustom, setShowCustom] = useState(false);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState('');
-  const [importing, setImporting] = useState(false);
-  const [totalCalls, setTotalCalls] = useState(0);
-  const [apiKeySet, setApiKeySet] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
   }, [status, router]);
-
-  const loadConfig = useCallback(async () => {
-    const res = await fetch('/api/dialpad/config').catch(() => null);
-    if (res?.ok) {
-      const d = await res.json();
-      setApiKeySet(!!d.config?.dialpad_api_key);
-      setTotalCalls(d.totalCalls || 0);
-    }
-  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -69,114 +55,7 @@ export default function CallsPage() {
     setLoading(false);
   }, [range, customStart, customEnd]);
 
-  useEffect(() => { loadConfig(); }, [loadConfig]);
   useEffect(() => { loadData(); }, [loadData]);
-
-  const saveApiKey = async () => {
-    setSavingKey(true); setKeyError('');
-    const res = await fetch('/api/dialpad/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'dialpad_api_key', value: newApiKey }),
-    });
-    const d = await res.json();
-    if (d.error) { setKeyError(d.error); setSavingKey(false); return; }
-    setApiKeySet(true); setShowSettings(false); setNewApiKey('');
-    setSyncing(true); setSyncMsg('Running initial sync...');
-    const syncRes = await fetch('/api/dialpad/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ maxPages: 20 }),
-    });
-    const sd = await syncRes.json();
-    setSyncMsg(`Synced ${sd.processed} calls. ${sd.hasMore ? 'More available — sync again.' : 'All caught up!'}`);
-    setSyncing(false);
-    loadData(); loadConfig();
-  };
-
-  const resetSync = async () => {
-    if (!confirm('This will delete all synced calls and re-pull everything from Dialpad. Continue?')) return;
-    setSyncing(true); setSyncMsg('Clearing existing calls...');
-    // Clear the table
-    await fetch('/api/dialpad/sync', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    setSyncMsg('Starting fresh sync...');
-    await runSync();
-  };
-
-  const runSync = async () => {
-    setSyncing(true);
-    let totalProcessed = 0;
-    let hasMore = true;
-    let consecutiveErrors = 0;
-
-    while (hasMore && consecutiveErrors < 3) {
-      try {
-        const res = await fetch('/api/dialpad/sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ maxPages: 5 }),
-        });
-        if (!res.ok) { consecutiveErrors++; await new Promise(r => setTimeout(r, 2000)); continue; }
-        const d = await res.json();
-        totalProcessed += d.processed || 0;
-        hasMore = d.hasMore || false;
-        consecutiveErrors = 0;
-        setSyncMsg(`Syncing... ${totalProcessed.toLocaleString()} calls pulled${hasMore ? ', continuing...' : ''}`);
-        if (!hasMore || d.processed === 0) break;
-        await new Promise(r => setTimeout(r, 300));
-      } catch {
-        consecutiveErrors++;
-        await new Promise(r => setTimeout(r, 2000));
-      }
-    }
-
-    setSyncMsg(`Sync complete — ${totalProcessed.toLocaleString()} calls pulled`);
-    setSyncing(false);
-    loadData(); loadConfig();
-  };
-
-  const runImport = async () => {
-    if (!confirm('This will clear all existing call data and reimport from the CSV. Continue?')) return;
-    setImporting(true);
-    setSyncMsg('Clearing existing data...');
-
-    // Clear
-    const clearRes = await fetch('/api/dialpad/import', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'clear' }),
-    });
-    if (!clearRes.ok) { setSyncMsg('Clear failed'); setImporting(false); return; }
-
-    // Run 77 chunks
-    const TOTAL = 77;
-    for (let i = 1; i <= TOTAL; i++) {
-      setSyncMsg(`Importing... chunk ${i} of ${TOTAL}`);
-      try {
-        const res = await fetch('/api/dialpad/import', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'chunk', chunk: i }),
-        });
-        if (!res.ok) {
-          const e = await res.json();
-          setSyncMsg(`Error on chunk ${i}: ${e.error}`);
-          setImporting(false);
-          return;
-        }
-      } catch (e: any) {
-        setSyncMsg(`Network error on chunk ${i}: ${e.message}`);
-        setImporting(false);
-        return;
-      }
-      await new Promise(r => setTimeout(r, 200));
-    }
-
-    setSyncMsg('Import complete — 38,031 rows loaded!');
-    setImporting(false);
-    loadData(); loadConfig();
-  };
 
   const role = (session?.user as any)?.role;
   if (status === 'loading') return null;
