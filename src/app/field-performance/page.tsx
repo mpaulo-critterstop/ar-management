@@ -146,7 +146,7 @@ export default function FieldPerformancePage() {
   });
 
   return (
-    <div style={{ padding: '24px 24px 48px', maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ padding: '24px 24px 48px', maxWidth: 1400, margin: '0 auto' }}>
       {/* Controls row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
         {/* Tab nav */}

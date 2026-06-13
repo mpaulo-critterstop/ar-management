@@ -156,7 +156,7 @@ export default function LeadsPage() {
   if (status === 'loading') return null;
 
   return (
-    <div style={{ padding: '0 24px 24px', maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ padding: '0 24px 24px', maxWidth: 1400, margin: '0 auto' }}>
       {/* Office switcher + Import button */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', paddingTop: 20 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

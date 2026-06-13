@@ -85,7 +85,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ padding: 24, maxWidth: 1400, margin: '0 auto' }}>
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 22, fontWeight: 500, color: '#2C2C2A', marginBottom: 4 }}>
           Good morning 👋
