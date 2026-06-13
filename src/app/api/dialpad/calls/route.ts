@@ -72,38 +72,39 @@ export async function GET(req: NextRequest) {
   const endMs = end * 1000;
 
   const [statsRows, agentRows, trackingRows, dailyRows, firstTimeRows] = await Promise.all([
-    // Overall stats
+    // Overall stats — deduplicated by master_call_id for unique customer calls
     prisma.$queryRaw<Array<any>>`
       SELECT
-        COUNT(*) FILTER (WHERE direction = 'inbound') as total,
-        COUNT(*) FILTER (WHERE direction = 'inbound' AND state = 'answered') as answered,
-        COUNT(*) FILTER (WHERE direction = 'inbound' AND state IN ('missed','voicemail') AND target_name != '') as agent_missed,
-        COUNT(*) FILTER (WHERE direction = 'inbound' AND state IN ('missed','voicemail') AND target_name = '') as missed_opportunity,
-        COUNT(*) FILTER (WHERE direction = 'inbound' AND is_first_time = true) as first_time
+        COUNT(DISTINCT CASE WHEN direction = 'inbound' AND master_call_id != '' THEN master_call_id ELSE id::text END) as total,
+        COUNT(DISTINCT CASE WHEN direction = 'inbound' AND state = 'answered' AND target_type = 'user' THEN master_call_id END) as answered,
+        COUNT(DISTINCT CASE WHEN direction = 'inbound' AND state IN ('missed','voicemail') AND entry_point_call_id != '' THEN entry_point_call_id END) as agent_missed,
+        COUNT(DISTINCT CASE WHEN direction = 'inbound' AND state IN ('missed','voicemail') AND (entry_point_call_id = '' OR entry_point_call_id IS NULL) AND (master_call_id = '' OR master_call_id IS NULL) THEN id::text END) as missed_opportunity,
+        COUNT(DISTINCT CASE WHEN direction = 'inbound' AND is_first_time = true AND master_call_id != '' THEN master_call_id ELSE CASE WHEN direction = 'inbound' AND is_first_time = true THEN id::text END END) as first_time
       FROM dialpad_calls
       WHERE date_started >= ${startMs} AND date_started <= ${endMs}
     `,
-    // Agent stats
+    // Agent stats — only user-type legs (actual agent answered/missed)
     prisma.$queryRaw<Array<any>>`
       SELECT
         target_name as name,
         COUNT(*) as total,
         COUNT(*) FILTER (WHERE state = 'answered') as answered,
         COUNT(*) FILTER (WHERE state != 'answered') as missed,
-        SUM(duration) as total_duration,
+        COALESCE(SUM(duration) FILTER (WHERE state = 'answered'), 0) as total_duration,
         COUNT(*) FILTER (WHERE is_first_time = true) as first_time
       FROM dialpad_calls
       WHERE direction = 'inbound'
+        AND target_type = 'user'
         AND date_started >= ${startMs} AND date_started <= ${endMs}
         AND target_name != ''
       GROUP BY target_name
       ORDER BY total DESC
     `,
-    // Tracking numbers
+    // Tracking numbers — deduplicated by master_call_id
     prisma.$queryRaw<Array<any>>`
       SELECT
         tracking_number as number,
-        COUNT(*) as count
+        COUNT(DISTINCT CASE WHEN master_call_id != '' THEN master_call_id ELSE id::text END) as count
       FROM dialpad_calls
       WHERE direction = 'inbound'
         AND date_started >= ${startMs} AND date_started <= ${endMs}
@@ -111,12 +112,12 @@ export async function GET(req: NextRequest) {
       GROUP BY tracking_number
       ORDER BY count DESC
     `,
-    // Daily volume (CST dates)
+    // Daily volume — deduplicated by master_call_id
     prisma.$queryRaw<Array<any>>`
       SELECT
         TO_CHAR(TO_TIMESTAMP(date_started / 1000) AT TIME ZONE 'America/Chicago', 'YYYY-MM-DD') as date,
-        COUNT(*) FILTER (WHERE state = 'answered') as answered,
-        COUNT(*) FILTER (WHERE state != 'answered') as missed
+        COUNT(DISTINCT CASE WHEN state = 'answered' AND target_type = 'user' THEN master_call_id END) as answered,
+        COUNT(DISTINCT CASE WHEN state != 'answered' AND entry_point_call_id != '' THEN entry_point_call_id END) as missed
       FROM dialpad_calls
       WHERE direction = 'inbound'
         AND date_started >= ${startMs} AND date_started <= ${endMs}
@@ -127,8 +128,8 @@ export async function GET(req: NextRequest) {
     prisma.$queryRaw<Array<any>>`
       SELECT
         tracking_number as number,
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE is_first_time = true) as first_time
+        COUNT(DISTINCT CASE WHEN master_call_id != '' THEN master_call_id ELSE id::text END) as total,
+        COUNT(DISTINCT CASE WHEN is_first_time = true AND master_call_id != '' THEN master_call_id END) as first_time
       FROM dialpad_calls
       WHERE direction = 'inbound'
         AND date_started >= ${startMs} AND date_started <= ${endMs}
