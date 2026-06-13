@@ -168,29 +168,21 @@ export default function KPIPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 480, maxWidth: '90vw', maxHeight: '80vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, fontSize: 15 }}>Manage PMs</div>
-              <button onClick={() => setShowPMManager(false)} style={{ border: 'none', background: 'none', fontSize: 18, cursor: 'pointer', color: '#888780' }}>X</button>
+              <div style={{ fontWeight: 500, fontSize: 15, color: '#2C2C2A' }}>Manage PMs</div>
+              <button onClick={() => setShowPMManager(false)} style={{ border: 'none', background: 'none', fontSize: 18, cursor: 'pointer', color: '#888780' }}>×</button>
             </div>
-
-            {/* Add new PM */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-              <input
-                type="text"
-                placeholder="PM name"
-                value={newPMName}
-                onChange={e => setNewPMName(e.target.value)}
-                style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, border: '0.5px solid #B4B2A9', flex: 1 }}
-              />
-              <select value={newPMOffice} onChange={e => setNewPMOffice(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, border: '0.5px solid #B4B2A9' }}>
+              <input type="text" placeholder="PM name" value={newPMName} onChange={e => setNewPMName(e.target.value)}
+                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', flex: 1, color: '#2C2C2A' }} />
+              <select value={newPMOffice} onChange={e => setNewPMOffice(e.target.value)}
+                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', color: '#2C2C2A' }}>
                 {['DFW', 'ATX', 'OKC', 'CStat'].map(o => <option key={o}>{o}</option>)}
               </select>
-              <button onClick={addPM} style={{ padding: '6px 14px', fontSize: 12, borderRadius: 6, border: 'none', background: ACCENT, color: '#fff', cursor: 'pointer', fontWeight: 500 }}>
+              <button onClick={addPM} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500 }}>
                 Add
               </button>
             </div>
-
-            {/* PM list */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#F8F7F4' }}>
                   {['Name', 'Office', 'Active', ''].map(h => (
@@ -201,13 +193,13 @@ export default function KPIPage() {
               <tbody>
                 {pms.map((pm: any) => (
                   <tr key={pm.id} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
-                    <td style={{ padding: '8px 12px' }}>{pm.name}</td>
+                    <td style={{ padding: '8px 12px', color: '#2C2C2A' }}>{pm.name}</td>
                     <td style={{ padding: '8px 12px', color: '#888780' }}>{pm.office}</td>
                     <td style={{ padding: '8px 12px' }}>
                       <span style={{ color: pm.active ? '#1D9E75' : '#A32D2D', fontWeight: 500 }}>{pm.active ? 'Active' : 'Inactive'}</span>
                     </td>
                     <td style={{ padding: '8px 12px' }}>
-                      <button onClick={() => togglePM(pm.id, pm.active)} style={{ padding: '2px 8px', fontSize: 11, borderRadius: 4, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780' }}>
+                      <button onClick={() => togglePM(pm.id, pm.active)} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780' }}>
                         {pm.active ? 'Deactivate' : 'Activate'}
                       </button>
                     </td>
@@ -219,30 +211,35 @@ export default function KPIPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', paddingTop: 20, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: 6, borderRadius: 14, background: '#f8fafc', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(15,23,42,0.06)' }}>
-            {OFFICES.map(o => (
-              <button key={o} onClick={() => setOffice(o)} style={{ padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500, color: office === o ? '#0f172a' : '#475569', background: office === o ? '#ffffff' : 'transparent', border: office === o ? '1px solid #dbe3ee' : '1px solid transparent', boxShadow: office === o ? '0 1px 3px rgba(15,23,42,0.08)' : 'none', cursor: 'pointer', transition: 'all 0.15s' }}>
-                {o}
-              </button>
-            ))}
-          </div>
+      {/* Title + back button */}
+      <div style={{ paddingTop: 24, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 16 }}>
+        <button onClick={() => router.push('/leads')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: '#888780', background: '#F1EFE8', border: '0.5px solid #D3D1C7', cursor: 'pointer' }}>
+          ← Leads Tracker
+        </button>
+        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>PM KPIs</h1>
+      </div>
+
+      {/* Controls */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
+          {OFFICES.map(o => (
+            <button key={o} onClick={() => setOffice(o)} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: office === o ? '#2C2C2A' : '#888780', background: office === o ? '#ffffff' : 'transparent', border: office === o ? '0.5px solid #D3D1C7' : '0.5px solid transparent', boxShadow: office === o ? '0 1px 3px rgba(44,44,42,0.08)' : 'none', cursor: 'pointer' }}>
+              {o}
+            </button>
+          ))}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* Monthly / Weekly toggle */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: 6, borderRadius: 14, background: '#f8fafc', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(15,23,42,0.06)' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
             {(['monthly', 'weekly'] as const).map(p => (
-              <button key={p} onClick={() => setPeriod(p)} style={{ padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500, color: period === p ? '#0f172a' : '#475569', background: period === p ? '#ffffff' : 'transparent', border: period === p ? '1px solid #dbe3ee' : '1px solid transparent', boxShadow: period === p ? '0 1px 3px rgba(15,23,42,0.08)' : 'none', cursor: 'pointer', transition: 'all 0.15s' }}>
+              <button key={p} onClick={() => setPeriod(p)} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: period === p ? '#2C2C2A' : '#888780', background: period === p ? '#ffffff' : 'transparent', border: period === p ? '0.5px solid #D3D1C7' : '0.5px solid transparent', boxShadow: period === p ? '0 1px 3px rgba(44,44,42,0.08)' : 'none', cursor: 'pointer' }}>
                 {p.charAt(0).toUpperCase() + p.slice(1)}
               </button>
             ))}
           </div>
-          <button onClick={() => { setShowPMManager(true); fetchPMs(); }} style={{ padding: '5px 14px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>
+          <button onClick={() => { setShowPMManager(true); fetchPMs(); }} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer', fontWeight: 500 }}>
             Manage PMs
           </button>
-          <select value={pmFilter} onChange={e => setPmFilter(e.target.value)} style={{ fontSize: 12, padding: '8px 12px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', cursor: 'pointer' }}>
+          <select value={pmFilter} onChange={e => setPmFilter(e.target.value)} style={{ fontSize: 13, padding: '7px 12px', borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer' }}>
             <option value="All">All PMs</option>
             {pms.map((pm: any) => <option key={pm.id} value={pm.name}>{pm.name}</option>)}
           </select>
@@ -255,9 +252,9 @@ export default function KPIPage() {
         <>
           {/* Company-wide KPI table - sticky */}
           <div style={{ position: 'sticky', top: 52, zIndex: 10, background: 'white', paddingBottom: 12 }}>
-          <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 14 }}>
+          <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 14, color: '#2C2C2A' }}>
             Company-wide {period === 'monthly' ? 'Monthly' : 'Weekly'} KPIs
-            {office !== 'All' && ' — ' + office}
+            {office !== 'All' && <span style={{ fontSize: 12, color: '#888780', fontWeight: 400, marginLeft: 8 }}>— {office}</span>}
           </div>
           <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #E8E7E3', overflow: 'hidden', marginBottom: 24 }}>
             <div style={{ overflowX: 'auto' }}>
