@@ -160,14 +160,14 @@ export default function LeadsPage() {
       {/* Office switcher + Import button */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', paddingTop: 20 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: 6, borderRadius: 14, background: '#f8fafc', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(15,23,42,0.06)' }}>
+         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
             {OFFICES.map(o => (
-              <button key={o} onClick={() => setOffice(o)} style={{ padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500, color: office === o ? '#0f172a' : '#475569', background: office === o ? '#ffffff' : 'transparent', border: office === o ? '1px solid #dbe3ee' : '1px solid transparent', boxShadow: office === o ? '0 1px 3px rgba(15,23,42,0.08)' : 'none', cursor: 'pointer', transition: 'all 0.15s' }}>
+              <button key={o} onClick={() => setOffice(o)} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: office === o ? '#2C2C2A' : '#888780', background: office === o ? '#ffffff' : 'transparent', border: office === o ? '0.5px solid #D3D1C7' : '0.5px solid transparent', boxShadow: office === o ? '0 1px 3px rgba(44,44,42,0.08)' : 'none', cursor: 'pointer' }}>
                 {o}
               </button>
             ))}
-            <div style={{ width: '0.5px', background: '#e2e8f0', height: 20, margin: '0 2px' }} />
-            <button onClick={() => router.push('/kpi')} style={{ padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500, color: '#0052cc', background: 'transparent', border: '1px solid transparent', cursor: 'pointer', transition: 'all 0.15s' }}>
+            <div style={{ width: '0.5px', background: '#D3D1C7', height: 20, margin: '0 2px' }} />
+            <button onClick={() => router.push('/kpi')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: '#888780', background: 'transparent', border: '0.5px solid transparent', cursor: 'pointer' }}>
               KPIs
             </button>
           </div>
@@ -236,7 +236,7 @@ export default function LeadsPage() {
           <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
           <button
             onClick={() => { setFrom(fromInput); setTo(toInput); setStatusFilter(statusInput); setPmFilter(pmInput); }}
-            style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', cursor: 'pointer', fontWeight: 500 }}
+            style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500 }}
           >
             Apply
           </button>

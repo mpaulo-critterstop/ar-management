@@ -238,17 +238,17 @@ export default function ARApp() {
 
       {/* Sub-nav + office selector */}
       <div style={{display:"flex",gap:8,marginBottom:"1.5rem",alignItems:"center",justifyContent:"space-between",paddingTop:20,flexWrap:"wrap"}}>
-        <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:6,borderRadius:14,background:"#f8fafc",border:"1px solid #e2e8f0",boxShadow:"0 2px 10px rgba(15,23,42,0.06)"}}>
+        <div style={{display:"inline-flex",alignItems:"center",gap:2,padding:4,borderRadius:12,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
           {PAGES.map(p=>(
-            <button key={p.id} onClick={()=>setPage(p.id)} style={{padding:"8px 14px",borderRadius:10,fontSize:13,fontWeight:500,color:page===p.id?"#0f172a":"#475569",background:page===p.id?"#ffffff":"transparent",border:page===p.id?"1px solid #dbe3ee":"1px solid transparent",boxShadow:page===p.id?"0 1px 3px rgba(15,23,42,0.08)":"none",cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}}>
+            <button key={p.id} onClick={()=>setPage(p.id)} style={{padding:"7px 14px",borderRadius:9,fontSize:13,fontWeight:500,color:page===p.id?"#2C2C2A":"#888780",background:page===p.id?"#ffffff":"transparent",border:page===p.id?"0.5px solid #D3D1C7":"0.5px solid transparent",boxShadow:page===p.id?"0 1px 3px rgba(44,44,42,0.08)":"none",cursor:"pointer",whiteSpace:"nowrap"}}>
               {p.label}
             </button>
           ))}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:6,borderRadius:14,background:"#f8fafc",border:"1px solid #e2e8f0",boxShadow:"0 2px 10px rgba(15,23,42,0.06)"}}>
+          <div style={{display:"inline-flex",alignItems:"center",gap:2,padding:4,borderRadius:12,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
             {["ALL","DFW","ATX","OKC","CStat"].map(o=>(
-              <button key={o} onClick={()=>{setOfficeFilter(o);loadAll(o);}} style={{padding:"8px 14px",borderRadius:10,fontSize:13,fontWeight:500,color:officeFilter===o?"#0f172a":"#475569",background:officeFilter===o?"#ffffff":"transparent",border:officeFilter===o?"1px solid #dbe3ee":"1px solid transparent",boxShadow:officeFilter===o?"0 1px 3px rgba(15,23,42,0.08)":"none",cursor:"pointer",transition:"all 0.15s"}}>
+              <button key={o} onClick={()=>{setOfficeFilter(o);loadAll(o);}} style={{padding:"7px 14px",borderRadius:9,fontSize:13,fontWeight:500,color:officeFilter===o?"#2C2C2A":"#888780",background:officeFilter===o?"#ffffff":"transparent",border:officeFilter===o?"0.5px solid #D3D1C7":"0.5px solid transparent",boxShadow:officeFilter===o?"0 1px 3px rgba(44,44,42,0.08)":"none",cursor:"pointer"}}>
                 {o==="ALL"?"All":o}
               </button>
             ))}
