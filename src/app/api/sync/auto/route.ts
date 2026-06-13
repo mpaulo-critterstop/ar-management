@@ -75,8 +75,14 @@ function getServiceType(serviceId: number): string {
   return 'Pest Control'; // default fallback
 }
 
+// Exclusion/closeout service IDs - these are one-time jobs, no due date for AR aging
+const EXCLUSION_SERVICE_IDS = new Set([
+  553, 720, 510, 501, 624, 542, 541, 479, 674,
+  716, 705, 710, 715, 717, 722, 724, 725, 726, 727,
+]);
+
 function getDueDate(serviceId: number, invoiceDate: string): Date | null {
-  if (WILDLIFE_SERVICE_IDS.has(serviceId) && !INSULATION_SERVICE_IDS.has(serviceId)) return null;
+  if (EXCLUSION_SERVICE_IDS.has(serviceId)) return null;
   return new Date(invoiceDate);
 }
 
