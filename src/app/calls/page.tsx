@@ -112,63 +112,164 @@ export default function CallsPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-        {/* Daily volume chart */}
+        {/* Daily volume chart — matching old app style */}
         <div style={{ background: '#fff', border: '1px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>Daily call volume</div>
-          {loading || dailyEntries.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#bbb', padding: 32, fontSize: 13 }}>{loading ? 'Loading...' : 'No data'}</div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 120 }}>
-              {dailyEntries.map(([date, vol]: any) => {
-                const total = (vol.answered || 0) + (vol.missed || 0);
-                const maxVol = Math.max(...dailyEntries.map(([, v]: any) => (v.answered || 0) + (v.missed || 0)));
-                const h = maxVol > 0 ? Math.max((total / maxVol) * 100, 4) : 4;
-                const answeredH = maxVol > 0 ? (vol.answered / maxVol) * 100 : 0;
-                const day = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
-                return (
-                  <div key={date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }} title={`${day}: ${vol.answered} answered, ${vol.missed} missed`}>
-                    <div style={{ width: '100%', height: h + '%', position: 'relative', borderRadius: '3px 3px 0 0', overflow: 'hidden', background: '#fde8e8' }}>
-                      <div style={{ position: 'absolute', bottom: 0, width: '100%', height: answeredH + '%', background: '#2d9e5f', borderRadius: '3px 3px 0 0' }} />
-                    </div>
-                    <div style={{ fontSize: 8, color: '#bbb', textAlign: 'center' }}>{day.split(',')[0]}</div>
-                  </div>
-                );
-              })}
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', marginBottom: 2 }}>Call volume</div>
+          <div style={{ fontSize: 11, color: '#888', marginBottom: 12 }}>Answered vs missed by day</div>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#666' }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: '#4A90D9' }} /> Answered
             </div>
-          )}
-          <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#666' }}>
-              <div style={{ width: 8, height: 8, borderRadius: 2, background: '#2d9e5f' }} /> Answered
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#666' }}>
-              <div style={{ width: 8, height: 8, borderRadius: 2, background: '#fde8e8' }} /> Missed
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#666' }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: '#E24B4A' }} /> Missed
             </div>
           </div>
+          {loading || dailyEntries.length === 0 ? (
+            <div style={{ textAlign: 'center', color: '#bbb', padding: 32, fontSize: 13 }}>{loading ? 'Loading...' : 'No data'}</div>
+          ) : (() => {
+            const maxVol = Math.max(...dailyEntries.map(([, v]: any) => (v.answered || 0) + (v.missed || 0)));
+            const ySteps = [0, Math.round(maxVol * 0.25), Math.round(maxVol * 0.5), Math.round(maxVol * 0.75), maxVol];
+            return (
+              <div style={{ display: 'flex', gap: 0 }}>
+                {/* Y axis */}
+                <div style={{ display: 'flex', flexDirection: 'column-reverse', justifyContent: 'space-between', paddingRight: 6, height: 160 }}>
+                  {ySteps.map(v => (
+                    <div key={v} style={{ fontSize: 9, color: '#bbb', textAlign: 'right' }}>{v}</div>
+                  ))}
+                </div>
+                {/* Chart area */}
+                <div style={{ flex: 1, position: 'relative' }}>
+                  {/* Grid lines */}
+                  {ySteps.map((_, i) => (
+                    <div key={i} style={{ position: 'absolute', left: 0, right: 0, bottom: `${(i / (ySteps.length - 1)) * 100}%`, borderTop: '1px solid #F1EFE8' }} />
+                  ))}
+                  {/* Bars */}
+                  <div style={{ display: 'flex', alignItems: 'flex-end', height: 160, gap: 2 }}>
+                    {dailyEntries.map(([date, vol]: any) => {
+                      const answered = vol.answered || 0;
+                      const missed = vol.missed || 0;
+                      const total = answered + missed;
+                      const totalH = maxVol > 0 ? (total / maxVol) * 160 : 0;
+                      const answeredH = total > 0 ? (answered / total) * totalH : 0;
+                      const missedH = totalH - answeredH;
+                      const day = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+                      return (
+                        <div key={date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+                          title={`${day}: ${answered} answered, ${missed} missed`}>
+                          <div style={{ width: '80%', display: 'flex', flexDirection: 'column-reverse' }}>
+                            <div style={{ height: answeredH, background: '#4A90D9', borderRadius: '2px 2px 0 0' }} />
+                            <div style={{ height: missedH, background: '#E24B4A', borderRadius: missedH > 0 ? '2px 2px 0 0' : 0 }} />
+                          </div>
+                          <div style={{ fontSize: 8, color: '#bbb', marginTop: 3, textAlign: 'center' }}>{day}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
-        {/* Tracking numbers */}
+        {/* Caller breakdown donut — placeholder matching old app */}
         <div style={{ background: '#fff', border: '1px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>Calls per tracking number</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', marginBottom: 2 }}>Caller breakdown</div>
+          <div style={{ fontSize: 11, color: '#888', marginBottom: 16 }}>First-time vs repeat</div>
           {loading ? (
             <div style={{ textAlign: 'center', color: '#bbb', padding: 32, fontSize: 13 }}>Loading...</div>
-          ) : Object.keys(data?.tracking_numbers || {}).length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#bbb', padding: 32, fontSize: 13 }}>No data</div>
-          ) : (
-            <div style={{ overflowY: 'auto', maxHeight: 160 }}>
-              {Object.entries(data?.tracking_numbers || {}).sort(([, a]: any, [, b]: any) => b - a).map(([num, count]: any) => {
-                const ft = data?.first_time_by_tracking?.[num];
-                return (
-                  <div key={num} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #F1EFE8' }}>
+          ) : (() => {
+            const ft = data?.first_time || 0;
+            const total = data?.total || 0;
+            const repeat = total - ft;
+            const ftPct = total > 0 ? Math.round((ft / total) * 100) : 0;
+            const repeatPct = 100 - ftPct;
+            const circ = 2 * Math.PI * 40;
+            const ftDash = (ftPct / 100) * circ;
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                <svg width={100} height={100} viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#E8E7E3" strokeWidth="14" />
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#2d9e5f" strokeWidth="14"
+                    strokeDasharray={`${ftDash} ${circ - ftDash}`} strokeDashoffset={circ / 4}
+                    transform="rotate(-90 50 50)" />
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#4A90D9" strokeWidth="14"
+                    strokeDasharray={`${circ - ftDash} ${ftDash}`} strokeDashoffset={circ / 4 - ftDash}
+                    transform="rotate(-90 50 50)" />
+                </svg>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: '#2d9e5f' }} />
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a1a' }}>{num}</div>
-                      {ft && <div style={{ fontSize: 11, color: '#888' }}>{ft.first_time} first-time</div>}
+                      <div style={{ fontSize: 12, color: '#888' }}>First-time</div>
+                      <div style={{ fontSize: 16, fontWeight: 700 }}>{ft.toLocaleString()} <span style={{ fontSize: 12, color: '#888', fontWeight: 400 }}>{ftPct}%</span></div>
                     </div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#0052cc', fontFamily: 'var(--font-mono)' }}>{count}</div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: '#4A90D9' }} />
+                    <div>
+                      <div style={{ fontSize: 12, color: '#888' }}>Repeat</div>
+                      <div style={{ fontSize: 16, fontWeight: 700 }}>{repeat.toLocaleString()} <span style={{ fontSize: 12, color: '#888', fontWeight: 400 }}>{repeatPct}%</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* Tracking number tables — side by side like old app */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        {/* Calls per tracking number */}
+        <div style={{ background: '#fff', border: '1px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', marginBottom: 2 }}>Calls per tracking number</div>
+          <div style={{ fontSize: 11, color: '#888', marginBottom: 12 }}>Total volume by line</div>
+          {loading ? (
+            <div style={{ textAlign: 'center', color: '#bbb', padding: 32, fontSize: 13 }}>Loading...</div>
+          ) : (() => {
+            const entries = Object.entries(data?.tracking_numbers || {}).sort(([, a]: any, [, b]: any) => b - a);
+            const max = entries.length > 0 ? (entries[0][1] as number) : 1;
+            return entries.length === 0
+              ? <div style={{ textAlign: 'center', color: '#bbb', padding: 32, fontSize: 13 }}>No data</div>
+              : <div style={{ overflowY: 'auto', maxHeight: 320 }}>
+                  {entries.map(([num, count]: any) => (
+                    <div key={num} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid #F1EFE8' }}>
+                      <div style={{ fontSize: 12, color: '#1a1a1a', width: 130, flexShrink: 0 }}>{num}</div>
+                      <div style={{ flex: 1, height: 6, background: '#F1EFE8', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ width: `${(count / max) * 100}%`, height: '100%', background: '#4A90D9', borderRadius: 3 }} />
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', width: 36, textAlign: 'right' }}>{count}</div>
+                    </div>
+                  ))}
+                </div>;
+          })()}
+        </div>
+
+        {/* First-time callers by tracking number */}
+        <div style={{ background: '#fff', border: '1px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', marginBottom: 2 }}>First-time callers by tracking number</div>
+          <div style={{ fontSize: 11, color: '#888', marginBottom: 12 }}>New leads per line</div>
+          {loading ? (
+            <div style={{ textAlign: 'center', color: '#bbb', padding: 32, fontSize: 13 }}>Loading...</div>
+          ) : (() => {
+            const entries = Object.entries(data?.first_time_by_tracking || {})
+              .sort(([, a]: any, [, b]: any) => b.first_time - a.first_time)
+              .filter(([, v]: any) => v.first_time > 0);
+            const max = entries.length > 0 ? (entries[0][1] as any).first_time : 1;
+            return entries.length === 0
+              ? <div style={{ textAlign: 'center', color: '#bbb', padding: 32, fontSize: 13 }}>No data</div>
+              : <div style={{ overflowY: 'auto', maxHeight: 320 }}>
+                  {entries.map(([num, v]: any) => (
+                    <div key={num} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid #F1EFE8' }}>
+                      <div style={{ fontSize: 12, color: '#1a1a1a', width: 130, flexShrink: 0 }}>{num}</div>
+                      <div style={{ flex: 1, height: 6, background: '#F1EFE8', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ width: `${(v.first_time / max) * 100}%`, height: '100%', background: '#2d9e5f', borderRadius: 3 }} />
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', width: 36, textAlign: 'right' }}>{v.first_time}</div>
+                    </div>
+                  ))}
+                </div>;
+          })()}
         </div>
       </div>
 
