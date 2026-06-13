@@ -58,7 +58,10 @@ export async function POST(req: NextRequest) {
 
       for (const call of items) {
         const phone = call.external_number || call.contact?.phone || '';
-        const state = call.date_connected ? 'answered' : 'missed';
+        const callState = call.state || '';
+        const state = call.date_connected ? 'answered'
+          : (callState === 'voicemail' || call.voicemail_url || call.has_voicemail) ? 'voicemail'
+          : 'missed';
         const callId = String(call.call_id || call.id || '');
         if (!callId) continue;
 

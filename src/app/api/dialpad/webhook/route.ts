@@ -119,7 +119,11 @@ export async function POST(req: NextRequest) {
 
     const callId = String(call.call_id || call.id);
     const phone = call.external_number || call.contact?.phone || '';
-    const state = call.date_connected ? 'answered' : (call.state || 'missed');
+    // Determine call state: answered, voicemail, or missed
+    const callState = call.state || '';
+    const state = call.date_connected ? 'answered'
+      : (callState === 'voicemail' || call.voicemail_url || call.has_voicemail) ? 'voicemail'
+      : 'missed';
 
     // Check if first-time caller
     let isFirstTime = false;
