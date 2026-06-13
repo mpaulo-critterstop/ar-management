@@ -41,7 +41,7 @@ export function scoreBadge(score: number | null): React.ReactNode {
       fontSize: 11, fontWeight: 600,
       padding: '2px 8px', borderRadius: 99,
       display: 'inline-block', letterSpacing: '0.01em',
-      fontFamily: 'var(--font-mono-data, "DM Mono", monospace)',
+      
     }}>
       {(score * 100).toFixed(1)}%
     </span>
@@ -112,7 +112,7 @@ export const card: React.CSSProperties = {
 export const cardHead: React.CSSProperties = {
   padding: '12px 16px 0',
   fontSize: 11,
-  fontWeight: 600,
+  fontWeight: 500,
   color: TEXT_SECONDARY,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
@@ -122,7 +122,7 @@ export const cardHead: React.CSSProperties = {
 export const th: React.CSSProperties = {
   textAlign: 'left',
   fontSize: 11,
-  fontWeight: 600,
+  fontWeight: 500,
   color: TEXT_SECONDARY,
   padding: '7px 12px',
   borderBottom: `0.5px solid ${BORDER}`,
@@ -154,7 +154,7 @@ export function kpiTile(
       padding: '12px 16px',
     }}>
       <div style={{ fontSize: 11, color: TEXT_SECONDARY, marginBottom: 4, fontWeight: 500 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 600, color: TEXT_PRIMARY, lineHeight: 1.2, fontFamily: 'var(--font-mono-data, "DM Mono", monospace)' }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 500, color: TEXT_PRIMARY, lineHeight: 1.2 }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 3 }}>{sub}</div>}
     </div>
   );

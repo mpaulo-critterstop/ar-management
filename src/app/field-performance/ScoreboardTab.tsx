@@ -76,7 +76,7 @@ export function ScoreboardTab({ office, weekEnd }: Props) {
                   borderRadius: 8, padding: '10px 12px', textAlign: 'center',
                   border: `0.5px solid ${BORDER}`,
                 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: TEXT_SECONDARY, marginBottom: 4, letterSpacing: '0.04em' }}>{o.office}</div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: TEXT_SECONDARY, marginBottom: 4, letterSpacing: '0.04em' }}>{o.office}</div>
                   <div style={{ fontSize: 24, fontWeight: 500, color: o.avgScore ? sc.text : TEXT_MUTED }}>
                     {o.avgScore ? (o.avgScore * 100).toFixed(1) + '%' : '—'}
                   </div>
@@ -101,7 +101,7 @@ export function ScoreboardTab({ office, weekEnd }: Props) {
                   borderRadius: 8, padding: '10px 12px', textAlign: 'center',
                   border: `0.5px solid ${tc?.border || BORDER}`,
                 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: tc?.text, marginBottom: 1, letterSpacing: '0.04em' }}>{t.team}</div>
+                  <div style={{ fontSize: 10, fontWeight: 500, color: tc?.text, marginBottom: 1, letterSpacing: '0.04em' }}>{t.team}</div>
                   <div style={{ fontSize: 10, color: tc?.text, opacity: 0.7, marginBottom: 4 }}>{labels[t.team]}</div>
                   <div style={{ fontSize: 24, fontWeight: 500, color: t.avgScore ? sc.text : TEXT_MUTED }}>
                     {t.avgScore ? (t.avgScore * 100).toFixed(1) + '%' : '—'}
@@ -141,7 +141,7 @@ export function ScoreboardTab({ office, weekEnd }: Props) {
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                 >
                   <td style={{ ...td, color: TEXT_MUTED, fontSize: 11, fontWeight: 600 }}>{i + 1}</td>
-                  <td style={{ ...td, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</td>
+                  <td style={{ ...td, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</td>
                   <td style={td}>{teamPill(t.team)}</td>
                   <td style={{ ...td, fontSize: 12 }}>{t.office}</td>
                   <td style={td}>
