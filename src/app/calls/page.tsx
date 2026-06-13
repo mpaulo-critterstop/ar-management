@@ -239,6 +239,7 @@ export default function CallsPage() {
                 style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #d1a3ff', background: '#fff', cursor: importing || syncing ? 'default' : 'pointer', color: '#7b2fbe' }}>
                 {importing ? syncMsg.includes('chunk') ? syncMsg : '⟳ Importing...' : '⬆ Import CSV'}
               </button>
+              <button onClick={resetSync} disabled={syncing}
                 style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', cursor: syncing ? 'default' : 'pointer', color: '#dc2626' }}>
                 ↺ Reset & Re-sync
               </button>
