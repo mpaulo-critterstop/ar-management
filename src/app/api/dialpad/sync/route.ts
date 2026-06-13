@@ -46,7 +46,10 @@ export async function POST(req: NextRequest) {
         signal: AbortSignal.timeout(20000),
       });
 
-      if (!resp.ok) throw new Error(`Dialpad API error: ${resp.status}`);
+      if (!resp.ok) {
+        const errBody = await resp.text().catch(() => '');
+        throw new Error(`Dialpad API error: ${resp.status} — ${errBody.substring(0, 300)}`);
+      }
 
       const data = await resp.json();
       const items = data.items || [];
