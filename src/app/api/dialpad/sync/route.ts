@@ -146,3 +146,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e.message, processed }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const role = (session.user as any)?.role;
+  if (!['ADMIN'].includes(role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  await prisma.$executeRaw`DELETE FROM dialpad_calls`;
+  await prisma.$executeRaw`DELETE FROM dialpad_known_callers`;
+  await prisma.$executeRaw`DELETE FROM dialpad_config WHERE key = 'last_sync_cursor'`;
+
+  return NextResponse.json({ success: true });
+}

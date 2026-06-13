@@ -97,6 +97,18 @@ export default function CallsPage() {
     loadData(); loadConfig();
   };
 
+  const resetSync = async () => {
+    if (!confirm('This will delete all synced calls and re-pull everything from Dialpad. Continue?')) return;
+    setSyncing(true); setSyncMsg('Clearing existing calls...');
+    // Clear the table
+    await fetch('/api/dialpad/sync', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    setSyncMsg('Starting fresh sync...');
+    await runSync();
+  };
+
   const runSync = async () => {
     setSyncing(true);
     let totalProcessed = 0;
@@ -181,6 +193,10 @@ export default function CallsPage() {
               <button onClick={runSync} disabled={syncing}
                 style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #E8E7E3', background: '#fff', cursor: syncing ? 'default' : 'pointer', color: '#444' }}>
                 {syncing ? 'Syncing...' : '↻ Sync'}
+              </button>
+              <button onClick={resetSync} disabled={syncing}
+                style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', cursor: syncing ? 'default' : 'pointer', color: '#dc2626' }}>
+                ↺ Reset & Re-sync
               </button>
               <button onClick={() => setShowSettings(!showSettings)}
                 style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #E8E7E3', background: '#fff', cursor: 'pointer', color: '#444' }}>
