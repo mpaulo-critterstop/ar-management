@@ -162,6 +162,10 @@ export default function DispatchPage() {
 
   return (
     <div style={{ padding: '0 24px 24px', maxWidth: 1400, margin: '0 auto' }}>
+      {/* Title */}
+      <div style={{ paddingTop: 24, marginBottom: 4 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Dispatcher</h1>
+      </div>
 
       {toast && (
         <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 2000, background: '#E1F5EE', color: '#085041', border: '0.5px solid #5DCAA5', borderRadius: 8, padding: '10px 16px', fontSize: 13, fontWeight: 500 }}>
@@ -333,10 +337,12 @@ export default function DispatchPage() {
             <div
               key={tile.label}
               onClick={() => { setStageFilter(tile.filter); setCurrentPage(1); }}
-              style={{ background: stageFilter === tile.filter ? '#E8F4FC' : '#F1EFE8', borderRadius: 8, padding: '14px 16px', cursor: 'pointer', border: '0.5px solid ' + (stageFilter === tile.filter ? ACCENT : '#E8E7E3'), transition: 'border-color 0.15s' }}
+              style={{ background: '#fff', borderRadius: 12, padding: '14px 18px', cursor: 'pointer', border: '0.5px solid #E8E7E3', borderLeft: `3px solid ${tile.color}`, transition: 'box-shadow 0.15s' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(44,44,42,0.08)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = 'none'}
             >
-              <div style={{ fontSize: 12, color: '#888780', marginBottom: 6 }}>{tile.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 500, color: tile.color }}>{loading ? '...' : tile.value}</div>
+              <div style={{ fontSize: 11, color: '#888780', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{tile.label}</div>
+              <div style={{ fontSize: 28, fontWeight: 500, color: tile.color }}>{loading ? '...' : tile.value}</div>
             </div>
           ))}
         </div>

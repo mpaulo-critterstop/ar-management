@@ -31,15 +31,16 @@ const MC = ({label,value,sub,color,clickable,selected,onClick}: {label:string,va
   <div
     onClick={onClick}
     style={{
-      background: selected ? '#E8F4FC' : "var(--color-background-secondary, #F1EFE8)",
-      borderRadius:8,padding:"14px 16px",
+      background: "#fff",
+      borderRadius:12, padding:"14px 18px",
       border: selected ? `1.5px solid ${ACCENT}` : "0.5px solid #E8E7E3",
+      borderLeft: `3px solid ${color || ACCENT}`,
       cursor: clickable ? "pointer" : "default",
-      transition: "border-color 0.15s",
+      transition: "box-shadow 0.15s",
     }}
   >
-    <div style={{fontSize:12,color:"#888780",marginBottom:4}}>{label}</div>
-    <div style={{fontSize:20,fontWeight:500,color:color||"#2C2C2A"}}>{value}</div>
+    <div style={{fontSize:11,color:"#888780",fontWeight:500,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4}}>{label}</div>
+    <div style={{fontSize:24,fontWeight:500,color:color||"#2C2C2A"}}>{value}</div>
     {sub && <div style={{fontSize:11,color:"#B4B2A9",marginTop:2}}>{sub}</div>}
   </div>
 );
@@ -235,6 +236,11 @@ export default function ARApp() {
   return (
     <div style={{padding:"0 24px 24px",maxWidth:1200,margin:"0 auto"}}>
       {toast && <div style={{position:"fixed",top:16,right:16,zIndex:2000,background:toast.type==="error"?"#FCEBEB":"#E1F5EE",color:toast.type==="error"?"#791F1F":"#085041",border:`0.5px solid ${toast.type==="error"?"#F09595":"#5DCAA5"}`,borderRadius:8,padding:"10px 16px",fontSize:13,fontWeight:500}}>{toast.msg}</div>}
+
+      {/* Title */}
+      <div style={{paddingTop:24,marginBottom:4}}>
+        <h1 style={{fontSize:20,fontWeight:500,color:"#2C2C2A",margin:0}}>Accounts Receivable</h1>
+      </div>
 
       {/* Sub-nav + office selector */}
       <div style={{display:"flex",gap:8,marginBottom:"1.5rem",alignItems:"center",justifyContent:"space-between",paddingTop:20,flexWrap:"wrap"}}>

@@ -157,6 +157,10 @@ export default function LeadsPage() {
 
   return (
     <div style={{ padding: '0 24px 24px', maxWidth: 1400, margin: '0 auto' }}>
+      {/* Title */}
+      <div style={{ paddingTop: 24, marginBottom: 4 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Leads Tracker</h1>
+      </div>
       {/* Office switcher + Import button */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', paddingTop: 20 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -255,14 +259,14 @@ export default function LeadsPage() {
       {kpis && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
           {[
-            { label: 'Total leads', value: kpis.total, sub: 'All inspections' },
-            { label: 'Sold', value: kpis.sold, sub: '+' + kpis.inspected + ' inspected', color: '#1D9E75' },
-            { label: 'Conversion rate', value: pct(kpis.conversionRate), sub: 'Sold / Total' },
-            { label: 'Booked revenue', value: fmt(kpis.bookedRevenue), sub: 'Avg ' + fmt(kpis.avgSale), color: '#1D9E75' },
+            { label: 'Total leads', value: kpis.total, sub: 'All inspections', accent: '#0052cc' },
+            { label: 'Sold', value: kpis.sold, sub: '+' + kpis.inspected + ' inspected', color: '#1D9E75', accent: '#1D9E75' },
+            { label: 'Conversion rate', value: pct(kpis.conversionRate), sub: 'Sold / Total', accent: '#BA7517' },
+            { label: 'Booked revenue', value: fmt(kpis.bookedRevenue), sub: 'Avg ' + fmt(kpis.avgSale), color: '#1D9E75', accent: '#1D9E75' },
           ].map(card => (
-            <div key={card.label} style={{ background: '#F1EFE8', borderRadius: 8, padding: '14px 16px' }}>
-              <div style={{ fontSize: 12, color: '#888780', marginBottom: 6 }}>{card.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 500, color: (card as any).color || '#2C2C2A' }}>{loading ? '...' : card.value}</div>
+            <div key={card.label} style={{ background: '#fff', borderRadius: 12, padding: '14px 18px', border: '0.5px solid #E8E7E3', borderLeft: `3px solid ${(card as any).accent}` }}>
+              <div style={{ fontSize: 11, color: '#888780', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{card.label}</div>
+              <div style={{ fontSize: 28, fontWeight: 500, color: (card as any).color || '#2C2C2A' }}>{loading ? '...' : card.value}</div>
               <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 2 }}>{card.sub}</div>
             </div>
           ))}

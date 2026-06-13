@@ -77,7 +77,7 @@ export function ScoreboardTab({ office, weekEnd }: Props) {
                   border: `0.5px solid ${BORDER}`,
                 }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: TEXT_SECONDARY, marginBottom: 4, letterSpacing: '0.04em' }}>{o.office}</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: o.avgScore ? sc.text : TEXT_MUTED }}>
+                  <div style={{ fontSize: 24, fontWeight: 500, color: o.avgScore ? sc.text : TEXT_MUTED }}>
                     {o.avgScore ? (o.avgScore * 100).toFixed(1) + '%' : '—'}
                   </div>
                   <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>{o.techCount} techs</div>
@@ -103,7 +103,7 @@ export function ScoreboardTab({ office, weekEnd }: Props) {
                 }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: tc?.text, marginBottom: 1, letterSpacing: '0.04em' }}>{t.team}</div>
                   <div style={{ fontSize: 10, color: tc?.text, opacity: 0.7, marginBottom: 4 }}>{labels[t.team]}</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: t.avgScore ? sc.text : TEXT_MUTED }}>
+                  <div style={{ fontSize: 24, fontWeight: 500, color: t.avgScore ? sc.text : TEXT_MUTED }}>
                     {t.avgScore ? (t.avgScore * 100).toFixed(1) + '%' : '—'}
                   </div>
                   <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>{t.techCount} active</div>

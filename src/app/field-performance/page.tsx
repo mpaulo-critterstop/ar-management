@@ -147,6 +147,10 @@ export default function FieldPerformancePage() {
 
   return (
     <div style={{ padding: '24px 24px 48px', maxWidth: 1400, margin: '0 auto' }}>
+      {/* Title */}
+      <div style={{ marginBottom: 16 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Field Professional Effort Meter</h1>
+      </div>
       {/* Controls row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
         {/* Tab nav */}
