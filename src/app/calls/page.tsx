@@ -197,59 +197,60 @@ export default function CallsPage() {
 
   return (
     <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+      {/* Header row: title on left, admin buttons on right */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 10 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', margin: 0 }}>Calls</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', margin: 0 }}>Dialpad Call Analytics</h1>
           <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{totalCalls.toLocaleString()} total calls in database</div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Range selector */}
-          <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 10, background: '#F1EFE8', border: '1px solid #E8E7E3' }}>
-            {RANGES.map(r => (
-              <button key={r.value}
-                    onClick={() => { setRange(r.value); setShowCustom(r.value === 'custom'); }}
-                style={{
-                  padding: '5px 10px', fontSize: 11, fontWeight: 500, borderRadius: 8,
-                  color: range === r.value ? '#1a1a1a' : '#666',
-                  background: range === r.value ? '#fff' : 'transparent',
-                  border: range === r.value ? '1px solid #E8E7E3' : '1px solid transparent',
-                  cursor: 'pointer', whiteSpace: 'nowrap',
-                }}>
-                {r.label}
-              </button>
-            ))}
+        {role === 'ADMIN' && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={runSync} disabled={syncing}
+              style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #E8E7E3', background: '#fff', cursor: syncing ? 'default' : 'pointer', color: '#444' }}>
+              {syncing ? 'Syncing...' : '↻ Sync'}
+            </button>
+            <button onClick={runImport} disabled={importing || syncing}
+              style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #d1a3ff', background: '#fff', cursor: importing || syncing ? 'default' : 'pointer', color: '#7b2fbe' }}>
+              {importing ? syncMsg.includes('chunk') ? syncMsg : '⟳ Importing...' : '⬆ Import CSV'}
+            </button>
+            <button onClick={resetSync} disabled={syncing}
+              style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', cursor: syncing ? 'default' : 'pointer', color: '#dc2626' }}>
+              ↺ Reset & Re-sync
+            </button>
+            <button onClick={() => setShowSettings(!showSettings)}
+              style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #E8E7E3', background: '#fff', cursor: 'pointer', color: '#444' }}>
+              ⚙ Settings
+            </button>
           </div>
-          {showCustom && (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-                style={{ fontSize: 12, padding: '5px 8px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#1a1a1a' }} />
-              <span style={{ fontSize: 12, color: '#888' }}>to</span>
-              <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-                style={{ fontSize: 12, padding: '5px 8px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#1a1a1a' }} />
-            </div>
-          )}
-          {role === 'ADMIN' && (
-            <>
-              <button onClick={runSync} disabled={syncing}
-                style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #E8E7E3', background: '#fff', cursor: syncing ? 'default' : 'pointer', color: '#444' }}>
-                {syncing ? 'Syncing...' : '↻ Sync'}
-              </button>
-              <button onClick={runImport} disabled={importing || syncing}
-                style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #d1a3ff', background: '#fff', cursor: importing || syncing ? 'default' : 'pointer', color: '#7b2fbe' }}>
-                {importing ? syncMsg.includes('chunk') ? syncMsg : '⟳ Importing...' : '⬆ Import CSV'}
-              </button>
-              <button onClick={resetSync} disabled={syncing}
-                style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', cursor: syncing ? 'default' : 'pointer', color: '#dc2626' }}>
-                ↺ Reset & Re-sync
-              </button>
-              <button onClick={() => setShowSettings(!showSettings)}
-                style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #E8E7E3', background: '#fff', cursor: 'pointer', color: '#444' }}>
-                ⚙ Settings
-              </button>
-            </>
-          )}
+        )}
+      </div>
+
+      {/* Filter row: range pills + custom dates always on same line */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 10, background: '#F1EFE8', border: '1px solid #E8E7E3' }}>
+          {RANGES.map(r => (
+            <button key={r.value}
+              onClick={() => { setRange(r.value); setShowCustom(r.value === 'custom'); }}
+              style={{
+                padding: '5px 10px', fontSize: 11, fontWeight: 500, borderRadius: 8,
+                color: range === r.value ? '#1a1a1a' : '#666',
+                background: range === r.value ? '#fff' : 'transparent',
+                border: range === r.value ? '1px solid #E8E7E3' : '1px solid transparent',
+                cursor: 'pointer', whiteSpace: 'nowrap',
+              }}>
+              {r.label}
+            </button>
+          ))}
         </div>
+        {showCustom && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
+              style={{ fontSize: 12, padding: '5px 8px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#1a1a1a' }} />
+            <span style={{ fontSize: 12, color: '#888' }}>to</span>
+            <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
+              style={{ fontSize: 12, padding: '5px 8px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#1a1a1a' }} />
+          </div>
+        )}
       </div>
 
       {syncMsg && (
