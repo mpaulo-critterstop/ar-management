@@ -8,6 +8,7 @@ const baseTabs = [
   { label: 'Leads Tracker', href: '/leads' },
   { label: 'Dispatcher', href: '/dispatch' },
   { label: 'AR', href: '/accounts-receivable' },
+  { label: 'Calls', href: '/calls' },
 ];
 
 const FP_ROLES = ['ADMIN', 'MANAGER', 'LEADERSHIP'];
