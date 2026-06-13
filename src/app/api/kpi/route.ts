@@ -3,22 +3,52 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-// ─── BOSS'S AR BENCHMARK FORMULA ─────────────────────────────────────────────
-// Benchmark = (9/28) × 4wk PMP rev
-//           + (26.875/56) × 8wk WP rev
-//           + (48.375/91) × 13wk IP rev
-//           + (0.9/91) × 13wk total rev
-//
-// Constants derived from:
-//   Pest:       (0.4×0 + 0.6×15) / (4×7)          = 9/28
-//   Wildlife:   ((1-0.075)×0.5×50 + 0.075×1×50)   / (8×7)  = 26.875/56
-//   Insulation: ((1-0.075)×0.5×90 + 0.075×1×90)   / (13×7) = 48.375/91
-//   All:        (0.01×90) / (13×7)                           = 0.9/91
+// ─── BENCHMARK SERVICE ID CLASSIFICATION (KPI only — does NOT affect AR sync) ─
+// These are used solely to calculate the AR benchmark formula
+// The AR sync (auto/route.ts) has its own separate classification — do not merge
 
-const PEST_COEFF       = 9 / 28;        // 4-week trailing PMP
-const WILDLIFE_COEFF   = 26.875 / 56;   // 8-week trailing WP
-const INSULATION_COEFF = 48.375 / 91;   // 13-week trailing IP
-const ALL_COEFF        = 0.9 / 91;      // 13-week trailing total
+const BENCHMARK_IP_IDS = new Set([
+  501, 624, 542, 544, 541, 479, 1073, 487, 674,
+]);
+
+const BENCHMARK_WP_IDS = new Set([
+  533, 538, 509, 1065, 1060, 719, 1064, 1061,
+  615, 671, 546, 620, 554, 687, 688,
+  677, 619, 682, 496, 1058, 553, 510, 501, 624,
+  542, 544, 541, 479, 1073, 487, 674,
+  683, 631, 526, 485, 1062, 614, 502, 609,
+  670, 636, 1063, 520, 678, 517, 504, 720,
+  1059, 189, 287, 686, 685, 690, 691, 684, 645, 489,
+]);
+
+const BENCHMARK_PMP_IDS = new Set([
+  302, 676, 728, 1017, 1070, 1069, 134, 288, 514, 999, 522, 1075,
+  138, 275, 140, 291, 166, 274, 171, 1018, 499, 311, 309, 308, 310,
+  307, 718, 644, 642, 703, 607, 1001, 1003, 156, 1004, 1005, 1002,
+  640, 1072, 1016, 1010, 1068, 1013, 1014, 1066, 155, 1006, 672,
+  1009, 608, 1007, 294, 277, 305, 304, 1015, 543, 495, 646, 622,
+  621, 1057, 136, 289, 547, 513, 612, 630, 611, 529, 162, 616, 1008,
+  161, 165, 292, 169, 170, 178, 507, 610, 500, 283, 284, 836, 183,
+  182, 271, 185, 184, 272, 273, 269, 270, 508, 729, 149, 521, 759,
+  493, 494, 301, 681, 313,
+]);
+
+function getBenchmarkTeam(serviceId: number | null): 'IP' | 'WP' | 'PMP' {
+  if (!serviceId) return 'PMP';
+  if (BENCHMARK_IP_IDS.has(serviceId)) return 'IP';
+  if (BENCHMARK_WP_IDS.has(serviceId)) return 'WP';
+  return 'PMP';
+}
+
+// ─── BOSS'S AR BENCHMARK FORMULA ─────────────────────────────────────────────
+// = (0.4×0 + 0.6×15)/(4×7) × 4wk PMP rev
+// + ((1-0.075)×0.5×(35+15) + 0.075×1×(35+15))/(8×7) × 8wk WP rev
+// + ((1-0.075)×0.5×(75+15) + 0.075×1×(75+15))/(13×7) × 13wk IP rev
+// + (0.01×90)/(13×7) × 13wk total rev
+const PEST_COEFF       = 9 / 28;        // (0+9)/28
+const WILDLIFE_COEFF   = 26.875 / 56;   // 26.875/56
+const INSULATION_COEFF = 48.375 / 91;   // 48.375/91
+const ALL_COEFF        = 0.9 / 91;      // 0.9/91
 
 export async function GET(req: Request) {
   try {
@@ -29,52 +59,41 @@ export async function GET(req: Request) {
 
     const today = new Date();
     const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
 
-    // Build office filter
     const effectiveOffice = officeParam && officeParam !== 'ALL' && officeParam !== 'ADMIN'
       ? officeParam
       : (office && office !== 'ALL' && office !== 'ADMIN' ? office : null);
     const officeFilter = effectiveOffice ? { office: effectiveOffice } : {};
 
-    // Trailing revenue windows
     const weeks4ago  = new Date(); weeks4ago.setDate(today.getDate() - 28);
     const weeks8ago  = new Date(); weeks8ago.setDate(today.getDate() - 56);
     const weeks13ago = new Date(); weeks13ago.setDate(today.getDate() - 91);
 
     const [openInvoices, recentPayments, trailingInvoices] = await Promise.all([
       prisma.invoice.findMany({
-        where: { status: { not: 'PAID' }, ...officeFilter }
+        where: { status: { not: 'PAID' }, ...officeFilter },
       }),
       prisma.payment.findMany({
-        where: {
-          date: { gte: thirtyDaysAgo },
-          invoice: { ...officeFilter }
-        }
+        where: { date: { gte: thirtyDaysAgo }, invoice: { ...officeFilter } },
       }),
-      // Pull all paid+current invoices from 13 weeks back for benchmark calc
       prisma.invoice.findMany({
-        where: {
-          date: { gte: weeks13ago },
-          ...officeFilter,
-        },
-        select: {
-          amount: true,
-          date: true,
-          serviceType: true,
-          customer: { select: { serviceType: true } },
-        },
+        where: { date: { gte: weeks13ago }, ...officeFilter },
+        select: { amount: true, date: true, serviceId: true },
       }),
     ]);
 
-    // ─── AR TOTALS ───────────────────────────────────────────────────────────
+    // AR totals
     const totalAR    = openInvoices.reduce((s: number, i: any) => s + Number(i.amount) - Number(i.paid), 0);
-    const overdueAR  = openInvoices.filter((i: any) => ['OVERDUE','COLLECTIONS'].includes(i.status) && i.due)
-                        .reduce((s: number, i: any) => s + Number(i.amount) - Number(i.paid), 0);
+    const overdueAR  = openInvoices
+      .filter((i: any) => ['OVERDUE','COLLECTIONS'].includes(i.status) && i.due)
+      .reduce((s: number, i: any) => s + Number(i.amount) - Number(i.paid), 0);
     const collected30 = recentPayments.reduce((s: number, p: any) => s + Number(p.amount), 0);
     const collectionRate = (totalAR + collected30) > 0 ? collected30 / (totalAR + collected30) : 0;
     const avgDaysOut = openInvoices.length
-      ? openInvoices.reduce((s: number, i: any) => s + Math.round((today.getTime() - new Date(i.date).getTime()) / 86400000), 0) / openInvoices.length
+      ? openInvoices.reduce((s: number, i: any) =>
+          s + Math.round((today.getTime() - new Date(i.date).getTime()) / 86400000), 0
+        ) / openInvoices.length
       : 0;
 
     const agingTotals: Record<string, number> = { current:0, '1-30':0, '31-60':0, '61-90':0, '90+':0 };
@@ -86,34 +105,20 @@ export async function GET(req: Request) {
     }
 
     // ─── BENCHMARK FORMULA ───────────────────────────────────────────────────
-    // Determine service type per invoice: use invoice.serviceType first,
-    // fallback to customer.serviceType
-    const getTeam = (inv: any): string => {
-      const st = (inv.serviceType || inv.customer?.serviceType || '').toLowerCase();
-      if (st.includes('insulation') || st === 'ip') return 'IP';
-      if (st.includes('wildlife') || st === 'wp') return 'WP';
-      if (st.includes('pest') || st === 'pmp') return 'PMP';
-      return 'PMP'; // default
-    };
-
-    let rev4wkPMP  = 0; // 4wk PMP revenue
-    let rev8wkWP   = 0; // 8wk WP revenue
-    let rev13wkIP  = 0; // 13wk IP revenue
-    let rev13wkAll = 0; // 13wk total revenue
-
-    const w4  = weeks4ago.getTime();
-    const w8  = weeks8ago.getTime();
-    const w13 = weeks13ago.getTime();
+    let rev4wkPMP  = 0;
+    let rev8wkWP   = 0;
+    let rev13wkIP  = 0;
+    let rev13wkAll = 0;
 
     for (const inv of trailingInvoices) {
       const amt     = Number(inv.amount);
       const invTime = new Date(inv.date).getTime();
-      const team    = getTeam(inv);
+      const team    = getBenchmarkTeam(inv.serviceId);
 
       rev13wkAll += amt;
       if (team === 'IP')  rev13wkIP  += amt;
-      if (team === 'WP'  && invTime >= w8)  rev8wkWP  += amt;
-      if (team === 'PMP' && invTime >= w4)  rev4wkPMP += amt;
+      if (team === 'WP'  && invTime >= weeks8ago.getTime())  rev8wkWP  += amt;
+      if (team === 'PMP' && invTime >= weeks4ago.getTime())  rev4wkPMP += amt;
     }
 
     const benchmark = Math.round(
@@ -130,13 +135,6 @@ export async function GET(req: Request) {
       benchmark,
       openCount: openInvoices.length,
       agingTotals,
-      // Debug breakdown (can be hidden in UI)
-      benchmarkBreakdown: {
-        rev4wkPMP:  Math.round(rev4wkPMP),
-        rev8wkWP:   Math.round(rev8wkWP),
-        rev13wkIP:  Math.round(rev13wkIP),
-        rev13wkAll: Math.round(rev13wkAll),
-      },
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
