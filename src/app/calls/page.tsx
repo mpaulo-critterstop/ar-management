@@ -24,10 +24,10 @@ function fmtDuration(secs: number) {
 
 function KpiCard({ label, value, sub, color }: { label: string; value: any; sub?: string; color?: string }) {
   return (
-    <div style={{ background: '#fff', border: '1px solid #E8E7E3', borderRadius: 12, padding: '14px 18px', borderLeft: `3px solid ${color || '#0052cc'}` }}>
-      <div style={{ fontSize: 11, color: '#888', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 700, color: '#1a1a1a', fontFamily: 'var(--font-mono)' }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{sub}</div>}
+    <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, padding: '14px 18px', borderLeft: `3px solid ${color || '#0052cc'}` }}>
+      <div style={{ fontSize: 11, color: '#888780', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 28, fontWeight: 500, color: '#2C2C2A' }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
@@ -67,24 +67,23 @@ export default function CallsPage() {
 
   return (
     <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
-      {/* Header row: title on left, admin buttons on right */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 10 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', margin: 0 }}>Dialpad Call Analytics</h1>
-        </div>
+      {/* Header */}
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Dialpad Call Analytics</h1>
       </div>
 
-      {/* Filter row: range pills + custom dates always on same line */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 10, background: '#F1EFE8', border: '1px solid #E8E7E3' }}>
+      {/* Filter row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+        <div style={{ display: 'inline-flex', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
           {RANGES.map(r => (
             <button key={r.value}
               onClick={() => { setRange(r.value); setShowCustom(r.value === 'custom'); }}
               style={{
-                padding: '5px 10px', fontSize: 11, fontWeight: 500, borderRadius: 8,
-                color: range === r.value ? '#1a1a1a' : '#666',
+                padding: '7px 14px', fontSize: 13, fontWeight: 500, borderRadius: 9,
+                color: range === r.value ? '#2C2C2A' : '#888780',
                 background: range === r.value ? '#fff' : 'transparent',
-                border: range === r.value ? '1px solid #E8E7E3' : '1px solid transparent',
+                border: range === r.value ? '0.5px solid #D3D1C7' : '0.5px solid transparent',
+                boxShadow: range === r.value ? '0 1px 3px rgba(44,44,42,0.08)' : 'none',
                 cursor: 'pointer', whiteSpace: 'nowrap',
               }}>
               {r.label}
@@ -94,10 +93,10 @@ export default function CallsPage() {
         {showCustom && (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-              style={{ fontSize: 12, padding: '5px 8px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#1a1a1a' }} />
-            <span style={{ fontSize: 12, color: '#888' }}>to</span>
+              style={{ fontSize: 12, padding: '6px 10px', border: '0.5px solid #D3D1C7', borderRadius: 8, background: '#fff', color: '#2C2C2A' }} />
+            <span style={{ fontSize: 12, color: '#888780' }}>to</span>
             <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-              style={{ fontSize: 12, padding: '5px 8px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#1a1a1a' }} />
+              style={{ fontSize: 12, padding: '6px 10px', border: '0.5px solid #D3D1C7', borderRadius: 8, background: '#fff', color: '#2C2C2A' }} />
           </div>
         )}
       </div>
@@ -113,7 +112,7 @@ export default function CallsPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         {/* Daily volume chart — matching old app style */}
-        <div style={{ background: '#fff', border: '1px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
+        <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', marginBottom: 2 }}>Call volume</div>
           <div style={{ fontSize: 11, color: '#888', marginBottom: 12 }}>Answered vs missed by day</div>
           <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
@@ -172,7 +171,7 @@ export default function CallsPage() {
         </div>
 
         {/* Caller breakdown donut — placeholder matching old app */}
-        <div style={{ background: '#fff', border: '1px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
+        <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', marginBottom: 2 }}>Caller breakdown</div>
           <div style={{ fontSize: 11, color: '#888', marginBottom: 16 }}>First-time vs repeat</div>
           {loading ? (
@@ -221,7 +220,7 @@ export default function CallsPage() {
       {/* Tracking number tables — side by side like old app */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         {/* Calls per tracking number */}
-        <div style={{ background: '#fff', border: '1px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
+        <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', marginBottom: 2 }}>Calls per tracking number</div>
           <div style={{ fontSize: 11, color: '#888', marginBottom: 12 }}>Total volume by line</div>
           {loading ? (
@@ -246,7 +245,7 @@ export default function CallsPage() {
         </div>
 
         {/* First-time callers by tracking number */}
-        <div style={{ background: '#fff', border: '1px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
+        <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', marginBottom: 2 }}>First-time callers by tracking number</div>
           <div style={{ fontSize: 11, color: '#888', marginBottom: 12 }}>New leads per line</div>
           {loading ? (
@@ -274,43 +273,44 @@ export default function CallsPage() {
       </div>
 
       {/* Agent performance table */}
-      <div style={{ background: '#fff', border: '1px solid #E8E7E3', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ padding: '12px 16px 0', fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Agent performance</div>
+      <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '14px 16px 2px', fontSize: 13, fontWeight: 500, color: '#2C2C2A' }}>Agent performance</div>
+        <div style={{ fontSize: 11, color: '#888780', padding: '0 16px 10px' }}>Inbound calls only</div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <thead>
               <tr>
                 {['Agent', 'Total', 'Answered', 'Missed', 'First-time', 'Answer rate', 'Avg duration'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', fontSize: 11, fontWeight: 500, color: '#888', padding: '8px 12px', borderBottom: '1px solid #E8E7E3', background: '#F9F8F5', whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={h} style={{ textAlign: 'left', fontSize: 11, fontWeight: 500, color: '#888780', padding: '8px 12px', borderBottom: '0.5px solid #E8E7E3', background: '#F8F7F4', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#bbb', fontSize: 13 }}>Loading...</td></tr>
+                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#B4B2A9', fontSize: 13 }}>Loading...</td></tr>
               ) : !data?.agent_stats?.length ? (
-                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#bbb', fontSize: 13 }}>No data for this period</td></tr>
+                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#B4B2A9', fontSize: 13 }}>No data for this period</td></tr>
               ) : (data.agent_stats as any[]).map((agent: any) => {
                 const ar = Math.round((agent.answered / Math.max(agent.total, 1)) * 100);
                 const avgDur = agent.answered > 0 ? Math.round(agent.totalDuration / agent.answered) : 0;
                 return (
                   <tr key={agent.name}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F9F8F5'}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
-                    <td style={{ padding: '9px 12px', fontSize: 13, fontWeight: 500, color: '#1a1a1a' }}>{agent.name}</td>
-                    <td style={{ padding: '9px 12px', fontSize: 13, fontFamily: 'var(--font-mono)' }}>{agent.total}</td>
-                    <td style={{ padding: '9px 12px', fontSize: 13, color: '#2d9e5f', fontFamily: 'var(--font-mono)' }}>{agent.answered}</td>
-                    <td style={{ padding: '9px 12px', fontSize: 13, color: agent.missed > 0 ? '#e24b4a' : '#bbb', fontFamily: 'var(--font-mono)' }}>{agent.missed}</td>
-                    <td style={{ padding: '9px 12px', fontSize: 13, color: '#7b2fbe', fontFamily: 'var(--font-mono)' }}>{agent.first_time || 0}</td>
+                    <td style={{ padding: '9px 12px', fontSize: 13, fontWeight: 500, color: '#2C2C2A' }}>{agent.name}</td>
+                    <td style={{ padding: '9px 12px', fontSize: 13, color: '#2C2C2A' }}>{agent.total}</td>
+                    <td style={{ padding: '9px 12px', fontSize: 13, color: '#1D9E75' }}>{agent.answered}</td>
+                    <td style={{ padding: '9px 12px', fontSize: 13, color: agent.missed > 0 ? '#A32D2D' : '#B4B2A9' }}>{agent.missed}</td>
+                    <td style={{ padding: '9px 12px', fontSize: 13, color: '#534AB7' }}>{agent.first_time || 0}</td>
                     <td style={{ padding: '9px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ width: 60, height: 5, background: '#E8E7E3', borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ width: `${ar}%`, height: '100%', background: ar >= 80 ? '#2d9e5f' : ar >= 60 ? '#f5a623' : '#e24b4a', borderRadius: 3 }} />
+                          <div style={{ width: `${ar}%`, height: '100%', background: ar >= 80 ? '#1D9E75' : ar >= 60 ? '#BA7517' : '#A32D2D', borderRadius: 3 }} />
                         </div>
-                        <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>{ar}%</span>
+                        <span style={{ fontSize: 12, color: '#2C2C2A' }}>{ar}%</span>
                       </div>
                     </td>
-                    <td style={{ padding: '9px 12px', fontSize: 12, color: '#888' }}>{fmtDuration(avgDur)}</td>
+                    <td style={{ padding: '9px 12px', fontSize: 12, color: '#888780' }}>{fmtDuration(avgDur)}</td>
                   </tr>
                 );
               })}
