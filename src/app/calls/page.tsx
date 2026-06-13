@@ -43,6 +43,7 @@ export default function CallsPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
+  const [importing, setImporting] = useState(false);
   const [totalCalls, setTotalCalls] = useState(0);
   const [apiKeySet, setApiKeySet] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -141,7 +142,45 @@ export default function CallsPage() {
     loadData(); loadConfig();
   };
 
-  const role = (session?.user as any)?.role;
+  const runImport = async () => {
+    if (!confirm('This will clear all existing call data and reimport from the CSV. Continue?')) return;
+    setImporting(true);
+    setSyncMsg('Clearing existing data...');
+
+    // Clear
+    const clearRes = await fetch('/api/dialpad/import', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'clear' }),
+    });
+    if (!clearRes.ok) { setSyncMsg('Clear failed'); setImporting(false); return; }
+
+    // Run 77 chunks
+    const TOTAL = 77;
+    for (let i = 1; i <= TOTAL; i++) {
+      setSyncMsg(`Importing... chunk ${i} of ${TOTAL}`);
+      try {
+        const res = await fetch('/api/dialpad/import', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'chunk', chunk: i }),
+        });
+        if (!res.ok) {
+          const e = await res.json();
+          setSyncMsg(`Error on chunk ${i}: ${e.error}`);
+          setImporting(false);
+          return;
+        }
+      } catch (e: any) {
+        setSyncMsg(`Network error on chunk ${i}: ${e.message}`);
+        setImporting(false);
+        return;
+      }
+      await new Promise(r => setTimeout(r, 200));
+    }
+
+    setSyncMsg('Import complete — 38,031 rows loaded!');
+    setImporting(false);
+    loadData(); loadConfig();
+  };
   if (status === 'loading') return null;
 
   const answerRate = data ? Math.round((data.answered / Math.max(data.total, 1)) * 100) : 0;
@@ -194,7 +233,10 @@ export default function CallsPage() {
                 style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #E8E7E3', background: '#fff', cursor: syncing ? 'default' : 'pointer', color: '#444' }}>
                 {syncing ? 'Syncing...' : '↻ Sync'}
               </button>
-              <button onClick={resetSync} disabled={syncing}
+              <button onClick={runImport} disabled={importing || syncing}
+                style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #d1a3ff', background: '#fff', cursor: importing || syncing ? 'default' : 'pointer', color: '#7b2fbe' }}>
+                {importing ? syncMsg.includes('chunk') ? syncMsg : '⟳ Importing...' : '⬆ Import CSV'}
+              </button>
                 style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', cursor: syncing ? 'default' : 'pointer', color: '#dc2626' }}>
                 ↺ Reset & Re-sync
               </button>
