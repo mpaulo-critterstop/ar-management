@@ -257,11 +257,11 @@ export default function ARApp() {
             onClick={syncFR}
             disabled={syncing}
             style={{
-              background: syncing ? "#e2e8f0" : ACCENT,
-              color: syncing ? "#475569" : "#fff",
-              border: "none",
-              padding: "9px 16px",
-              borderRadius: 10,
+              background: "#fff",
+              color: "#888780",
+              border: "0.5px solid #D3D1C7",
+              padding: "7px 14px",
+              borderRadius: 9,
               cursor: syncing ? "not-allowed" : "pointer",
               fontSize: 13,
               fontWeight: 500,
@@ -269,13 +269,12 @@ export default function ARApp() {
               alignItems: "center",
               gap: 6,
               whiteSpace: "nowrap",
-              boxShadow: syncing ? "none" : "0 2px 10px rgba(15,23,42,0.12)",
-              transition: "all 0.15s",
+              opacity: syncing ? 0.7 : 1,
             }}
           >
             {syncing ? (
               <>
-                <span style={{display:"inline-block",width:12,height:12,border:"2px solid #475569",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}} />
+                <span style={{display:"inline-block",width:12,height:12,border:"2px solid #D3D1C7",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}} />
                 Syncing...
               </>
             ) : (

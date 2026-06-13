@@ -308,10 +308,10 @@ export default function DispatchPage() {
             </select>
           </div>
         </div>
-        <button onClick={runSync} disabled={syncing} style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, border: '0.5px solid ' + ACCENT, background: ACCENT, color: '#fff', cursor: syncing ? 'not-allowed' : 'pointer', fontWeight: 500, opacity: syncing ? 0.7 : 1 }}>
+        <button onClick={runSync} disabled={syncing} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: syncing ? 'not-allowed' : 'pointer', fontWeight: 500, opacity: syncing ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
        {syncing ? (
             <>
-              <span style={{display:'inline-block',width:12,height:12,border:'2px solid #fff',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}} />
+              <span style={{display:'inline-block',width:12,height:12,border:'2px solid #D3D1C7',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}} />
               Syncing...
             </>
           ) : '⟳ Sync FR'}
