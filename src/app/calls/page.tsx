@@ -247,7 +247,7 @@ export default function CallsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 16 }}>
         <KpiCard label="Total inbound" value={loading ? '…' : (data?.total || 0).toLocaleString()} color="#0052cc" />
         <KpiCard label="Answered" value={loading ? '…' : (data?.answered || 0).toLocaleString()} sub={`${answerRate}% answer rate`} color="#2d9e5f" />
-        <KpiCard label="Agent missed" value={loading ? '…' : (data?.agent_missed || 0).toLocaleString()} sub="Rang but not answered" color="#f5a623" />
+        <KpiCard label="Agent missed" value={loading ? '…' : (data?.agent_missed || 0).toLocaleString()} sub={data ? `${(data.ring_no_answer||0).toLocaleString()} ring no answer · ${(data.voicemail||0).toLocaleString()} voicemail` : 'Rang but not answered'} color="#f5a623" />
         <KpiCard label="Missed opportunity" value={loading ? '…' : (data?.missed_opportunity || 0).toLocaleString()} sub="No agent reached" color="#e24b4a" />
         <KpiCard label="First-time callers" value={loading ? '…' : (data?.first_time || 0).toLocaleString()} sub="New leads" color="#7b2fbe" />
       </div>

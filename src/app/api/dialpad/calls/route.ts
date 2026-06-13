@@ -63,6 +63,8 @@ export async function GET(req: NextRequest) {
       agent_missed:       Number(stats.agent_missed || 0),
       missed_opportunity: Number(stats.missed_opportunity || 0),
       first_time:         Number(stats.first_time || 0),
+      ring_no_answer:     Number(stats.ring_no_answer || 0),
+      voicemail:          Number(stats.voicemail || 0),
       agent_stats:        agentStats,
       tracking_numbers:   trackingNumbers,
       first_time_by_tracking: firstTimeByTracking,
