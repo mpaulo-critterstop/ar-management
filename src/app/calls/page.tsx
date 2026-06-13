@@ -11,6 +11,8 @@ const RANGES = [
   { label: 'Last 7 days', value: 'last_7' },
   { label: 'Last 30 days', value: 'last_30' },
   { label: 'This month', value: 'current_month' },
+  { label: 'Last month', value: 'last_month' },
+  { label: 'Custom', value: 'custom' },
 ];
 
 function fmtDuration(secs: number) {
@@ -34,6 +36,9 @@ export default function CallsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [range, setRange] = useState('current_month');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [showCustom, setShowCustom] = useState(false);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -60,10 +65,12 @@ export default function CallsPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/dialpad/calls?range=${range}`).catch(() => null);
+    const params = new URLSearchParams({ range });
+    if (range === 'custom' && customStart && customEnd) { params.set('start', customStart); params.set('end', customEnd); }
+    const res = await fetch(`/api/dialpad/calls?${params}`).catch(() => null);
     if (res?.ok) setData(await res.json());
     setLoading(false);
-  }, [range]);
+  }, [range, customStart, customEnd]);
 
   useEffect(() => { loadConfig(); }, [loadConfig]);
   useEffect(() => { loadData(); }, [loadData]);
@@ -148,6 +155,7 @@ export default function CallsPage() {
           <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 10, background: '#F1EFE8', border: '1px solid #E8E7E3' }}>
             {RANGES.map(r => (
               <button key={r.value} onClick={() => setRange(r.value)}
+                    onClick={() => { setRange(r.value); setShowCustom(r.value === 'custom'); }}
                 style={{
                   padding: '5px 10px', fontSize: 11, fontWeight: 500, borderRadius: 8,
                   color: range === r.value ? '#1a1a1a' : '#666',
@@ -159,6 +167,15 @@ export default function CallsPage() {
               </button>
             ))}
           </div>
+          {showCustom && (
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
+                style={{ fontSize: 12, padding: '5px 8px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#1a1a1a' }} />
+              <span style={{ fontSize: 12, color: '#888' }}>to</span>
+              <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
+                style={{ fontSize: 12, padding: '5px 8px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#1a1a1a' }} />
+            </div>
+          )}
           {role === 'ADMIN' && (
             <>
               <button onClick={runSync} disabled={syncing}

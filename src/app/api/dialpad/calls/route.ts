@@ -47,6 +47,11 @@ function getDateRange(range: string, customStart?: string, customEnd?: string) {
     const s = new Date(today); s.setDate(s.getDate() - 30);
     return { start: Math.floor(s.getTime() / 1000), end: Math.floor(Date.now() / 1000) };
   }
+  if (range === 'last_month') {
+    const lm = new Date(today); lm.setDate(1); lm.setMonth(lm.getMonth() - 1);
+    const lme = new Date(today); lme.setDate(1); lme.setSeconds(-1);
+    return { start: Math.floor(lm.getTime() / 1000), end: Math.floor(lme.getTime() / 1000) };
+  }
   // default: current_month
   const m = new Date(today); m.setDate(1);
   return { start: Math.floor(m.getTime() / 1000), end: Math.floor(Date.now() / 1000) };
