@@ -192,7 +192,6 @@ export default function CallsPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 10 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', margin: 0 }}>Dialpad Call Analytics</h1>
-          <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{totalCalls.toLocaleString()} total calls in database</div>
         </div>
       </div>
 
