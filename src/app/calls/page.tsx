@@ -91,14 +91,33 @@ export default function CallsPage() {
   };
 
   const runSync = async () => {
-    setSyncing(true); setSyncMsg('Syncing...');
-    const res = await fetch('/api/dialpad/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ maxPages: 10 }),
-    });
-    const d = await res.json();
-    setSyncMsg(`Synced ${d.processed} calls. ${d.hasMore ? 'More available — sync again.' : 'Up to date!'}`);
+    setSyncing(true);
+    let totalProcessed = 0;
+    let hasMore = true;
+    let consecutiveErrors = 0;
+
+    while (hasMore && consecutiveErrors < 3) {
+      try {
+        const res = await fetch('/api/dialpad/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ maxPages: 5 }),
+        });
+        if (!res.ok) { consecutiveErrors++; await new Promise(r => setTimeout(r, 2000)); continue; }
+        const d = await res.json();
+        totalProcessed += d.processed || 0;
+        hasMore = d.hasMore || false;
+        consecutiveErrors = 0;
+        setSyncMsg(`Syncing... ${totalProcessed.toLocaleString()} calls pulled${hasMore ? ', continuing...' : ''}`);
+        if (!hasMore || d.processed === 0) break;
+        await new Promise(r => setTimeout(r, 300));
+      } catch {
+        consecutiveErrors++;
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    }
+
+    setSyncMsg(`Sync complete — ${totalProcessed.toLocaleString()} calls pulled`);
     setSyncing(false);
     loadData(); loadConfig();
   };
