@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   try {
     do {
-      const params = new URLSearchParams({ limit: '100' });
+      const params = new URLSearchParams({ limit: '50' });
       if (cursor) params.set('cursor', cursor);
 
       // Try both auth methods
