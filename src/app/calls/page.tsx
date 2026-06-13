@@ -46,10 +46,6 @@ export default function CallsPage() {
   const [importing, setImporting] = useState(false);
   const [totalCalls, setTotalCalls] = useState(0);
   const [apiKeySet, setApiKeySet] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [newApiKey, setNewApiKey] = useState('');
-  const [savingKey, setSavingKey] = useState(false);
-  const [keyError, setKeyError] = useState('');
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -190,11 +186,6 @@ export default function CallsPage() {
   // Build daily chart data
   const dailyEntries = data ? Object.entries(data.daily_volume || {}).sort(([a], [b]) => a.localeCompare(b)) : [];
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%', fontSize: 13, padding: '8px 10px',
-    border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#1a1a1a',
-  };
-
   return (
     <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
       {/* Header row: title on left, admin buttons on right */}
@@ -203,26 +194,6 @@ export default function CallsPage() {
           <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', margin: 0 }}>Dialpad Call Analytics</h1>
           <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{totalCalls.toLocaleString()} total calls in database</div>
         </div>
-        {role === 'ADMIN' && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button onClick={runSync} disabled={syncing}
-              style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #E8E7E3', background: '#fff', cursor: syncing ? 'default' : 'pointer', color: '#444' }}>
-              {syncing ? 'Syncing...' : '↻ Sync'}
-            </button>
-            <button onClick={runImport} disabled={importing || syncing}
-              style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #d1a3ff', background: '#fff', cursor: importing || syncing ? 'default' : 'pointer', color: '#7b2fbe' }}>
-              {importing ? syncMsg.includes('chunk') ? syncMsg : '⟳ Importing...' : '⬆ Import CSV'}
-            </button>
-            <button onClick={resetSync} disabled={syncing}
-              style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', cursor: syncing ? 'default' : 'pointer', color: '#dc2626' }}>
-              ↺ Reset & Re-sync
-            </button>
-            <button onClick={() => setShowSettings(!showSettings)}
-              style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #E8E7E3', background: '#fff', cursor: 'pointer', color: '#444' }}>
-              ⚙ Settings
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Filter row: range pills + custom dates always on same line */}
@@ -252,42 +223,6 @@ export default function CallsPage() {
           </div>
         )}
       </div>
-
-      {syncMsg && (
-        <div style={{ fontSize: 12, color: '#555', marginBottom: 12, padding: '8px 12px', background: '#F1EFE8', borderRadius: 8, border: '1px solid #E8E7E3' }}>
-          {syncMsg}
-        </div>
-      )}
-
-      {/* Settings panel */}
-      {showSettings && (
-        <div style={{ background: '#fff', border: '1px solid #E8E7E3', borderRadius: 12, padding: 20, marginBottom: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Dialpad Settings</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>Dialpad API Key</label>
-              <input type="password" value={newApiKey} onChange={e => setNewApiKey(e.target.value)}
-                placeholder={apiKeySet ? '••••••••••••••• (update key)' : 'Paste your Dialpad API key'}
-                style={inputStyle} />
-              {keyError && <div style={{ fontSize: 11, color: '#c00', marginTop: 4 }}>{keyError}</div>}
-            </div>
-            <button onClick={saveApiKey} disabled={savingKey || !newApiKey}
-              style={{ padding: '8px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', cursor: savingKey || !newApiKey ? 'default' : 'pointer' }}>
-              {savingKey ? 'Saving...' : 'Save & Sync'}
-            </button>
-          </div>
-          <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
-            Webhook URL: <code style={{ background: '#F1EFE8', padding: '2px 6px', borderRadius: 4 }}>https://hub.critterstop.com/api/dialpad/webhook</code>
-          </div>
-        </div>
-      )}
-
-      {!apiKeySet && (
-        <div style={{ background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 12, padding: 20, marginBottom: 16, textAlign: 'center' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Dialpad not connected</div>
-          <div style={{ fontSize: 12, color: '#666' }}>Add your Dialpad API key in Settings to start syncing calls.</div>
-        </div>
-      )}
 
       {/* KPI cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 16 }}>
