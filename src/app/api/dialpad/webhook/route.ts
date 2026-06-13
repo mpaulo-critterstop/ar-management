@@ -121,9 +121,10 @@ export async function POST(req: NextRequest) {
     const phone = call.external_number || call.contact?.phone || '';
     // Determine call state: answered, voicemail, or missed
     const callState = call.state || '';
-    const state = call.date_connected ? 'answered'
-      : (callState === 'voicemail' || call.voicemail_url || call.has_voicemail) ? 'voicemail'
-      : 'missed';
+    const categories: string = call.categories || '';
+    const isVoicemail = callState === 'voicemail' || call.voicemail_url || call.has_voicemail
+      || categories.includes('voicemail');
+    const state = call.date_connected ? 'answered' : isVoicemail ? 'missed' : 'missed';
 
     // Check if first-time caller
     let isFirstTime = false;
@@ -173,7 +174,7 @@ export async function POST(req: NextRequest) {
         ${String(call.entry_point_call_id || '')},
         ${String(call.operator_call_id || '')},
         ${String(call.master_call_id || '')},
-        ${call.categories || ''},
+        ${categories},
         ${isFirstTime}
       )
       ON CONFLICT (id) DO UPDATE SET
@@ -181,6 +182,7 @@ export async function POST(req: NextRequest) {
         date_ended = EXCLUDED.date_ended,
         duration = EXCLUDED.duration,
         state = EXCLUDED.state,
+        categories = EXCLUDED.categories,
         is_first_time = EXCLUDED.is_first_time
     `;
 

@@ -59,9 +59,8 @@ export async function POST(req: NextRequest) {
       for (const call of items) {
         const phone = call.external_number || call.contact?.phone || '';
         const callState = call.state || '';
-        const state = call.date_connected ? 'answered'
-          : (callState === 'voicemail' || call.voicemail_url || call.has_voicemail) ? 'voicemail'
-          : 'missed';
+        const categories = call.categories || '';
+        const state = call.date_connected ? 'answered' : 'missed';
         const callId = String(call.call_id || call.id || '');
         if (!callId) continue;
 
@@ -115,14 +114,15 @@ export async function POST(req: NextRequest) {
             ${String(call.entry_point_call_id || '')},
             ${String(call.operator_call_id || '')},
             ${String(call.master_call_id || '')},
-            ${call.categories || ''},
+            ${categories},
             ${isFirstTime}
           )
           ON CONFLICT (id) DO UPDATE SET
             date_connected = EXCLUDED.date_connected,
             date_ended = EXCLUDED.date_ended,
             duration = EXCLUDED.duration,
-            state = EXCLUDED.state
+            state = EXCLUDED.state,
+            categories = EXCLUDED.categories
         `;
         processed++;
       }

@@ -74,9 +74,8 @@ export async function GET(req: NextRequest) {
       SELECT
         COUNT(*) FILTER (WHERE direction = 'inbound') as total,
         COUNT(*) FILTER (WHERE direction = 'inbound' AND state = 'answered') as answered,
-        COUNT(*) FILTER (WHERE direction = 'inbound' AND state = 'voicemail') as voicemail,
-        COUNT(*) FILTER (WHERE direction = 'inbound' AND state = 'missed' AND target_name != '') as agent_missed,
-        COUNT(*) FILTER (WHERE direction = 'inbound' AND state = 'missed' AND target_name = '') as missed_opportunity,
+        COUNT(*) FILTER (WHERE direction = 'inbound' AND state IN ('missed','voicemail') AND target_name != '') as agent_missed,
+        COUNT(*) FILTER (WHERE direction = 'inbound' AND state IN ('missed','voicemail') AND target_name = '') as missed_opportunity,
         COUNT(*) FILTER (WHERE direction = 'inbound' AND is_first_time = true) as first_time
       FROM dialpad_calls
       WHERE date_started >= ${start} AND date_started <= ${end}
@@ -160,7 +159,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     total: Number(stats.total || 0),
     answered: Number(stats.answered || 0),
-    voicemail: Number(stats.voicemail || 0),
     agent_missed: Number(stats.agent_missed || 0),
     missed_opportunity: Number(stats.missed_opportunity || 0),
     first_time: Number(stats.first_time || 0),
