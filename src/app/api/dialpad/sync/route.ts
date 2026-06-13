@@ -41,8 +41,9 @@ export async function POST(req: NextRequest) {
       const params = new URLSearchParams({ limit: '100' });
       if (cursor) params.set('cursor', cursor);
 
-      const resp = await fetch(`https://dialpad.com/api/v2/call?${params}`, {
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
+      // Try both auth methods
+      const resp = await fetch(`https://dialpad.com/api/v2/call?${params}&apikey=${encodeURIComponent(apiKey)}`, {
+        headers: { 'Accept': 'application/json' },
         signal: AbortSignal.timeout(20000),
       });
 
