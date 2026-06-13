@@ -68,8 +68,12 @@ export async function POST(req: NextRequest) {
       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
     `;
 
-    // Handle AI recap/transcript events
-    if (payload.event === 'recap' || payload.type === 'recap') {
+    // Handle AI recap/transcript events — Dialpad sends event_type: 'recap_available'
+    if (
+      (payload.event_type && payload.event_type.startsWith('recap_')) ||
+      payload.event === 'recap' ||
+      payload.type === 'recap'
+    ) {
       const callId = String(payload.call_id || payload.id || '');
       const summary = payload.summary || payload.recap?.summary || '';
       const transcript = payload.transcript || payload.recap?.transcript || '';
@@ -93,17 +97,23 @@ export async function POST(req: NextRequest) {
             WHERE id = ${callId}
           `;
 
-          // Slack alert for flagged calls
+          // Slack alert for flagged calls — matching old app format
           if (sentiment.flag_negative || sentiment.flag_positive) {
             const calls = await prisma.$queryRaw<Array<{ external_number: string; target_name: string; date_started: bigint }>>`
               SELECT external_number, target_name, date_started FROM dialpad_calls WHERE id = ${callId} LIMIT 1
             `;
             if (calls[0]) {
               const call = calls[0];
-              const time = new Date(Number(call.date_started) * 1000).toLocaleString('en-US', { timeZone: 'America/Chicago' });
-              const emoji = sentiment.flag_negative ? '🚨' : '⭐';
-              const label = sentiment.flag_negative ? 'NEGATIVE FLAG' : 'POSITIVE FLAG';
-              await sendSlackAlert(`${emoji} ${label}: ${call.external_number} → ${call.target_name} at ${time}\nReason: ${sentiment.reason}`);
+              const time = new Date(Number(call.date_started)).toLocaleString('en-US', { timeZone: 'America/Chicago' });
+              const isNegative = sentiment.flag_negative;
+              await sendSlackAlert(
+                `${isNegative ? '🚨 *Escalation Alert*' : '⭐ *Commendation Alert*'}\n` +
+                `*Caller:* ${call.external_number}\n` +
+                `*Agent:* ${call.target_name}\n` +
+                `*Time:* ${time} CST\n` +
+                `*Details:* ${sentiment.reason}\n` +
+                `*Review:* https://hub.critterstop.com/calls`
+              );
             }
           }
         }
