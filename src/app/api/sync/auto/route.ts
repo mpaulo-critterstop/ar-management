@@ -35,19 +35,30 @@ const OFFICES = {
 // SERVICE ID CLASSIFICATION
 // ============================================================
 
-const CLOSEOUT_SERVICE_IDS = new Set([
-  553, 720, 510, 501, 624, 542, 541, 479, 674,
+const INSULATION_SERVICE_IDS = new Set([
+  501, 624, 542, 544, 541, 479, 1073, 487, 674,
 ]);
 
 const WILDLIFE_SERVICE_IDS = new Set([
   533, 538, 509, 1065, 1060, 719, 1064, 1061,
   615, 671, 546, 620, 554, 687, 688,
-  677, 619, 682, 496, 1058, 544, 487,
-  683, 631, 526, 1062, 636, 504,
-  1059, 1063, 189, 287, 685, 690, 691, 684, 489,
-  670, 485, 614, 502, 609, 520, 678, 517, 645, 686, 1037,
-  746, 884,
-  710, 705, 715, 716, 717, 722, 724, 725, 726, 727,
+  677, 619, 682, 496, 1058, 553, 510, 501, 624,
+  542, 544, 541, 479, 1073, 487, 674,
+  683, 631, 526, 485, 1062, 614, 502, 609,
+  670, 636, 1063, 520, 678, 517, 504, 720,
+  1059, 189, 287, 686, 685, 690, 691, 684, 645, 489,
+]);
+
+const PEST_SERVICE_IDS = new Set([
+  302, 676, 728, 1017, 1070, 1069, 134, 288, 514, 999, 522, 1075,
+  138, 275, 140, 291, 166, 274, 171, 1018, 499, 311, 309, 308, 310,
+  307, 718, 644, 642, 703, 607, 1001, 1003, 156, 1004, 1005, 1002,
+  640, 1072, 1016, 1010, 1068, 1013, 1014, 1066, 155, 1006, 672,
+  1009, 608, 1007, 294, 277, 305, 304, 1015, 543, 495, 646, 622,
+  621, 1057, 136, 289, 547, 513, 612, 630, 611, 529, 162, 616, 1008,
+  161, 165, 292, 169, 170, 178, 507, 610, 500, 283, 284, 836, 183,
+  182, 271, 185, 184, 272, 273, 269, 270, 508, 729, 149, 521, 759,
+  493, 494, 301, 681, 313,
 ]);
 
 const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
@@ -58,13 +69,14 @@ const BATCH_SIZE = 1000;
 // ============================================================
 
 function getServiceType(serviceId: number): string {
-  if (CLOSEOUT_SERVICE_IDS.has(serviceId)) return 'Wildlife';
+  if (INSULATION_SERVICE_IDS.has(serviceId)) return 'Insulation';
   if (WILDLIFE_SERVICE_IDS.has(serviceId)) return 'Wildlife';
-  return 'Pest Control';
+  if (PEST_SERVICE_IDS.has(serviceId)) return 'Pest Control';
+  return 'Pest Control'; // default fallback
 }
 
 function getDueDate(serviceId: number, invoiceDate: string): Date | null {
-  if (CLOSEOUT_SERVICE_IDS.has(serviceId)) return null;
+  if (WILDLIFE_SERVICE_IDS.has(serviceId) && !INSULATION_SERVICE_IDS.has(serviceId)) return null;
   return new Date(invoiceDate);
 }
 
