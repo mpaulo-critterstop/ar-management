@@ -249,7 +249,6 @@ export default function CallsPage() {
         <KpiCard label="Answered" value={loading ? '…' : (data?.answered || 0).toLocaleString()} sub={`${answerRate}% answer rate`} color="#2d9e5f" />
         <KpiCard label="Agent missed" value={loading ? '…' : (data?.agent_missed || 0).toLocaleString()} sub="Rang but not answered" color="#f5a623" />
         <KpiCard label="Missed opportunity" value={loading ? '…' : (data?.missed_opportunity || 0).toLocaleString()} sub="No agent reached" color="#e24b4a" />
-        <KpiCard label="Voicemail" value={loading ? '…' : (data?.voicemail || 0).toLocaleString()} sub="Left voicemail" color="#0891b2" />
         <KpiCard label="First-time callers" value={loading ? '…' : (data?.first_time || 0).toLocaleString()} sub="New leads" color="#7b2fbe" />
       </div>
 

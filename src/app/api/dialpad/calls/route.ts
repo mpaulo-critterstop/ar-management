@@ -68,6 +68,9 @@ export async function GET(req: NextRequest) {
 
   const { start, end } = getDateRange(range, customStart, customEnd);
 
+  const startMs = start * 1000;
+  const endMs = end * 1000;
+
   const [statsRows, agentRows, trackingRows, dailyRows, firstTimeRows] = await Promise.all([
     // Overall stats
     prisma.$queryRaw<Array<any>>`
@@ -78,7 +81,7 @@ export async function GET(req: NextRequest) {
         COUNT(*) FILTER (WHERE direction = 'inbound' AND state IN ('missed','voicemail') AND target_name = '') as missed_opportunity,
         COUNT(*) FILTER (WHERE direction = 'inbound' AND is_first_time = true) as first_time
       FROM dialpad_calls
-      WHERE date_started >= ${start} AND date_started <= ${end}
+      WHERE date_started >= ${startMs} AND date_started <= ${endMs}
     `,
     // Agent stats
     prisma.$queryRaw<Array<any>>`
@@ -91,7 +94,7 @@ export async function GET(req: NextRequest) {
         COUNT(*) FILTER (WHERE is_first_time = true) as first_time
       FROM dialpad_calls
       WHERE direction = 'inbound'
-        AND date_started >= ${start} AND date_started <= ${end}
+        AND date_started >= ${startMs} AND date_started <= ${endMs}
         AND target_name != ''
       GROUP BY target_name
       ORDER BY total DESC
@@ -103,7 +106,7 @@ export async function GET(req: NextRequest) {
         COUNT(*) as count
       FROM dialpad_calls
       WHERE direction = 'inbound'
-        AND date_started >= ${start} AND date_started <= ${end}
+        AND date_started >= ${startMs} AND date_started <= ${endMs}
         AND tracking_number != ''
       GROUP BY tracking_number
       ORDER BY count DESC
@@ -111,12 +114,12 @@ export async function GET(req: NextRequest) {
     // Daily volume (CST dates)
     prisma.$queryRaw<Array<any>>`
       SELECT
-        TO_CHAR(TO_TIMESTAMP(date_started) AT TIME ZONE 'America/Chicago', 'YYYY-MM-DD') as date,
+        TO_CHAR(TO_TIMESTAMP(date_started / 1000) AT TIME ZONE 'America/Chicago', 'YYYY-MM-DD') as date,
         COUNT(*) FILTER (WHERE state = 'answered') as answered,
         COUNT(*) FILTER (WHERE state != 'answered') as missed
       FROM dialpad_calls
       WHERE direction = 'inbound'
-        AND date_started >= ${start} AND date_started <= ${end}
+        AND date_started >= ${startMs} AND date_started <= ${endMs}
       GROUP BY date
       ORDER BY date
     `,
@@ -128,7 +131,7 @@ export async function GET(req: NextRequest) {
         COUNT(*) FILTER (WHERE is_first_time = true) as first_time
       FROM dialpad_calls
       WHERE direction = 'inbound'
-        AND date_started >= ${start} AND date_started <= ${end}
+        AND date_started >= ${startMs} AND date_started <= ${endMs}
         AND tracking_number != ''
       GROUP BY tracking_number
       ORDER BY total DESC
