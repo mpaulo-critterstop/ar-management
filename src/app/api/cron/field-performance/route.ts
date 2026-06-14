@@ -50,13 +50,13 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
     const batch = ids.slice(i, i + 100);
     const url = frUrl(endpoint, action, { [idParam]: batch.join(',') }, key, token);
     const data = await frFetch(url);
-    // FR returns data under a dynamic property name
-    const dataKey = Object.keys(data).find(k => Array.isArray(data[k]));
-    if (dataKey) results.push(...data[dataKey]);
-    else {
-      // Sometimes returns object map instead of array
-      const objKey = Object.keys(data).find(k => typeof data[k] === 'object' && data[k] !== null && !['success','count','errorMessage'].includes(k));
-      if (objKey) results.push(...Object.values(data[objKey] as object));
+    // FR returns the data key name in the 'propertyName' field
+    const propName = data.propertyName;
+    if (data.success && propName && data[propName]) {
+      const items = Array.isArray(data[propName])
+        ? data[propName]
+        : Object.values(data[propName] as object);
+      results.push(...items);
     }
     await new Promise(r => setTimeout(r, 150));
   }
