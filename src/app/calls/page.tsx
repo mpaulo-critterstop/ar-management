@@ -35,7 +35,7 @@ function KpiCard({ label, value, sub, color }: { label: string; value: any; sub?
 export default function CallsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [range, setRange] = useState('current_month');
+  const [range, setRange] = useState('today');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [showCustom, setShowCustom] = useState(false);
