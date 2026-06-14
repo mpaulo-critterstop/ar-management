@@ -147,8 +147,9 @@ export async function POST(req: NextRequest) {
       log.push(`  Fetched ${allAppts.length} appointment objects`);
       if (allAppts.length > 0) {
         const sample = allAppts[0];
-        log.push(`  Sample keys: ${Object.keys(sample).slice(0, 10).join(', ')}`);
+        log.push(`  All keys: ${Object.keys(sample).join(', ')}`);
         log.push(`  Sample status: ${sample.status}, type: ${sample.type || sample.serviceTypeID}`);
+        log.push(`  customerName: ${sample.customerName}, techName: ${sample.technicianName || sample.employeeName}, title: ${sample.appointmentTitle || sample.title || sample.type}`);
       }
 
       // Filter to completed + relevant service types
