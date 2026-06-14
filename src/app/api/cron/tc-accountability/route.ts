@@ -40,6 +40,14 @@ async function frFetch(url: string) {
 
 async function fetchInBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string, debugLog?: string[]): Promise<any[]> {
   const results: any[] = [];
+  // Map of FR endpoint names to their data key in the response
+  const dataKeyMap: Record<string, string> = {
+    appointment: 'appointments',
+    customer: 'customers',
+    serviceType: 'serviceTypes',
+  };
+  const knownKey = dataKeyMap[endpoint];
+
   for (let i = 0; i < ids.length; i += 100) {
     const batch = ids.slice(i, i + 100);
     const url = frUrl(endpoint, action, { [idParam]: batch.join(',') }, key, token);
@@ -48,18 +56,18 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
       debugLog.push(`  FR response keys: ${Object.keys(data).join(', ')}`);
       const firstKey = Object.keys(data)[0];
       if (firstKey) debugLog.push(`  First key type: ${typeof data[firstKey]}, isArray: ${Array.isArray(data[firstKey])}`);
-      if (data.appointments) {
-        const apptKeys = Object.keys(data.appointments);
-        debugLog.push(`  appointments key count: ${apptKeys.length}, sample key: ${apptKeys[0]}`);
-        if (apptKeys[0]) debugLog.push(`  appointments[0] type: ${typeof data.appointments[apptKeys[0]]}`);
+      if (data[knownKey || '']) {
+        const apptKeys = Object.keys(data[knownKey]);
+        debugLog.push(`  ${knownKey} key count: ${apptKeys.length}, sample key: ${apptKeys[0]}`);
+        if (apptKeys[0]) debugLog.push(`  ${knownKey}[0] type: ${typeof data[knownKey][apptKeys[0]]}`);
       }
     }
-    // FR returns appointments as an array or array-like object under 'appointments'
-    if (data.appointments) {
-      const appts = Array.isArray(data.appointments)
-        ? data.appointments
-        : Object.values(data.appointments as object);
-      results.push(...appts);
+    // Use known key first, then fall back to detection
+    if (knownKey && data[knownKey]) {
+      const items = Array.isArray(data[knownKey])
+        ? data[knownKey]
+        : Object.values(data[knownKey] as object);
+      results.push(...items);
     } else {
       const dataKey = Object.keys(data).find(k => Array.isArray(data[k]));
       if (dataKey) results.push(...data[dataKey]);
@@ -240,13 +248,41 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Fetch customer names in batch
+      const customerMap = new Map<string, string>();
+      try {
+        const custData = await fetchInBatches('customer', 'get', 'customerIDs', customerIds.slice(0, 500), cfg.key, cfg.token);
+        for (const c of custData) {
+          customerMap.set(String(c.customerID), `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.companyName || '');
+        }
+      } catch (e: any) {
+        log.push(`  Customer fetch error: ${e.message}`);
+      }
+
+      // Fetch service type names
+      const serviceTypeMap = new Map<number, string>();
+      try {
+        const stSearch = await frFetch(frUrl('serviceType', 'search', { officeIDs: String(cfg.officeId) }, cfg.key, cfg.token));
+        const stIds: number[] = stSearch.serviceTypeIDs || stSearch.typeIDs || [];
+        if (stIds.length > 0) {
+          const stData = await fetchInBatches('serviceType', 'get', 'typeIDs', stIds, cfg.key, cfg.token);
+          for (const st of stData) {
+            serviceTypeMap.set(parseInt(st.typeID || st.id), st.description || st.name || '');
+          }
+        }
+      } catch (e: any) {
+        log.push(`  Service type fetch error: ${e.message}`);
+      }
+
       // Upsert each relevant appointment
       for (const appt of relevant) {
         const typeId = parseInt(String(appt.type || appt.serviceTypeID || '0'));
         const custId = String(appt.customerID);
         const frApptId = String(appt.appointmentID || appt.id);
-        const empId = parseInt(appt.employeeID || appt.technicianID || '0');
+        const empId = parseInt(appt.employeeID || '0');
         const tech = frEmpToTech.get(empId);
+        const customerName = customerMap.get(custId) || '';
+        const jobTitle = serviceTypeMap.get(typeId) || String(typeId);
 
         // Determine if CO job
         let isCoJob = CO_JOB_IDS.has(typeId);
@@ -275,11 +311,11 @@ export async function POST(req: NextRequest) {
               date: apptDate,
               weekEnd,
               customerId: custId,
-              customerName: appt.customerName || '',
-              jobTitle: appt.appointmentTitle || appt.serviceType || '',
+              customerName,
+              jobTitle,
               serviceTypeId: typeId,
               techId: tech?.techId || '',
-              techName: tech?.name || appt.technicianName || '',
+              techName: tech?.name || '',
               office: officeName,
               isCoJob,
               closedOut: hasCloseoutNote(appt),
@@ -297,11 +333,11 @@ export async function POST(req: NextRequest) {
               date: apptDate,
               weekEnd,
               customerId: custId,
-              customerName: appt.customerName || '',
-              jobTitle: appt.appointmentTitle || appt.serviceType || '',
+              customerName,
+              jobTitle,
               serviceTypeId: typeId,
               techId: tech?.techId || '',
-              techName: tech?.name || appt.technicianName || '',
+              techName: tech?.name || '',
               office: officeName,
               isCoJob,
               closedOut: hasCloseoutNote(appt),
