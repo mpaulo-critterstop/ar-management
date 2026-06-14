@@ -51,8 +51,13 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
     }
     const dataKey = Object.keys(data).find(k => Array.isArray(data[k]));
     if (dataKey) results.push(...data[dataKey]);
-    else {
-      const objKey = Object.keys(data).find(k => typeof data[k] === 'object' && data[k] !== null && !['success','count','errorMessage'].includes(k));
+    else if (data.appointments && typeof data.appointments === 'object') {
+      results.push(...Object.values(data.appointments as object));
+    } else {
+      const objKey = Object.keys(data).find(k =>
+        typeof data[k] === 'object' && data[k] !== null &&
+        !['success','count','errorMessage','params','tokenUsage','tokenLimits','ignoredParams'].includes(k)
+      );
       if (objKey) results.push(...Object.values(data[objKey] as object));
     }
     await new Promise(r => setTimeout(r, 150));
