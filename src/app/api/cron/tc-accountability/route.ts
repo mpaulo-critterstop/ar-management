@@ -48,6 +48,11 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
       debugLog.push(`  FR response keys: ${Object.keys(data).join(', ')}`);
       const firstKey = Object.keys(data)[0];
       if (firstKey) debugLog.push(`  First key type: ${typeof data[firstKey]}, isArray: ${Array.isArray(data[firstKey])}`);
+      if (data.appointments) {
+        const apptKeys = Object.keys(data.appointments);
+        debugLog.push(`  appointments key count: ${apptKeys.length}, sample key: ${apptKeys[0]}`);
+        if (apptKeys[0]) debugLog.push(`  appointments[0] type: ${typeof data.appointments[apptKeys[0]]}`);
+      }
     }
     const dataKey = Object.keys(data).find(k => Array.isArray(data[k]));
     if (dataKey) results.push(...data[dataKey]);
