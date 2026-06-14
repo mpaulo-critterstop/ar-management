@@ -102,25 +102,27 @@ async function pullWPMetrics(
   cfg: { key: string; token: string; officeId: number },
   weekStart: Date,
   weekEnd: Date,
-  // Map of FR employeeId -> techId for WP techs in this office
-  wpTechs: Map<number, string>
+  wpTechs: Map<number, string>,
+  preloadedAppts?: any[]
 ): Promise<Map<string, TechWPStats>> {
 
   const result = new Map<string, TechWPStats>();
   const initStats = (): TechWPStats => ({ closeoutOpportunities: 0, closeouts: 0, callbacks: 0 });
 
-  // Search all appointments for the week
-  const searchUrl = frUrl('appointment', 'search', {
-    officeIDs: String(cfg.officeId),
-    dateStart: fmtDate(weekStart),
-    dateEnd: fmtDate(weekEnd),
-  }, cfg.key, cfg.token);
-
-  const searchData = await frFetch(searchUrl);
-  const apptIds: number[] = searchData.appointmentIDs || [];
-  if (apptIds.length === 0) return result;
-
-  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+  let allAppts: any[];
+  if (preloadedAppts) {
+    allAppts = preloadedAppts;
+  } else {
+    const searchUrl = frUrl('appointment', 'search', {
+      officeIDs: String(cfg.officeId),
+      dateStart: fmtDate(weekStart),
+      dateEnd: fmtDate(weekEnd),
+    }, cfg.key, cfg.token);
+    const searchData = await frFetch(searchUrl);
+    const apptIds: number[] = searchData.appointmentIDs || [];
+    if (apptIds.length === 0) return result;
+    allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+  }
 
   // Only completed appointments
   const completed = allAppts.filter((a: any) => String(a.status) === '1');
@@ -270,31 +272,26 @@ async function pullRouteReporting(
   cfg: { key: string; token: string; officeId: number },
   weekStart: Date,
   weekEnd: Date,
-  pmpTechs: Map<number, string>
+  pmpTechs: Map<number, string>,
+  preloadedAppts?: any[]
 ): Promise<Map<string, { totalScheduled: number; completed: number; productionValue: number }>> {
 
   const result = new Map<string, { totalScheduled: number; completed: number; productionValue: number }>();
 
-  const searchUrl = frUrl('appointment', 'search', {
-    officeIDs: String(cfg.officeId),
-    dateStart: fmtDate(weekStart),
-    dateEnd: fmtDate(weekEnd),
-  }, cfg.key, cfg.token);
-
-  const searchData = await frFetch(searchUrl);
-  const apptIds: number[] = searchData.appointmentIDs || [];
-  if (apptIds.length === 0) return result;
-
-  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
-  const pmpEmpIds = new Set([...pmpTechs.keys()]);
-  const apptServicedBy = new Set(allAppts.map((a: any) => parseInt(a.servicedBy || '0')).filter(Boolean));
-  const matchedIds = [...apptServicedBy].filter(id => pmpEmpIds.has(id));
-  console.log(`PMP frEmployeeIds: ${[...pmpEmpIds].slice(0,5).join(',')}`);
-  console.log(`Appt servicedBy sample: ${[...apptServicedBy].slice(0,5).join(',')}`);
-  console.log(`Matched: ${matchedIds.length}`);
-  // Log value fields from first matched appt
-  const samplePmpAppt = allAppts.find((a: any) => pmpEmpIds.has(parseInt(a.servicedBy || a.employeeID || '0')));
-  if (samplePmpAppt) console.log(`Sample PMP appt value fields: total=${samplePmpAppt.total}, serviceTotal=${samplePmpAppt.serviceTotal}, productionValue=${samplePmpAppt.productionValue}, amount=${samplePmpAppt.amount}`);
+  let allAppts: any[];
+  if (preloadedAppts) {
+    allAppts = preloadedAppts;
+  } else {
+    const searchUrl = frUrl('appointment', 'search', {
+      officeIDs: String(cfg.officeId),
+      dateStart: fmtDate(weekStart),
+      dateEnd: fmtDate(weekEnd),
+    }, cfg.key, cfg.token);
+    const searchData = await frFetch(searchUrl);
+    const apptIds: number[] = searchData.appointmentIDs || [];
+    if (apptIds.length === 0) return result;
+    allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+  }
 
   for (const appt of allAppts) {
     const empId = parseInt(appt.servicedBy || appt.employeeID || appt.technicianID || '0');
@@ -407,16 +404,29 @@ export async function GET(req: NextRequest) {
     const pmpTechs = new Map(officeTechs.filter(t => t.team === 'PMP').map(t => [t.frEmployeeId!, t.techId]));
 
     try {
+      // Fetch all appointments for the week ONCE — shared between WP and PMP
+      const searchUrl = frUrl('appointment', 'search', {
+        officeIDs: String(cfg.officeId),
+        dateStart: fmtDate(weekStart),
+        dateEnd: fmtDate(weekEnd),
+      }, cfg.key, cfg.token);
+      const searchData = await frFetch(searchUrl);
+      const apptIds: number[] = searchData.appointmentIDs || [];
+      log.push(`  ${officeName}: ${apptIds.length} appointment IDs`);
+      const allAppts = apptIds.length > 0
+        ? await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token)
+        : [];
+      log.push(`  ${officeName}: ${allAppts.length} appointments fetched`);
+
       // ── WP DATA ──
       const [wpMetrics, wpCallbacks] = await Promise.all([
-        wpTechs.size > 0 ? pullWPMetrics(cfg, weekStart, weekEnd, wpTechs) : Promise.resolve(new Map()),
+        wpTechs.size > 0 ? pullWPMetrics(cfg, weekStart, weekEnd, wpTechs, allAppts) : Promise.resolve(new Map()),
         wpTechs.size > 0 ? pullWPCallbackRate(cfg, weekEnd, wpTechs) : Promise.resolve(new Map()),
       ]);
 
       // ── PMP DATA ──
-
       const [pmpRoutes, pmpReservices] = await Promise.all([
-        pmpTechs.size > 0 ? pullRouteReporting(cfg, weekStart, weekEnd, pmpTechs) : Promise.resolve(new Map()),
+        pmpTechs.size > 0 ? pullRouteReporting(cfg, weekStart, weekEnd, pmpTechs, allAppts) : Promise.resolve(new Map()),
         pmpTechs.size > 0 ? pullReservices(cfg, weekStart, weekEnd, pmpTechs) : Promise.resolve(new Map()),
       ]);
 
