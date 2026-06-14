@@ -15,8 +15,8 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number }> 
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4 },
 };
 
-// Service type IDs to track
-const TC_SERVICE_IDS = new Set([504, 636, 615, 671, 546, 554, 620, 553, 538]);
+// Service type IDs to track — NO exclusions (553)
+const TC_SERVICE_IDS = new Set([504, 636, 615, 671, 546, 554, 620, 538]);
 const TRAP_CHECK_IDS = new Set([504, 636]);
 const CALLBACK_IDS   = new Set([615, 671, 546, 554]);
 const CO_JOB_IDS     = new Set([504, 636, 615, 671, 546, 554, 620, 533, 538]);
@@ -40,37 +40,21 @@ async function frFetch(url: string) {
 
 async function fetchInBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string, debugLog?: string[]): Promise<any[]> {
   const results: any[] = [];
-  // Map of FR endpoint names to their data key in the response
-  const dataKeyMap: Record<string, string> = {
-    appointment: 'appointments',
-    customer: 'customers',
-    serviceType: 'serviceTypes',
-  };
-  const knownKey = dataKeyMap[endpoint];
-
   for (let i = 0; i < ids.length; i += 100) {
     const batch = ids.slice(i, i + 100);
     const url = frUrl(endpoint, action, { [idParam]: batch.join(',') }, key, token);
     const data = await frFetch(url);
     if (i === 0 && debugLog) {
-      debugLog.push(`  FR response keys: ${Object.keys(data).join(', ')}`);
-      const firstKey = Object.keys(data)[0];
-      if (firstKey) debugLog.push(`  First key type: ${typeof data[firstKey]}, isArray: ${Array.isArray(data[firstKey])}`);
-      if (data[knownKey || '']) {
-        const apptKeys = Object.keys(data[knownKey]);
-        debugLog.push(`  ${knownKey} key count: ${apptKeys.length}, sample key: ${apptKeys[0]}`);
-        if (apptKeys[0]) debugLog.push(`  ${knownKey}[0] type: ${typeof data[knownKey][apptKeys[0]]}`);
-      }
+      debugLog.push(`  FR ${endpoint} response keys: ${Object.keys(data).slice(0, 8).join(', ')}`);
+      debugLog.push(`  propertyName: ${data.propertyName}, count: ${data.count}`);
     }
-    // Use known key first, then fall back to detection
-    if (knownKey && data[knownKey]) {
-      const items = Array.isArray(data[knownKey])
-        ? data[knownKey]
-        : Object.values(data[knownKey] as object);
+    // Use propertyName field that FR returns to identify the data key
+    const propName = data.propertyName;
+    if (data.success && propName && data[propName]) {
+      const items = Array.isArray(data[propName])
+        ? data[propName]
+        : Object.values(data[propName] as object);
       results.push(...items);
-    } else {
-      const dataKey = Object.keys(data).find(k => Array.isArray(data[k]));
-      if (dataKey) results.push(...data[dataKey]);
     }
     await new Promise(r => setTimeout(r, 150));
   }
@@ -253,26 +237,27 @@ export async function POST(req: NextRequest) {
       try {
         const custData = await fetchInBatches('customer', 'get', 'customerIDs', customerIds.slice(0, 500), cfg.key, cfg.token);
         for (const c of custData) {
-          customerMap.set(String(c.customerID), `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.companyName || '');
+          const name = c.companyName?.trim()
+            ? c.companyName.trim()
+            : `${c.fname || ''} ${c.lname || ''}`.trim();
+          customerMap.set(String(c.customerID), name);
         }
       } catch (e: any) {
         log.push(`  Customer fetch error: ${e.message}`);
       }
 
-      // Fetch service type names
-      const serviceTypeMap = new Map<number, string>();
-      try {
-        const stSearch = await frFetch(frUrl('serviceType', 'search', { officeIDs: String(cfg.officeId) }, cfg.key, cfg.token));
-        const stIds: number[] = stSearch.serviceTypeIDs || stSearch.typeIDs || [];
-        if (stIds.length > 0) {
-          const stData = await fetchInBatches('serviceType', 'get', 'typeIDs', stIds, cfg.key, cfg.token);
-          for (const st of stData) {
-            serviceTypeMap.set(parseInt(st.typeID || st.id), st.description || st.name || '');
-          }
-        }
-      } catch (e: any) {
-        log.push(`  Service type fetch error: ${e.message}`);
-      }
+      // Hardcoded service type names for TC accountability types
+      const serviceTypeMap = new Map<number, string>([
+        [504, 'Trap Check'],
+        [636, 'Trap Check'],
+        [615, 'Call Back'],
+        [671, 'Call Back'],
+        [546, 'Call Back'],
+        [554, 'Call Back'],
+        [620, 'Call Back Trap Check'],
+        [533, 'Annual Inspection'],
+        [538, 'Annual Inspection Trap Check'],
+      ]);
 
       // Upsert each relevant appointment
       for (const appt of relevant) {
