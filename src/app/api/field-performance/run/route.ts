@@ -293,6 +293,35 @@ async function pullRouteReporting(
     allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
   }
 
+  // Use FR route reporting API for production value (not available on appointment objects)
+  let routeProductionByTech = new Map<string, { totalProduction: number; routeCount: number }>();
+  try {
+    const routeSearchUrl = frUrl('route', 'search', {
+      officeIDs: String(cfg.officeId),
+      dateStart: fmtDate(weekStart),
+      dateEnd: fmtDate(weekEnd),
+    }, cfg.key, cfg.token);
+    const routeSearch = await frFetch(routeSearchUrl);
+    const routeIds: number[] = routeSearch.routeIDs || [];
+    if (routeIds.length > 0) {
+      const routes = await fetchInBatches('route', 'get', 'routeIDs', routeIds, cfg.key, cfg.token);
+      for (const route of routes) {
+        const empId = parseInt(route.assignedTech || route.employeeID || '0');
+        if (!empId || !pmpTechs.has(empId)) continue;
+        const techId = pmpTechs.get(empId)!;
+        const prodVal = parseFloat(route.productionValue || route.routeValue || '0');
+        if (!routeProductionByTech.has(techId)) {
+          routeProductionByTech.set(techId, { totalProduction: 0, routeCount: 0 });
+        }
+        const entry = routeProductionByTech.get(techId)!;
+        entry.totalProduction += prodVal;
+        if (prodVal > 0) entry.routeCount++;
+      }
+    }
+  } catch {
+    // Route API not available or failed — fall back to 0 production value
+  }
+
   for (const appt of allAppts) {
     const empId = parseInt(appt.servicedBy || appt.employeeID || appt.technicianID || '0');
     if (!empId || !pmpTechs.has(empId)) continue;
@@ -303,12 +332,22 @@ async function pullRouteReporting(
     const isPending   = statusStr === '0';
     if (!isCompleted && !isPending) continue;
 
-    if (!result.has(techId)) result.set(techId, { totalScheduled: 0, completed: 0, productionValue: 0 });
+    if (!result.has(techId)) {
+      result.set(techId, { totalScheduled: 0, completed: 0, productionValue: 0 });
+      // Log first matched appt value fields
+      console.log(`First PMP match: techId=${techId}, productionValue=${appt.productionValue}, total=${appt.total}, amountCollected=${appt.amountCollected}`);
+    }
     const entry = result.get(techId)!;
     entry.totalScheduled++;
     if (isCompleted) {
       entry.completed++;
-      entry.productionValue += parseFloat(appt.productionValue || appt.total || appt.serviceTotal || '0');
+    }
+  }
+
+  // Override productionValue with route API data (more accurate than appointment-level)
+  for (const [techId, routeData] of routeProductionByTech) {
+    if (result.has(techId)) {
+      result.get(techId)!.productionValue = routeData.totalProduction;
     }
   }
 
