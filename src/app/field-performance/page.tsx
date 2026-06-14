@@ -10,6 +10,7 @@ import { AttendanceTab } from './AttendanceTab';
 import { DrivingTab } from './DrivingTab';
 import { MoMTab } from './MoMTab';
 import { ManualAdjTab } from './ManualAdjTab';
+import { TcAccountabilityTab } from './TcAccountabilityTab';
 
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
 
@@ -31,7 +32,7 @@ function fmtWeek(d: Date) {
 export default function FieldPerformancePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'scoreboard' | 'individuals' | 'teams' | 'roster' | 'attendance' | 'driving' | 'mom' | 'adjustments'>('scoreboard');
+  const [activeTab, setActiveTab] = useState<'scoreboard' | 'individuals' | 'teams' | 'roster' | 'attendance' | 'tc-accountability' | 'driving' | 'mom' | 'adjustments'>('scoreboard');
   const [office, setOffice] = useState('All');
   const [weekIdx, setWeekIdx] = useState(0);
   const [syncing, setSyncing] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export default function FieldPerformancePage() {
 
   const selectedWeek = WEEKS[weekIdx];
 
-  const runSync = async (type: 'fp' | 'bouncie' | 'reliability' | 'geocode' | 'addresses') => {
+  const runSync = async (type: 'fp' | 'bouncie' | 'reliability' | 'geocode' | 'addresses' | 'tc') => {
     setSyncing(type);
     setSyncMsg(null);
     const wk = selectedWeek.toLocaleDateString('en-CA');
@@ -101,7 +102,11 @@ export default function FieldPerformancePage() {
       return;
     }
 
-    const url = type === 'fp' ? '/api/field-performance/sync-test' : type === 'bouncie' ? '/api/bouncie/sync-test' : type === 'reliability' ? '/api/reliability/sync-test' : '/api/addresses/run';
+    const url = type === 'fp' ? '/api/field-performance/sync-test'
+      : type === 'bouncie' ? '/api/bouncie/sync-test'
+      : type === 'reliability' ? '/api/reliability/sync-test'
+      : type === 'tc' ? '/api/tc-accountability/sync-test'
+      : '/api/addresses/run';
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -109,8 +114,8 @@ export default function FieldPerformancePage() {
         body: JSON.stringify({ weekEnd: wk }),
       });
       const data = await res.json();
-      const label = type === 'fp' ? 'FR' : type === 'bouncie' ? 'Bouncie' : type === 'reliability' ? 'Reliability' : 'Addresses';
-      const detail = type === 'addresses' ? `${data.totalUpdated ?? 0} addresses updated` : `${data.techsUpdated ?? 0} techs updated`;
+      const label = type === 'fp' ? 'FR' : type === 'bouncie' ? 'Bouncie' : type === 'reliability' ? 'Reliability' : type === 'tc' ? 'TC' : 'Addresses';
+      const detail = type === 'addresses' ? `${data.totalUpdated ?? 0} addresses updated` : type === 'tc' ? `${data.totalSynced ?? 0} appointments synced` : `${data.techsUpdated ?? 0} techs updated`;
       setSyncMsg(`${label} sync: ${data.status} — ${detail}`);
     } catch {
       setSyncMsg('Sync failed');
@@ -155,9 +160,9 @@ export default function FieldPerformancePage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
         {/* Tab nav */}
         <div style={{ display: 'inline-flex', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
-          {(['scoreboard', 'individuals', 'teams', 'roster', 'attendance', 'driving', 'mom', 'adjustments'] as const).map(tab => (
+          {(['scoreboard', 'individuals', 'teams', 'roster', 'attendance', 'tc-accountability', 'driving', 'mom', 'adjustments'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} style={navStyle(activeTab === tab)}>
-              {tab === 'mom' ? 'MoM' : tab === 'adjustments' ? 'Adjustments' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'mom' ? 'MoM' : tab === 'adjustments' ? 'Adjustments' : tab === 'tc-accountability' ? 'TC Accountability' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
@@ -198,6 +203,10 @@ export default function FieldPerformancePage() {
                 style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'reliability' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
                 {syncing === 'reliability' ? 'Syncing...' : '↻ Reliability'}
               </button>
+              <button onClick={() => runSync('tc')} disabled={!!syncing}
+                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'tc' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
+                {syncing === 'tc' ? 'Syncing...' : '↻ TC Sync'}
+              </button>
               <button onClick={() => runSync('geocode')} disabled={!!syncing}
                 style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'geocode' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
                 {syncing === 'geocode' ? 'Geocoding...' : '↻ Geocode'}
@@ -217,6 +226,7 @@ export default function FieldPerformancePage() {
       {activeTab === 'teams' && <TeamsTab office={officeParam} weekEnd={selectedWeek} />}
       {activeTab === 'roster' && <RosterTab office={officeParam} />}
       {activeTab === 'attendance' && <AttendanceTab office={officeParam} weekEnd={selectedWeek} />}
+      {activeTab === 'tc-accountability' && <TcAccountabilityTab office={officeParam} weekEnd={selectedWeek} />}
       {activeTab === 'driving' && <DrivingTab office={officeParam} weekEnd={selectedWeek} />}
       {activeTab === 'mom' && <MoMTab office={officeParam} />}
       {activeTab === 'adjustments' && <ManualAdjTab office={officeParam} weekEnd={selectedWeek} />}

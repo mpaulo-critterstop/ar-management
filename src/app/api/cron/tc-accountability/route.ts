@@ -1,0 +1,319 @@
+// src/app/api/cron/tc-accountability/route.ts
+// Syncs TC accountability appointments from FieldRoutes into tc_appointments table
+// Run weekly after FR sync
+
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+const SUBDOMAIN = 'critterstoppest';
+const BASE_URL = `https://${SUBDOMAIN}.fieldroutes.com/api`;
+
+const OFFICES: Record<string, { key: string; token: string; officeId: number }> = {
+  DFW:   { key: process.env.FIELDROUTES_KEY_DFW!,   token: process.env.FIELDROUTES_TOKEN_DFW!,   officeId: 1 },
+  ATX:   { key: process.env.FIELDROUTES_KEY_ATX!,   token: process.env.FIELDROUTES_TOKEN_ATX!,   officeId: 5 },
+  OKC:   { key: process.env.FIELDROUTES_KEY_OKC!,   token: process.env.FIELDROUTES_TOKEN_OKC!,   officeId: 3 },
+  CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4 },
+};
+
+// Service type IDs to track
+const TC_SERVICE_IDS = new Set([504, 636, 615, 671, 546, 554, 620, 553, 538]);
+const TRAP_CHECK_IDS = new Set([504, 636]);
+const CALLBACK_IDS   = new Set([615, 671, 546, 554]);
+const CO_JOB_IDS     = new Set([504, 636, 615, 671, 546, 554, 620, 533, 538]);
+
+// Close-out keywords — tech/office notes only
+const CLOSEOUT_KEYWORDS = ['ready for insulation', 'ready for far', 'close out', 'closed out'];
+
+function frUrl(endpoint: string, action: string, params: Record<string, string>, key: string, token: string) {
+  const url = new URL(`${BASE_URL}/${endpoint}/${action}`);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  url.searchParams.set('authenticationKey', key);
+  url.searchParams.set('authenticationToken', token);
+  return url.toString();
+}
+
+async function frFetch(url: string) {
+  const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+  if (!res.ok) throw new Error(`FR HTTP ${res.status}`);
+  return res.json();
+}
+
+async function fetchInBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string): Promise<any[]> {
+  const results: any[] = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const batch = ids.slice(i, i + 100);
+    const url = frUrl(endpoint, action, { [idParam]: batch.join(',') }, key, token);
+    const data = await frFetch(url);
+    const dataKey = Object.keys(data).find(k => Array.isArray(data[k]));
+    if (dataKey) results.push(...data[dataKey]);
+    else {
+      const objKey = Object.keys(data).find(k => typeof data[k] === 'object' && data[k] !== null && !['success','count','errorMessage'].includes(k));
+      if (objKey) results.push(...Object.values(data[objKey] as object));
+    }
+    await new Promise(r => setTimeout(r, 150));
+  }
+  return results;
+}
+
+function fmtDate(d: Date) { return d.toISOString().split('T')[0]; }
+
+function hasCloseoutNote(appt: any): boolean {
+  const text = [appt.officeNotes, appt.techNotes].filter(Boolean).join(' ').toLowerCase();
+  return CLOSEOUT_KEYWORDS.some(k => text.includes(k));
+}
+
+function getMostRecentFriday(offsetWeeks = 0): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const daysToFri = day >= 5 ? day - 5 : day + 2;
+  d.setDate(d.getDate() - daysToFri - offsetWeeks * 7);
+  return d;
+}
+
+export async function POST(req: NextRequest) {
+  const authHeader = req.headers.get('authorization');
+  const isVercelCron = req.headers.get('x-vercel-cron') === '1';
+  if (!isVercelCron && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const weekEnd = body.weekEnd
+    ? new Date(body.weekEnd + 'T00:00:00.000Z')
+    : getMostRecentFriday();
+
+  const weekStart = new Date(weekEnd);
+  weekStart.setDate(weekStart.getDate() - 6);
+  weekStart.setHours(0, 0, 0, 0);
+
+  const log: string[] = [`TC Accountability sync: ${fmtDate(weekStart)} → ${fmtDate(weekEnd)}`];
+  const errors: string[] = [];
+  let totalSynced = 0;
+
+  // Load tech roster for name lookup (frEmployeeId → techId/name)
+  const techs = await prisma.technician.findMany({
+    select: { techId: true, name: true, frEmployeeId: true, office: true },
+  });
+  type TechInfo = { techId: string; name: string; frEmployeeId: number | null; office: string };
+  const frEmpToTech = new Map<number, TechInfo>(
+    (techs as TechInfo[]).filter((t): t is TechInfo & { frEmployeeId: number } => t.frEmployeeId !== null)
+      .map((t: TechInfo & { frEmployeeId: number }) => [t.frEmployeeId, t])
+  );
+
+  // Load dispatch jobs for TC count per customer
+  const dispatchJobs = await prisma.dispatchJob.findMany({
+    where: { status: { in: ['ACTIVE', 'CLOSED'] } },
+    select: { customer: { select: { externalId: true } }, trapCheckCount: true },
+  });
+  const customerTCCounts = new Map<string, number>();
+  for (const job of dispatchJobs) {
+    if (job.customer?.externalId) {
+      customerTCCounts.set(job.customer.externalId, job.trapCheckCount ?? 0);
+    }
+  }
+
+  for (const [officeName, cfg] of Object.entries(OFFICES)) {
+    try {
+      log.push(`\n── ${officeName} ──`);
+
+      // Search completed appointments for the week with relevant service types
+      const searchUrl = frUrl('appointment', 'search', {
+        officeIDs: String(cfg.officeId),
+        dateStart: fmtDate(weekStart),
+        dateEnd: fmtDate(weekEnd),
+        status: '1', // completed only
+      }, cfg.key, cfg.token);
+
+      const searchData = await frFetch(searchUrl);
+      const apptIds: number[] = searchData.appointmentIDs || [];
+      if (apptIds.length === 0) { log.push(`  No appointments`); continue; }
+
+      const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+
+      // Filter to only TC-relevant service types
+      const relevant = allAppts.filter((a: any) => {
+        const typeId = parseInt(String(a.type || a.serviceTypeID || '0'));
+        return TC_SERVICE_IDS.has(typeId);
+      });
+
+      log.push(`  Total completed: ${allAppts.length}, relevant: ${relevant.length}`);
+
+      // Get all future appointments for customers in this batch to compute forward-looking fields
+      const customerIds = [...new Set(relevant.map((a: any) => String(a.customerID)))];
+
+      // Fetch future appointments per customer (scheduled, not completed)
+      const futureSearchUrl = frUrl('appointment', 'search', {
+        officeIDs: String(cfg.officeId),
+        dateStart: fmtDate(new Date(weekEnd.getTime() + 86400000)), // day after weekEnd
+        dateEnd: fmtDate(new Date(weekEnd.getTime() + 90 * 86400000)), // 90 days out
+        customerIDs: customerIds.slice(0, 200).join(','), // batch limit
+      }, cfg.key, cfg.token);
+
+      let futureAppts: any[] = [];
+      try {
+        const futureSearch = await frFetch(futureSearchUrl);
+        const futureIds: number[] = futureSearch.appointmentIDs || [];
+        if (futureIds.length > 0) {
+          futureAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', futureIds, cfg.key, cfg.token);
+        }
+      } catch (e: any) {
+        log.push(`  Future appts fetch error: ${e.message}`);
+      }
+
+      // Build future visit map per customer
+      const futureByCustomer = new Map<string, { nonCb: any[]; cbs: any[] }>();
+      for (const fa of futureAppts) {
+        const custId = String(fa.customerID);
+        if (!futureByCustomer.has(custId)) futureByCustomer.set(custId, { nonCb: [], cbs: [] });
+        const typeId = parseInt(String(fa.type || fa.serviceTypeID || '0'));
+        if (CALLBACK_IDS.has(typeId)) {
+          futureByCustomer.get(custId)!.cbs.push(fa);
+        } else {
+          futureByCustomer.get(custId)!.nonCb.push(fa);
+        }
+      }
+
+      // Also get past appointments within 60 days to check CB flag
+      const pastSearchUrl = frUrl('appointment', 'search', {
+        officeIDs: String(cfg.officeId),
+        dateStart: fmtDate(weekStart),
+        dateEnd: fmtDate(new Date(weekEnd.getTime() + 60 * 86400000)),
+        customerIDs: customerIds.slice(0, 200).join(','),
+        status: '1',
+      }, cfg.key, cfg.token);
+
+      let past60Appts: any[] = [];
+      try {
+        const pastSearch = await frFetch(pastSearchUrl);
+        const pastIds: number[] = pastSearch.appointmentIDs || [];
+        if (pastIds.length > 0) {
+          past60Appts = await fetchInBatches('appointment', 'get', 'appointmentIDs', pastIds, cfg.key, cfg.token);
+        }
+      } catch (e: any) {
+        log.push(`  Past 60d appts fetch error: ${e.message}`);
+      }
+
+      // Build 60-day CB map and 1wk/2wk close-out map per customer
+      const cb60Map = new Map<string, boolean>();
+      const wk1Map = new Map<string, boolean>();
+      const wk2Map = new Map<string, boolean>();
+
+      for (const pa of past60Appts) {
+        const custId = String(pa.customerID);
+        const typeId = parseInt(String(pa.type || pa.serviceTypeID || '0'));
+        const paDate = new Date(pa.date || pa.dateAdded);
+
+        if (CALLBACK_IDS.has(typeId)) {
+          cb60Map.set(custId, true);
+        }
+        if (hasCloseoutNote(pa)) {
+          const diffDays = (paDate.getTime() - weekEnd.getTime()) / 86400000;
+          if (diffDays <= 7) wk1Map.set(custId, true);
+          if (diffDays <= 14) wk2Map.set(custId, true);
+        }
+      }
+
+      // Upsert each relevant appointment
+      for (const appt of relevant) {
+        const typeId = parseInt(String(appt.type || appt.serviceTypeID || '0'));
+        const custId = String(appt.customerID);
+        const frApptId = String(appt.appointmentID || appt.id);
+        const empId = parseInt(appt.employeeID || appt.technicianID || '0');
+        const tech = frEmpToTech.get(empId);
+
+        // Determine if CO job
+        let isCoJob = CO_JOB_IDS.has(typeId);
+        if (TRAP_CHECK_IDS.has(typeId)) {
+          const tcCount = customerTCCounts.get(custId) ?? 0;
+          isCoJob = tcCount >= 2;
+        }
+
+        // Future visits
+        const future = futureByCustomer.get(custId);
+        const futureNonCb = future?.nonCb.length ?? 0;
+        const futureCbs = future?.cbs.length ?? 0;
+        const nextNonCb = future?.nonCb.sort((a: any, b: any) =>
+          new Date(a.date).getTime() - new Date(b.date).getTime()
+        )[0];
+        const nextVisitDays = nextNonCb
+          ? Math.round((new Date(nextNonCb.date).getTime() - weekEnd.getTime()) / 86400000)
+          : null;
+
+        const apptDate = new Date(appt.date || appt.dateAdded);
+
+        try {
+          await prisma.tcAppointment.upsert({
+            where: { frAppointmentId: frApptId },
+            update: {
+              date: apptDate,
+              weekEnd,
+              customerId: custId,
+              customerName: appt.customerName || '',
+              jobTitle: appt.appointmentTitle || appt.serviceType || '',
+              serviceTypeId: typeId,
+              techId: tech?.techId || '',
+              techName: tech?.name || appt.technicianName || '',
+              office: officeName,
+              isCoJob,
+              closedOut: hasCloseoutNote(appt),
+              wk1CloseOut: wk1Map.get(custId) ?? false,
+              wk2CloseOut: wk2Map.get(custId) ?? false,
+              cb60Day: cb60Map.get(custId) ?? false,
+              futureNonCbVisits: futureNonCb,
+              nextVisitDays,
+              futureCbs,
+              updatedAt: new Date(),
+            },
+            create: {
+              id: crypto.randomUUID(),
+              frAppointmentId: frApptId,
+              date: apptDate,
+              weekEnd,
+              customerId: custId,
+              customerName: appt.customerName || '',
+              jobTitle: appt.appointmentTitle || appt.serviceType || '',
+              serviceTypeId: typeId,
+              techId: tech?.techId || '',
+              techName: tech?.name || appt.technicianName || '',
+              office: officeName,
+              isCoJob,
+              closedOut: hasCloseoutNote(appt),
+              wk1CloseOut: wk1Map.get(custId) ?? false,
+              wk2CloseOut: wk2Map.get(custId) ?? false,
+              cb60Day: cb60Map.get(custId) ?? false,
+              futureNonCbVisits: futureNonCb,
+              nextVisitDays,
+              futureCbs,
+            },
+          });
+          totalSynced++;
+        } catch (e: any) {
+          errors.push(`appt ${frApptId}: ${e.message}`);
+        }
+      }
+
+      log.push(`  Synced: ${relevant.length}`);
+    } catch (e: any) {
+      errors.push(`${officeName}: ${e.message}`);
+      log.push(`  ERROR: ${e.message}`);
+    }
+  }
+
+  log.push(`\nTotal synced: ${totalSynced}`);
+
+  return NextResponse.json({
+    status: errors.length === 0 ? 'success' : 'partial',
+    totalSynced,
+    errors,
+    log: log.join('\n'),
+  });
+}
+
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return POST(new NextRequest(req.url, { method: 'POST', headers: req.headers, body: '{}' }));
+}

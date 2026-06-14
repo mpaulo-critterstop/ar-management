@@ -430,3 +430,43 @@ model TechDayAttendance {
   @@index([techId])
   @@map("tech_day_attendance")
 }
+
+model TcAppointment {
+  id              String    @id @default(cuid())
+  frAppointmentId String    @unique  // FieldRoutes appointment ID
+  date            DateTime  // appointment date
+  weekEnd         DateTime  // Friday of the week
+  customerId      String?   // FR customer ID
+  customerName    String?
+  jobTitle        String?   // appointment type name
+  serviceTypeId   Int?
+  techId          String?
+  techName        String?
+  office          String?
+
+  // CO logic
+  isCoJob         Boolean   @default(false)   // Col J
+
+  // Populated as future appointments come in (updated over time)
+  futureNonCbVisits Int?    // Col K
+  nextVisitDays     Int?    // Col L
+
+  // Set at time of appointment sync
+  closedOut       Boolean?  // Col M — has close-out note in tech/office notes
+  wk1CloseOut     Boolean?  // Col N — closed out within 1 week
+  wk2CloseOut     Boolean?  // Col O — closed out within 2 weeks
+  cb60Day         Boolean?  // Col P — callback within 60 days
+  futureCbs       Int?      // Col Q — future CB appointments for this customer
+
+  // Bouncie
+  timeAtJobMins   Float?    // Col R — time within customer geofence
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([weekEnd])
+  @@index([techId])
+  @@index([date])
+  @@index([customerId])
+  @@map("tc_appointments")
+}
