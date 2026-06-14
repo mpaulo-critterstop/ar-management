@@ -252,7 +252,7 @@ export async function GET(req: NextRequest) {
       // Fetch employee names from FR using employeeIDs
       const employeeMap = new Map<number, string>();
       try {
-        const empIds = [...new Set(relevant.map((a: any) => parseInt(a.employeeID || a.servicedBy || '0')).filter(Boolean))];
+        const empIds = [...new Set(relevant.map((a: any) => parseInt(a.servicedBy || a.employeeID || '0')).filter(Boolean))];
         if (empIds.length > 0) {
           const empData = await fetchInBatches('employee', 'get', 'employeeIDs', empIds, cfg.key, cfg.token);
           for (const e of empData) {
@@ -287,7 +287,7 @@ export async function GET(req: NextRequest) {
         const typeId = parseInt(String(appt.type || appt.serviceTypeID || '0'));
         const custId = String(appt.customerID);
         const frApptId = String(appt.appointmentID || appt.id);
-        const empId = parseInt(appt.employeeID || appt.servicedBy || '0');
+        const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
         const tech = frEmpToTech.get(empId);
         const techNameFromFR = employeeMap.get(empId) || '';
         const customerName = customerMap.get(custId) || '';
