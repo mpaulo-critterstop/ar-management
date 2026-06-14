@@ -422,16 +422,18 @@ export async function POST(req: NextRequest) {
 
           // ── START OF DAY: first trip end at a known location ──
           if (startOfDay === null) {
-            // Skip trips under 1 mile — likely driveway/home movements
-            if (tripMiles < MIN_TRIP_MILES_FOR_STARTOFDAY) {
-              log.push(`    ${date} skip short trip ${tripStart.toLocaleTimeString('en-US',{timeZone})} (${tripMiles.toFixed(1)} mi)`);
-              continue; // check next trip
-            }
-
             const bizCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
             const custCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, customerCoords);
+            const isKnown = bizCheck.match || custCheck;
 
-            if (bizCheck.match || custCheck) {
+            // Skip short trips ONLY if the endpoint is unknown (likely home/driveway movement)
+            // If endpoint is a known customer/business, use it regardless of distance
+            if (tripMiles < MIN_TRIP_MILES_FOR_STARTOFDAY && !isKnown) {
+              log.push(`    ${date} skip short trip to unknown addr ${tripStart.toLocaleTimeString('en-US',{timeZone})} (${tripMiles.toFixed(1)} mi)`);
+              continue;
+            }
+
+            if (isKnown) {
               startOfDay = tripEnd;
               log.push(`    ${date} start matched: ${tripEnd.toLocaleTimeString('en-US',{timeZone})} (${bizCheck.name || 'customer'}, ${tripMiles.toFixed(1)} mi)`);
             } else {
