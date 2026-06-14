@@ -130,6 +130,12 @@ export async function POST(req: NextRequest) {
       if (apptIds.length === 0) { log.push(`  No appointments`); continue; }
 
       const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+      log.push(`  Fetched ${allAppts.length} appointment objects`);
+      if (allAppts.length > 0) {
+        const sample = allAppts[0];
+        log.push(`  Sample keys: ${Object.keys(sample).slice(0, 10).join(', ')}`);
+        log.push(`  Sample status: ${sample.status}, type: ${sample.type || sample.serviceTypeID}`);
+      }
 
       // Filter to completed + relevant service types
       const statusSample = [...new Set(allAppts.slice(0, 20).map((a: any) => String(a.status)))];
