@@ -54,16 +54,15 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
         if (apptKeys[0]) debugLog.push(`  appointments[0] type: ${typeof data.appointments[apptKeys[0]]}`);
       }
     }
-    const dataKey = Object.keys(data).find(k => Array.isArray(data[k]));
-    if (dataKey) results.push(...data[dataKey]);
-    else if (data.appointments && typeof data.appointments === 'object') {
-      results.push(...Object.values(data.appointments as object));
+    // FR returns appointments as an array or array-like object under 'appointments'
+    if (data.appointments) {
+      const appts = Array.isArray(data.appointments)
+        ? data.appointments
+        : Object.values(data.appointments as object);
+      results.push(...appts);
     } else {
-      const objKey = Object.keys(data).find(k =>
-        typeof data[k] === 'object' && data[k] !== null &&
-        !['success','count','errorMessage','params','tokenUsage','tokenLimits','ignoredParams'].includes(k)
-      );
-      if (objKey) results.push(...Object.values(data[objKey] as object));
+      const dataKey = Object.keys(data).find(k => Array.isArray(data[k]));
+      if (dataKey) results.push(...data[dataKey]);
     }
     await new Promise(r => setTimeout(r, 150));
   }
