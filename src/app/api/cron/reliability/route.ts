@@ -13,6 +13,76 @@ const CLIENT_ID     = 'critter-stop-';
 const CLIENT_SECRET = process.env.BOUNCIE_CLIENT_SECRET!;
 const BASE_URL      = 'https://api.bouncie.dev/v1';
 
+// ─── FIELDROUTES CONFIG ───────────────────────────────────────────────────────
+const FR_SUBDOMAIN = 'critterstop';
+const FR_BASE      = `https://${FR_SUBDOMAIN}.fieldroutes.com/api`;
+const FR_OFFICES: Record<string, { key: string; token: string; officeId: number }> = {
+  DFW:   { key: process.env.FIELDROUTES_KEY_DFW!,   token: process.env.FIELDROUTES_TOKEN_DFW!,   officeId: 1 },
+  ATX:   { key: process.env.FIELDROUTES_KEY_ATX!,   token: process.env.FIELDROUTES_TOKEN_ATX!,   officeId: 5 },
+  OKC:   { key: process.env.FIELDROUTES_KEY_OKC!,   token: process.env.FIELDROUTES_TOKEN_OKC!,   officeId: 3 },
+  CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4 },
+};
+
+// Animal relocation service type IDs — Saturday-only trips with ONLY these are excluded
+const ANIMAL_RELOCATION_SERVICE_IDS = new Set([485, 684, 685, 690, 691]);
+
+function frUrl(endpoint: string, action: string, params: Record<string, string>, key: string, token: string) {
+  const url = new URL(`${FR_BASE}/${endpoint}/${action}`);
+  url.searchParams.set('authenticationKey', key);
+  url.searchParams.set('authenticationToken', token);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  return url.toString();
+}
+
+async function frFetch(url: string): Promise<any> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`FR fetch failed: ${res.status}`);
+  return res.json();
+}
+
+// Returns true if ALL of a tech's appointments on a given date are animal relocation types
+// Returns false if there are non-animal appointments OR no appointments found
+async function isSaturdayAnimalOnlyDay(
+  techFREmployeeId: number,
+  date: string, // YYYY-MM-DD
+  office: string
+): Promise<boolean> {
+  const cfg = FR_OFFICES[office];
+  if (!cfg || !techFREmployeeId) return false;
+
+  try {
+    const searchUrl = frUrl('appointment', 'search', {
+      officeIDs: String(cfg.officeId),
+      employeeIDs: String(techFREmployeeId),
+      dateStart: date,
+      dateEnd: date,
+    }, cfg.key, cfg.token);
+
+    const searchData = await frFetch(searchUrl);
+    const apptIds: number[] = searchData.appointmentIDs || [];
+    if (apptIds.length === 0) return false; // no appointments = regular trip day, don't skip
+
+    // Fetch appointment details
+    const batchUrl = frUrl('appointment', 'get', {
+      appointmentIDs: apptIds.join(','),
+    }, cfg.key, cfg.token);
+    const appts = await frFetch(batchUrl);
+    const apptList = Array.isArray(appts) ? appts : (appts.appointments || []);
+
+    if (apptList.length === 0) return false;
+
+    // Check if ALL appointments are animal relocation service types
+    const allAnimal = apptList.every((a: any) => {
+      const typeId = parseInt(String(a.type || a.serviceTypeID || '0'));
+      return ANIMAL_RELOCATION_SERVICE_IDS.has(typeId);
+    });
+
+    return allAnimal;
+  } catch {
+    return false; // on error, don't skip — safer to include
+  }
+}
+
 // ─── BUSINESS LOCATIONS ──────────────────────────────────────────────────────
 const BUSINESS_LOCATIONS = [
   // DFW Offices
@@ -317,6 +387,25 @@ export async function POST(req: NextRequest) {
 
       for (const [date, dayTrips] of tripsByDay) {
         dayTrips.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+        // ── SUNDAY: always skip ──
+        const dayOfWeek = new Date(date + 'T12:00:00.000Z').getDay(); // 0=Sun, 6=Sat
+        if (dayOfWeek === 0) {
+          log.push(`  ${tech.name} ${date}: Sunday — skipped`);
+          continue;
+        }
+
+        // ── SATURDAY: skip if tech's only appointments are animal relocation ──
+        if (dayOfWeek === 6) {
+          const frEmpId = tech.frEmployeeId;
+          if (frEmpId) {
+            const animalOnly = await isSaturdayAnimalOnlyDay(frEmpId, date, tech.office);
+            if (animalOnly) {
+              log.push(`  ${tech.name} ${date}: Saturday animal relocation only — skipped`);
+              continue;
+            }
+          }
+        }
 
         // Find start of day: first trip END that's at a business or customer location
         let startOfDay: Date | null = null;
