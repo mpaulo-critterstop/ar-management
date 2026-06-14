@@ -318,8 +318,8 @@ async function pullRouteReporting(
         if (prodVal > 0) entry.routeCount++;
       }
     }
-  } catch {
-    // Route API not available or failed — fall back to 0 production value
+  } catch (e: any) {
+    routeProductionByTech.set('__error__', { totalProduction: -1, routeCount: 0 });
   }
 
   for (const appt of allAppts) {
@@ -471,6 +471,10 @@ export async function GET(req: NextRequest) {
 
       log.push(`WP techs with data: ${wpMetrics.size}, PMP techs with route data: ${pmpRoutes.size}, pmpTechs map size: ${pmpTechs.size}`);
     log.push(`PMP frEmployeeIds: ${[...pmpTechs.keys()].slice(0,5).join(',')}`);
+    // Log route production values
+    for (const [techId, data] of pmpRoutes) {
+      if (data.productionValue > 0) log.push(`  Route prod: ${techId}=$${data.productionValue.toFixed(0)}`);
+    };
 
       // ── UPSERT WP ──
       for (const tech of officeTechs.filter(t => t.team === 'WP')) {
