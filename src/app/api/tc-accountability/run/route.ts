@@ -1,4 +1,6 @@
+// Direct execution — imports sync logic to avoid internal HTTP caching issues
 import { NextRequest, NextResponse } from 'next/server';
+import { POST } from '@/app/api/cron/tc-accountability/route';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -7,19 +9,17 @@ export async function GET(req: NextRequest) {
   }
 
   const weekEnd = searchParams.get('weekEnd') || '';
-  // Call via absolute URL to avoid internal caching issues
-  const baseUrl = req.headers.get('x-forwarded-host')
-    ? `https://${req.headers.get('x-forwarded-host')}`
-    : process.env.NEXTAUTH_URL || 'https://hub.critterstop.com';
+  const body = weekEnd ? JSON.stringify({ weekEnd }) : '{}';
 
-  const res = await fetch(`${baseUrl}/api/cron/tc-accountability`, {
+  // Call POST directly — bypasses HTTP caching entirely
+  const fakeReq = new NextRequest('https://hub.critterstop.com/api/cron/tc-accountability', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${process.env.CRON_SECRET}`,
     },
-    body: JSON.stringify(weekEnd ? { weekEnd } : {}),
-    cache: 'no-store',
+    body,
   });
-  return NextResponse.json(await res.json());
+
+  return POST(fakeReq);
 }
