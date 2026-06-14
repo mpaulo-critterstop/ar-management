@@ -414,6 +414,20 @@ export async function GET(req: NextRequest) {
       ]);
 
       // ── PMP DATA ──
+      // Debug: check what servicedBy values appear in DFW appointments
+      if (pmpTechs.size > 0 && officeName === 'DFW') {
+        const debugSearchUrl = frUrl('appointment', 'search', {
+          officeIDs: String(cfg.officeId),
+          dateStart: fmtDate(weekStart),
+          dateEnd: fmtDate(weekEnd),
+        }, cfg.key, cfg.token);
+        const debugSearch = await frFetch(debugSearchUrl);
+        const debugIds: number[] = (debugSearch.appointmentIDs || []).slice(0, 50);
+        const debugAppts = debugIds.length > 0 ? await fetchInBatches('appointment', 'get', 'appointmentIDs', debugIds, cfg.key, cfg.token) : [];
+        const servicedByValues = [...new Set(debugAppts.map((a: any) => a.servicedBy))].slice(0, 10);
+        log.push(`DFW sample servicedBy values: ${servicedByValues.join(',')}`);
+      }
+
       const [pmpRoutes, pmpReservices] = await Promise.all([
         pmpTechs.size > 0 ? pullRouteReporting(cfg, weekStart, weekEnd, pmpTechs) : Promise.resolve(new Map()),
         pmpTechs.size > 0 ? pullReservices(cfg, weekStart, weekEnd, pmpTechs) : Promise.resolve(new Map()),
