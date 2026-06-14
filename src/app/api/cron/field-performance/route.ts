@@ -24,7 +24,7 @@ const ANNUAL_INSP_TYPES      = new Set(['533']);
 const ANNUAL_INSP_TC_TYPES   = new Set(['538']);
 
 // Close-out keywords (same as dispatcher)
-const CLOSEOUT_KEYWORDS = ['ready for insulation', 'ready for far', 'close out', 'closed out'];
+const CLOSEOUT_KEYWORDS = ['ready for insulation', 'ready for far', 'closed out'];
 
 // Standard production rate per hr-day for PMP revenue efficiency
 const PROD_STANDARD_PER_DAY = 1150;

@@ -22,7 +22,7 @@ const CALLBACK_IDS   = new Set([615, 671, 546, 554]);
 const CO_JOB_IDS     = new Set([504, 636, 615, 671, 546, 554, 620, 533, 538]);
 
 // Close-out keywords — tech/office notes only
-const CLOSEOUT_KEYWORDS = ['ready for insulation', 'ready for far', 'close out', 'closed out'];
+const CLOSEOUT_KEYWORDS = ['ready for insulation', 'ready for far', 'closed out'];
 
 function frUrl(endpoint: string, action: string, params: Record<string, string>, key: string, token: string) {
   const url = new URL(`${BASE_URL}/${endpoint}/${action}`);
