@@ -291,6 +291,9 @@ async function pullRouteReporting(
   const matched = [...apptEmpIds].filter(id => pmpEmpIds.has(id));
   // Log for debugging
   console.log(`pullRouteReporting: ${allAppts.length} appts, pmpTechs=${pmpTechs.size}, matched empIds=${matched.length}`);
+  // Log value fields from first matched appt
+  const samplePmpAppt = allAppts.find((a: any) => pmpEmpIds.has(parseInt(a.servicedBy || a.employeeID || '0')));
+  if (samplePmpAppt) console.log(`Sample PMP appt value fields: total=${samplePmpAppt.total}, serviceTotal=${samplePmpAppt.serviceTotal}, productionValue=${samplePmpAppt.productionValue}, amount=${samplePmpAppt.amount}`);
 
   for (const appt of allAppts) {
     const empId = parseInt(appt.servicedBy || appt.employeeID || appt.technicianID || '0');
@@ -307,7 +310,7 @@ async function pullRouteReporting(
     entry.totalScheduled++;
     if (isCompleted) {
       entry.completed++;
-      entry.productionValue += parseFloat(appt.total || appt.serviceTotal || '0');
+      entry.productionValue += parseFloat(appt.productionValue || appt.total || appt.serviceTotal || '0');
     }
   }
 
