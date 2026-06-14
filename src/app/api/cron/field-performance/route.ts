@@ -286,6 +286,11 @@ async function pullRouteReporting(
   if (apptIds.length === 0) return result;
 
   const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+  const pmpEmpIds = new Set([...pmpTechs.keys()]);
+  const apptEmpIds = new Set(allAppts.map((a: any) => parseInt(a.servicedBy || a.employeeID || '0')));
+  const matched = [...apptEmpIds].filter(id => pmpEmpIds.has(id));
+  // Log for debugging
+  console.log(`pullRouteReporting: ${allAppts.length} appts, pmpTechs=${pmpTechs.size}, matched empIds=${matched.length}`);
 
   for (const appt of allAppts) {
     const empId = parseInt(appt.servicedBy || appt.employeeID || appt.technicianID || '0');
@@ -413,7 +418,7 @@ export async function POST(req: NextRequest) {
         pmpTechs.size > 0 ? pullReservices(cfg, weekStart, weekEnd, pmpTechs) : Promise.resolve(new Map()),
       ]);
 
-      log.push(`WP techs with data: ${wpMetrics.size}, PMP techs with route data: ${pmpRoutes.size}`);
+      log.push(`WP techs with data: ${wpMetrics.size}, PMP techs with route data: ${pmpRoutes.size}, pmpTechs map size: ${pmpTechs.size}`);
 
       // ── UPSERT WP ──
       for (const tech of officeTechs.filter(t => t.team === 'WP')) {
