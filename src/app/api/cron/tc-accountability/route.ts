@@ -132,6 +132,11 @@ export async function POST(req: NextRequest) {
       const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
 
       // Filter to completed + relevant service types
+      const statusSample = [...new Set(allAppts.slice(0, 20).map((a: any) => String(a.status)))];
+      log.push(`  Status values sample: ${statusSample.join(', ')}`);
+      const typeSample = [...new Set(allAppts.slice(0, 20).map((a: any) => String(a.type || a.serviceTypeID || '?')))];
+      log.push(`  Service type IDs sample: ${typeSample.join(', ')}`);
+
       const relevant = allAppts.filter((a: any) => {
         const typeId = parseInt(String(a.type || a.serviceTypeID || '0'));
         return String(a.status) === '1' && TC_SERVICE_IDS.has(typeId);
