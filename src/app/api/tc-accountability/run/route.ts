@@ -106,7 +106,11 @@ export async function GET(req: NextRequest) {
     (techs as TechInfo[]).filter((t): t is TechInfo & { frEmployeeId: number } => t.frEmployeeId !== null)
       .map((t: TechInfo & { frEmployeeId: number }) => [t.frEmployeeId, t])
   );
-  log.push(`Tech mappings: ${frEmpToTech.size} techs with frEmployeeId`);
+  // Also build name → tech map as fallback (lowercase for case-insensitive match)
+  const nameToTech = new Map<string, TechInfo>(
+    (techs as TechInfo[]).map(t => [t.name.toLowerCase(), t])
+  );
+  log.push(`Tech mappings: ${frEmpToTech.size} techs with frEmployeeId, ${nameToTech.size} by name`);
 
   // Load dispatch jobs for TC count per customer
   const dispatchJobs = await prisma.dispatchJob.findMany({
@@ -288,8 +292,8 @@ export async function GET(req: NextRequest) {
         const custId = String(appt.customerID);
         const frApptId = String(appt.appointmentID || appt.id);
         const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
-        const tech = frEmpToTech.get(empId);
         const techNameFromFR = employeeMap.get(empId) || '';
+        const tech = frEmpToTech.get(empId) || nameToTech.get(techNameFromFR.toLowerCase());
         const customerName = customerMap.get(custId) || '';
         const jobTitle = serviceTypeMap.get(typeId) || String(typeId);
 
