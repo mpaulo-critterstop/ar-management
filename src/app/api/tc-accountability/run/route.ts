@@ -142,6 +142,7 @@ export async function GET(req: NextRequest) {
         const sample = allAppts[0];
         log.push(`  All keys: ${Object.keys(sample).join(', ')}`);
         log.push(`  Sample status: ${sample.status}, type: ${sample.type || sample.serviceTypeID}`);
+        log.push(`  servicedBy: ${sample.servicedBy}, assignedTech: ${sample.assignedTech}, completedBy: ${sample.completedBy}`);
         log.push(`  customerName: ${sample.customerName}, techName: ${sample.technicianName || sample.employeeName}, title: ${sample.appointmentTitle || sample.title || sample.type}`);
       }
 
