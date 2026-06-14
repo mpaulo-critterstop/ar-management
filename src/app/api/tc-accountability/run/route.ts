@@ -63,9 +63,46 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
 
 function fmtDate(d: Date) { return d.toISOString().split('T')[0]; }
 
-function hasCloseoutNote(appt: any): boolean {
+// Simple keyword check used for lookback maps (1wk/2wk/60day)
+function hasCloseoutKeyword(appt: any): boolean {
   const text = [appt.officeNotes, appt.techNotes].filter(Boolean).join(' ').toLowerCase();
-  return CLOSEOUT_KEYWORDS.some(k => text.includes(k));
+  return ['ready for insulation', 'ready for far', 'closed out'].some(k => text.includes(k));
+}
+
+async function analyzeCloseout(appt: any, anthropicKey: string): Promise<boolean> {
+  const notes = [appt.officeNotes, appt.techNotes].filter(Boolean).join('\n').trim();
+  if (!notes) return false;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 10,
+        messages: [{
+          role: 'user',
+          content: `You are analyzing pest control technician notes to determine if a wildlife exclusion job was actually closed out (completed/finished) on this visit.
+
+A close out means: the tech confirmed the job is done, all entry points sealed, work is complete, or the customer approved final close out.
+NOT a close out: notes about needing more visits, planning to close out in the future, checking traps, callbacks needed, or prep work.
+
+Notes: "${notes}"
+
+Answer only YES or NO.`,
+        }],
+      }),
+    });
+    const data = await resp.json();
+    const answer = data.content?.[0]?.text?.trim().toUpperCase() || 'NO';
+    return answer === 'YES';
+  } catch {
+    return false;
+  }
 }
 
 function getMostRecentFriday(offsetWeeks = 0): Date {
@@ -95,6 +132,13 @@ export async function GET(req: NextRequest) {
   const log: string[] = [`TC Accountability sync: ${fmtDate(weekStart)} → ${fmtDate(weekEnd)}`];
   const errors: string[] = [];
   let totalSynced = 0;
+
+  // Load Anthropic API key for close-out analysis
+  const anthropicRow = await prisma.$queryRaw<Array<{ value: string }>>`
+    SELECT value FROM dialpad_config WHERE key = 'anthropic_api_key' LIMIT 1
+  `;
+  const anthropicKey = anthropicRow[0]?.value || '';
+  log.push(`Anthropic key: ${anthropicKey ? 'found' : 'missing — will skip AI analysis'}`);
 
   // Load tech roster for name lookup (frEmployeeId → techId/name)
   const techs = await prisma.technician.findMany({
@@ -232,7 +276,7 @@ export async function GET(req: NextRequest) {
         if (CALLBACK_IDS.has(typeId)) {
           cb60Map.set(custId, true);
         }
-        if (hasCloseoutNote(pa)) {
+        if (hasCloseoutKeyword(pa)) {
           const diffDays = (paDate.getTime() - weekEnd.getTime()) / 86400000;
           if (diffDays <= 7) wk1Map.set(custId, true);
           if (diffDays <= 14) wk2Map.set(custId, true);
@@ -316,6 +360,10 @@ export async function GET(req: NextRequest) {
           : null;
 
         const apptDate = new Date(appt.date || appt.dateAdded);
+        // Analyze close-out using Claude AI (only for CO-eligible jobs with notes)
+        const closedOut = isCoJob && anthropicKey
+          ? await analyzeCloseout(appt, anthropicKey)
+          : false;
 
         try {
           await prisma.tcAppointment.upsert({
@@ -331,7 +379,7 @@ export async function GET(req: NextRequest) {
               techName: tech?.name || techNameFromFR,
               office: officeName,
               isCoJob,
-              closedOut: hasCloseoutNote(appt),
+              closedOut,
               wk1CloseOut: wk1Map.get(custId) ?? false,
               wk2CloseOut: wk2Map.get(custId) ?? false,
               cb60Day: cb60Map.get(custId) ?? false,
@@ -353,7 +401,7 @@ export async function GET(req: NextRequest) {
               techName: tech?.name || techNameFromFR,
               office: officeName,
               isCoJob,
-              closedOut: hasCloseoutNote(appt),
+              closedOut,
               wk1CloseOut: wk1Map.get(custId) ?? false,
               wk2CloseOut: wk2Map.get(custId) ?? false,
               cb60Day: cb60Map.get(custId) ?? false,
