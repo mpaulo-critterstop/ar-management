@@ -71,7 +71,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const results = { fetched: 0, upserted: 0, sentiment_processed: 0, errors: [] as string[] };
+  const { searchParams } = new URL(req.url);
+  const isBackfill = searchParams.get('backfill') === 'today';
+
+  const results = { fetched: 0, upserted: 0, sentiment_processed: 0, backfill: isBackfill, errors: [] as string[] };
 
   try {
     const apiKey = await getConfig('dialpad_api_key');
@@ -79,39 +82,71 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'dialpad_api_key not configured' }, { status: 500 });
     }
 
-    // --- STEP 1: Fetch latest calls from Dialpad API ---
-    const cursor = await getConfig('last_sync_cursor');
-    const startedAfter = Date.now() - (10 * 60 * 1000); // last 10 minutes as fallback
+    // --- STEP 1: Fetch calls from Dialpad API ---
+    let allCalls: any[] = [];
 
-    // Fetch latest 50 calls from CS Customer Service call center
-    // Using started_after of 10 min ago to catch any recent calls
-    const params = new URLSearchParams({
-      limit: '50',
-      ...(cursor ? { cursor } : { started_after: String(Math.floor(startedAfter / 1000)) }),
-    });
+    if (isBackfill) {
+      // Start of today in CST
+      const nowCST = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+      const midnightCST = new Date(nowCST);
+      midnightCST.setHours(0, 0, 0, 0);
+      const startedAfterTs = Math.floor(midnightCST.getTime() / 1000);
 
-    const dialpadResp = await fetch(
-      `https://dialpad.com/api/v2/call?${params.toString()}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Accept': 'application/json',
-        },
+      await setConfig('last_sync_cursor', '');
+
+      let pageCursor: string | null = null;
+      let pages = 0;
+      do {
+        const params = new URLSearchParams({
+          limit: '100',
+          started_after: String(startedAfterTs),
+          ...(pageCursor ? { cursor: pageCursor } : {}),
+        });
+
+        const resp = await fetch(`https://dialpad.com/api/v2/call?${params.toString()}`, {
+          headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
+        });
+
+        if (!resp.ok) {
+          results.errors.push(`Dialpad API page ${pages}: ${resp.status}`);
+          break;
+        }
+
+        const data = await resp.json();
+        allCalls = allCalls.concat(data.items || []);
+        pageCursor = data.cursor || null;
+        pages++;
+        if (pages >= 20) break;
+      } while (pageCursor);
+
+    } else {
+      // Normal mode: fetch latest 50 using stored cursor
+      const cursor = await getConfig('last_sync_cursor');
+      const startedAfter = Date.now() - (10 * 60 * 1000);
+
+      const params = new URLSearchParams({
+        limit: '50',
+        ...(cursor ? { cursor } : { started_after: String(Math.floor(startedAfter / 1000)) }),
+      });
+
+      const dialpadResp = await fetch(`https://dialpad.com/api/v2/call?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
+      });
+
+      if (dialpadResp.ok) {
+        const data = await dialpadResp.json();
+        allCalls = data.items || [];
+        if (data.cursor) await setConfig('last_sync_cursor', data.cursor);
+      } else {
+        const errText = await dialpadResp.text();
+        results.errors.push(`Dialpad API ${dialpadResp.status}: ${errText.substring(0, 200)}`);
       }
-    );
+    }
 
-    if (dialpadResp.ok) {
-      const data = await dialpadResp.json();
-      const calls = data.items || [];
-      results.fetched = calls.length;
+    results.fetched = allCalls.length;
 
-      // Save cursor for next run
-      if (data.cursor) {
-        await setConfig('last_sync_cursor', data.cursor);
-      }
-
-      // Upsert each call into dialpad_calls
-      for (const call of calls) {
+    // Upsert each call into dialpad_calls
+    for (const call of allCalls) {
         try {
           const id = BigInt(call.call_id || call.id);
           const dateStarted = call.date_started ? BigInt(call.date_started) : null;
@@ -165,10 +200,6 @@ export async function GET(req: NextRequest) {
           results.errors.push(`upsert ${call.call_id}: ${e.message}`);
         }
       }
-    } else {
-      const errText = await dialpadResp.text();
-      results.errors.push(`Dialpad API ${dialpadResp.status}: ${errText.substring(0, 200)}`);
-    }
 
     await setConfig('last_sync_at', new Date().toISOString());
 
