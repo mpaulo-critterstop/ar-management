@@ -97,13 +97,14 @@ export async function GET(req: NextRequest) {
       let pageCursor: string | null = null;
       let pages = 0;
       do {
-        const params = new URLSearchParams({
+        const paramObj: Record<string, string> = {
           limit: '100',
           started_after: String(startedAfterTs),
-          ...(pageCursor ? { cursor: pageCursor } : {}),
-        });
+        };
+        if (pageCursor) paramObj.cursor = pageCursor;
+        const params: URLSearchParams = new URLSearchParams(paramObj);
 
-        const resp = await fetch(`https://dialpad.com/api/v2/call?${params.toString()}`, {
+        const resp: Response = await fetch(`https://dialpad.com/api/v2/call?${params.toString()}`, {
           headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
         });
 
@@ -112,7 +113,7 @@ export async function GET(req: NextRequest) {
           break;
         }
 
-        const data = await resp.json();
+        const data: any = await resp.json();
         allCalls = allCalls.concat(data.items || []);
         pageCursor = data.cursor || null;
         pages++;
