@@ -122,19 +122,19 @@ export async function POST(req: NextRequest) {
         officeIDs: String(cfg.officeId),
         dateStart: fmtDate(weekStart),
         dateEnd: fmtDate(weekEnd),
-        status: '1', // completed only
       }, cfg.key, cfg.token);
 
       const searchData = await frFetch(searchUrl);
       const apptIds: number[] = searchData.appointmentIDs || [];
+      log.push(`  Search returned ${apptIds.length} appointment IDs`);
       if (apptIds.length === 0) { log.push(`  No appointments`); continue; }
 
       const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
 
-      // Filter to only TC-relevant service types
+      // Filter to completed + relevant service types
       const relevant = allAppts.filter((a: any) => {
         const typeId = parseInt(String(a.type || a.serviceTypeID || '0'));
-        return TC_SERVICE_IDS.has(typeId);
+        return String(a.status) === '1' && TC_SERVICE_IDS.has(typeId);
       });
 
       log.push(`  Total completed: ${allAppts.length}, relevant: ${relevant.length}`);
