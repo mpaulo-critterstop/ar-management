@@ -287,10 +287,11 @@ async function pullRouteReporting(
 
   const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
   const pmpEmpIds = new Set([...pmpTechs.keys()]);
-  const apptEmpIds = new Set(allAppts.map((a: any) => parseInt(a.servicedBy || a.employeeID || '0')));
-  const matched = [...apptEmpIds].filter(id => pmpEmpIds.has(id));
-  // Log for debugging
-  console.log(`pullRouteReporting: ${allAppts.length} appts, pmpTechs=${pmpTechs.size}, matched empIds=${matched.length}`);
+  const apptServicedBy = new Set(allAppts.map((a: any) => parseInt(a.servicedBy || '0')).filter(Boolean));
+  const matchedIds = [...apptServicedBy].filter(id => pmpEmpIds.has(id));
+  console.log(`PMP frEmployeeIds: ${[...pmpEmpIds].slice(0,5).join(',')}`);
+  console.log(`Appt servicedBy sample: ${[...apptServicedBy].slice(0,5).join(',')}`);
+  console.log(`Matched: ${matchedIds.length}`);
   // Log value fields from first matched appt
   const samplePmpAppt = allAppts.find((a: any) => pmpEmpIds.has(parseInt(a.servicedBy || a.employeeID || '0')));
   if (samplePmpAppt) console.log(`Sample PMP appt value fields: total=${samplePmpAppt.total}, serviceTotal=${samplePmpAppt.serviceTotal}, productionValue=${samplePmpAppt.productionValue}, amount=${samplePmpAppt.amount}`);
@@ -419,6 +420,7 @@ export async function GET(req: NextRequest) {
       ]);
 
       log.push(`WP techs with data: ${wpMetrics.size}, PMP techs with route data: ${pmpRoutes.size}, pmpTechs map size: ${pmpTechs.size}`);
+    log.push(`PMP frEmployeeIds: ${[...pmpTechs.keys()].slice(0,5).join(',')}`);
 
       // ── UPSERT WP ──
       for (const tech of officeTechs.filter(t => t.team === 'WP')) {
