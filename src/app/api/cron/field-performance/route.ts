@@ -68,7 +68,7 @@ function fmtDate(d: Date) {
 }
 
 function hasCloseoutNote(appt: any): boolean {
-  const text = [appt.officeNotes, appt.appointmentNotes, appt.notes, appt.techNotes]
+  const text = [appt.officeNotes, appt.techNotes]
     .filter(Boolean).join(' ').toLowerCase();
   return CLOSEOUT_KEYWORDS.some(k => text.includes(k));
 }
