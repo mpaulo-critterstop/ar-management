@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function POST(req: NextRequest) {
-  const session_check = req.headers.get('x-import-key');
-  if (session_check !== 'critterstop2026') {
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const token = searchParams.get('token');
+  if (token !== 'critterstop2026') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
