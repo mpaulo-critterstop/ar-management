@@ -94,12 +94,12 @@ export async function POST(req: NextRequest) {
   weekStart.setHours(0, 0, 0, 0);
 
   const log: string[] = [`TC Accountability sync: ${fmtDate(weekStart)} → ${fmtDate(weekEnd)}`];
-  log.push(`Tech mappings: ${frEmpToTech.size} techs with frEmployeeId`);
   const errors: string[] = [];
   let totalSynced = 0;
 
   // Load tech roster for name lookup (frEmployeeId → techId/name)
   const techs = await prisma.technician.findMany({
+    where: { status: 'ACTIVE' },
     select: { techId: true, name: true, frEmployeeId: true, office: true },
   });
   type TechInfo = { techId: string; name: string; frEmployeeId: number | null; office: string };
@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
     (techs as TechInfo[]).filter((t): t is TechInfo & { frEmployeeId: number } => t.frEmployeeId !== null)
       .map((t: TechInfo & { frEmployeeId: number }) => [t.frEmployeeId, t])
   );
+  log.push(`Tech mappings: ${frEmpToTech.size} techs with frEmployeeId`);
 
   // Load dispatch jobs for TC count per customer
   const dispatchJobs = await prisma.dispatchJob.findMany({
@@ -266,7 +267,7 @@ export async function POST(req: NextRequest) {
         const typeId = parseInt(String(appt.type || appt.serviceTypeID || '0'));
         const custId = String(appt.customerID);
         const frApptId = String(appt.appointmentID || appt.id);
-        const empId = parseInt(appt.employeeID || '0');
+        const empId = parseInt(appt.employeeID || appt.servicedBy || '0');
         const tech = frEmpToTech.get(empId);
         const customerName = customerMap.get(custId) || '';
         const jobTitle = serviceTypeMap.get(typeId) || String(typeId);
