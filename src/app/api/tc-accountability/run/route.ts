@@ -249,6 +249,26 @@ export async function GET(req: NextRequest) {
         log.push(`  Customer fetch error: ${e.message}`);
       }
 
+      // Fetch employee names from FR using employeeIDs
+      const employeeMap = new Map<number, string>();
+      try {
+        const empIds = [...new Set(relevant.map((a: any) => parseInt(a.employeeID || a.servicedBy || '0')).filter(Boolean))];
+        if (empIds.length > 0) {
+          const empData = await fetchInBatches('employee', 'get', 'employeeIDs', empIds, cfg.key, cfg.token);
+          for (const e of empData) {
+            const name = `${e.fname || e.firstName || ''} ${e.lname || e.lastName || ''}`.trim() || e.name || '';
+            employeeMap.set(parseInt(e.employeeID || e.id), name);
+          }
+          log.push(`  Employees fetched: ${employeeMap.size}`);
+          if (employeeMap.size > 0) {
+            const sample = [...employeeMap.entries()][0];
+            log.push(`  Sample employee: ${sample[0]} → ${sample[1]}`);
+          }
+        }
+      } catch (e: any) {
+        log.push(`  Employee fetch error: ${e.message}`);
+      }
+
       // Hardcoded service type names for TC accountability types
       const serviceTypeMap = new Map<number, string>([
         [504, 'Trap Check'],
@@ -269,6 +289,7 @@ export async function GET(req: NextRequest) {
         const frApptId = String(appt.appointmentID || appt.id);
         const empId = parseInt(appt.employeeID || appt.servicedBy || '0');
         const tech = frEmpToTech.get(empId);
+        const techNameFromFR = employeeMap.get(empId) || '';
         const customerName = customerMap.get(custId) || '';
         const jobTitle = serviceTypeMap.get(typeId) || String(typeId);
 
@@ -303,7 +324,7 @@ export async function GET(req: NextRequest) {
               jobTitle,
               serviceTypeId: typeId,
               techId: tech?.techId || '',
-              techName: tech?.name || '',
+              techName: tech?.name || techNameFromFR,
               office: officeName,
               isCoJob,
               closedOut: hasCloseoutNote(appt),
@@ -325,7 +346,7 @@ export async function GET(req: NextRequest) {
               jobTitle,
               serviceTypeId: typeId,
               techId: tech?.techId || '',
-              techName: tech?.name || '',
+              techName: tech?.name || techNameFromFR,
               office: officeName,
               isCoJob,
               closedOut: hasCloseoutNote(appt),
