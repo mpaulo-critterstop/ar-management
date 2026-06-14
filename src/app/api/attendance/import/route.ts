@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       await prisma.$executeRawUnsafe(sql);
       imported++;
     } catch (e: any) {
-      errors.push(`${fname}: ${e.message}`);
+      errors.push(`${fname}: ${e.message.substring(0, 200)}`);
     }
   }
 
