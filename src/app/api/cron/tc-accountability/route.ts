@@ -38,12 +38,17 @@ async function frFetch(url: string) {
   return res.json();
 }
 
-async function fetchInBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string): Promise<any[]> {
+async function fetchInBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string, debugLog?: string[]): Promise<any[]> {
   const results: any[] = [];
   for (let i = 0; i < ids.length; i += 100) {
     const batch = ids.slice(i, i + 100);
     const url = frUrl(endpoint, action, { [idParam]: batch.join(',') }, key, token);
     const data = await frFetch(url);
+    if (i === 0 && debugLog) {
+      debugLog.push(`  FR response keys: ${Object.keys(data).join(', ')}`);
+      const firstKey = Object.keys(data)[0];
+      if (firstKey) debugLog.push(`  First key type: ${typeof data[firstKey]}, isArray: ${Array.isArray(data[firstKey])}`);
+    }
     const dataKey = Object.keys(data).find(k => Array.isArray(data[k]));
     if (dataKey) results.push(...data[dataKey]);
     else {
@@ -129,7 +134,7 @@ export async function POST(req: NextRequest) {
       log.push(`  Search returned ${apptIds.length} appointment IDs`);
       if (apptIds.length === 0) { log.push(`  No appointments`); continue; }
 
-      const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+      const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token, log);
       log.push(`  Fetched ${allAppts.length} appointment objects`);
       if (allAppts.length > 0) {
         const sample = allAppts[0];
