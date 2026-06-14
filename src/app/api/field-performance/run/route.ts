@@ -426,6 +426,8 @@ export async function GET(req: NextRequest) {
         const debugAppts = debugIds.length > 0 ? await fetchInBatches('appointment', 'get', 'appointmentIDs', debugIds, cfg.key, cfg.token) : [];
         const servicedByValues = [...new Set(debugAppts.map((a: any) => a.servicedBy))].slice(0, 10);
         log.push(`DFW sample servicedBy values: ${servicedByValues.join(',')}`);
+        const samplePmpAppt = debugAppts.find((a: any) => pmpTechs.has(parseInt(a.servicedBy || '0')));
+        if (samplePmpAppt) log.push(`Sample PMP appt productionValue=${samplePmpAppt.productionValue}, total=${samplePmpAppt.total}`);
       }
 
       const [pmpRoutes, pmpReservices] = await Promise.all([
