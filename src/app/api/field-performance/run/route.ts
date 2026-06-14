@@ -551,8 +551,11 @@ export async function GET(req: NextRequest) {
     weekEnd: fmtDate(weekEnd),
     weekStart: fmtDate(weekStart),
     techsUpdated: updated,
+    executedAt: new Date().toISOString(),
     errors,
     log: log.join('\n'),
+  }, {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
   });
 }
 
