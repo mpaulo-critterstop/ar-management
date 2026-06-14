@@ -136,7 +136,9 @@ const BUSINESS_LOCATIONS = [
   { name: 'Lowes Carrollton',            lat: 32.9863, lng: -96.9026 },
 ];
 
-const GEOFENCE_RADIUS_M = 300; // 300 meter radius
+const GEOFENCE_RADIUS_M = 300;          // business locations — 300m
+const CUSTOMER_GEOFENCE_RADIUS_M = 500; // customer locations — 500m (residential geocoding variance)
+const MIN_TRIP_MILES_FOR_STARTOFDAY = 1.0; // ignore trips under 1 mile when finding start of day
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -162,7 +164,7 @@ function isCustomerLocation(
   customers: Array<{ lat: number; lng: number; name?: string }>
 ): boolean {
   for (const c of customers) {
-    if (haversineDistance(lat, lng, c.lat, c.lng) <= GEOFENCE_RADIUS_M) return true;
+    if (haversineDistance(lat, lng, c.lat, c.lng) <= CUSTOMER_GEOFENCE_RADIUS_M) return true;
   }
   return false;
 }
@@ -417,13 +419,22 @@ export async function POST(req: NextRequest) {
 
           const tripEnd = new Date(trip.endTime);
           const tripStart = new Date(trip.startTime);
+          const tripMiles = parseFloat(trip.distance || '0');
 
           // Check if trip END is at a business or customer location
           if (startOfDay === null) {
-            const bizCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
-            const custCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, customerCoords);
-            if (bizCheck.match || custCheck) {
-              startOfDay = tripEnd;
+            // Skip very short trips (< 1 mile) for start-of-day — likely driveway/home movements
+            if (tripMiles < MIN_TRIP_MILES_FOR_STARTOFDAY) {
+              log.push(`    ${date} trip ${tripStart.toLocaleTimeString('en-US',{timeZone})} skipped (${tripMiles.toFixed(1)} mi < ${MIN_TRIP_MILES_FOR_STARTOFDAY} mi min)`);
+            } else {
+              const bizCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
+              const custCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, customerCoords);
+              if (bizCheck.match || custCheck) {
+                startOfDay = tripEnd;
+                log.push(`    ${date} start-of-day matched at ${tripEnd.toLocaleTimeString('en-US',{timeZone})} (${bizCheck.name || 'customer'}, ${tripMiles.toFixed(1)} mi)`);
+              } else {
+                log.push(`    ${date} trip end ${tripEnd.toLocaleTimeString('en-US',{timeZone})} no match — lat=${endpoints.endLat.toFixed(4)},lng=${endpoints.endLng.toFixed(4)} (${tripMiles.toFixed(1)} mi)`);
+              }
             }
           }
 
