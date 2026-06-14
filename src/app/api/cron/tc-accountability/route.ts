@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
   weekStart.setHours(0, 0, 0, 0);
 
   const log: string[] = [`TC Accountability sync: ${fmtDate(weekStart)} → ${fmtDate(weekEnd)}`];
+  log.push(`Tech mappings: ${frEmpToTech.size} techs with frEmployeeId`);
   const errors: string[] = [];
   let totalSynced = 0;
 
@@ -156,6 +157,7 @@ export async function POST(req: NextRequest) {
       });
 
       log.push(`  Total completed: ${allAppts.length}, relevant: ${relevant.length}`);
+      if (relevant.length > 0) log.push(`  Sample employeeID: ${relevant[0].employeeID}`);
 
       // Get all future appointments for customers in this batch to compute forward-looking fields
       const customerIds = [...new Set(relevant.map((a: any) => String(a.customerID)))];
