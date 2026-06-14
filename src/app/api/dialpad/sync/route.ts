@@ -65,13 +65,18 @@ export async function GET(req: NextRequest) {
   // Allow cron-job.org bypass header OR internal calls
   const bypassHeader = req.headers.get('x-vercel-protection-bypass');
   const authHeader = req.headers.get('authorization');
+  const { searchParams } = new URL(req.url);
+  const tokenParam = searchParams.get('token');
   const cronSecret = process.env.CRON_SECRET || 'critterstop2026';
 
-  if (bypassHeader !== cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (
+    bypassHeader !== cronSecret &&
+    authHeader !== `Bearer ${cronSecret}` &&
+    tokenParam !== cronSecret
+  ) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { searchParams } = new URL(req.url);
   const isBackfill = searchParams.get('backfill') === 'today';
 
   const results = { fetched: 0, upserted: 0, sentiment_processed: 0, backfill: isBackfill, errors: [] as string[] };
