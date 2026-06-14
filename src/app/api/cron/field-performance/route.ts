@@ -140,7 +140,7 @@ async function pullWPMetrics(
   }
 
   for (const appt of completed) {
-    const empId = parseInt(appt.employeeID || appt.technicianID || '0');
+    const empId = parseInt(appt.servicedBy || appt.employeeID || appt.technicianID || '0');
     if (!empId || !wpTechs.has(empId)) continue;
 
     const techId = wpTechs.get(empId)!;
@@ -237,7 +237,7 @@ async function pullWPCallbackRate(
   // Count callbacks per tech
   const cbByTech = new Map<string, number>();
   for (const appt of cbAppts.filter((a: any) => String(a.status) === '1')) {
-    const empId = parseInt(appt.employeeID || appt.technicianID || '0');
+    const empId = parseInt(appt.servicedBy || appt.employeeID || appt.technicianID || '0');
     if (!empId || !wpTechs.has(empId)) continue;
     const typeStr = String(appt.type || '');
     if (!CALLBACK_TYPES.has(typeStr)) continue;
@@ -248,7 +248,7 @@ async function pullWPCallbackRate(
   // Count base completed jobs per tech (exclusions + TCs)
   const baseByTech = new Map<string, number>();
   for (const appt of baseAppts.filter((a: any) => String(a.status) === '1')) {
-    const empId = parseInt(appt.employeeID || appt.technicianID || '0');
+    const empId = parseInt(appt.servicedBy || appt.employeeID || appt.technicianID || '0');
     if (!empId || !wpTechs.has(empId)) continue;
     const typeStr = String(appt.type || '');
     if (!EXCLUSION_TYPES.has(typeStr) && !TRAP_CHECK_TYPES.has(typeStr)) continue;
@@ -288,7 +288,7 @@ async function pullRouteReporting(
   const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
 
   for (const appt of allAppts) {
-    const empId = parseInt(appt.employeeID || appt.technicianID || '0');
+    const empId = parseInt(appt.servicedBy || appt.employeeID || appt.technicianID || '0');
     if (!empId || !pmpTechs.has(empId)) continue;
 
     const techId = pmpTechs.get(empId)!;
@@ -335,7 +335,7 @@ async function pullReservices(
   const reservices = await fetchInBatches('reservice', 'get', 'reserviceIDs', reserviceIds, cfg.key, cfg.token);
 
   for (const rs of reservices) {
-    const empId = parseInt(rs.employeeID || rs.technicianID || '0');
+    const empId = parseInt(rs.servicedBy || rs.employeeID || rs.technicianID || '0');
     if (!empId || !pmpTechs.has(empId)) continue;
     const techId = pmpTechs.get(empId)!;
     result.set(techId, (result.get(techId) ?? 0) + 1);
