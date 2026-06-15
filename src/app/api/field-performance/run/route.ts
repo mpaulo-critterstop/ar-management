@@ -454,15 +454,25 @@ export async function GET(req: NextRequest) {
               return pmpTechs.has(empId);
             });
             if (pmpRoute) {
-              // Check productionValue on appointments for this PMP tech
               const empId = parseInt(pmpRoute.assignedTech || '0');
-              const pmpAppts = allAppts.filter((a: any) =>
+              const pmpAppt = allAppts.find((a: any) =>
                 parseInt(a.servicedBy || a.employeeID || '0') === empId &&
-                String(a.status) === '1'
-              ).slice(0, 3);
-              log.push(`  Sample PMP appts for empId ${empId}: ${pmpAppts.length} completed`);
-              for (const a of pmpAppts) {
-                log.push(`    appt ${a.appointmentID}: productionValue=${a.productionValue}, ticketID=${a.ticketID}`);
+                String(a.status) === '1' && a.ticketID
+              );
+              if (pmpAppt) {
+                try {
+                  const ticketUrl = frUrl('ticket', 'get', { ticketIDs: String(pmpAppt.ticketID) }, cfg.key, cfg.token);
+                  const ticketData = await frFetch(ticketUrl);
+                  const propName = ticketData.propertyName;
+                  const tickets = propName && ticketData[propName] ? Object.values(ticketData[propName] as object) : [];
+                  if (tickets.length > 0) {
+                    const t = tickets[0] as any;
+                    log.push(`  Ticket keys: ${Object.keys(t).join(',')}`);
+                    log.push(`  Ticket sample: total=${t.total}, subTotal=${t.subTotal}, balance=${t.balance}, serviceCharge=${t.serviceCharge}`);
+                  }
+                } catch (e: any) {
+                  log.push(`  Ticket error: ${e.message}`);
+                }
               }
             }
             for (const route of routes) {
