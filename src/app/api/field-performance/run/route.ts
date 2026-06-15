@@ -323,7 +323,7 @@ async function pullReservices(
 
   const result = new Map<string, number>();
   const RESERVICE_TYPES = cfg.reserviceTypeIds;
-  const LOOKBACK_DAYS = 90;
+  const LOOKBACK_DAYS = 120;
 
   // Fetch 90 days of appointments for this office
   const lookbackStart = new Date(weekEnd);
@@ -406,7 +406,7 @@ async function pullReservices(
 
   // FR formula: Re-service Rate = Total Re-services / Average Serviced Per Period
   // Average Serviced Per Period = (completions / 91.31 days) × 6 days/week
-  // (91.31 = 365.25/4 = exact 3-month period; PMP techs work 6 days/week Mon-Sat)
+  // Using 120-day lookback but normalizing to 3-month (91.31 day) equivalent
   const regularCountByTech = new Map<string, number>();
   for (const appt of regularAppts) {
     const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
