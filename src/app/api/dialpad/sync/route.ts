@@ -68,9 +68,10 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const tokenParam = searchParams.get('token');
   const cronSecret = process.env.CRON_SECRET || 'critterstop2026';
+  const bypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || cronSecret;
 
   if (
-    bypassHeader !== cronSecret &&
+    bypassHeader !== bypassSecret &&
     authHeader !== `Bearer ${cronSecret}` &&
     tokenParam !== cronSecret
   ) {
