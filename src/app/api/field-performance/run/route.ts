@@ -425,6 +425,11 @@ export async function GET(req: NextRequest) {
             const routes = await fetchInBatches('route', 'get', 'routeIDs', routeIds, cfg.key, cfg.token);
             log.push(`  ${officeName}: ${routes.length} routes fetched`);
 
+            // Debug: check assignedTech values on routes vs pmpTechs map
+            const routeAssignedTechs = [...new Set(routes.map((r: any) => r.assignedTech).filter(Boolean))].slice(0, 8);
+            log.push(`  Route assignedTech sample: ${routeAssignedTechs.join(',')}`);
+            log.push(`  PMP frEmployeeIds: ${[...pmpTechs.keys()].slice(0, 8).join(',')}`);
+
             const pmpRoute = routes.find((r: any) => {
               const empId = parseInt(r.assignedTech || r.employeeID || '0');
               return pmpTechs.has(empId);
