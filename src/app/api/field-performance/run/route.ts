@@ -460,10 +460,17 @@ export async function GET(req: NextRequest) {
                   routeIDs: String(pmpRoute.routeID),
                 }, cfg.key, cfg.token);
                 const spotSearch = await frFetch(spotUrl);
-                const spotIds: number[] = spotSearch.spotIDs || spotSearch.ids || [];
-                log.push(`  Spot search for route ${pmpRoute.routeID}: ${spotIds.length} spots, keys: ${Object.keys(spotSearch).join(',')}`);
+                const spotIds: number[] = spotSearch.spotIDs || [];
+                log.push(`  Spot search for route ${pmpRoute.routeID}: ${spotIds.length} spots`);
+                if (spotIds.length > 0) {
+                  const spots = await fetchInBatches('spot', 'get', 'spotIDs', spotIds.slice(0,10), cfg.key, cfg.token);
+                  if (spots.length > 0) {
+                    log.push(`  Spot keys: ${Object.keys(spots[0]).join(',')}`);
+                    log.push(`  Spot sample: status=${spots[0].status}, completed=${spots[0].completed}, value=${spots[0].value || spots[0].servicePrice || spots[0].price || spots[0].amount}`);
+                  }
+                }
               } catch (e: any) {
-                log.push(`  Spot search error: ${e.message}`);
+                log.push(`  Spot error: ${e.message}`);
               }
             }
             for (const route of routes) {
