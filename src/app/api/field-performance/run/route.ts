@@ -446,8 +446,26 @@ export async function GET(req: NextRequest) {
           if (routeIds.length > 0) {
             const routes = await fetchInBatches('route', 'get', 'routeIDs', routeIds, cfg.key, cfg.token);
             log.push(`  ${officeName}: ${routes.length} routes fetched`);
-            if (routes.length > 0) log.push(`  Route keys: ${Object.keys(routes[0]).slice(0,12).join(',')}`);
+            if (routes.length > 0) log.push(`  Route keys: ${Object.keys(routes[0]).join(',')}`);
 
+            // Try to get spot data for first PMP route to find production value
+            const pmpRoute = routes.find((r: any) => {
+              const empId = parseInt(r.assignedTech || r.employeeID || '0');
+              return pmpTechs.has(empId);
+            });
+            if (pmpRoute) {
+              try {
+                const spotUrl = frUrl('spot', 'search', {
+                  officeIDs: String(cfg.officeId),
+                  routeIDs: String(pmpRoute.routeID),
+                }, cfg.key, cfg.token);
+                const spotSearch = await frFetch(spotUrl);
+                const spotIds: number[] = spotSearch.spotIDs || spotSearch.ids || [];
+                log.push(`  Spot search for route ${pmpRoute.routeID}: ${spotIds.length} spots, keys: ${Object.keys(spotSearch).join(',')}`);
+              } catch (e: any) {
+                log.push(`  Spot search error: ${e.message}`);
+              }
+            }
             for (const route of routes) {
               const empId = parseInt(route.assignedTech || route.employeeID || route.technicianID || '0');
               if (!empId || !pmpTechs.has(empId)) continue;
