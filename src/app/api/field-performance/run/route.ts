@@ -468,7 +468,7 @@ export async function GET(req: NextRequest) {
                   if (tickets.length > 0) {
                     const t = tickets[0] as any;
                     log.push(`  Ticket keys: ${Object.keys(t).join(',')}`);
-                    log.push(`  Ticket sample: total=${t.total}, subTotal=${t.subTotal}, balance=${t.balance}, serviceCharge=${t.serviceCharge}`);
+                    log.push(`  Ticket sample: total=${t.total}, subTotal=${t.subTotal}, productionValue=${t.productionValue}, serviceCharge=${t.serviceCharge}`);
                   }
                 } catch (e: any) {
                   log.push(`  Ticket error: ${e.message}`);
