@@ -360,34 +360,13 @@ async function pullReservices(
   });
 
 
-  // Build customer → sorted regular appts (descending date)
-  const customerAppts = new Map<string, any[]>();
-  for (const appt of regularAppts) {
-    const custId = String(appt.customerID || '');
-    if (!custId) continue;
-    if (!customerAppts.has(custId)) customerAppts.set(custId, []);
-    customerAppts.get(custId)!.push(appt);
-  }
-  for (const [, appts] of customerAppts) {
-    appts.sort((a: any, b: any) => {
-      const aDate = a.date ? new Date(a.date).getTime() : 0;
-      const bDate = b.date ? new Date(b.date).getTime() : 0;
-      return bDate - aDate;
-    });
-  }
-
-  // For each reservice this week, find the responsible tech (did last regular service)
+  // FR attributes reservice to the tech who PERFORMED the reservice appointment
   const reseviceCountByTech = new Map<string, number>();
   for (const rs of reservicesThisWeek) {
-    const custId  = String(rs.customerID || '');
-    const rsDateMs = rs.date ? new Date(rs.date).getTime() : 0;
-    const history  = customerAppts.get(custId) || [];
-    const lastRegular = history.find((a: any) => {
-      const aDate = a.date ? new Date(a.date).getTime() : 0;
-      return aDate < rsDateMs;
-    });
-    const empId = parseInt(lastRegular.servicedBy || lastRegular.employeeID || '0');
-    const techId = pmpTechs.get(empId)!;
+    const empId = parseInt(rs.servicedBy || rs.employeeID || '0');
+    if (!empId || !pmpTechs.has(empId)) continue;
+    const techId = pmpTechs.get(empId) as string | undefined;
+    if (!techId) continue;
     reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
   }
 
