@@ -399,6 +399,7 @@ export async function GET(req: NextRequest) {
     if (!cfg.key || !cfg.token) { log.push(`${officeName}: skipped (no API key)`); continue; }
 
     log.push(`\n--- ${officeName} ---`);
+    log.push(`  key=${cfg.key ? cfg.key.substring(0,8)+'...' : 'MISSING'}, token=${cfg.token ? cfg.token.substring(0,8)+'...' : 'MISSING'}, officeId=${cfg.officeId}`);
 
     const officeTechs = techs.filter(t => t.office === officeName && t.frEmployeeId);
     const wpTechs  = new Map(officeTechs.filter(t => t.team === 'WP').map(t => [t.frEmployeeId!, t.techId]));
