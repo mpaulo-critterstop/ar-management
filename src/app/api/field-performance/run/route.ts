@@ -454,23 +454,15 @@ export async function GET(req: NextRequest) {
               return pmpTechs.has(empId);
             });
             if (pmpRoute) {
-              try {
-                const spotUrl = frUrl('spot', 'search', {
-                  officeIDs: String(cfg.officeId),
-                  routeIDs: String(pmpRoute.routeID),
-                }, cfg.key, cfg.token);
-                const spotSearch = await frFetch(spotUrl);
-                const spotIds: number[] = spotSearch.spotIDs || [];
-                log.push(`  Spot search for route ${pmpRoute.routeID}: ${spotIds.length} spots`);
-                if (spotIds.length > 0) {
-                  const spots = await fetchInBatches('spot', 'get', 'spotIDs', spotIds.slice(0,10), cfg.key, cfg.token);
-                  if (spots.length > 0) {
-                    log.push(`  Spot keys: ${Object.keys(spots[0]).join(',')}`);
-                    log.push(`  Spot sample: status=${spots[0].status}, completed=${spots[0].completed}, value=${spots[0].value || spots[0].servicePrice || spots[0].price || spots[0].amount}`);
-                  }
-                }
-              } catch (e: any) {
-                log.push(`  Spot error: ${e.message}`);
+              // Check productionValue on appointments for this PMP tech
+              const empId = parseInt(pmpRoute.assignedTech || '0');
+              const pmpAppts = allAppts.filter((a: any) =>
+                parseInt(a.servicedBy || a.employeeID || '0') === empId &&
+                String(a.status) === '1'
+              ).slice(0, 3);
+              log.push(`  Sample PMP appts for empId ${empId}: ${pmpAppts.length} completed`);
+              for (const a of pmpAppts) {
+                log.push(`    appt ${a.appointmentID}: productionValue=${a.productionValue}, ticketID=${a.ticketID}`);
               }
             }
             for (const route of routes) {
