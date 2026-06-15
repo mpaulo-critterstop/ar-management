@@ -331,7 +331,7 @@ async function pullReservices(
       dateEnd: fmtDate(weekEnd),
     }, cfg.key, cfg.token);
     searchData = await frFetch(searchUrl);
-  } catch { return result; }
+  } catch (e: any) { return result; }
 
   const reserviceIds: number[] = searchData.reserviceIDs || searchData.reServiceIDs || [];
   if (reserviceIds.length === 0) return result;
