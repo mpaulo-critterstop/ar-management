@@ -416,15 +416,18 @@ async function pullReservices(
   result.set('__log_no_last__', debugNoLastRegular);
   result.set('__log_no_emp__', debugNoEmpMatch);
 
-  // Count regular completions per tech - CURRENT WEEK ONLY (matches FR's denominator)
+  // Count regular completions per tech over 90 days, normalized to weekly average
+  // FR "Average Serviced Per Period" = (90-day completions / 90 days) × 5 days/week
   const regularCountByTech = new Map<string, number>();
   for (const appt of regularAppts) {
-    const dateMs = appt.date ? new Date(appt.date).getTime() : 0;
-    if (dateMs < weekStartMs || dateMs > weekEndMs) continue; // current week only
     const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
     if (!empId || !pmpTechs.has(empId)) continue;
     const techId = pmpTechs.get(empId)!;
     regularCountByTech.set(techId, (regularCountByTech.get(techId) ?? 0) + 1);
+  }
+  // Normalize: divide by 90 days, multiply by 5 days/week
+  for (const [techId, count] of regularCountByTech) {
+    regularCountByTech.set(techId, (count / 90) * 5);
   }
 
   // Calculate rate
