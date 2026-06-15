@@ -340,9 +340,16 @@ async function pullReservices(
   } catch { return result; }
 
   const apptIds: number[] = searchData.appointmentIDs || [];
-  if (apptIds.length === 0) return result;
+  if (apptIds.length === 0) { result.set('__log_no_appts__', 0); return result; }
 
   const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+  result.set('__log_total__', allAppts.length);
+
+  // Check what type field looks like on sample appointment
+  if (allAppts.length > 0) {
+    const sample = allAppts[0];
+    result.set('__log_type_field__', parseInt(String(sample.type || sample.serviceTypeID || sample.typeID || -1)));
+  }
 
   // Separate reservices (serviceType=3, this week) from regular services (90 days)
   const weekStartMs = weekStart.getTime();
@@ -358,6 +365,9 @@ async function pullReservices(
     const typeStr = String(a.type || a.serviceTypeID || '');
     return typeStr !== RESERVICE_TYPE && String(a.status) === '1';
   });
+
+  result.set('__log_reservices__', reservicesThisWeek.length);
+  result.set('__log_regular__', regularAppts.length);
 
   // Build customer → sorted regular appts (descending date)
   const customerAppts = new Map<string, any[]>();
@@ -520,7 +530,13 @@ export async function GET(req: NextRequest) {
 
         try {
           const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);
-          for (const [k, v] of rsMap) pmpReserviceMap.set(k, v);
+          for (const [k, v] of rsMap) {
+            if (k.startsWith('__log_')) {
+              log.push(`  Reservice debug: ${k}=${v}`);
+            } else {
+              pmpReserviceMap.set(k, v);
+            }
+          }
         } catch (e: any) {
           log.push(`  Reservice error: ${e.message}`);
         }
