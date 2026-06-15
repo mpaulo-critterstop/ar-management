@@ -27,7 +27,7 @@ const ANNUAL_INSP_TC_TYPES   = new Set(['538']);
 const CLOSEOUT_KEYWORDS = ['ready for insulation', 'ready for far', 'closed out'];
 
 // Standard production rate per hr-day for PMP revenue efficiency
-const PROD_STANDARD_PER_DAY = 1150;
+const PROD_STANDARD_PER_DAY = 5676.92; // From Excel Q1 cell — daily production standard
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 function frUrl(endpoint: string, action: string, params: Record<string, string>, key: string, token: string) {
@@ -273,9 +273,9 @@ async function pullRouteReporting(
   weekEnd: Date,
   pmpTechs: Map<number, string>,
   preloadedAppts?: any[]
-): Promise<Map<string, { totalScheduled: number; completed: number; productionValue: number }>> {
+): Promise<Map<string, { totalScheduled: number; completed: number; productionValue: number; routeCount: number }>> {
 
-  const result = new Map<string, { totalScheduled: number; completed: number; productionValue: number }>();
+  const result = new Map<string, { totalScheduled: number; completed: number; productionValue: number; routeCount: number }>();
 
   let allAppts: any[];
   if (preloadedAppts) {
@@ -303,7 +303,7 @@ async function pullRouteReporting(
     if (!isCompleted && !isPending) continue;
 
     if (!result.has(techId)) {
-      result.set(techId, { totalScheduled: 0, completed: 0, productionValue: 0 });
+      result.set(techId, { totalScheduled: 0, completed: 0, productionValue: 0, routeCount: 0 });
     }
     const entry = result.get(techId)!;
     entry.totalScheduled++;
@@ -428,7 +428,7 @@ export async function GET(req: NextRequest) {
       ]);
 
       // ── PMP DATA: use route API directly (much lighter than appointment fetch) ──
-      const pmpRoutes = new Map<string, { totalScheduled: number; completed: number; productionValue: number }>();
+      const pmpRoutes = new Map<string, { totalScheduled: number; completed: number; productionValue: number; routeCount: number }>();
       const pmpReserviceMap = new Map<string, number>();
 
       if (pmpTechs.size > 0) {
@@ -463,11 +463,12 @@ export async function GET(req: NextRequest) {
               const scheduled = parseInt(String(route.totalScheduled || route.scheduledServices || '0'));
               const completed = parseInt(String(route.completedServices || route.completed || '0'));
 
-              if (!pmpRoutes.has(techId)) pmpRoutes.set(techId, { totalScheduled: 0, completed: 0, productionValue: 0 });
+              if (!pmpRoutes.has(techId)) pmpRoutes.set(techId, { totalScheduled: 0, completed: 0, productionValue: 0, routeCount: 0 });
               const entry = pmpRoutes.get(techId)!;
               entry.productionValue += prodVal;
               entry.totalScheduled += scheduled;
               entry.completed += completed;
+              entry.routeCount++;
             }
           }
         } catch (e: any) {
@@ -594,9 +595,11 @@ export async function GET(req: NextRequest) {
         if (!routes) continue;
 
         const completionPct    = routes.totalScheduled > 0 ? routes.completed / routes.totalScheduled : null;
-        const stdDays          = tech.hrDays === 10 ? 4 : 5;
+        const hrDays           = tech.hrDays || 8;
+        const routeCount       = routes.routeCount || 1;
+        // Excel formula: MIN((totalProd / routeCount / HrDays × 40) / PROD_STANDARD, 1.1)
         const revenueEff       = routes.productionValue > 0
-          ? Math.min(routes.productionValue / (stdDays * PROD_STANDARD_PER_DAY), 1.1)
+          ? Math.min((routes.productionValue / routeCount / hrDays * 40) / PROD_STANDARD_PER_DAY, 1.1)
           : null;
         const reseviceRate     = routes.completed > 0 ? resvCount / routes.completed : 0;
 
