@@ -416,9 +416,11 @@ async function pullReservices(
   result.set('__log_no_last__', debugNoLastRegular);
   result.set('__log_no_emp__', debugNoEmpMatch);
 
-  // Count regular completions per tech over 90 days
+  // Count regular completions per tech - CURRENT WEEK ONLY (matches FR's denominator)
   const regularCountByTech = new Map<string, number>();
   for (const appt of regularAppts) {
+    const dateMs = appt.date ? new Date(appt.date).getTime() : 0;
+    if (dateMs < weekStartMs || dateMs > weekEndMs) continue; // current week only
     const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
     if (!empId || !pmpTechs.has(empId)) continue;
     const techId = pmpTechs.get(empId)!;
