@@ -405,13 +405,15 @@ export async function GET(req: NextRequest) {
     const pmpTechs = new Map(officeTechs.filter(t => t.team === 'PMP').map(t => [t.frEmployeeId!, t.techId]));
 
     try {
-      // ── WP DATA: fetch appointments (needed for close-out + callback analysis) ──
+      // ── WP DATA: fetch appointments filtered to WP+PMP techs only ──
       let allAppts: any[] = [];
-      if (wpTechs.size > 0) {
+      const allTechEmpIds = [...wpTechs.keys(), ...pmpTechs.keys()];
+      if (allTechEmpIds.length > 0) {
         const searchUrl = frUrl('appointment', 'search', {
           officeIDs: String(cfg.officeId),
           dateStart: fmtDate(weekStart),
           dateEnd: fmtDate(weekEnd),
+          employeeIDs: allTechEmpIds.slice(0, 50).join(','), // filter to known techs only
         }, cfg.key, cfg.token);
         const searchData = await frFetch(searchUrl);
         const apptIds: number[] = searchData.appointmentIDs || [];
