@@ -405,34 +405,11 @@ export async function GET(req: NextRequest) {
     const pmpTechs = new Map(officeTechs.filter(t => t.team === 'PMP').map(t => [t.frEmployeeId!, t.techId]));
 
     try {
-      // ── FETCH ALL APPOINTMENTS FOR THE OFFICE ──
-      let allAppts: any[] = [];
-      const searchUrl = frUrl('appointment', 'search', {
-        officeIDs: String(cfg.officeId),
-        dateStart: fmtDate(weekStart),
-        dateEnd: fmtDate(weekEnd),
-      }, cfg.key, cfg.token);
-      const searchData = await frFetch(searchUrl);
-      const apptIds: number[] = searchData.appointmentIDs || [];
-      log.push(`  ${officeName}: ${apptIds.length} appointment IDs`);
-      if (apptIds.length > 0) {
-        allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
-        log.push(`  ${officeName}: ${allAppts.length} appointments fetched`);
-      }
-      // Small delay to avoid FR rate limiting before route fetch
-      await new Promise(r => setTimeout(r, 500));
-
-      const [wpMetrics, wpCallbacks] = await Promise.all([
-        wpTechs.size > 0 ? pullWPMetrics(cfg, weekStart, weekEnd, wpTechs, allAppts) : Promise.resolve(new Map()),
-        wpTechs.size > 0 ? pullWPCallbackRate(cfg, weekEnd, wpTechs) : Promise.resolve(new Map()),
-      ]);
-
-      // ── PMP DATA: use route API directly (much lighter than appointment fetch) ──
+      // ── FETCH ROUTES FIRST (before appointment fetch to avoid rate limiting) ──
       const pmpRoutes = new Map<string, { totalScheduled: number; completed: number; productionValue: number; routeCount: number }>();
       const pmpReserviceMap = new Map<string, number>();
 
       if (pmpTechs.size > 0) {
-        // Route API for completion % and production value
         try {
           const routeSearchUrl = frUrl('route', 'search', {
             officeIDs: String(cfg.officeId),
@@ -446,87 +423,94 @@ export async function GET(req: NextRequest) {
           if (routeIds.length > 0) {
             const routes = await fetchInBatches('route', 'get', 'routeIDs', routeIds, cfg.key, cfg.token);
             log.push(`  ${officeName}: ${routes.length} routes fetched`);
-            if (routes.length > 0) log.push(`  Route keys: ${Object.keys(routes[0]).join(',')}`);
 
-            // Try to get spot data for first PMP route to find production value
             const pmpRoute = routes.find((r: any) => {
               const empId = parseInt(r.assignedTech || r.employeeID || '0');
               return pmpTechs.has(empId);
             });
-            void pmpRoute; // will use allAppts + subscriptions instead
+            void pmpRoute;
+
             for (const route of routes) {
               const empId = parseInt(route.assignedTech || route.employeeID || route.technicianID || '0');
               if (!empId || !pmpTechs.has(empId)) continue;
               const techId = pmpTechs.get(empId) as string | undefined;
               if (!techId) continue;
-              const prodVal = parseFloat(String(route.productionValue || route.routeValue || '0'));
               const scheduled = parseInt(String(route.totalScheduled || route.scheduledServices || '0'));
               const completed = parseInt(String(route.completedServices || route.completed || '0'));
-
               if (!pmpRoutes.has(techId)) pmpRoutes.set(techId, { totalScheduled: 0, completed: 0, productionValue: 0, routeCount: 0 });
               const entry = pmpRoutes.get(techId)!;
-              entry.productionValue += prodVal;
               entry.totalScheduled += scheduled;
               entry.completed += completed;
-              entry.routeCount++; // count routes regardless of production value
+              entry.routeCount++;
             }
           }
         } catch (e: any) {
           log.push(`  Route API error: ${e.message}`);
         }
 
-        // Reservice API
         try {
           const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);
           for (const [k, v] of rsMap) pmpReserviceMap.set(k, v);
         } catch (e: any) {
-          log.push(`  Reservice API error: ${e.message}`);
+          log.push(`  Reservice error: ${e.message}`);
         }
+      }
 
-        // Calculate production value from subscription recurringCharge for all PMP techs
-        if (pmpRoutes.size > 0) {
-          try {
-            const pmpEmpIds = new Set([...pmpTechs.keys()]);
-            const pmpCompletedAppts = allAppts.filter((a: any) =>
-              pmpEmpIds.has(parseInt(a.servicedBy || a.employeeID || '0')) &&
-              String(a.status) === '1' && a.subscriptionID
-            );
+      // ── FETCH APPOINTMENTS (after route fetch) ──
+      let allAppts: any[] = [];
+      const searchUrl = frUrl('appointment', 'search', {
+        officeIDs: String(cfg.officeId),
+        dateStart: fmtDate(weekStart),
+        dateEnd: fmtDate(weekEnd),
+      }, cfg.key, cfg.token);
+      const searchData = await frFetch(searchUrl);
+      const apptIds: number[] = searchData.appointmentIDs || [];
+      log.push(`  ${officeName}: ${apptIds.length} appointment IDs`);
+      if (apptIds.length > 0) {
+        allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+        log.push(`  ${officeName}: ${allAppts.length} appointments fetched`);
+      }
 
-            if (pmpCompletedAppts.length > 0) {
-              const uniqueSubIds = [...new Set(pmpCompletedAppts.map((a: any) => String(a.subscriptionID)))];
-              const subChargeMap = new Map<string, number>();
+      const [wpMetrics, wpCallbacks] = await Promise.all([
+        wpTechs.size > 0 ? pullWPMetrics(cfg, weekStart, weekEnd, wpTechs, allAppts) : Promise.resolve(new Map()),
+        wpTechs.size > 0 ? pullWPCallbackRate(cfg, weekEnd, wpTechs) : Promise.resolve(new Map()),
+      ]);
 
-              for (let i = 0; i < uniqueSubIds.length; i += 100) {
-                const batch = uniqueSubIds.slice(i, i + 100);
-                const subUrl = frUrl('subscription', 'get', { subscriptionIDs: batch.join(',') }, cfg.key, cfg.token);
-                const subData = await frFetch(subUrl);
-                const propName = subData.propertyName;
-                const subs: any[] = propName && subData[propName]
-                  ? Object.values(subData[propName] as object)
-                  : [];
-                for (const s of subs) {
-                  subChargeMap.set(String(s.subscriptionID), parseFloat(s.recurringCharge || '0'));
-                }
-                await new Promise(r => setTimeout(r, 200));
-              }
-
-              for (const appt of pmpCompletedAppts) {
-                const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
-                const techId = pmpTechs.get(empId) as string | undefined;
-                if (!techId) continue;
-                const charge = subChargeMap.get(String(appt.subscriptionID)) || 0;
-                const existing = pmpRoutes.get(techId);
-                if (existing) existing.productionValue += charge;
-              }
-
-              log.push(`  Production: ${pmpCompletedAppts.length} appts, ${uniqueSubIds.length} subs`);
-              for (const [techId, data] of pmpRoutes) {
-                if (data.productionValue > 0) log.push(`    ${techId}: $${data.productionValue.toFixed(2)}, routes=${data.routeCount}`);
-              }
+      // ── PMP PRODUCTION VALUE from subscriptions ──
+      if (pmpRoutes.size > 0) {
+        try {
+          const pmpEmpIds = new Set([...pmpTechs.keys()]);
+          const pmpCompletedAppts = allAppts.filter((a: any) =>
+            pmpEmpIds.has(parseInt(a.servicedBy || a.employeeID || '0')) &&
+            String(a.status) === '1' && a.subscriptionID
+          );
+          if (pmpCompletedAppts.length > 0) {
+            const uniqueSubIds = [...new Set(pmpCompletedAppts.map((a: any) => String(a.subscriptionID)))];
+            const subChargeMap = new Map<string, number>();
+            for (let i = 0; i < uniqueSubIds.length; i += 100) {
+              const batch = uniqueSubIds.slice(i, i + 100);
+              const subUrl = frUrl('subscription', 'get', { subscriptionIDs: batch.join(',') }, cfg.key, cfg.token);
+              const subData = await frFetch(subUrl);
+              const propName = subData.propertyName;
+              const subs: any[] = propName && subData[propName] ? Object.values(subData[propName] as object) : [];
+              for (const s of subs) subChargeMap.set(String(s.subscriptionID), parseFloat(s.recurringCharge || '0'));
+              await new Promise(r => setTimeout(r, 200));
             }
-          } catch (e: any) {
-            log.push(`  Production error: ${e.message}`);
+            for (const appt of pmpCompletedAppts) {
+              const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
+              const techId = pmpTechs.get(empId) as string | undefined;
+              if (!techId) continue;
+              const charge = subChargeMap.get(String(appt.subscriptionID)) || 0;
+              const existing = pmpRoutes.get(techId);
+              if (existing) existing.productionValue += charge;
+            }
+            log.push(`  Production: ${pmpCompletedAppts.length} appts, ${uniqueSubIds.length} subs`);
+            for (const [techId, data] of pmpRoutes) {
+              if (data.productionValue > 0) log.push(`    ${techId}: $${data.productionValue.toFixed(2)}, routes=${data.routeCount}`);
+            }
           }
+        } catch (e: any) {
+          log.push(`  Production error: ${e.message}`);
         }
       }
 
