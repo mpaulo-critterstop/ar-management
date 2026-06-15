@@ -468,7 +468,7 @@ export async function GET(req: NextRequest) {
               entry.productionValue += prodVal;
               entry.totalScheduled += scheduled;
               entry.completed += completed;
-              entry.routeCount++;
+              entry.routeCount++; // count routes regardless of production value
             }
           }
         } catch (e: any) {
@@ -521,7 +521,7 @@ export async function GET(req: NextRequest) {
 
               log.push(`  Production: ${pmpCompletedAppts.length} appts, ${uniqueSubIds.length} subs`);
               for (const [techId, data] of pmpRoutes) {
-                if (data.productionValue > 0) log.push(`    ${techId}: $${data.productionValue.toFixed(2)}`);
+                if (data.productionValue > 0) log.push(`    ${techId}: $${data.productionValue.toFixed(2)}, routes=${data.routeCount}, hrDays=${techs.find(t => t.techId === techId)?.hrDays || '?'}`);
               }
             }
           } catch (e: any) {
