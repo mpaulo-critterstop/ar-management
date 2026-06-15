@@ -8,11 +8,11 @@ import { prisma } from '@/lib/prisma';
 const SUBDOMAIN = 'critterstoppest';
 const BASE_URL = `https://${SUBDOMAIN}.fieldroutes.com/api`;
 
-const OFFICES: Record<string, { key: string; token: string; officeId: number }> = {
-  DFW:   { key: process.env.FIELDROUTES_KEY_DFW!,   token: process.env.FIELDROUTES_TOKEN_DFW!,   officeId: 1 },
-  ATX:   { key: process.env.FIELDROUTES_KEY_ATX!,   token: process.env.FIELDROUTES_TOKEN_ATX!,   officeId: 5 },
-  OKC:   { key: process.env.FIELDROUTES_KEY_OKC!,   token: process.env.FIELDROUTES_TOKEN_OKC!,   officeId: 3 },
-  CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4 },
+const OFFICES: Record<string, { key: string; token: string; officeId: number; reserviceTypeId: string }> = {
+  DFW:   { key: process.env.FIELDROUTES_KEY_DFW!,   token: process.env.FIELDROUTES_TOKEN_DFW!,   officeId: 1, reserviceTypeId: '3'   },
+  ATX:   { key: process.env.FIELDROUTES_KEY_ATX!,   token: process.env.FIELDROUTES_TOKEN_ATX!,   officeId: 5, reserviceTypeId: '3'   },
+  OKC:   { key: process.env.FIELDROUTES_KEY_OKC!,   token: process.env.FIELDROUTES_TOKEN_OKC!,   officeId: 3, reserviceTypeId: '3'   },
+  CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4, reserviceTypeId: '822' },
 };
 
 // ─── APPOINTMENT TYPE IDs ────────────────────────────────────────────────────
@@ -315,14 +315,14 @@ async function pullRouteReporting(
 
 // ─── PMP: RESERVICES ─────────────────────────────────────────────────────────
 async function pullReservices(
-  cfg: { key: string; token: string; officeId: number },
+  cfg: { key: string; token: string; officeId: number; reserviceTypeId: string },
   weekStart: Date,
   weekEnd: Date,
   pmpTechs: Map<number, string>
 ): Promise<Map<string, number>> {
 
   const result = new Map<string, number>();
-  const RESERVICE_TYPE = '3';
+  const RESERVICE_TYPE = cfg.reserviceTypeId;
   const LOOKBACK_DAYS = 90;
 
   // Fetch 90 days of appointments for this office
