@@ -340,10 +340,9 @@ async function pullReservices(
   } catch { return result; }
 
   const apptIds: number[] = searchData.appointmentIDs || [];
-  if (apptIds.length === 0) { result.set('__log_no_appts__', 0); return result; }
+  if (apptIds.length === 0) { return result; }
 
   const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
-  result.set('__log_total__', allAppts.length);
 
   // Separate reservices (serviceType=3, this week) from regular services (90 days)
   const weekStartMs = weekStart.getTime();
@@ -360,8 +359,6 @@ async function pullReservices(
     return typeStr !== RESERVICE_TYPE && String(a.status) === '1';
   });
 
-  result.set('__log_reservices__', reservicesThisWeek.length);
-  result.set('__log_regular__', regularAppts.length);
 
   // Build customer → sorted regular appts (descending date)
   const customerAppts = new Map<string, any[]>();
@@ -381,29 +378,18 @@ async function pullReservices(
 
   // For each reservice this week, find the responsible tech (did last regular service)
   const reseviceCountByTech = new Map<string, number>();
-  let debugNoCustomer = 0, debugNoHistory = 0, debugNoLastRegular = 0, debugNoEmpMatch = 0, debugAttributed = 0;
   for (const rs of reservicesThisWeek) {
     const custId  = String(rs.customerID || '');
-    if (!custId || custId === '0') { debugNoCustomer++; continue; }
     const rsDateMs = rs.date ? new Date(rs.date).getTime() : 0;
     const history  = customerAppts.get(custId) || [];
-    if (history.length === 0) { debugNoHistory++; continue; }
     const lastRegular = history.find((a: any) => {
       const aDate = a.date ? new Date(a.date).getTime() : 0;
       return aDate < rsDateMs;
     });
-    if (!lastRegular) { debugNoLastRegular++; continue; }
     const empId = parseInt(lastRegular.servicedBy || lastRegular.employeeID || '0');
-    if (!empId || !pmpTechs.has(empId)) { debugNoEmpMatch++; continue; }
     const techId = pmpTechs.get(empId)!;
     reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
-    debugAttributed++;
   }
-  result.set('__log_attr__', debugAttributed);
-  result.set('__log_no_cust__', debugNoCustomer);
-  result.set('__log_no_hist__', debugNoHistory);
-  result.set('__log_no_last__', debugNoLastRegular);
-  result.set('__log_no_emp__', debugNoEmpMatch);
 
   // FR formula: Re-service Rate = Total Re-services / Average Serviced Per Period
   // Average Serviced Per Period = (completions / 91.31 days) × 6 days/week
@@ -424,8 +410,6 @@ async function pullReservices(
   for (const [techId, rsCount] of reseviceCountByTech) {
     const regularCount = regularCountByTech.get(techId) ?? 0;
     if (regularCount > 0) result.set(techId, rsCount / regularCount);
-    result.set(`__rs_${techId}__`, rsCount);
-    result.set(`__reg_${techId}__`, Math.round(regularCount));
   }
 
   return result;
