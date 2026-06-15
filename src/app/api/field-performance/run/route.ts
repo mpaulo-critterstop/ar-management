@@ -521,6 +521,14 @@ export async function GET(req: NextRequest) {
               if (statusStr === '1') entry.completed++;
             }
             log.push(`  Subs fetched: ${subsFound}, chargeMap size: ${subChargeMap.size}`);
+            // Apply completion counts to pmpRoutes
+            for (const [techId, comp] of completionByTech) {
+              const route = pmpRoutes.get(techId);
+              if (route && comp.scheduled > 0) {
+                route.totalScheduled = comp.scheduled;
+                route.completed = comp.completed;
+              }
+            }
             for (const appt of pmpCompletedAppts) {
               const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
               const techId = pmpTechs.get(empId) as string | undefined;
