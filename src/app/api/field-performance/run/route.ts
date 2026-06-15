@@ -521,7 +521,7 @@ export async function GET(req: NextRequest) {
 
               log.push(`  Production: ${pmpCompletedAppts.length} appts, ${uniqueSubIds.length} subs`);
               for (const [techId, data] of pmpRoutes) {
-                if (data.productionValue > 0) log.push(`    ${techId}: $${data.productionValue.toFixed(2)}, routes=${data.routeCount}, hrDays=${techs.find(t => t.techId === techId)?.hrDays || '?'}`);
+                if (data.productionValue > 0) log.push(`    ${techId}: $${data.productionValue.toFixed(2)}, routes=${data.routeCount}`);
               }
             }
           } catch (e: any) {
