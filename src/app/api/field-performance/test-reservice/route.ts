@@ -12,12 +12,13 @@ export async function GET(req: NextRequest) {
   const token = process.env.FIELDROUTES_TOKEN_CSTAT!;
   const auth = `authenticationKey=${key}&authenticationToken=${token}`;
 
-  // Try multiple date param combinations
+  // Try different endpoint names
   const tests = [
-    `${BASE_URL}/reservice/search?officeIDs=4&dateStart=2026-06-06&dateEnd=2026-06-12&${auth}`,
-    `${BASE_URL}/reservice/search?officeIDs=4&dateCompletedStart=2026-06-06&dateCompletedEnd=2026-06-12&${auth}`,
-    `${BASE_URL}/reservice/search?officeIDs=4&dateUpdatedStart=2026-06-06&dateUpdatedEnd=2026-06-12&${auth}`,
-    `${BASE_URL}/reservice/search?officeIDs=4&${auth}`,
+    `${BASE_URL}/reService/search?officeIDs=4&dateStart=2026-06-06&dateEnd=2026-06-12&${auth}`,
+    `${BASE_URL}/re-service/search?officeIDs=4&dateStart=2026-06-06&dateEnd=2026-06-12&${auth}`,
+    `${BASE_URL}/appointment/search?officeIDs=4&dateStart=2026-06-06&dateEnd=2026-06-12&isReservice=1&${auth}`,
+    `${BASE_URL}/appointment/search?officeIDs=4&dateStart=2026-06-06&dateEnd=2026-06-12&reservice=1&${auth}`,
+    `${BASE_URL}/appointment/search?officeIDs=4&dateStart=2026-06-06&dateEnd=2026-06-12&type=reservice&${auth}`,
   ];
 
   const results: any[] = [];
