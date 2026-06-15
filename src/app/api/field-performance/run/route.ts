@@ -424,6 +424,8 @@ async function pullReservices(
   for (const [techId, rsCount] of reseviceCountByTech) {
     const regularCount = regularCountByTech.get(techId) ?? 0;
     if (regularCount > 0) result.set(techId, rsCount / regularCount);
+    result.set(`__rs_${techId}__`, rsCount);
+    result.set(`__reg_${techId}__`, Math.round(regularCount));
   }
 
   return result;
