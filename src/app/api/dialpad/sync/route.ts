@@ -192,7 +192,7 @@ export async function GET(req: NextRequest) {
               ${call.entry_point_call_id ? String(call.entry_point_call_id) : ''},
               ${call.operator_call_id ? String(call.operator_call_id) : ''},
               ${call.master_call_id ? String(call.master_call_id) : ''},
-              ${''},
+              ${call.categories || ''},
               ${false},
               NOW()
             )
@@ -200,7 +200,8 @@ export async function GET(req: NextRequest) {
               date_connected = EXCLUDED.date_connected,
               date_ended = EXCLUDED.date_ended,
               duration = EXCLUDED.duration,
-              state = EXCLUDED.state
+              state = EXCLUDED.state,
+              categories = EXCLUDED.categories
           `;
           results.upserted++;
         } catch (e: any) {
