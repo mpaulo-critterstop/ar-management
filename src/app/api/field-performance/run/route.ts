@@ -545,12 +545,13 @@ export async function GET(req: NextRequest) {
         try {
           const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);
           for (const [k, v] of rsMap) {
-            if (k.startsWith('__log_')) {
+            if (k.startsWith('__')) {
               log.push(`  Reservice debug: ${k}=${v}`);
             } else {
               pmpReserviceMap.set(k, v);
             }
           }
+          log.push(`  Reservice attributed: ${[...pmpReserviceMap.entries()].filter(([k]) => !k.startsWith('__')).map(([k,v]) => `${k}=${(v*100).toFixed(1)}%`).join(', ') || 'none'}`);
         } catch (e: any) {
           log.push(`  Reservice error: ${e.message}`);
         }
