@@ -75,7 +75,10 @@ export function IndividualsTab({ office, weekEnd }: Props) {
                   <th style={{ ...th, width: 52 }}>Office</th>
                   <th style={{ ...th, width: 95 }}>Score</th>
                   {!selected && <th style={{ ...th, width: 52 }}>CO%</th>}
-                  {!selected && <th style={{ ...th, width: 58 }}>CB rate</th>}
+                  {!selected && <th style={{ ...th, width: 58 }}>CB Rate</th>}
+                  {!selected && <th style={{ ...th, width: 60 }}>Rev Eff</th>}
+                  {!selected && <th style={{ ...th, width: 58 }}>Reservice</th>}
+                  {!selected && <th style={{ ...th, width: 62 }}>Completion</th>}
                   {!selected && <th style={{ ...th, width: 60 }}>Driving</th>}
                   {!selected && <th style={{ ...th, width: 68 }}>Reliability</th>}
                 </tr>
@@ -105,6 +108,9 @@ export function IndividualsTab({ office, weekEnd }: Props) {
                     </td>
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.closeOutPct !== null ? (w.closeOutPct * 100).toFixed(0) + '%' : '—'}</td>}
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.callbackRate !== null ? (w.callbackRate * 100).toFixed(0) + '%' : '—'}</td>}
+                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.revenueEfficiency !== null ? (w.revenueEfficiency * 100).toFixed(0) + '%' : '—'}</td>}
+                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.reseviceRate !== null && w.reseviceRate > 0 ? (w.reseviceRate * 100).toFixed(1) + '%' : '—'}</td>}
+                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.completionPct !== null ? (w.completionPct * 100).toFixed(0) + '%' : '—'}</td>}
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.drivingScore !== null ? (w.drivingScore * 100).toFixed(0) + '%' : '—'}</td>}
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.reliabilityScore !== null ? (w.reliabilityScore * 100).toFixed(0) + '%' : '—'}</td>}
                   </tr>
