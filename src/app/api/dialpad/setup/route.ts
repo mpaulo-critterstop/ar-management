@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   try {
     const [webhooks, subscriptions] = await Promise.all([
       dialpadFetch('/webhooks'),
-      dialpadFetch('/subscriptions'),
+      dialpadFetch('/subscriptions/call'),
     ]);
     return NextResponse.json({ webhooks, subscriptions });
   } catch (e: any) {
@@ -53,19 +53,19 @@ export async function POST(req: NextRequest) {
       }));
     }
     if (action === 'create_subscription') {
-      return NextResponse.json(await dialpadFetch('/subscriptions', 'POST', {
+      return NextResponse.json(await dialpadFetch('/subscriptions/call', 'POST', {
         webhook_id,
         call_states: ['hangup', 'missed', 'voicemail'],
       }));
     }
     if (action === 'create_recap_subscription') {
-      return NextResponse.json(await dialpadFetch('/subscriptions', 'POST', {
+      return NextResponse.json(await dialpadFetch('/subscriptions/call', 'POST', {
         webhook_id,
-        event_type: 'recap',
+        call_states: ['recap'],
       }));
     }
     if (action === 'delete_subscription') {
-      return NextResponse.json(await dialpadFetch(`/subscriptions/${subscription_id}`, 'DELETE'));
+      return NextResponse.json(await dialpadFetch(`/subscriptions/call/${subscription_id}`, 'DELETE'));
     }
     if (action === 'delete_webhook') {
       return NextResponse.json(await dialpadFetch(`/webhooks/${webhook_id}`, 'DELETE'));
