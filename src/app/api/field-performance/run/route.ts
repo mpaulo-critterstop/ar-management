@@ -496,15 +496,19 @@ export async function GET(req: NextRequest) {
             log.push(`  PMP completed appts: ${pmpCompletedAppts.length}, sample empIds: ${sampleEmpIds.join(',')}, sample techIds: ${sampleEmpIds.map(id => pmpTechs.get(parseInt(id)) || '?').join(',')}`);
             const uniqueSubIds = [...new Set(pmpCompletedAppts.map((a: any) => String(a.subscriptionID)))];
             const subChargeMap = new Map<string, number>();
+            let subsFound = 0;
             for (let i = 0; i < uniqueSubIds.length; i += 100) {
               const batch = uniqueSubIds.slice(i, i + 100);
               const subUrl = frUrl('subscription', 'get', { subscriptionIDs: batch.join(',') }, cfg.key, cfg.token);
               const subData = await frFetch(subUrl);
               const propName = subData.propertyName;
+              if (!subData.success) log.push(`  Sub fetch error: ${subData.errorMessage}`);
               const subs: any[] = propName && subData[propName] ? Object.values(subData[propName] as object) : [];
+              subsFound += subs.length;
               for (const s of subs) subChargeMap.set(String(s.subscriptionID), parseFloat(s.recurringCharge || '0'));
               await new Promise(r => setTimeout(r, 200));
             }
+            log.push(`  Subs fetched: ${subsFound}, chargeMap size: ${subChargeMap.size}`);
             for (const appt of pmpCompletedAppts) {
               const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
               const techId = pmpTechs.get(empId) as string | undefined;
