@@ -405,37 +405,34 @@ export async function GET(req: NextRequest) {
     const pmpTechs = new Map(officeTechs.filter(t => t.team === 'PMP').map(t => [t.frEmployeeId!, t.techId]));
 
     try {
-      // Fetch all appointments for the week ONCE — shared between WP and PMP
-      const searchUrl = frUrl('appointment', 'search', {
-        officeIDs: String(cfg.officeId),
-        dateStart: fmtDate(weekStart),
-        dateEnd: fmtDate(weekEnd),
-      }, cfg.key, cfg.token);
-      const searchData = await frFetch(searchUrl);
-      const apptIds: number[] = searchData.appointmentIDs || [];
-      log.push(`  ${officeName}: ${apptIds.length} appointment IDs`);
-      const allAppts = apptIds.length > 0
-        ? await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token)
-        : [];
-      log.push(`  ${officeName}: ${allAppts.length} appointments fetched`);
+      // ── WP DATA: fetch appointments (needed for close-out + callback analysis) ──
+      let allAppts: any[] = [];
+      if (wpTechs.size > 0) {
+        const searchUrl = frUrl('appointment', 'search', {
+          officeIDs: String(cfg.officeId),
+          dateStart: fmtDate(weekStart),
+          dateEnd: fmtDate(weekEnd),
+        }, cfg.key, cfg.token);
+        const searchData = await frFetch(searchUrl);
+        const apptIds: number[] = searchData.appointmentIDs || [];
+        log.push(`  ${officeName}: ${apptIds.length} appointment IDs`);
+        allAppts = apptIds.length > 0
+          ? await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token)
+          : [];
+        log.push(`  ${officeName}: ${allAppts.length} appointments fetched`);
+      }
 
-      // ── WP DATA ──
       const [wpMetrics, wpCallbacks] = await Promise.all([
         wpTechs.size > 0 ? pullWPMetrics(cfg, weekStart, weekEnd, wpTechs, allAppts) : Promise.resolve(new Map()),
         wpTechs.size > 0 ? pullWPCallbackRate(cfg, weekEnd, wpTechs) : Promise.resolve(new Map()),
       ]);
 
-      // ── PMP DATA ──
-      const [pmpRoutes, pmpReservices] = await Promise.all([
-        pmpTechs.size > 0 ? pullRouteReporting(cfg, weekStart, weekEnd, pmpTechs, allAppts) : Promise.resolve(new Map()),
-        pmpTechs.size > 0 ? pullReservices(cfg, weekStart, weekEnd, pmpTechs) : Promise.resolve(new Map()),
-      ]);
+      // ── PMP DATA: use route API directly (much lighter than appointment fetch) ──
+      const pmpRoutes = new Map<string, { totalScheduled: number; completed: number; productionValue: number }>();
+      const pmpReserviceMap = new Map<string, number>();
 
-      log.push(`WP techs with data: ${wpMetrics.size}, PMP techs with route data: ${pmpRoutes.size}, pmpTechs map size: ${pmpTechs.size}`);
-      log.push(`PMP frEmployeeIds: ${[...pmpTechs.keys()].slice(0,5).join(',')}`);
-
-      // ── ROUTE PRODUCTION VALUE (sequential, after other calls) ──
-      if (pmpTechs.size > 0 && pmpRoutes.size > 0) {
+      if (pmpTechs.size > 0) {
+        // Route API for completion % and production value
         try {
           const routeSearchUrl = frUrl('route', 'search', {
             officeIDs: String(cfg.officeId),
@@ -444,25 +441,43 @@ export async function GET(req: NextRequest) {
           }, cfg.key, cfg.token);
           const routeSearch = await frFetch(routeSearchUrl);
           const routeIds: number[] = routeSearch.routeIDs || [];
-          log.push(`  Route IDs: ${routeIds.length}`);
+          log.push(`  ${officeName}: ${routeIds.length} route IDs`);
+
           if (routeIds.length > 0) {
             const routes = await fetchInBatches('route', 'get', 'routeIDs', routeIds, cfg.key, cfg.token);
-            if (routes.length > 0) {
-              log.push(`  Route sample keys: ${Object.keys(routes[0]).slice(0,10).join(',')}`);
-            }
+            log.push(`  ${officeName}: ${routes.length} routes fetched`);
+            if (routes.length > 0) log.push(`  Route keys: ${Object.keys(routes[0]).slice(0,12).join(',')}`);
+
             for (const route of routes) {
               const empId = parseInt(route.assignedTech || route.employeeID || route.technicianID || '0');
               if (!empId || !pmpTechs.has(empId)) continue;
-              const techId = pmpTechs.get(empId)!;
-              const prodVal = parseFloat(route.productionValue || route.routeValue || route.value || '0');
-              const existing = pmpRoutes.get(techId);
-              if (existing) existing.productionValue += prodVal;
+              const techId = pmpTechs.get(empId) as string | undefined;
+              if (!techId) continue;
+              const prodVal = parseFloat(String(route.productionValue || route.routeValue || '0'));
+              const scheduled = parseInt(String(route.totalScheduled || route.scheduledServices || '0'));
+              const completed = parseInt(String(route.completedServices || route.completed || '0'));
+
+              if (!pmpRoutes.has(techId)) pmpRoutes.set(techId, { totalScheduled: 0, completed: 0, productionValue: 0 });
+              const entry = pmpRoutes.get(techId)!;
+              entry.productionValue += prodVal;
+              entry.totalScheduled += scheduled;
+              entry.completed += completed;
             }
           }
         } catch (e: any) {
           log.push(`  Route API error: ${e.message}`);
         }
-      };
+
+        // Reservice API
+        try {
+          const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);
+          for (const [k, v] of rsMap) pmpReserviceMap.set(k, v);
+        } catch (e: any) {
+          log.push(`  Reservice API error: ${e.message}`);
+        }
+      }
+
+      log.push(`WP techs: ${wpMetrics.size}, PMP routes: ${pmpRoutes.size}`);
 
       // ── UPSERT WP ──
       for (const tech of officeTechs.filter(t => t.team === 'WP')) {
@@ -523,7 +538,7 @@ export async function GET(req: NextRequest) {
       // ── UPSERT PMP ──
       for (const tech of officeTechs.filter(t => t.team === 'PMP')) {
         const routes    = pmpRoutes.get(tech.techId);
-        const resvCount = pmpReservices.get(tech.techId) ?? 0;
+        const resvCount = pmpReserviceMap.get(tech.techId) ?? 0;
         if (!routes) continue;
 
         const completionPct    = routes.totalScheduled > 0 ? routes.completed / routes.totalScheduled : null;
