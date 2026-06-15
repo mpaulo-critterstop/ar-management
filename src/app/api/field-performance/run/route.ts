@@ -406,9 +406,13 @@ async function pullReservices(
 
   // FR formula: Re-service Rate = Total Re-services / Average Serviced Per Period
   // Average Serviced Per Period = (completions / 91.31 days) × 6 days/week
-  // Using 120-day lookback but normalizing to 3-month (91.31 day) equivalent
+  // Only count completions from last 3 months (91.31 days) for denominator
+  // Full 120-day lookback used only for finding responsible tech
+  const threeMonthsAgoMs = weekEnd.getTime() - (91.31 * 24 * 60 * 60 * 1000);
   const regularCountByTech = new Map<string, number>();
   for (const appt of regularAppts) {
+    const dateMs = appt.date ? new Date(appt.date).getTime() : 0;
+    if (dateMs < threeMonthsAgoMs) continue; // only last 3 months for denominator
     const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
     if (!empId || !pmpTechs.has(empId)) continue;
     const techId = pmpTechs.get(empId)!;
