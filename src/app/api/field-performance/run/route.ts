@@ -508,6 +508,18 @@ export async function GET(req: NextRequest) {
               for (const s of subs) subChargeMap.set(String(s.subscriptionID), parseFloat(s.recurringCharge || '0'));
               await new Promise(r => setTimeout(r, 200));
             }
+            // Also calculate completion % from appointments
+            const completionByTech = new Map<string, { scheduled: number; completed: number }>();
+            for (const appt of allAppts) {
+              const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
+              const techId = pmpTechs.get(empId) as string | undefined;
+              if (!techId || !pmpRoutes.has(techId)) continue;
+              const statusStr = String(appt.status || '');
+              if (!completionByTech.has(techId)) completionByTech.set(techId, { scheduled: 0, completed: 0 });
+              const entry = completionByTech.get(techId)!;
+              if (statusStr === '1' || statusStr === '0') entry.scheduled++;
+              if (statusStr === '1') entry.completed++;
+            }
             log.push(`  Subs fetched: ${subsFound}, chargeMap size: ${subChargeMap.size}`);
             for (const appt of pmpCompletedAppts) {
               const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
