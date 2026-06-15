@@ -392,7 +392,10 @@ export async function GET(req: NextRequest) {
   const errors: string[] = [];
   let updated = 0;
 
+  const officeFilter = searchParams.get('office')?.toUpperCase() || '';
+
   for (const [officeName, cfg] of Object.entries(OFFICES)) {
+    if (officeFilter && officeName !== officeFilter) continue;
     if (!cfg.key || !cfg.token) { log.push(`${officeName}: skipped (no API key)`); continue; }
 
     log.push(`\n--- ${officeName} ---`);
