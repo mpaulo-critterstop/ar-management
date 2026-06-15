@@ -38,28 +38,10 @@ function frUrl(endpoint: string, action: string, params: Record<string, string>,
   return url.toString();
 }
 
-async function frFetch(url: string, retries = 3): Promise<any> {
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
-      if (res.status === 429 || res.status === 503) {
-        // Rate limited — wait and retry
-        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
-        continue;
-      }
-      if (!res.ok) throw new Error(`FR HTTP ${res.status}`);
-      const data = await res.json();
-      if (!data.success && data.errorMessage?.includes('rate')) {
-        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
-        continue;
-      }
-      return data;
-    } catch (e: any) {
-      if (attempt === retries - 1) throw e;
-      await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-    }
-  }
-  throw new Error('FR fetch failed after retries');
+async function frFetch(url: string): Promise<any> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(25000) });
+  if (!res.ok) throw new Error(`FR HTTP ${res.status}`);
+  return res.json();
 }
 
 async function fetchInBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string): Promise<any[]> {
@@ -75,7 +57,7 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
         : Object.values(data[propName] as object);
       results.push(...items);
     }
-    await new Promise(r => setTimeout(r, 300)); // increased from 150ms
+    await new Promise(r => setTimeout(r, 200));
   }
   return results;
 }
@@ -310,44 +292,6 @@ async function pullRouteReporting(
     allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
   }
 
-  // Use FR route reporting API for production value
-  let routeProductionByTech = new Map<string, { totalProduction: number; routeCount: number }>();
-  try {
-    const routeSearchUrl = frUrl('route', 'search', {
-      officeIDs: String(cfg.officeId),
-      dateStart: fmtDate(weekStart),
-      dateEnd: fmtDate(weekEnd),
-    }, cfg.key, cfg.token);
-    const routeSearch = await frFetch(routeSearchUrl);
-    const routeIds: number[] = routeSearch.routeIDs || [];
-
-    if (routeIds.length > 0) {
-      const routes = await fetchInBatches('route', 'get', 'routeIDs', routeIds, cfg.key, cfg.token);
-      for (const route of routes) {
-        // Try multiple field names for tech ID
-        const empId = parseInt(route.assignedTech || route.employeeID || route.technicianID || '0');
-        if (!empId || !pmpTechs.has(empId)) continue;
-        const techId = pmpTechs.get(empId)!;
-        // Try multiple field names for production value
-        const prodVal = parseFloat(route.productionValue || route.routeValue || route.value || '0');
-        if (!routeProductionByTech.has(techId)) {
-          routeProductionByTech.set(techId, { totalProduction: 0, routeCount: 0 });
-        }
-        const entry = routeProductionByTech.get(techId)!;
-        entry.totalProduction += prodVal;
-        if (prodVal > 0) entry.routeCount++;
-      }
-      // Debug: log first route's keys
-      if (routes.length > 0) {
-        const sampleRoute = routes[0];
-        const keys = Object.keys(sampleRoute).join(',');
-        routeProductionByTech.set('__keys__', { totalProduction: 0, routeCount: routeIds.length });
-      }
-    }
-  } catch (e: any) {
-    routeProductionByTech.set('__error__', { totalProduction: 0, routeCount: 0 });
-  }
-
   for (const appt of allAppts) {
     const empId = parseInt(appt.servicedBy || appt.employeeID || appt.technicianID || '0');
     if (!empId || !pmpTechs.has(empId)) continue;
@@ -360,21 +304,10 @@ async function pullRouteReporting(
 
     if (!result.has(techId)) {
       result.set(techId, { totalScheduled: 0, completed: 0, productionValue: 0 });
-      // Log first matched appt value fields
-      console.log(`First PMP match: techId=${techId}, productionValue=${appt.productionValue}, total=${appt.total}, amountCollected=${appt.amountCollected}`);
     }
     const entry = result.get(techId)!;
     entry.totalScheduled++;
-    if (isCompleted) {
-      entry.completed++;
-    }
-  }
-
-  // Override productionValue with route API data (more accurate than appointment-level)
-  for (const [techId, routeData] of routeProductionByTech) {
-    if (result.has(techId)) {
-      result.get(techId)!.productionValue = routeData.totalProduction;
-    }
+    if (isCompleted) entry.completed++;
   }
 
   return result;
@@ -497,13 +430,35 @@ export async function GET(req: NextRequest) {
 
       log.push(`WP techs with data: ${wpMetrics.size}, PMP techs with route data: ${pmpRoutes.size}, pmpTechs map size: ${pmpTechs.size}`);
       log.push(`PMP frEmployeeIds: ${[...pmpTechs.keys()].slice(0,5).join(',')}`);
-      const routeError = pmpRoutes.get('__error__');
-      const routeKeys = pmpRoutes.get('__keys__');
-      if (routeError) log.push(`  Route API error`);
-      if (routeKeys) log.push(`  Route API: ${routeKeys.routeCount} routes found`);
-      for (const [techId, data] of pmpRoutes) {
-        if (techId.startsWith('__')) continue;
-        if (data.productionValue > 0) log.push(`  Route prod: ${techId}=$${data.productionValue.toFixed(0)}`);
+
+      // ── ROUTE PRODUCTION VALUE (sequential, after other calls) ──
+      if (pmpTechs.size > 0 && pmpRoutes.size > 0) {
+        try {
+          const routeSearchUrl = frUrl('route', 'search', {
+            officeIDs: String(cfg.officeId),
+            dateStart: fmtDate(weekStart),
+            dateEnd: fmtDate(weekEnd),
+          }, cfg.key, cfg.token);
+          const routeSearch = await frFetch(routeSearchUrl);
+          const routeIds: number[] = routeSearch.routeIDs || [];
+          log.push(`  Route IDs: ${routeIds.length}`);
+          if (routeIds.length > 0) {
+            const routes = await fetchInBatches('route', 'get', 'routeIDs', routeIds, cfg.key, cfg.token);
+            if (routes.length > 0) {
+              log.push(`  Route sample keys: ${Object.keys(routes[0]).slice(0,10).join(',')}`);
+            }
+            for (const route of routes) {
+              const empId = parseInt(route.assignedTech || route.employeeID || route.technicianID || '0');
+              if (!empId || !pmpTechs.has(empId)) continue;
+              const techId = pmpTechs.get(empId)!;
+              const prodVal = parseFloat(route.productionValue || route.routeValue || route.value || '0');
+              const existing = pmpRoutes.get(techId);
+              if (existing) existing.productionValue += prodVal;
+            }
+          }
+        } catch (e: any) {
+          log.push(`  Route API error: ${e.message}`);
+        }
       };
 
       // ── UPSERT WP ──
