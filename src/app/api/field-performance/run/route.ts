@@ -454,24 +454,28 @@ export async function GET(req: NextRequest) {
               return pmpTechs.has(empId);
             });
             if (pmpRoute) {
+              // Production value = sum of subscription service prices for completed appointments
+              // Try fetching subscription data for completed PMP appointments
               const empId = parseInt(pmpRoute.assignedTech || '0');
-              const pmpAppt = allAppts.find((a: any) =>
+              const pmpAppts = allAppts.filter((a: any) =>
                 parseInt(a.servicedBy || a.employeeID || '0') === empId &&
-                String(a.status) === '1' && a.ticketID
-              );
-              if (pmpAppt) {
+                String(a.status) === '1' && a.subscriptionID
+              ).slice(0, 3);
+
+              if (pmpAppts.length > 0) {
                 try {
-                  const ticketUrl = frUrl('ticket', 'get', { ticketIDs: String(pmpAppt.ticketID) }, cfg.key, cfg.token);
-                  const ticketData = await frFetch(ticketUrl);
-                  const propName = ticketData.propertyName;
-                  const tickets = propName && ticketData[propName] ? Object.values(ticketData[propName] as object) : [];
-                  if (tickets.length > 0) {
-                    const t = tickets[0] as any;
-                    log.push(`  Ticket keys: ${Object.keys(t).join(',')}`);
-                    log.push(`  Ticket sample: total=${t.total}, subTotal=${t.subTotal}, productionValue=${t.productionValue}, serviceCharge=${t.serviceCharge}`);
+                  const subIds = pmpAppts.map((a: any) => a.subscriptionID).join(',');
+                  const subUrl = frUrl('subscription', 'get', { subscriptionIDs: subIds }, cfg.key, cfg.token);
+                  const subData = await frFetch(subUrl);
+                  const propName = subData.propertyName;
+                  const subs = propName && subData[propName] ? Object.values(subData[propName] as object) : [];
+                  if (subs.length > 0) {
+                    const s = subs[0] as any;
+                    log.push(`  Subscription keys: ${Object.keys(s).slice(0,15).join(',')}`);
+                    log.push(`  Sub sample: recurringCharge=${s.recurringCharge}, serviceCharge=${s.serviceCharge}, price=${s.price}, initialPrice=${s.initialPrice}, value=${s.value}`);
                   }
                 } catch (e: any) {
-                  log.push(`  Ticket error: ${e.message}`);
+                  log.push(`  Subscription error: ${e.message}`);
                 }
               }
             }
