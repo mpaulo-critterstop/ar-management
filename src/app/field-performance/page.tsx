@@ -59,7 +59,7 @@ export default function FieldPerformancePage() {
 
   const selectedWeek = WEEKS[weekIdx];
 
-  const runSync = async (type: 'fp' | 'bouncie' | 'reliability' | 'geocode' | 'addresses' | 'tc') => {
+  const runSync = async (type: 'fp' | 'bouncie' | 'reliability' | 'geocode' | 'addresses' | 'tc' | 'routes') => {
     setSyncing(type);
     setSyncMsg(null);
     const wk = selectedWeek.toLocaleDateString('en-CA');
@@ -215,6 +215,28 @@ export default function FieldPerformancePage() {
                 style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'addresses' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
                 {syncing === 'addresses' ? 'Syncing...' : '↻ Addresses'}
               </button>
+              <label style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
+                ↑ Route CSV
+                <input type="file" accept=".csv" style={{ display: 'none' }} onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setSyncing('routes');
+                  setSyncMsg('');
+                  try {
+                    const wk = selectedWeek.toLocaleDateString('en-CA');
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    fd.append('weekEnd', wk);
+                    const res = await fetch(`/api/field-performance/import-routes?token=critterstop2026`, { method: 'POST', body: fd });
+                    const data = await res.json();
+                    setSyncMsg(`Route import: ${data.updated ?? 0} techs updated${data.notMatched?.length ? ` (unmatched: ${data.notMatched.join(', ')})` : ''}`);
+                  } catch (err) {
+                    setSyncMsg('Route import failed');
+                  }
+                  setSyncing(null);
+                  e.target.value = '';
+                }} />
+              </label>
             </div>
           )}
       </div>
