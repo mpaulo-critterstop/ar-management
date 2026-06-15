@@ -345,17 +345,6 @@ async function pullReservices(
   const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
   result.set('__log_total__', allAppts.length);
 
-  // Check all unique type values to find reservice type ID
-  const typeCount = new Map<string, number>();
-  for (const a of allAppts) {
-    const t = String(a.type || a.serviceTypeID || 'null');
-    typeCount.set(t, (typeCount.get(t) ?? 0) + 1);
-  }
-  // Store as negative numbers with type ID as key for logging
-  for (const [typeId, count] of typeCount) {
-    result.set(`__type_${typeId}__`, count);
-  }
-
   // Separate reservices (serviceType=3, this week) from regular services (90 days)
   const weekStartMs = weekStart.getTime();
   const weekEndMs   = weekEnd.getTime() + 86400000;
