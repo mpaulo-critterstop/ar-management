@@ -405,24 +405,22 @@ export async function GET(req: NextRequest) {
     const pmpTechs = new Map(officeTechs.filter(t => t.team === 'PMP').map(t => [t.frEmployeeId!, t.techId]));
 
     try {
-      // ── WP DATA: fetch appointments filtered to WP+PMP techs only ──
+      // ── FETCH ALL APPOINTMENTS FOR THE OFFICE ──
       let allAppts: any[] = [];
-      const allTechEmpIds = [...wpTechs.keys(), ...pmpTechs.keys()];
-      if (allTechEmpIds.length > 0) {
-        const searchUrl = frUrl('appointment', 'search', {
-          officeIDs: String(cfg.officeId),
-          dateStart: fmtDate(weekStart),
-          dateEnd: fmtDate(weekEnd),
-          employeeIDs: allTechEmpIds.slice(0, 50).join(','), // filter to known techs only
-        }, cfg.key, cfg.token);
-        const searchData = await frFetch(searchUrl);
-        const apptIds: number[] = searchData.appointmentIDs || [];
-        log.push(`  ${officeName}: ${apptIds.length} appointment IDs`);
-        allAppts = apptIds.length > 0
-          ? await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token)
-          : [];
+      const searchUrl = frUrl('appointment', 'search', {
+        officeIDs: String(cfg.officeId),
+        dateStart: fmtDate(weekStart),
+        dateEnd: fmtDate(weekEnd),
+      }, cfg.key, cfg.token);
+      const searchData = await frFetch(searchUrl);
+      const apptIds: number[] = searchData.appointmentIDs || [];
+      log.push(`  ${officeName}: ${apptIds.length} appointment IDs`);
+      if (apptIds.length > 0) {
+        allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
         log.push(`  ${officeName}: ${allAppts.length} appointments fetched`);
       }
+      // Small delay to avoid FR rate limiting before route fetch
+      await new Promise(r => setTimeout(r, 500));
 
       const [wpMetrics, wpCallbacks] = await Promise.all([
         wpTechs.size > 0 ? pullWPMetrics(cfg, weekStart, weekEnd, wpTechs, allAppts) : Promise.resolve(new Map()),
