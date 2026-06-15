@@ -406,8 +406,8 @@ async function pullReservices(
   result.set('__log_no_emp__', debugNoEmpMatch);
 
   // FR formula: Re-service Rate = Total Re-services / Average Serviced Per Period
-  // Average Serviced Per Period = total completions in lookback / number of months
-  // With 90-day lookback = 3 months
+  // Average Serviced Per Period = (completions / 91.31 days) × 6 days/week
+  // (91.31 = 365.25/4 = exact 3-month period; PMP techs work 6 days/week Mon-Sat)
   const regularCountByTech = new Map<string, number>();
   for (const appt of regularAppts) {
     const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
@@ -415,10 +415,9 @@ async function pullReservices(
     const techId = pmpTechs.get(empId)!;
     regularCountByTech.set(techId, (regularCountByTech.get(techId) ?? 0) + 1);
   }
-  // Normalize to monthly average (90 days = 3 months)
-  const MONTHS_IN_LOOKBACK = LOOKBACK_DAYS / 30;
+  // Normalize: (total / 91.31) * 6
   for (const [techId, count] of regularCountByTech) {
-    regularCountByTech.set(techId, count / MONTHS_IN_LOOKBACK);
+    regularCountByTech.set(techId, (count / 91.31) * 6);
   }
 
   // Calculate rate
