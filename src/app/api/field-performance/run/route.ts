@@ -484,6 +484,7 @@ export async function GET(req: NextRequest) {
 
       // ── PMP PRODUCTION VALUE from subscriptions ──
       if (pmpRoutes.size > 0) {
+        log.push(`  pmpRoutes keys: ${[...pmpRoutes.keys()].join(',')}`);
         try {
           const pmpEmpIds = new Set([...pmpTechs.keys()]);
           const pmpCompletedAppts = allAppts.filter((a: any) =>
@@ -491,6 +492,8 @@ export async function GET(req: NextRequest) {
             String(a.status) === '1' && a.subscriptionID
           );
           if (pmpCompletedAppts.length > 0) {
+            const sampleEmpIds = [...new Set(pmpCompletedAppts.slice(0,5).map((a: any) => a.servicedBy || a.employeeID))];
+            log.push(`  PMP completed appts: ${pmpCompletedAppts.length}, sample empIds: ${sampleEmpIds.join(',')}, sample techIds: ${sampleEmpIds.map(id => pmpTechs.get(parseInt(id)) || '?').join(',')}`);
             const uniqueSubIds = [...new Set(pmpCompletedAppts.map((a: any) => String(a.subscriptionID)))];
             const subChargeMap = new Map<string, number>();
             for (let i = 0; i < uniqueSubIds.length; i += 100) {
