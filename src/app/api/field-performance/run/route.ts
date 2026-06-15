@@ -453,55 +453,7 @@ export async function GET(req: NextRequest) {
               const empId = parseInt(r.assignedTech || r.employeeID || '0');
               return pmpTechs.has(empId);
             });
-        // Calculate production value from subscription recurringCharge for all PMP techs
-        if (pmpRoutes.size > 0) {
-          try {
-            // Get all completed appointments for PMP techs
-            const pmpEmpIds = new Set([...pmpTechs.keys()]);
-            const pmpCompletedAppts = allAppts.filter((a: any) =>
-              pmpEmpIds.has(parseInt(a.servicedBy || a.employeeID || '0')) &&
-              String(a.status) === '1' && a.subscriptionID
-            );
-
-            if (pmpCompletedAppts.length > 0) {
-              // Fetch all unique subscriptions at once
-              const uniqueSubIds = [...new Set(pmpCompletedAppts.map((a: any) => String(a.subscriptionID)))];
-              const subChargeMap = new Map<string, number>();
-
-              // Batch fetch subscriptions (100 at a time)
-              for (let i = 0; i < uniqueSubIds.length; i += 100) {
-                const batch = uniqueSubIds.slice(i, i + 100);
-                const subUrl = frUrl('subscription', 'get', { subscriptionIDs: batch.join(',') }, cfg.key, cfg.token);
-                const subData = await frFetch(subUrl);
-                const propName = subData.propertyName;
-                const subs: any[] = propName && subData[propName]
-                  ? Object.values(subData[propName] as object)
-                  : [];
-                for (const s of subs) {
-                  subChargeMap.set(String(s.subscriptionID), parseFloat(s.recurringCharge || '0'));
-                }
-                await new Promise(r => setTimeout(r, 200));
-              }
-
-              // Sum production value per tech
-              for (const appt of pmpCompletedAppts) {
-                const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
-                const techId = pmpTechs.get(empId) as string | undefined;
-                if (!techId) continue;
-                const charge = subChargeMap.get(String(appt.subscriptionID)) || 0;
-                const existing = pmpRoutes.get(techId);
-                if (existing) existing.productionValue += charge;
-              }
-
-              log.push(`  Production from subscriptions: ${pmpCompletedAppts.length} appts, ${uniqueSubIds.length} unique subs`);
-              for (const [techId, data] of pmpRoutes) {
-                if (data.productionValue > 0) log.push(`    ${techId}: $${data.productionValue.toFixed(2)}`);
-              }
-            }
-          } catch (e: any) {
-            log.push(`  Production calc error: ${e.message}`);
-          }
-        }
+            void pmpRoute; // will use allAppts + subscriptions instead
             for (const route of routes) {
               const empId = parseInt(route.assignedTech || route.employeeID || route.technicianID || '0');
               if (!empId || !pmpTechs.has(empId)) continue;
@@ -528,6 +480,52 @@ export async function GET(req: NextRequest) {
           for (const [k, v] of rsMap) pmpReserviceMap.set(k, v);
         } catch (e: any) {
           log.push(`  Reservice API error: ${e.message}`);
+        }
+
+        // Calculate production value from subscription recurringCharge for all PMP techs
+        if (pmpRoutes.size > 0) {
+          try {
+            const pmpEmpIds = new Set([...pmpTechs.keys()]);
+            const pmpCompletedAppts = allAppts.filter((a: any) =>
+              pmpEmpIds.has(parseInt(a.servicedBy || a.employeeID || '0')) &&
+              String(a.status) === '1' && a.subscriptionID
+            );
+
+            if (pmpCompletedAppts.length > 0) {
+              const uniqueSubIds = [...new Set(pmpCompletedAppts.map((a: any) => String(a.subscriptionID)))];
+              const subChargeMap = new Map<string, number>();
+
+              for (let i = 0; i < uniqueSubIds.length; i += 100) {
+                const batch = uniqueSubIds.slice(i, i + 100);
+                const subUrl = frUrl('subscription', 'get', { subscriptionIDs: batch.join(',') }, cfg.key, cfg.token);
+                const subData = await frFetch(subUrl);
+                const propName = subData.propertyName;
+                const subs: any[] = propName && subData[propName]
+                  ? Object.values(subData[propName] as object)
+                  : [];
+                for (const s of subs) {
+                  subChargeMap.set(String(s.subscriptionID), parseFloat(s.recurringCharge || '0'));
+                }
+                await new Promise(r => setTimeout(r, 200));
+              }
+
+              for (const appt of pmpCompletedAppts) {
+                const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
+                const techId = pmpTechs.get(empId) as string | undefined;
+                if (!techId) continue;
+                const charge = subChargeMap.get(String(appt.subscriptionID)) || 0;
+                const existing = pmpRoutes.get(techId);
+                if (existing) existing.productionValue += charge;
+              }
+
+              log.push(`  Production: ${pmpCompletedAppts.length} appts, ${uniqueSubIds.length} subs`);
+              for (const [techId, data] of pmpRoutes) {
+                if (data.productionValue > 0) log.push(`    ${techId}: $${data.productionValue.toFixed(2)}`);
+              }
+            }
+          } catch (e: any) {
+            log.push(`  Production error: ${e.message}`);
+          }
         }
       }
 
