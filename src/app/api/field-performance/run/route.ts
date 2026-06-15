@@ -354,6 +354,14 @@ async function pullReservices(
     return RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs;
   });
 
+  // Debug: count by type
+  const rsByType = new Map<string, number>();
+  for (const rs of reservicesThisWeek) {
+    const t = String(rs.type || rs.serviceTypeID || '');
+    rsByType.set(t, (rsByType.get(t) ?? 0) + 1);
+  }
+  for (const [t, c] of rsByType) result.set(`__rstype_${t}__`, c);
+
   const regularAppts = allAppts.filter((a: any) => {
     const typeStr = String(a.type || a.serviceTypeID || '');
     return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
