@@ -57,7 +57,7 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
         : Object.values(data[propName] as object);
       results.push(...items);
     }
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise(r => setTimeout(r, 500));
   }
   return results;
 }
@@ -641,7 +641,7 @@ export async function GET(req: NextRequest) {
       log.push(msg);
     }
     // Pause between offices to avoid FR rate limits
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 3000));
   }
 
   log.push(`\nTotal techs updated: ${updated}`);
