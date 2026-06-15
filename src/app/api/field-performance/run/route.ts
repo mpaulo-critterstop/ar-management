@@ -419,7 +419,7 @@ export async function GET(req: NextRequest) {
           }, cfg.key, cfg.token);
           const routeSearch = await frFetch(routeSearchUrl);
           const routeIds: number[] = routeSearch.routeIDs || [];
-          log.push(`  ${officeName}: ${routeIds.length} route IDs`);
+          log.push(`  ${officeName}: ${routeIds.length} route IDs (success=${routeSearch.success}, count=${routeSearch.count}, error=${routeSearch.errorMessage || 'none'})`);
 
           if (routeIds.length > 0) {
             const routes = await fetchInBatches('route', 'get', 'routeIDs', routeIds, cfg.key, cfg.token);
@@ -466,7 +466,7 @@ export async function GET(req: NextRequest) {
       }, cfg.key, cfg.token);
       const searchData = await frFetch(searchUrl);
       const apptIds: number[] = searchData.appointmentIDs || [];
-      log.push(`  ${officeName}: ${apptIds.length} appointment IDs`);
+      log.push(`  ${officeName}: ${apptIds.length} appointment IDs (success=${searchData.success}, count=${searchData.count}, error=${searchData.errorMessage || 'none'})`);
       if (apptIds.length > 0) {
         allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
         log.push(`  ${officeName}: ${allAppts.length} appointments fetched`);
