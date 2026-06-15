@@ -703,7 +703,7 @@ export async function GET(req: NextRequest) {
       // ── UPSERT PMP ──
       for (const tech of officeTechs.filter(t => t.team === 'PMP')) {
         const routes    = pmpRoutes.get(tech.techId);
-        const resvCount = pmpReserviceMap.get(tech.techId) ?? 0;
+        const reseviceRate     = pmpReserviceMap.get(tech.techId) ?? 0;
         if (!routes) continue;
 
         const completionPct    = routes.totalScheduled > 0 ? routes.completed / routes.totalScheduled : null;
@@ -713,7 +713,6 @@ export async function GET(req: NextRequest) {
         const revenueEff       = routes.productionValue > 0
           ? Math.min((routes.productionValue / routeCount / hrDays * 40) / PROD_STANDARD_PER_DAY, 1.1)
           : null;
-        const reseviceRate     = routes.completed > 0 ? resvCount / routes.completed : 0;
 
         const existing = await prisma.techWeek.findUnique({
           where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
