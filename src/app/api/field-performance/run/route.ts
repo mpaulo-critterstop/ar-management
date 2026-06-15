@@ -392,20 +392,29 @@ async function pullReservices(
 
   // For each reservice this week, find the responsible tech (did last regular service)
   const reseviceCountByTech = new Map<string, number>();
+  let debugNoCustomer = 0, debugNoHistory = 0, debugNoLastRegular = 0, debugNoEmpMatch = 0, debugAttributed = 0;
   for (const rs of reservicesThisWeek) {
     const custId  = String(rs.customerID || '');
+    if (!custId || custId === '0') { debugNoCustomer++; continue; }
     const rsDateMs = rs.date ? new Date(rs.date).getTime() : 0;
     const history  = customerAppts.get(custId) || [];
+    if (history.length === 0) { debugNoHistory++; continue; }
     const lastRegular = history.find((a: any) => {
       const aDate = a.date ? new Date(a.date).getTime() : 0;
       return aDate < rsDateMs;
     });
-    if (!lastRegular) continue;
+    if (!lastRegular) { debugNoLastRegular++; continue; }
     const empId = parseInt(lastRegular.servicedBy || lastRegular.employeeID || '0');
-    if (!empId || !pmpTechs.has(empId)) continue;
+    if (!empId || !pmpTechs.has(empId)) { debugNoEmpMatch++; continue; }
     const techId = pmpTechs.get(empId)!;
     reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
+    debugAttributed++;
   }
+  result.set('__log_attr__', debugAttributed);
+  result.set('__log_no_cust__', debugNoCustomer);
+  result.set('__log_no_hist__', debugNoHistory);
+  result.set('__log_no_last__', debugNoLastRegular);
+  result.set('__log_no_emp__', debugNoEmpMatch);
 
   // Count regular completions per tech over 90 days
   const regularCountByTech = new Map<string, number>();
