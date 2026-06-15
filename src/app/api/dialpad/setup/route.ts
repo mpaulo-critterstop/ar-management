@@ -14,12 +14,15 @@ async function getConfig(key: string): Promise<string | null> {
 async function dialpadFetch(path: string, method = 'GET', body?: any) {
   const apiKey = await getConfig('dialpad_api_key');
   if (!apiKey) throw new Error('dialpad_api_key not configured');
-  const res = await fetch(`${DIALPAD_API}${path}`, {
+  const separator = path.includes('?') ? '&' : '?';
+  const url = `${DIALPAD_API}${path}${separator}apikey=${apiKey}`;
+  const res = await fetch(url, {
     method,
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    headers: { 'Content-Type': 'application/json' },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  return res.json();
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { throw new Error(text.substring(0, 200)); }
 }
 
 export async function GET(req: NextRequest) {
