@@ -596,13 +596,18 @@ export async function GET(req: NextRequest) {
             // Also calculate completion % from appointments
             const completionByTech = new Map<string, { scheduled: number; completed: number }>();
             for (const appt of allAppts) {
-              const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
-              const techId = pmpTechs.get(empId) as string | undefined;
-              if (!techId || !pmpRoutes.has(techId)) continue;
               const statusStr = String(appt.status || '');
+              if (!['0','1','2','3'].includes(statusStr)) continue;
+
+              // For scheduled count: use assigned tech (employeeID)
+              // For completed count: use who actually did it (servicedBy)
+              const assignedEmpId = parseInt(appt.employeeID || appt.servicedBy || '0');
+              const techId = pmpTechs.get(assignedEmpId) as string | undefined;
+              if (!techId || !pmpRoutes.has(techId)) continue;
+
               if (!completionByTech.has(techId)) completionByTech.set(techId, { scheduled: 0, completed: 0 });
               const entry = completionByTech.get(techId)!;
-              if (statusStr === '1' || statusStr === '0') entry.scheduled++;
+              entry.scheduled++;
               if (statusStr === '1') entry.completed++;
             }
             log.push(`  Subs fetched: ${subsFound}, chargeMap size: ${subChargeMap.size}`);
