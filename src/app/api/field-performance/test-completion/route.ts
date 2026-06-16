@@ -14,34 +14,25 @@ export async function GET(req: NextRequest) {
 
   // Test: bulk spot search with multiple route IDs (Cynthia's 6 routes for Jun 6-12)
   const results: any[] = [];
-  
-  // Test each route separately to verify spot counts
-  const cynthiaRoutes = [
-    { id: '56588', date: '06/07', expected_scheduled: 1 },
-    { id: '56419', date: '06/08', expected_scheduled: 8 },
-    { id: '56420', date: '06/09', expected_scheduled: 8 },
-    { id: '56421', date: '06/10', expected_scheduled: 6 },
-    { id: '56422', date: '06/11', expected_scheduled: 8 },
-    { id: '56423', date: '06/12', expected_scheduled: 2 },
+
+  // Test: can we get all spots for CStat for the week in one call?
+  const tests = [
+    { param: 'spot/search by office+date', url: `${BASE_URL}/spot/search?officeIDs=4&dateStart=2026-06-06&dateEnd=2026-06-12&${auth}` },
+    { param: 'spot/search by office+date (scheduledStart)', url: `${BASE_URL}/spot/search?officeIDs=4&scheduledStart=2026-06-06&scheduledEnd=2026-06-12&${auth}` },
+    { param: 'spot/search multiple routeIDs', url: `${BASE_URL}/spot/search?officeIDs=4&routeIDs=56588,56419,56420&${auth}` },
   ];
 
-  for (const route of cynthiaRoutes) {
-    const spotSearchUrl = `${BASE_URL}/spot/search?officeIDs=4&routeIDs=${route.id}&${auth}`;
-    const spotRes = await fetch(spotSearchUrl);
-    const spotData = await spotRes.json();
-    const spotIds: number[] = spotData.spotIDs || [];
-
-    let withAppts = 0;
-    if (spotIds.length > 0) {
-      const detailUrl = `${BASE_URL}/spot/get?spotIDs=${spotIds.join(',')}&${auth}`;
-      const detailRes = await fetch(detailUrl);
-      const detailData = await detailRes.json();
-      const propName = detailData.propertyName;
-      const spots: any[] = propName && detailData[propName] ? Object.values(detailData[propName] as object) : [];
-      withAppts = spots.filter((s: any) => s.appointmentIDs && s.appointmentIDs.length > 0).length;
-    }
-
-    results.push({ route: route.id, date: route.date, total_spots: spotIds.length, with_appointments: withAppts, expected: route.expected_scheduled, match: withAppts === route.expected_scheduled });
+  for (const t of tests) {
+    const res = await fetch(t.url);
+    const data = await res.json();
+    results.push({
+      param: t.param,
+      success: data.success,
+      count: data.count,
+      spot_ids: (data.spotIDs || []).length,
+      ignoredParams: data.ignoredParams,
+      errorMessage: data.errorMessage,
+    });
   }
   return NextResponse.json(results);
 }
