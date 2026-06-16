@@ -634,6 +634,23 @@ export async function GET(req: NextRequest) {
 
       log.push(`WP techs: ${wpMetrics.size}, PMP routes: ${pmpRoutes.size}`);
 
+      // ── RESERVICE (after subscription fetch to avoid per-minute rate limit) ──
+      if (pmpTechs.size > 0) {
+        try {
+          const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);
+          for (const [k, v] of rsMap) {
+            if (k.startsWith('__')) {
+              log.push(`  Reservice debug: ${k}=${v}`);
+            } else {
+              pmpReserviceMap.set(k, v);
+            }
+          }
+          log.push(`  Reservice attributed: ${[...pmpReserviceMap.entries()].map(([k,v]) => `${k}=${(v*100).toFixed(1)}%`).join(', ') || 'none'}`);
+        } catch (e: any) {
+          log.push(`  Reservice error: ${e.message}`);
+        }
+      }
+
       // ── UPSERT WP ──
       for (const tech of officeTechs.filter(t => t.team === 'WP')) {
         const metrics = wpMetrics.get(tech.techId);
