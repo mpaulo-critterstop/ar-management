@@ -556,16 +556,12 @@ export async function GET(req: NextRequest) {
               const propName = spotData.propertyName;
               const spots: any[] = propName && spotData[propName] ? Object.values(spotData[propName] as object) : [];
               for (const spot of spots) {
-                // Use currentAppointment as the authoritative indicator of a scheduled slot
-                // appointmentIDs may contain historical/cancelled appointments
-                const hasCurrentAppt = spot.currentAppointment && spot.currentAppointment !== '0' && spot.currentAppointment !== '';
                 const apptIds: number[] = spot.appointmentIDs || [];
-                if (!hasCurrentAppt && apptIds.length === 0) continue;
-                // Prefer currentAppointment; fall back to appointmentIDs
-                if (!hasCurrentAppt) continue; // only count spots with active current appointment
+                if (apptIds.length === 0) continue;
                 const techId = spotRouteMap.get(parseInt(spot.spotID));
                 if (!techId) continue;
-                totalScheduledByTech.set(techId, (totalScheduledByTech.get(techId) ?? 0) + 1);
+                // Count each appointmentID as a scheduled appointment
+                totalScheduledByTech.set(techId, (totalScheduledByTech.get(techId) ?? 0) + apptIds.length);
               }
               await new Promise(r => setTimeout(r, 300));
             }
