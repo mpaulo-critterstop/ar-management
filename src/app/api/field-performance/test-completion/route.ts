@@ -13,12 +13,10 @@ export async function GET(req: NextRequest) {
   const auth = `authenticationKey=${key}&authenticationToken=${token}`;
 
   const tests = [
-    { param: 'employeeID',   url: `${BASE_URL}/appointment/search?officeIDs=4&employeeID=10856&dateStart=2026-06-09&dateEnd=2026-06-09&${auth}` },
-    { param: 'employeeIDs',  url: `${BASE_URL}/appointment/search?officeIDs=4&employeeIDs=10856&dateStart=2026-06-09&dateEnd=2026-06-09&${auth}` },
-    { param: 'technicianID', url: `${BASE_URL}/appointment/search?officeIDs=4&technicianID=10856&dateStart=2026-06-09&dateEnd=2026-06-09&${auth}` },
     { param: 'servicedBy',   url: `${BASE_URL}/appointment/search?officeIDs=4&servicedBy=10856&dateStart=2026-06-09&dateEnd=2026-06-09&${auth}` },
     { param: 'assignedTech', url: `${BASE_URL}/appointment/search?officeIDs=4&assignedTech=10856&dateStart=2026-06-09&dateEnd=2026-06-09&${auth}` },
-    { param: 'assignedTechs',url: `${BASE_URL}/appointment/search?officeIDs=4&assignedTechs=10856&dateStart=2026-06-09&dateEnd=2026-06-09&${auth}` },
+    { param: 'spot/search by routeID', url: `${BASE_URL}/spot/search?officeIDs=4&routeIDs=56420&${auth}` },
+    { param: 'spot/search by assignedTech', url: `${BASE_URL}/spot/search?officeIDs=4&assignedTech=10856&dateStart=2026-06-09&dateEnd=2026-06-09&${auth}` },
   ];
 
   const results = [];
