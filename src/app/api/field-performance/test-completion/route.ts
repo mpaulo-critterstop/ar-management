@@ -24,34 +24,43 @@ export async function GET(req: NextRequest) {
   const propName = routeDetailData.propertyName;
   const routes: any[] = propName && routeDetailData[propName] ? Object.values(routeDetailData[propName] as object) : [];
 
+  // Check all CStat routes for Jun 6-12 to find where 10838 appears as additionalTechs
   const devinRoutes = routes.filter((r: any) => String(r.assignedTech) === '10838');
+  const routesWithDevinAsAdditional = routes.filter((r: any) => {
+    const addl = r.additionalTechs;
+    if (!addl) return false;
+    const addlStr = JSON.stringify(addl);
+    return addlStr.includes('10838');
+  });
+
   results.push({
-    step: 'Devin routes',
+    step: 'Devin as primary tech',
     count: devinRoutes.length,
-    routes: devinRoutes.map((r: any) => ({
+    total_spots: 'checking...'
+  });
+
+  results.push({
+    step: 'Routes where Devin is additional tech',
+    count: routesWithDevinAsAdditional.length,
+    routes: routesWithDevinAsAdditional.map((r: any) => ({
       id: r.routeID,
       date: r.date,
+      assignedTech: r.assignedTech,
       additionalTechs: r.additionalTechs
     }))
   });
 
-  // Get spots per route
-  for (const route of devinRoutes) {
-    const spotSearchUrl = `${BASE_URL}/spot/search?officeIDs=4&routeIDs=${route.routeID}&authenticationKey=${key}&authenticationToken=${token}`;
-    const spotSearch = await fetch(spotSearchUrl);
-    const spotSearchData = await spotSearch.json();
-    const spotIds: number[] = spotSearchData.spotIDs || [];
-
-    if (spotIds.length > 0) {
-      const spotDetailUrl = `${BASE_URL}/spot/get?spotIDs=${spotIds.join(',')}&authenticationKey=${key}&authenticationToken=${token}`;
-      const spotDetail = await fetch(spotDetailUrl);
-      const spotDetailData = await spotDetail.json();
-      const sPropName = spotDetailData.propertyName;
-      const spots: any[] = sPropName && spotDetailData[sPropName] ? Object.values(spotDetailData[sPropName] as object) : [];
-      const withAppts = spots.filter((s: any) => (s.appointmentIDs || []).length > 0 || s.currentAppointment);
-      results.push({ routeID: route.routeID, date: route.date, totalSpots: spots.length, withAppts: withAppts.length });
-    }
-  }
+  // Also check a sample of routes with non-null additionalTechs
+  const routesWithAdditional = routes.filter((r: any) => r.additionalTechs);
+  results.push({
+    step: 'Routes with any additionalTechs',
+    count: routesWithAdditional.length,
+    sample: routesWithAdditional.slice(0, 3).map((r: any) => ({
+      id: r.routeID,
+      assignedTech: r.assignedTech,
+      additionalTechs: r.additionalTechs
+    }))
+  });
 
   return NextResponse.json(results);
 }
