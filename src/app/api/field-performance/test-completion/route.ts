@@ -14,24 +14,34 @@ export async function GET(req: NextRequest) {
 
   // Test: bulk spot search with multiple route IDs (Cynthia's 6 routes for Jun 6-12)
   const results: any[] = [];
-  const cynthiaRouteIds = '56588,56423,56422,56421,56420,56419';
-  const bulkSpotUrl = `${BASE_URL}/spot/search?officeIDs=4&routeIDs=${cynthiaRouteIds}&${auth}`;
-  const bulkRes = await fetch(bulkSpotUrl);
-  const bulkData = await bulkRes.json();
-  const bulkSpotIds: number[] = bulkData.spotIDs || [];
+  
+  // Test each route separately to verify spot counts
+  const cynthiaRoutes = [
+    { id: '56588', date: '06/07', expected_scheduled: 1 },
+    { id: '56419', date: '06/08', expected_scheduled: 8 },
+    { id: '56420', date: '06/09', expected_scheduled: 8 },
+    { id: '56421', date: '06/10', expected_scheduled: 6 },
+    { id: '56422', date: '06/11', expected_scheduled: 8 },
+    { id: '56423', date: '06/12', expected_scheduled: 2 },
+  ];
 
-  results.push({ param: 'bulk spot search (6 routes)', count: bulkData.count, spot_ids: bulkSpotIds.length });
+  for (const route of cynthiaRoutes) {
+    const spotSearchUrl = `${BASE_URL}/spot/search?officeIDs=4&routeIDs=${route.id}&${auth}`;
+    const spotRes = await fetch(spotSearchUrl);
+    const spotData = await spotRes.json();
+    const spotIds: number[] = spotData.spotIDs || [];
 
-  if (bulkSpotIds.length > 0) {
-    // Fetch spot details in one batch
-    const detailUrl = `${BASE_URL}/spot/get?spotIDs=${bulkSpotIds.slice(0, 100).join(',')}&${auth}`;
-    const detailRes = await fetch(detailUrl);
-    const detailData = await detailRes.json();
-    const propName = detailData.propertyName;
-    const spots: any[] = propName && detailData[propName] ? Object.values(detailData[propName] as object) : [];
-    const withAppts = spots.filter((s: any) => s.appointmentIDs && s.appointmentIDs.length > 0);
-    results.push({ param: 'bulk spot details', total: spots.length, with_appointments: withAppts.length, expected: 33 });
+    let withAppts = 0;
+    if (spotIds.length > 0) {
+      const detailUrl = `${BASE_URL}/spot/get?spotIDs=${spotIds.join(',')}&${auth}`;
+      const detailRes = await fetch(detailUrl);
+      const detailData = await detailRes.json();
+      const propName = detailData.propertyName;
+      const spots: any[] = propName && detailData[propName] ? Object.values(detailData[propName] as object) : [];
+      withAppts = spots.filter((s: any) => s.appointmentIDs && s.appointmentIDs.length > 0).length;
+    }
+
+    results.push({ route: route.id, date: route.date, total_spots: spotIds.length, with_appointments: withAppts, expected: route.expected_scheduled, match: withAppts === route.expected_scheduled });
   }
-
   return NextResponse.json(results);
 }
