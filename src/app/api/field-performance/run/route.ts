@@ -585,18 +585,16 @@ export async function GET(req: NextRequest) {
               for (const s of subs) subChargeMap.set(String(s.subscriptionID), parseFloat(s.recurringCharge || '0'));
               await new Promise(r => setTimeout(r, 300));
             }
-            // Also calculate completion % from appointments
+            // Calculate completion % from appointments using servicedBy
+            // servicedBy = the tech who was assigned/completed the appointment
             const completionByTech = new Map<string, { scheduled: number; completed: number }>();
             for (const appt of allAppts) {
               const statusStr = String(appt.status || '');
-              if (statusStr === '-1') continue; // exclude deleted appointments
-
-              // For scheduled count: use assigned tech (employeeID)
-              // For completed count: use who actually did it (servicedBy)
-              const assignedEmpId = parseInt(appt.employeeID || appt.servicedBy || '0');
-              const techId = pmpTechs.get(assignedEmpId) as string | undefined;
+              if (statusStr === '-1') continue; // exclude deleted
+              const empId = parseInt(appt.servicedBy || '0');
+              if (!empId || !pmpTechs.has(empId)) continue;
+              const techId = pmpTechs.get(empId) as string | undefined;
               if (!techId || !pmpRoutes.has(techId)) continue;
-
               if (!completionByTech.has(techId)) completionByTech.set(techId, { scheduled: 0, completed: 0 });
               const entry = completionByTech.get(techId)!;
               entry.scheduled++;
