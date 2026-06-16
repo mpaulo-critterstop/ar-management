@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const results: any[] = [];
 
   // Fetch spots for Devin's route 55193 - show full appointmentIDs per spot
-  const spotSearchUrl = `${BASE_URL}/spot/search?officeIDs=4&routeIDs=55193&authenticationKey=${key}&authenticationToken=${token}`;
+  const spotSearchUrl = `${BASE_URL}/spot/search?officeIDs=4&routeIDs=55194&authenticationKey=${key}&authenticationToken=${token}`;
   const spotSearch = await fetch(spotSearchUrl);
   const spotSearchData = await spotSearch.json();
   const spotIds: number[] = spotSearchData.spotIDs || [];
