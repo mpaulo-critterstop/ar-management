@@ -396,23 +396,27 @@ async function pullReservices(
     reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
   }
 
-  // FR formula: Re-service Rate = Total Re-services / Average Serviced Per Period
-  // Average Serviced Per Period = (completions / 91.31 days) × 6 days/week
-  // Only count completions from last 3 months (91.31 days) for denominator
-  // Full 120-day lookback used only for finding responsible tech
-  const threeMonthsAgoMs = weekEnd.getTime() - (91.31 * 24 * 60 * 60 * 1000);
+  // FR formula: Re-service Rate = re-services / avgServicesPerPeriod
+  // avgServicesPerPeriod = totalServiced / numberOfTimePeriods
+  // numberOfTimePeriods = (monthsOfHistoricData × 30) / daysInPeriod
+  // Using 3 months historic data, 7-day reporting period:
+  // numberOfTimePeriods = (3 × 30) / 7 = 12.857
+  const MONTHS_OF_HISTORIC_DATA = 3;
+  const DAYS_IN_PERIOD = 7; // weekly reporting
+  const NUMBER_OF_TIME_PERIODS = (MONTHS_OF_HISTORIC_DATA * 30) / DAYS_IN_PERIOD; // 12.857
+  const threeMonthsAgoMs = weekEnd.getTime() - (MONTHS_OF_HISTORIC_DATA * 30 * 24 * 60 * 60 * 1000);
   const regularCountByTech = new Map<string, number>();
   for (const appt of regularAppts) {
     const dateMs = appt.date ? new Date(appt.date).getTime() : 0;
-    if (dateMs < threeMonthsAgoMs) continue; // only last 3 months for denominator
+    if (dateMs < threeMonthsAgoMs) continue; // only last 3 months
     const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
     if (!empId || !pmpTechs.has(empId)) continue;
     const techId = pmpTechs.get(empId)!;
     regularCountByTech.set(techId, (regularCountByTech.get(techId) ?? 0) + 1);
   }
-  // Normalize: (total / 91.31) * 6
+  // avgServicesPerPeriod = totalServiced / numberOfTimePeriods
   for (const [techId, count] of regularCountByTech) {
-    regularCountByTech.set(techId, (count / 91.31) * 6);
+    regularCountByTech.set(techId, count / NUMBER_OF_TIME_PERIODS);
   }
 
   // Calculate rate
@@ -585,7 +589,7 @@ export async function GET(req: NextRequest) {
             const completionByTech = new Map<string, { scheduled: number; completed: number }>();
             for (const appt of allAppts) {
               const statusStr = String(appt.status || '');
-              if (!['0','1','2','3'].includes(statusStr)) continue;
+              if (statusStr === '-1') continue; // exclude deleted appointments
 
               // For scheduled count: use assigned tech (employeeID)
               // For completed count: use who actually did it (servicedBy)
