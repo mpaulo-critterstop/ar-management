@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
   const auth = `authenticationKey=${key}&authenticationToken=${token}`;
 
   // Test: bulk spot search with multiple route IDs (Cynthia's 6 routes for Jun 6-12)
+  const results: any[] = [];
   const cynthiaRouteIds = '56588,56423,56422,56421,56420,56419';
   const bulkSpotUrl = `${BASE_URL}/spot/search?officeIDs=4&routeIDs=${cynthiaRouteIds}&${auth}`;
   const bulkRes = await fetch(bulkSpotUrl);
