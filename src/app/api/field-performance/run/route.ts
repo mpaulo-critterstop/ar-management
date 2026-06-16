@@ -57,7 +57,7 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
         : Object.values(data[propName] as object);
       results.push(...items);
     }
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 300));
   }
   return results;
 }
@@ -579,7 +579,7 @@ export async function GET(req: NextRequest) {
               const subs: any[] = propName && subData[propName] ? Object.values(subData[propName] as object) : [];
               subsFound += subs.length;
               for (const s of subs) subChargeMap.set(String(s.subscriptionID), parseFloat(s.recurringCharge || '0'));
-              await new Promise(r => setTimeout(r, 1000));
+              await new Promise(r => setTimeout(r, 300));
             }
             // Also calculate completion % from appointments
             const completionByTech = new Map<string, { scheduled: number; completed: number }>();
@@ -643,7 +643,7 @@ export async function GET(req: NextRequest) {
           log.push(`  Reservice error: ${e.message}`);
         }
         // Wait for per-minute rate limit to reset after heavy reservice fetch
-        await new Promise(r => setTimeout(r, 65000));
+        
       }
 
       // ── UPSERT WP ──
