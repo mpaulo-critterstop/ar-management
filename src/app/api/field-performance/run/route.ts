@@ -57,7 +57,7 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
         : Object.values(data[propName] as object);
       results.push(...items);
     }
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 1000));
   }
   return results;
 }
@@ -568,6 +568,8 @@ export async function GET(req: NextRequest) {
             const uniqueSubIds = [...new Set(pmpCompletedAppts.map((a: any) => String(a.subscriptionID)))];
             const subChargeMap = new Map<string, number>();
             let subsFound = 0;
+            // Wait before subscription fetch to avoid per-minute rate limit
+            await new Promise(r => setTimeout(r, 3000));
             for (let i = 0; i < uniqueSubIds.length; i += 100) {
               const batch = uniqueSubIds.slice(i, i + 100);
               const subUrl = frUrl('subscription', 'get', { subscriptionIDs: batch.join(',') }, cfg.key, cfg.token);
@@ -577,7 +579,7 @@ export async function GET(req: NextRequest) {
               const subs: any[] = propName && subData[propName] ? Object.values(subData[propName] as object) : [];
               subsFound += subs.length;
               for (const s of subs) subChargeMap.set(String(s.subscriptionID), parseFloat(s.recurringCharge || '0'));
-              await new Promise(r => setTimeout(r, 200));
+              await new Promise(r => setTimeout(r, 1000));
             }
             // Also calculate completion % from appointments
             const completionByTech = new Map<string, { scheduled: number; completed: number }>();
