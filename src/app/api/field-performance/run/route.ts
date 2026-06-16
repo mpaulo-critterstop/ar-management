@@ -557,7 +557,9 @@ export async function GET(req: NextRequest) {
               const spots: any[] = propName && spotData[propName] ? Object.values(spotData[propName] as object) : [];
               for (const spot of spots) {
                 const apptIds = spot.appointmentIDs || [];
-                if (apptIds.length === 0) continue;
+                const currentAppt = spot.currentAppointment;
+                // Count spot as scheduled if it has appointments OR a current appointment
+                if (apptIds.length === 0 && !currentAppt) continue;
                 const techId = spotRouteMap.get(parseInt(spot.spotID));
                 if (!techId) continue;
                 totalScheduledByTech.set(techId, (totalScheduledByTech.get(techId) ?? 0) + 1);
