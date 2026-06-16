@@ -15,24 +15,33 @@ export async function GET(req: NextRequest) {
   // Test: bulk spot search with multiple route IDs (Cynthia's 6 routes for Jun 6-12)
   const results: any[] = [];
 
-  // Test: can we get all spots for CStat for the week in one call?
+  // Jacob Kidd frEmployeeId = 10579
+  // Test different ways to count his scheduled appointments for Jun 6-12
   const tests = [
-    { param: 'spot/search by office+date', url: `${BASE_URL}/spot/search?officeIDs=4&dateStart=2026-06-06&dateEnd=2026-06-12&${auth}` },
-    { param: 'spot/search by office+date (scheduledStart)', url: `${BASE_URL}/spot/search?officeIDs=4&scheduledStart=2026-06-06&scheduledEnd=2026-06-12&${auth}` },
-    { param: 'spot/search multiple routeIDs', url: `${BASE_URL}/spot/search?officeIDs=4&routeIDs=56588,56419,56420&${auth}` },
+    { param: 'servicedBy=10579', url: `${BASE_URL}/appointment/search?officeIDs=4&servicedBy=10579&dateStart=2026-06-06&dateEnd=2026-06-12&${auth}` },
+    { param: 'assignedTech=10579', url: `${BASE_URL}/appointment/search?officeIDs=4&assignedTech=10579&dateStart=2026-06-06&dateEnd=2026-06-12&${auth}` },
   ];
 
   for (const t of tests) {
     const res = await fetch(t.url);
     const data = await res.json();
-    results.push({
-      param: t.param,
-      success: data.success,
-      count: data.count,
-      spot_ids: (data.spotIDs || []).length,
-      ignoredParams: data.ignoredParams,
-      errorMessage: data.errorMessage,
-    });
+    const ids: number[] = data.appointmentIDs || [];
+    results.push({ param: t.param, count: data.count, ids: ids.length, ignoredParams: data.ignoredParams });
+
+    // If we got IDs, fetch details and check statuses
+    if (ids.length > 0) {
+      const detailUrl = `${BASE_URL}/appointment/get?appointmentIDs=${ids.join(',')}&${auth}`;
+      const detailRes = await fetch(detailUrl);
+      const detailData = await detailRes.json();
+      const propName = detailData.propertyName;
+      const appts: any[] = propName && detailData[propName] ? Object.values(detailData[propName] as object) : [];
+      const statusCounts: Record<string, number> = {};
+      for (const a of appts) {
+        const s = String(a.status);
+        statusCounts[s] = (statusCounts[s] || 0) + 1;
+      }
+      results.push({ param: `${t.param} status breakdown`, total: appts.length, statuses: statusCounts });
+    }
   }
   return NextResponse.json(results);
 }
