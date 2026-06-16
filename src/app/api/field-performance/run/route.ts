@@ -114,8 +114,8 @@ async function pullWPMetrics(
   } else {
     const searchUrl = frUrl('appointment', 'search', {
       officeIDs: String(cfg.officeId),
-      scheduledStart: fmtDate(weekStart),
-      scheduledEnd: fmtDate(weekEnd),
+      dateStart: fmtDate(weekStart),
+      dateEnd: fmtDate(weekEnd),
     }, cfg.key, cfg.token);
     const searchData = await frFetch(searchUrl);
     const apptIds: number[] = searchData.appointmentIDs || [];
@@ -283,8 +283,8 @@ async function pullRouteReporting(
   } else {
     const searchUrl = frUrl('appointment', 'search', {
       officeIDs: String(cfg.officeId),
-      scheduledStart: fmtDate(weekStart),
-      scheduledEnd: fmtDate(weekEnd),
+      dateStart: fmtDate(weekStart),
+      dateEnd: fmtDate(weekEnd),
     }, cfg.key, cfg.token);
     const searchData = await frFetch(searchUrl);
     const apptIds: number[] = searchData.appointmentIDs || [];
@@ -333,8 +333,8 @@ async function pullReservices(
   try {
     const searchUrl = frUrl('appointment', 'search', {
       officeIDs: String(cfg.officeId),
-      scheduledStart: fmtDate(lookbackStart),
-      scheduledEnd: fmtDate(weekEnd),
+      dateStart: fmtDate(lookbackStart),
+      dateEnd: fmtDate(weekEnd),
     }, cfg.key, cfg.token);
     searchData = await frFetch(searchUrl);
   } catch { return result; }
@@ -541,8 +541,8 @@ export async function GET(req: NextRequest) {
       let allAppts: any[] = [];
       const searchUrl = frUrl('appointment', 'search', {
         officeIDs: String(cfg.officeId),
-        scheduledStart: fmtDate(weekStart),
-        scheduledEnd: fmtDate(weekEnd),
+        dateStart: fmtDate(weekStart),
+        dateEnd: fmtDate(weekEnd),
       }, cfg.key, cfg.token);
       const searchData = await frFetch(searchUrl);
       const apptIds: number[] = searchData.appointmentIDs || [];
@@ -603,9 +603,6 @@ export async function GET(req: NextRequest) {
               if (statusStr === '1') entry.completed++;
             }
             log.push(`  Subs fetched: ${subsFound}, chargeMap size: ${subChargeMap.size}`);
-            // Debug completion
-            const sampleAppt = allAppts.find((a: any) => a.employeeID || a.servicedBy);
-            if (sampleAppt) log.push(`  Appt fields: empID=${sampleAppt.employeeID}, servicedBy=${sampleAppt.servicedBy}, status=${sampleAppt.status}`);
             // Apply completion counts to pmpRoutes
             for (const [techId, comp] of completionByTech) {
               const route = pmpRoutes.get(techId);
