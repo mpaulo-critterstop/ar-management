@@ -114,8 +114,8 @@ async function pullWPMetrics(
   } else {
     const searchUrl = frUrl('appointment', 'search', {
       officeIDs: String(cfg.officeId),
-      dateStart: fmtDate(weekStart),
-      dateEnd: fmtDate(weekEnd),
+      scheduledStart: fmtDate(weekStart),
+      scheduledEnd: fmtDate(weekEnd),
     }, cfg.key, cfg.token);
     const searchData = await frFetch(searchUrl);
     const apptIds: number[] = searchData.appointmentIDs || [];
@@ -283,8 +283,8 @@ async function pullRouteReporting(
   } else {
     const searchUrl = frUrl('appointment', 'search', {
       officeIDs: String(cfg.officeId),
-      dateStart: fmtDate(weekStart),
-      dateEnd: fmtDate(weekEnd),
+      scheduledStart: fmtDate(weekStart),
+      scheduledEnd: fmtDate(weekEnd),
     }, cfg.key, cfg.token);
     const searchData = await frFetch(searchUrl);
     const apptIds: number[] = searchData.appointmentIDs || [];
@@ -333,8 +333,8 @@ async function pullReservices(
   try {
     const searchUrl = frUrl('appointment', 'search', {
       officeIDs: String(cfg.officeId),
-      dateStart: fmtDate(lookbackStart),
-      dateEnd: fmtDate(weekEnd),
+      scheduledStart: fmtDate(lookbackStart),
+      scheduledEnd: fmtDate(weekEnd),
     }, cfg.key, cfg.token);
     searchData = await frFetch(searchUrl);
   } catch { return result; }
@@ -541,8 +541,8 @@ export async function GET(req: NextRequest) {
       let allAppts: any[] = [];
       const searchUrl = frUrl('appointment', 'search', {
         officeIDs: String(cfg.officeId),
-        dateStart: fmtDate(weekStart),
-        dateEnd: fmtDate(weekEnd),
+        scheduledStart: fmtDate(weekStart),
+        scheduledEnd: fmtDate(weekEnd),
       }, cfg.key, cfg.token);
       const searchData = await frFetch(searchUrl);
       const apptIds: number[] = searchData.appointmentIDs || [];
