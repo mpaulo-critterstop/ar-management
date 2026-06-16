@@ -12,39 +12,24 @@ export async function GET(req: NextRequest) {
   const token = process.env.FIELDROUTES_TOKEN_CSTAT!;
   const auth = `authenticationKey=${key}&authenticationToken=${token}`;
 
-  const tests: any[] = [
-    { param: 'spot/search by routeID', url: `${BASE_URL}/spot/search?officeIDs=4&routeIDs=56420&${auth}` },
-  ];
+  // Test: bulk spot search with multiple route IDs (Cynthia's 6 routes for Jun 6-12)
+  const cynthiaRouteIds = '56588,56423,56422,56421,56420,56419';
+  const bulkSpotUrl = `${BASE_URL}/spot/search?officeIDs=4&routeIDs=${cynthiaRouteIds}&${auth}`;
+  const bulkRes = await fetch(bulkSpotUrl);
+  const bulkData = await bulkRes.json();
+  const bulkSpotIds: number[] = bulkData.spotIDs || [];
 
-  const results = [];
-  for (const t of tests) {
-    const res = await fetch(t.url);
-    const data = await res.json();
-    const spotIds: number[] = data.spotIDs || [];
-    results.push({
-      param: t.param,
-      success: data.success,
-      count: data.count,
-      spot_ids_count: spotIds.length,
-    });
+  results.push({ param: 'bulk spot search (6 routes)', count: bulkData.count, spot_ids: bulkSpotIds.length });
 
-    // Fetch spot details to count those with appointments
-    if (spotIds.length > 0) {
-      const detailUrl = `${BASE_URL}/spot/get?spotIDs=${spotIds.slice(0,22).join(',')}&${auth}`;
-      const detailRes = await fetch(detailUrl);
-      const detailData = await detailRes.json();
-      const propName = detailData.propertyName;
-      const spots: any[] = propName && detailData[propName] ? Object.values(detailData[propName] as object) : [];
-      const withAppts = spots.filter((s: any) => s.appointmentIDs && s.appointmentIDs.length > 0);
-      const open = spots.filter((s: any) => s.open === '1' || s.open === 1);
-      results.push({
-        param: 'spot details',
-        total_spots: spots.length,
-        spots_with_appointments: withAppts.length,
-        open_spots: open.length,
-        sample_spot_keys: spots.length > 0 ? Object.keys(spots[0]).slice(0, 10) : [],
-      });
-    }
+  if (bulkSpotIds.length > 0) {
+    // Fetch spot details in one batch
+    const detailUrl = `${BASE_URL}/spot/get?spotIDs=${bulkSpotIds.slice(0, 100).join(',')}&${auth}`;
+    const detailRes = await fetch(detailUrl);
+    const detailData = await detailRes.json();
+    const propName = detailData.propertyName;
+    const spots: any[] = propName && detailData[propName] ? Object.values(detailData[propName] as object) : [];
+    const withAppts = spots.filter((s: any) => s.appointmentIDs && s.appointmentIDs.length > 0);
+    results.push({ param: 'bulk spot details', total: spots.length, with_appointments: withAppts.length, expected: 33 });
   }
 
   return NextResponse.json(results);
