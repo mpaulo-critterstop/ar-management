@@ -603,6 +603,9 @@ export async function GET(req: NextRequest) {
               if (statusStr === '1') entry.completed++;
             }
             log.push(`  Subs fetched: ${subsFound}, chargeMap size: ${subChargeMap.size}`);
+            // Debug completion
+            const sampleAppt = allAppts.find((a: any) => a.employeeID || a.servicedBy);
+            if (sampleAppt) log.push(`  Appt fields: empID=${sampleAppt.employeeID}, servicedBy=${sampleAppt.servicedBy}, status=${sampleAppt.status}`);
             // Apply completion counts to pmpRoutes
             for (const [techId, comp] of completionByTech) {
               const route = pmpRoutes.get(techId);
