@@ -605,10 +605,13 @@ export async function GET(req: NextRequest) {
         log.push(`  pmpRoutes keys: ${[...pmpRoutes.keys()].join(',')}`);
         try {
           // Use apptTechMap built from spots (appointmentID → techId)
-          // This covers ALL booked appointments (not just completed) per tech's route
+          // Include completed (1) + pending (0), exclude no-show (2) and deleted (-1)
           const pmpAppts = allAppts.filter((a: any) =>
             apptTechMap.has(parseInt(a.appointmentID || a.id || '0')) &&
-            String(a.status) !== '-1' && a.subscriptionID
+            String(a.status) !== '-1' &&
+            String(a.status) !== '2' &&
+            String(a.statusText || '').toLowerCase() !== 'no show' &&
+            a.subscriptionID
           );
           if (pmpAppts.length > 0) {
             const sampleTechIds = [...new Set(pmpAppts.slice(0,5).map((a: any) => apptTechMap.get(parseInt(a.appointmentID || a.id || '0'))))];
@@ -626,7 +629,11 @@ export async function GET(req: NextRequest) {
               if (!subData.success) log.push(`  Sub fetch error: ${subData.errorMessage}`);
               const subs: any[] = propName && subData[propName] ? Object.values(subData[propName] as object) : [];
               subsFound += subs.length;
-              for (const s of subs) subChargeMap.set(String(s.subscriptionID), parseFloat(s.recurringCharge || '0'));
+              for (const s of subs) {
+                const recurring = parseFloat(s.recurringCharge || '0');
+                const initial = parseFloat(s.initialServiceTotal || '0');
+                subChargeMap.set(String(s.subscriptionID), recurring > 0 ? recurring : initial);
+              }
               await new Promise(r => setTimeout(r, 300));
             }
             // Calculate completed count from appointments (servicedBy = confirmed completed)
