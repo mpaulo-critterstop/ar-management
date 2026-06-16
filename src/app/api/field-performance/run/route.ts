@@ -523,14 +523,53 @@ export async function GET(req: NextRequest) {
               if (!empId || !pmpTechs.has(empId)) continue;
               const techId = pmpTechs.get(empId) as string | undefined;
               if (!techId) continue;
-              const scheduled = parseInt(String(route.totalScheduled || route.scheduledServices || '0'));
-              const completed = parseInt(String(route.completedServices || route.completed || '0'));
               if (!pmpRoutes.has(techId)) pmpRoutes.set(techId, { totalScheduled: 0, completed: 0, productionValue: 0, routeCount: 0 });
-              const entry = pmpRoutes.get(techId)!;
-              entry.totalScheduled += scheduled;
-              entry.completed += completed;
-              entry.routeCount++;
+              pmpRoutes.get(techId)!.routeCount++;
             }
+
+            // Fetch spots per route to get accurate scheduled counts
+            // spot/search only accepts one routeID at a time
+            const pmpRoutesList = routes.filter((r: any) => {
+              const empId = parseInt(r.assignedTech || '0');
+              return pmpTechs.has(empId);
+            });
+            log.push(`  Fetching spots for ${pmpRoutesList.length} PMP routes`);
+            const allSpotIds: number[] = [];
+            const spotRouteMap = new Map<number, string>(); // spotID → techId
+            for (const route of pmpRoutesList) {
+              const empId = parseInt(route.assignedTech || '0');
+              const techId = pmpTechs.get(empId) as string | undefined;
+              if (!techId) continue;
+              const spotSearchUrl = frUrl('spot', 'search', { officeIDs: String(cfg.officeId), routeIDs: String(route.routeID) }, cfg.key, cfg.token);
+              const spotSearch = await frFetch(spotSearchUrl);
+              const spotIds: number[] = spotSearch.spotIDs || [];
+              for (const sid of spotIds) spotRouteMap.set(sid, techId);
+              allSpotIds.push(...spotIds);
+              await new Promise(r => setTimeout(r, 300));
+            }
+            // Fetch spot details in batches of 100
+            let totalScheduledByTech = new Map<string, number>();
+            for (let i = 0; i < allSpotIds.length; i += 100) {
+              const batch = allSpotIds.slice(i, i + 100);
+              const spotUrl = frUrl('spot', 'get', { spotIDs: batch.join(',') }, cfg.key, cfg.token);
+              const spotData = await frFetch(spotUrl);
+              const propName = spotData.propertyName;
+              const spots: any[] = propName && spotData[propName] ? Object.values(spotData[propName] as object) : [];
+              for (const spot of spots) {
+                const apptIds = spot.appointmentIDs || [];
+                if (apptIds.length === 0) continue;
+                const techId = spotRouteMap.get(parseInt(spot.spotID));
+                if (!techId) continue;
+                totalScheduledByTech.set(techId, (totalScheduledByTech.get(techId) ?? 0) + 1);
+              }
+              await new Promise(r => setTimeout(r, 300));
+            }
+            // Apply scheduled counts to pmpRoutes
+            for (const [techId, scheduled] of totalScheduledByTech) {
+              const entry = pmpRoutes.get(techId);
+              if (entry) entry.totalScheduled = scheduled;
+            }
+            log.push(`  Spots: scheduled counts: ${[...totalScheduledByTech.entries()].map(([k,v]) => `${k}=${v}`).join(', ')}`);
           }
         } catch (e: any) {
           log.push(`  Route API error: ${e.message}`);
@@ -585,27 +624,24 @@ export async function GET(req: NextRequest) {
               for (const s of subs) subChargeMap.set(String(s.subscriptionID), parseFloat(s.recurringCharge || '0'));
               await new Promise(r => setTimeout(r, 300));
             }
-            // Calculate completion % from appointments using servicedBy
-            // servicedBy = the tech who was assigned/completed the appointment
+            // Calculate completed count from appointments (servicedBy = confirmed completed)
             const completionByTech = new Map<string, { scheduled: number; completed: number }>();
             for (const appt of allAppts) {
               const statusStr = String(appt.status || '');
-              if (statusStr === '-1') continue; // exclude deleted
+              if (statusStr !== '1') continue; // only completed
               const empId = parseInt(appt.servicedBy || '0');
               if (!empId || !pmpTechs.has(empId)) continue;
               const techId = pmpTechs.get(empId) as string | undefined;
               if (!techId || !pmpRoutes.has(techId)) continue;
               if (!completionByTech.has(techId)) completionByTech.set(techId, { scheduled: 0, completed: 0 });
-              const entry = completionByTech.get(techId)!;
-              entry.scheduled++;
-              if (statusStr === '1') entry.completed++;
+              completionByTech.get(techId)!.completed++;
             }
             log.push(`  Subs fetched: ${subsFound}, chargeMap size: ${subChargeMap.size}`);
-            // Apply completion counts to pmpRoutes
+            // Apply completion counts: scheduled from spots, completed from appointments
             for (const [techId, comp] of completionByTech) {
               const route = pmpRoutes.get(techId);
-              if (route && comp.scheduled > 0) {
-                route.totalScheduled = comp.scheduled;
+              if (route) {
+                // scheduled already set from spots above; just set completed
                 route.completed = comp.completed;
               }
             }
