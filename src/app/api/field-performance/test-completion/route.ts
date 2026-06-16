@@ -88,8 +88,14 @@ export async function GET(req: NextRequest) {
   }
 
   let productionValue = 0;
-  for (const a of validAppts) productionValue += subChargeMap.get(String(a.subscriptionID)) || 0;
-  results.push({ step: '5. production value', productionValue: productionValue.toFixed(2) });
+  const perRoute: Record<string, number> = {};
+  for (const a of validAppts) {
+    const charge = subChargeMap.get(String(a.subscriptionID)) || 0;
+    productionValue += charge;
+    const routeId = apptRouteMap.get(parseInt(a.appointmentID)) || 'unknown';
+    perRoute[routeId] = (perRoute[routeId] || 0) + charge;
+  }
+  results.push({ step: '5. production value', productionValue: productionValue.toFixed(2), perRoute });
 
   return NextResponse.json(results);
 }
