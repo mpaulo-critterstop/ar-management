@@ -531,20 +531,6 @@ export async function GET(req: NextRequest) {
         } catch (e: any) {
           log.push(`  Route API error: ${e.message}`);
         }
-
-        try {
-          const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);
-          for (const [k, v] of rsMap) {
-            if (k.startsWith('__')) {
-              log.push(`  Reservice debug: ${k}=${v}`);
-            } else {
-              pmpReserviceMap.set(k, v);
-            }
-          }
-          log.push(`  Reservice attributed: ${[...pmpReserviceMap.entries()].filter(([k]) => !k.startsWith('__')).map(([k,v]) => `${k}=${(v*100).toFixed(1)}%`).join(', ') || 'none'}`);
-        } catch (e: any) {
-          log.push(`  Reservice error: ${e.message}`);
-        }
       }
 
       // ── FETCH APPOINTMENTS (after route fetch) ──
@@ -654,6 +640,8 @@ export async function GET(req: NextRequest) {
         } catch (e: any) {
           log.push(`  Reservice error: ${e.message}`);
         }
+        // Wait for per-minute rate limit to reset after heavy reservice fetch
+        await new Promise(r => setTimeout(r, 65000));
       }
 
       // ── UPSERT WP ──
