@@ -5,6 +5,7 @@ const BASE_URL = 'https://critterstoppest.fieldroutes.com/api';
 async function getRouteStats(routeID: string, key: string, token: string) {
   const spotSearch = await fetch(`${BASE_URL}/spot/search?officeIDs=4&routeIDs=${routeID}&authenticationKey=${key}&authenticationToken=${token}`).then(r => r.json());
   const spotIDs: number[] = spotSearch.spotIDs || [];
+  if (spotIDs.length === 0) return null;
   const spotData = await fetch(`${BASE_URL}/spot/get?spotIDs=${spotIDs.join(',')}&authenticationKey=${key}&authenticationToken=${token}`).then(r => r.json());
   const sPropName = spotData.propertyName;
   const spots: any[] = sPropName && spotData[sPropName] ? Object.values(spotData[sPropName] as object) : [];
@@ -19,7 +20,6 @@ async function getRouteStats(routeID: string, key: string, token: string) {
   const completed = appointments.filter((a: any) => String(a.status) === '1').length;
   const pending = appointments.filter((a: any) => String(a.status) === '0').length;
   const noShow = appointments.filter((a: any) => String(a.statusText || '') === 'No Show').length;
-  const completionRate = completed + pending + noShow > 0 ? ((completed / (completed + pending + noShow)) * 100).toFixed(1) : '0.0';
 
   const validAppts = appointments.filter((a: any) => String(a.status) !== '-1');
   const noShowWithTicket = validAppts.filter((a: any) => String(a.statusText || '') === 'No Show' && a.ticketID && String(a.ticketID) !== '0');
@@ -66,7 +66,7 @@ async function getRouteStats(routeID: string, key: string, token: string) {
     productionValue += ticketMap.get(String(a.ticketID)) || 0;
   }
 
-  return { routeID, stops: apptIDs.length, completed, pending, noShow, completionRate: completionRate + '%', production: productionValue.toFixed(2) };
+  return { routeID, stops: apptIDs.length, completed, pending, noShow, production: productionValue };
 }
 
 export async function GET(req: NextRequest) {
@@ -78,27 +78,57 @@ export async function GET(req: NextRequest) {
   const key = process.env.FIELDROUTES_KEY_CSTAT!;
   const token = process.env.FIELDROUTES_TOKEN_CSTAT!;
 
-  // Justin Rogers routes for Jun 6-12
-  const justinRoutes = ['49209', '52571', '52852', '53908', '53911'];
-  const results: any[] = [];
-  let totalStops = 0, totalCompleted = 0, totalPending = 0, totalNoShow = 0, totalProduction = 0;
+  // Get all CStat routes for Jun 6-12
+  const routeSearchUrl = `${BASE_URL}/route/search?officeIDs=4&dateStart=2026-06-06&dateEnd=2026-06-12&authenticationKey=${key}&authenticationToken=${token}`;
+  const routeSearch = await fetch(routeSearchUrl);
+  const routeData = await routeSearch.json();
+  const allRouteIds: number[] = routeData.routeIDs || [];
 
-  for (const routeID of justinRoutes) {
-    const stats = await getRouteStats(routeID, key, token);
-    if (!stats) continue;
-    results.push(stats);
-    totalStops += stats.stops;
-    totalCompleted += stats.completed;
-    totalPending += stats.pending;
-    totalNoShow += stats.noShow;
-    totalProduction += parseFloat(stats.production);
+  const routeDetailUrl = `${BASE_URL}/route/get?routeIDs=${allRouteIds.join(',')}&authenticationKey=${key}&authenticationToken=${token}`;
+  const routeDetail = await fetch(routeDetailUrl);
+  const routeDetailData = await routeDetail.json();
+  const propName = routeDetailData.propertyName;
+  const routes: any[] = propName && routeDetailData[propName] ? Object.values(routeDetailData[propName] as object) : [];
+
+  // PMP tech IDs for CStat
+  const pmpTechIds: Record<string, string> = {
+    '10579': 'P-001 Jacob Kidd',
+    '10583': 'P-004 Justin Rogers',
+    '10574': 'P-010 Clifton Kuhn',
+    '10838': 'P-023 Devin Canter',
+    '10856': 'P-024 Cynthia Barrientos',
+  };
+
+  const techStats: Record<string, { stops: number; completed: number; pending: number; noShow: number; production: number }> = {};
+  for (const id of Object.keys(pmpTechIds)) {
+    techStats[id] = { stops: 0, completed: 0, pending: 0, noShow: 0, production: 0 };
   }
 
-  const completionPct = totalCompleted + totalPending + totalNoShow > 0
-    ? ((totalCompleted / (totalCompleted + totalPending + totalNoShow)) * 100).toFixed(1)
-    : '0.0';
+  const pmpRoutes = routes.filter((r: any) => pmpTechIds[String(r.assignedTech)]);
 
-  results.push({ summary: 'Justin Rogers week total', totalStops, totalCompleted, totalPending, totalNoShow, completionPct: completionPct + '%', totalProduction: totalProduction.toFixed(2) });
+  for (const route of pmpRoutes) {
+    const stats = await getRouteStats(String(route.routeID), key, token);
+    if (!stats) continue;
+    const empId = String(route.assignedTech);
+    techStats[empId].stops += stats.stops;
+    techStats[empId].completed += stats.completed;
+    techStats[empId].pending += stats.pending;
+    techStats[empId].noShow += stats.noShow;
+    techStats[empId].production += stats.production;
+  }
+
+  const results = Object.entries(techStats).map(([empId, s]) => {
+    const denom = s.completed + s.pending + s.noShow;
+    return {
+      tech: pmpTechIds[empId],
+      stops: s.stops,
+      completed: s.completed,
+      pending: s.pending,
+      noShow: s.noShow,
+      completionPct: denom > 0 ? ((s.completed / denom) * 100).toFixed(1) + '%' : '—',
+      production: '$' + s.production.toFixed(2),
+    };
+  });
 
   return NextResponse.json(results);
 }
