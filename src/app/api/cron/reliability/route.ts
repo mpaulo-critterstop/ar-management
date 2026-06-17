@@ -88,6 +88,9 @@ const BUSINESS_LOCATIONS = [
   // DFW Offices
   { name: 'Southlake HQ',          lat: 32.9400,  lng: -97.1336 },
   { name: 'Haltom City',           lat: 32.8121,  lng: -97.2698 },
+  { name: 'Haltom City Bradley A', lat: 32.7973383, lng: -97.2491626 },
+  { name: 'Haltom City Bradley B', lat: 32.7971766, lng: -97.2487747 },
+  { name: 'Haltom City Bradley C', lat: 32.7969712, lng: -97.2489500 },
   { name: 'Oak Lawn Dallas',        lat: 32.8198,  lng: -96.8209 },
   { name: 'Richardson',             lat: 32.9483,  lng: -96.7077 },
   { name: 'The Colony',             lat: 33.0862,  lng: -96.8884 },
