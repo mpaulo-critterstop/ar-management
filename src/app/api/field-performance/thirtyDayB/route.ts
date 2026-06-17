@@ -77,6 +77,8 @@ export async function GET(req: NextRequest) {
 
   const officeFilter = searchParams.get('office') || 'CStat';
   const weekEndParam = searchParams.get('weekEnd');
+  const rangeStartParam = searchParams.get('rangeStart');
+  const rangeEndParam   = searchParams.get('rangeEnd');
   const cfg = OFFICES[officeFilter];
   if (!cfg?.key) return NextResponse.json({ error: `Unknown or unconfigured office: ${officeFilter}` }, { status: 400 });
 
@@ -92,11 +94,14 @@ export async function GET(req: NextRequest) {
   const fmt = (d: Date) => d.toISOString().split('T')[0];
   const weekEndStr = fmt(weekEnd);
 
-  // thirtyDayB: days 16-30 (5/13 - 5/28)
-  const rangeEnd   = new Date(weekEnd);
-  rangeEnd.setDate(weekEnd.getDate() - 15);                      // 5/28
-  const rangeStart = new Date(weekEnd);
-  rangeStart.setDate(weekEnd.getDate() - 30);                    // 5/13
+  // Use override params if provided, otherwise default to days 16-30
+  const rangeEnd = rangeEndParam
+    ? new Date(rangeEndParam + 'T00:00:00.000Z')
+    : (() => { const d = new Date(weekEnd); d.setDate(weekEnd.getDate() - 15); return d; })();
+
+  const rangeStart = rangeStartParam
+    ? new Date(rangeStartParam + 'T00:00:00.000Z')
+    : (() => { const d = new Date(weekEnd); d.setDate(weekEnd.getDate() - 30); return d; })();
 
   const rangeStartStr = fmt(rangeStart);
   const rangeEndStr   = fmt(rangeEnd);
@@ -227,8 +232,8 @@ export async function GET(req: NextRequest) {
       step:            'thirtyDayB',
       office:          officeFilter,
       weekEnd:         weekEndStr,
-      rangeStart:      rangeStartStr,
-      rangeEnd:        rangeEndStr,
+      rangeStart:      fmt(rangeStart),
+      rangeEnd:        fmt(rangeEnd),
       routesProcessed: routes.length,
       techsUpserted:   upserted,
       results,

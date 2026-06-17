@@ -77,6 +77,8 @@ export async function GET(req: NextRequest) {
 
   const officeFilter = searchParams.get('office') || 'CStat';
   const weekEndParam = searchParams.get('weekEnd');
+  const rangeStartParam = searchParams.get('rangeStart');
+  const rangeEndParam   = searchParams.get('rangeEnd');
   const cfg = OFFICES[officeFilter];
   if (!cfg?.key) return NextResponse.json({ error: `Unknown or unconfigured office: ${officeFilter}` }, { status: 400 });
 
@@ -92,12 +94,14 @@ export async function GET(req: NextRequest) {
   const fmt = (d: Date) => d.toISOString().split('T')[0];
   const weekEndStr = fmt(weekEnd);
 
-  // thirtyDayA: days 1-15 (5/28 - 6/12)
-  // /week handles current week (6/6-6/12) for production
-  // thirtyDayA handles full first 15 days for completion
-  const rangeEnd   = new Date(weekEnd);                          // 6/12
-  const rangeStart = new Date(weekEnd);
-  rangeStart.setDate(weekEnd.getDate() - 14);                    // 5/29
+  // Use override params if provided, otherwise default to days 1-15
+  const rangeEnd = rangeEndParam
+    ? new Date(rangeEndParam + 'T00:00:00.000Z')
+    : new Date(weekEnd);
+
+  const rangeStart = rangeStartParam
+    ? new Date(rangeStartParam + 'T00:00:00.000Z')
+    : (() => { const d = new Date(weekEnd); d.setDate(weekEnd.getDate() - 14); return d; })();
 
   const rangeStartStr = fmt(rangeStart);
   const rangeEndStr   = fmt(rangeEnd);
@@ -141,18 +145,34 @@ export async function GET(req: NextRequest) {
       log.push(`Route ${route.routeID} (${route.date}) ${name}`);
     }
 
-    // Save counts to AppSetting cache for thirtyDayB to read
+    // ── Save/merge counts to AppSetting cache for thirtyDayB ──
     const cacheKey = `fp_30da_${officeFilter}_${weekEndStr}`;
-    const cacheData: Record<string, { completed: number; pending: number; noShow: number }> = {};
+
+    // Load existing cache if present (DFW calls thirtyDayA twice)
+    let existingCounts: Record<string, { completed: number; pending: number; noShow: number }> = {};
+    try {
+      const existing = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
+      if (existing) existingCounts = JSON.parse(existing.value);
+    } catch {}
+
+    // Merge new counts on top of existing
+    const mergedCounts: Record<string, { completed: number; pending: number; noShow: number }> = { ...existingCounts };
     for (const techID of techIDs) {
-      cacheData[techID] = techCompletion.get(techID) || { completed: 0, pending: 0, noShow: 0 };
+      const fresh = techCompletion.get(techID) || { completed: 0, pending: 0, noShow: 0 };
+      const prev  = existingCounts[techID]     || { completed: 0, pending: 0, noShow: 0 };
+      mergedCounts[techID] = {
+        completed: prev.completed + fresh.completed,
+        pending:   prev.pending   + fresh.pending,
+        noShow:    prev.noShow    + fresh.noShow,
+      };
     }
+
     await prisma.appSetting.upsert({
       where:  { key: cacheKey },
-      update: { value: JSON.stringify(cacheData) },
-      create: { key: cacheKey, value: JSON.stringify(cacheData) },
+      update: { value: JSON.stringify(mergedCounts) },
+      create: { key: cacheKey, value: JSON.stringify(mergedCounts) },
     });
-    log.push(`Saved cache for ${Object.keys(cacheData).length} techs → key: ${cacheKey}`);
+    log.push(`Saved/merged cache for ${Object.keys(mergedCounts).length} techs → key: ${cacheKey}`);
 
     const results = techIDs.map(techID => ({
       techID,
@@ -165,8 +185,8 @@ export async function GET(req: NextRequest) {
       step:            'thirtyDayA',
       office:          officeFilter,
       weekEnd:         weekEndStr,
-      rangeStart:      rangeStartStr,
-      rangeEnd:        rangeEndStr,
+      rangeStart:      fmt(rangeStart),
+      rangeEnd:        fmt(rangeEnd),
       routesProcessed: routes.length,
       results,
       log: log.join('\n'),
