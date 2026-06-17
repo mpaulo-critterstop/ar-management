@@ -491,7 +491,6 @@ export async function GET(req: NextRequest) {
       // ── FETCH ROUTES FIRST (before appointment fetch to avoid rate limiting) ──
       const pmpRoutes = new Map<string, { totalScheduled: number; completed: number; productionValue: number; routeCount: number }>();
       const pmpReserviceMap = new Map<string, number>();
-      const apptTechMap = new Map<number, string>(); // appointmentID → techId (from spots)
 
       if (pmpTechs.size > 0) {
         try {
@@ -563,8 +562,6 @@ export async function GET(req: NextRequest) {
                 if (!techId) continue;
                 // Count each appointmentID as a scheduled appointment
                 totalScheduledByTech.set(techId, (totalScheduledByTech.get(techId) ?? 0) + apptIds.length);
-                // Build apptID → techId map for production value calculation
-                for (const apptId of apptIds) apptTechMap.set(apptId, techId);
               }
               await new Promise(r => setTimeout(r, 300));
             }
@@ -604,19 +601,15 @@ export async function GET(req: NextRequest) {
       if (pmpRoutes.size > 0) {
         log.push(`  pmpRoutes keys: ${[...pmpRoutes.keys()].join(',')}`);
         try {
-          // Use apptTechMap built from spots (appointmentID → techId)
-          // Include completed (1) + pending (0), exclude no-show (2) and deleted (-1)
-          const pmpAppts = allAppts.filter((a: any) =>
-            apptTechMap.has(parseInt(a.appointmentID || a.id || '0')) &&
-            String(a.status) !== '-1' &&
-            String(a.status) !== '2' &&
-            String(a.statusText || '').toLowerCase() !== 'no show' &&
-            a.subscriptionID
+          const pmpEmpIds = new Set([...pmpTechs.keys()]);
+          const pmpCompletedAppts = allAppts.filter((a: any) =>
+            pmpEmpIds.has(parseInt(a.servicedBy || a.employeeID || '0')) &&
+            String(a.status) === '1' && a.subscriptionID
           );
-          if (pmpAppts.length > 0) {
-            const sampleTechIds = [...new Set(pmpAppts.slice(0,5).map((a: any) => apptTechMap.get(parseInt(a.appointmentID || a.id || '0'))))];
-            log.push(`  PMP appts for production: ${pmpAppts.length}, sample techIds: ${sampleTechIds.join(',')}`);
-            const uniqueSubIds = [...new Set(pmpAppts.map((a: any) => String(a.subscriptionID)))];
+          if (pmpCompletedAppts.length > 0) {
+            const sampleEmpIds = [...new Set(pmpCompletedAppts.slice(0,5).map((a: any) => a.servicedBy || a.employeeID))];
+            log.push(`  PMP completed appts: ${pmpCompletedAppts.length}, sample empIds: ${sampleEmpIds.join(',')}, sample techIds: ${sampleEmpIds.map(id => pmpTechs.get(parseInt(id)) || '?').join(',')}`);
+            const uniqueSubIds = [...new Set(pmpCompletedAppts.map((a: any) => String(a.subscriptionID)))];
             const subChargeMap = new Map<string, number>();
             let subsFound = 0;
             // Wait before subscription fetch to avoid per-minute rate limit
@@ -629,11 +622,7 @@ export async function GET(req: NextRequest) {
               if (!subData.success) log.push(`  Sub fetch error: ${subData.errorMessage}`);
               const subs: any[] = propName && subData[propName] ? Object.values(subData[propName] as object) : [];
               subsFound += subs.length;
-              for (const s of subs) {
-                const recurring = parseFloat(s.recurringCharge || '0');
-                const initial = parseFloat(s.initialServiceTotal || '0');
-                subChargeMap.set(String(s.subscriptionID), recurring > 0 ? recurring : initial);
-              }
+              for (const s of subs) subChargeMap.set(String(s.subscriptionID), parseFloat(s.recurringCharge || '0'));
               await new Promise(r => setTimeout(r, 300));
             }
             // Calculate completed count from appointments (servicedBy = confirmed completed)
@@ -653,19 +642,19 @@ export async function GET(req: NextRequest) {
             for (const [techId, comp] of completionByTech) {
               const route = pmpRoutes.get(techId);
               if (route) {
+                // scheduled already set from spots above; just set completed
                 route.completed = comp.completed;
               }
             }
-            // Sum production value using spot-based appointmentID→techId map
-            for (const appt of pmpAppts) {
-              const apptId = parseInt(appt.appointmentID || appt.id || '0');
-              const techId = apptTechMap.get(apptId);
+            for (const appt of pmpCompletedAppts) {
+              const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
+              const techId = pmpTechs.get(empId) as string | undefined;
               if (!techId) continue;
               const charge = subChargeMap.get(String(appt.subscriptionID)) || 0;
               const existing = pmpRoutes.get(techId);
               if (existing) existing.productionValue += charge;
             }
-            log.push(`  Production: ${pmpAppts.length} appts, ${uniqueSubIds.length} subs`);
+            log.push(`  Production: ${pmpCompletedAppts.length} appts, ${uniqueSubIds.length} subs`);
             for (const [techId, data] of pmpRoutes) {
               if (data.productionValue > 0) log.push(`    ${techId}: $${data.productionValue.toFixed(2)}, routes=${data.routeCount}`);
             }
