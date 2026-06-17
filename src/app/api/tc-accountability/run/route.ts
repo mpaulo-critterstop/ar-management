@@ -256,7 +256,13 @@ export async function GET(req: NextRequest) {
       // Fetch employee names from FR using employeeIDs
       const employeeMap = new Map<number, string>();
       try {
-        const empIds = [...new Set(relevant.map((a: any) => parseInt(a.servicedBy || a.employeeID || '0')).filter(Boolean))];
+        const empIds = [...new Set(relevant.map((a: any) => {
+          // For completed use servicedBy, for pending use assignedTech
+          const id = String(a.status) === '1'
+            ? parseInt(a.servicedBy || a.employeeID || '0')
+            : parseInt(a.assignedTech || a.servicedBy || a.employeeID || '0');
+          return id;
+        }).filter(Boolean))];
         if (empIds.length > 0) {
           const empData = await fetchInBatches('employee', 'get', 'employeeIDs', empIds, cfg.key, cfg.token);
           for (const e of empData) {
