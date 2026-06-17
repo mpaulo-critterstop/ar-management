@@ -146,7 +146,7 @@ export async function GET(req: NextRequest) {
     log.push(`Found ${weekRoutes.length} week routes`);
 
     // ── Resolve tech names ──
-    const techIDs = [...new Set(weekRoutes.map(r => r.assignedTech))];
+    const techIDs = [...new Set(pmpWeekRoutes.map(r => r.assignedTech))];
     const techNameMap = new Map<string, string>();
     if (techIDs.length) {
       const auth = `&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
@@ -156,11 +156,20 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // ── Process each week route ──
+    // ── Load PMP techs + filter routes to PMP only ──
+    const pmpTechs = await prisma.technician.findMany({
+      where: { office: officeFilter, team: 'PMP', status: 'ACTIVE', frEmployeeId: { not: null } },
+    });
+    const frIdToTech = new Map(pmpTechs.map(t => [String(t.frEmployeeId), t]));
+    const pmpFrIds = new Set(pmpTechs.map(t => String(t.frEmployeeId)));
+    const pmpWeekRoutes = weekRoutes.filter(r => pmpFrIds.has(r.assignedTech));
+    log.push(`PMP routes: ${pmpWeekRoutes.length} (filtered from ${weekRoutes.length} total)`);
+
+    // ── Process each PMP week route ──
     const techProduction = new Map<string, number>();
     const techCompletion = new Map<string, { completed: number; pending: number; noShow: number }>();
 
-    for (const route of weekRoutes) {
+    for (const route of pmpWeekRoutes) {
       const stats = await getRouteStats(route.routeID, cfg.key, cfg.token, rl);
       if (!stats) continue;
       const tech = route.assignedTech;
@@ -177,12 +186,6 @@ export async function GET(req: NextRequest) {
 
       log.push(`Route ${route.routeID} (${route.date}) ${name} → $${stats.productionValue.toFixed(2)}`);
     }
-
-    // ── Load PMP techs + upsert week production to DB ──
-    const pmpTechs = await prisma.technician.findMany({
-      where: { office: officeFilter, team: 'PMP', status: 'ACTIVE', frEmployeeId: { not: null } },
-    });
-    const frIdToTech = new Map(pmpTechs.map(t => [String(t.frEmployeeId), t]));
     let upserted = 0;
 
     const results: any[] = [];
