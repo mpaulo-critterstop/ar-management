@@ -10,6 +10,7 @@ interface TcRecord {
   techName: string;
   office: string;
   isCoJob: boolean;
+  apptStatus: string | null;
   futureNonCbVisits: number | null;
   nextVisitDays: number | null;
   closedOut: boolean | null;
@@ -161,13 +162,20 @@ export function TcAccountabilityTab({ weekEnd, office }: Props) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(r => (
-                <tr key={r.id} style={{ background: '#fff' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#FAFAF8')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+              {filtered.map(r => {
+                const isPending = r.apptStatus === 'pending';
+                const rowBg = isPending ? '#FFF8F0' : '#fff';
+                const rowHover = isPending ? '#FFF0DC' : '#FAFAF8';
+                return (
+                <tr key={r.id} style={{ background: rowBg }}
+                  onMouseEnter={e => (e.currentTarget.style.background = rowHover)}
+                  onMouseLeave={e => (e.currentTarget.style.background = rowBg)}
                 >
                   <td style={td}>{fmtDate(r.date)}</td>
-                  <td style={{ ...td, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.customerName}</td>
+                  <td style={{ ...td, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {r.customerName}
+                    {isPending && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: '#D97706', background: '#FEF3C7', borderRadius: 4, padding: '1px 5px' }}>PENDING</span>}
+                  </td>
                   <td style={{ ...td, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.jobTitle}</td>
                   <td style={td}>{r.techId}</td>
                   <td style={td}>{r.techName}</td>
@@ -183,7 +191,8 @@ export function TcAccountabilityTab({ weekEnd, office }: Props) {
                     {r.timeAtJobMins != null ? `${Math.round(r.timeAtJobMins)}m` : '—'}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

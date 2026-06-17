@@ -150,7 +150,7 @@ export async function GET(req: NextRequest) {
         log.push(`  customerName: ${sample.customerName}, techName: ${sample.technicianName || sample.employeeName}, title: ${sample.appointmentTitle || sample.title || sample.type}`);
       }
 
-      // Filter to completed + relevant service types
+      // Filter to completed + pending with relevant service types
       const statusSample = [...new Set(allAppts.slice(0, 20).map((a: any) => String(a.status)))];
       log.push(`  Status values sample: ${statusSample.join(', ')}`);
       const typeSample = [...new Set(allAppts.slice(0, 20).map((a: any) => String(a.type || a.serviceTypeID || '?')))];
@@ -158,10 +158,10 @@ export async function GET(req: NextRequest) {
 
       const relevant = allAppts.filter((a: any) => {
         const typeId = parseInt(String(a.type || a.serviceTypeID || '0'));
-        return String(a.status) === '1' && TC_SERVICE_IDS.has(typeId);
+        return (String(a.status) === '1' || String(a.status) === '0') && TC_SERVICE_IDS.has(typeId);
       });
 
-      log.push(`  Total completed: ${allAppts.length}, relevant: ${relevant.length}`);
+      log.push(`  Total completed+pending: ${allAppts.length}, relevant: ${relevant.length}`);
       if (relevant.length > 0) log.push(`  Sample employeeID: ${relevant[0].employeeID}`);
 
       // Get all future appointments for customers in this batch to compute forward-looking fields
@@ -291,7 +291,9 @@ export async function GET(req: NextRequest) {
         const typeId = parseInt(String(appt.type || appt.serviceTypeID || '0'));
         const custId = String(appt.customerID);
         const frApptId = String(appt.appointmentID || appt.id);
-        const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
+        const apptStatus = String(appt.status) === '1' ? 'completed' : 'pending';
+        // Use servicedBy for completed, assignedTech for pending
+        const empId = parseInt(appt.servicedBy || appt.assignedTech || appt.employeeID || '0');
         const techNameFromFR = employeeMap.get(empId) || '';
         const tech = frEmpToTech.get(empId) || nameToTech.get(techNameFromFR.toLowerCase());
         const customerName = customerMap.get(custId) || '';
@@ -332,6 +334,7 @@ export async function GET(req: NextRequest) {
               techName: tech?.name || techNameFromFR,
               office: officeName,
               isCoJob,
+              apptStatus,
               closedOut,
               wk1CloseOut: wk1Map.get(custId) ?? false,
               wk2CloseOut: wk2Map.get(custId) ?? false,
@@ -354,6 +357,7 @@ export async function GET(req: NextRequest) {
               techName: tech?.name || techNameFromFR,
               office: officeName,
               isCoJob,
+              apptStatus,
               closedOut,
               wk1CloseOut: wk1Map.get(custId) ?? false,
               wk2CloseOut: wk2Map.get(custId) ?? false,

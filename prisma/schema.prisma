@@ -446,6 +446,7 @@ model TcAppointment {
 
   // CO logic
   isCoJob         Boolean   @default(false)   // Col J
+  apptStatus      String?   @default("completed") // 'completed' or 'pending'
 
   // Populated as future appointments come in (updated over time)
   futureNonCbVisits Int?    // Col K
