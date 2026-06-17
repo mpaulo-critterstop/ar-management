@@ -167,9 +167,6 @@ export async function GET(req: NextRequest) {
     }
 
     // ── Merge A + B → final completionPct → write to DB ──
-    const pmpTechs = await prisma.technician.findMany({
-      where: { office: officeFilter, team: 'PMP', status: 'ACTIVE', frEmployeeId: { not: null } },
-    });
     const frIdToTech = new Map(pmpTechs.map(t => [String(t.frEmployeeId), t]));
     let upserted = 0;
 
