@@ -7,7 +7,7 @@ interface Props { office: string; }
 const EMPTY_FORM = {
   techId: '', name: '', team: 'WP', office: 'DFW',
   hrDays: 8, startTime: '7:00 AM', siteLeader: '', crewLeader: '',
-  hireDate: '', notes: '',
+  hireDate: '', notes: '', frEmployeeId: '',
 };
 
 export function RosterTab({ office }: Props) {
@@ -59,6 +59,7 @@ export function RosterTab({ office }: Props) {
       crewLeader: tech.crewLeader ?? '',
       hireDate: tech.hireDate ? tech.hireDate.split('T')[0] : '',
       notes: tech.notes ?? '',
+      frEmployeeId: tech.frEmployeeId ? String(tech.frEmployeeId) : '',
     });
     setShowForm(true);
   };
@@ -145,6 +146,7 @@ export function RosterTab({ office }: Props) {
             <div><label style={labelStyle}>Site leader</label><input style={inputStyle} value={form.siteLeader} onChange={e => setForm(f => ({ ...f, siteLeader: e.target.value }))} /></div>
             <div><label style={labelStyle}>Crew leader</label><input style={inputStyle} value={form.crewLeader} onChange={e => setForm(f => ({ ...f, crewLeader: e.target.value }))} /></div>
             <div><label style={labelStyle}>Hire date</label><input type="date" style={inputStyle} value={form.hireDate} onChange={e => setForm(f => ({ ...f, hireDate: e.target.value }))} /></div>
+            <div><label style={labelStyle}>FR Employee ID</label><input style={inputStyle} value={form.frEmployeeId} onChange={e => setForm(f => ({ ...f, frEmployeeId: e.target.value }))} placeholder="e.g. 10583" /></div>
           </div>
           <div style={{ marginTop: 12 }}><label style={labelStyle}>Notes</label><input style={inputStyle} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>

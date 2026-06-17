@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (!['ADMIN', 'LEADERSHIP'].includes(role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json();
-  const { techId, name, team, office, hrDays, startTime, siteLeader, crewLeader, hireDate, notes } = body;
+  const { techId, name, team, office, hrDays, startTime, siteLeader, crewLeader, hireDate, notes, frEmployeeId } = body;
 
   if (!techId || !name || !team || !office) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
       hireDate: hireDate ? new Date(hireDate) : null,
       notes,
       status: 'ACTIVE',
+      frEmployeeId: frEmployeeId ? parseInt(frEmployeeId) : null,
     },
   });
 
@@ -76,6 +77,8 @@ export async function PATCH(req: NextRequest) {
 
   if (data.hireDate) data.hireDate = new Date(data.hireDate);
   if (data.termDate) data.termDate = new Date(data.termDate);
+  if (data.frEmployeeId) data.frEmployeeId = parseInt(data.frEmployeeId);
+  else if (data.frEmployeeId === '') data.frEmployeeId = null;
 
   const tech = await prisma.technician.update({ where: { id }, data });
   return NextResponse.json(tech);
