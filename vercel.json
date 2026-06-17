@@ -2,11 +2,12 @@
   "functions": {
     "src/app/api/field-performance/run/route.ts": { "maxDuration": 300 },
     "src/app/api/field-performance/week/route.ts": { "maxDuration": 300 },
-    "src/app/api/field-performance/thirtyDay/route.ts": { "maxDuration": 300 },
     "src/app/api/tc-accountability/run/route.ts": { "maxDuration": 300 },
     "src/app/api/cron/field-performance/route.ts": { "maxDuration": 300 },
     "src/app/api/cron/tc-accountability/route.ts": { "maxDuration": 300 },
     "src/app/api/cron/reliability/route.ts": { "maxDuration": 300 },
     "src/app/api/cron/bouncie/route.ts": { "maxDuration": 300 }
+    "src/app/api/field-performance/thirtyDayA/route.ts": { "maxDuration": 300 },
+    "src/app/api/field-performance/thirtyDayB/route.ts": { "maxDuration": 300 }
   }
 }
