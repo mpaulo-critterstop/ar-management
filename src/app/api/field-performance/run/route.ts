@@ -403,7 +403,7 @@ async function pullReservices(
   // numberOfTimePeriods = (3 × 30) / 7 = 12.857
   const MONTHS_OF_HISTORIC_DATA = 3;
   const DAYS_IN_PERIOD = 7; // weekly reporting
-  const NUMBER_OF_TIME_PERIODS = (MONTHS_OF_HISTORIC_DATA * 30) / DAYS_IN_PERIOD; // 12.857
+  const NUMBER_OF_TIME_PERIODS = 90 / 6.5; // ~13.85
   const threeMonthsAgoMs = weekEnd.getTime() - (MONTHS_OF_HISTORIC_DATA * 30 * 24 * 60 * 60 * 1000);
   const regularCountByTech = new Map<string, number>();
   for (const appt of regularAppts) {
