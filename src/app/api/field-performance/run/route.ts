@@ -83,7 +83,6 @@ async function pullReservices(
   } catch { return result; }
 
   const apptIds: number[] = searchData.appointmentIDs || [];
-  result.set('__debug_total_ids__', apptIds.length);
   if (apptIds.length === 0) return result;
 
   const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
@@ -102,9 +101,7 @@ async function pullReservices(
     return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
   });
 
-  result.set('__debug_total_appts__', allAppts.length);
   result.set('__debug_reservices__', reservicesThisWeek.length);
-  result.set('__debug_regular__', regularAppts.length);
 
   const customerAppts = new Map<string, any[]>();
   for (const appt of regularAppts) {
@@ -231,11 +228,7 @@ export async function GET(req: NextRequest) {
       try {
         const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);
         for (const [k, v] of rsMap) {
-          if (k.startsWith('__debug_')) {
-            log.push(`  Reservice debug: ${k}=${v}`);
-          } else {
-            pmpReserviceMap.set(k, v);
-          }
+          if (!k.startsWith('__')) pmpReserviceMap.set(k, v);
         }
         log.push(`  Reservice: ${[...pmpReserviceMap.entries()].map(([k,v]) => `${k}=${(v*100).toFixed(1)}%`).join(', ') || 'none'}`);
       } catch (e: any) {
