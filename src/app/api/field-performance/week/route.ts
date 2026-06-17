@@ -145,6 +145,15 @@ export async function GET(req: NextRequest) {
     const weekRoutes = await getRoutesForDateRange(weekStartStr, weekEndStr, cfg.key, cfg.token, rl);
     log.push(`Found ${weekRoutes.length} week routes`);
 
+    // ── Load PMP techs + filter routes to PMP only ──
+    const pmpTechs = await prisma.technician.findMany({
+      where: { office: officeFilter, team: 'PMP', status: 'ACTIVE', frEmployeeId: { not: null } },
+    });
+    const frIdToTech = new Map(pmpTechs.map(t => [String(t.frEmployeeId), t]));
+    const pmpFrIds = new Set(pmpTechs.map(t => String(t.frEmployeeId)));
+    const pmpWeekRoutes = weekRoutes.filter(r => pmpFrIds.has(r.assignedTech));
+    log.push(`PMP routes: ${pmpWeekRoutes.length} (filtered from ${weekRoutes.length} total)`);
+
     // ── Resolve tech names ──
     const techIDs = [...new Set(pmpWeekRoutes.map(r => r.assignedTech))];
     const techNameMap = new Map<string, string>();
@@ -155,15 +164,6 @@ export async function GET(req: NextRequest) {
         techNameMap.set(String(e.employeeID), `${e.fname} ${e.lname}`.trim());
       });
     }
-
-    // ── Load PMP techs + filter routes to PMP only ──
-    const pmpTechs = await prisma.technician.findMany({
-      where: { office: officeFilter, team: 'PMP', status: 'ACTIVE', frEmployeeId: { not: null } },
-    });
-    const frIdToTech = new Map(pmpTechs.map(t => [String(t.frEmployeeId), t]));
-    const pmpFrIds = new Set(pmpTechs.map(t => String(t.frEmployeeId)));
-    const pmpWeekRoutes = weekRoutes.filter(r => pmpFrIds.has(r.assignedTech));
-    log.push(`PMP routes: ${pmpWeekRoutes.length} (filtered from ${weekRoutes.length} total)`);
 
     // ── Process each PMP week route ──
     const techProduction = new Map<string, number>();
