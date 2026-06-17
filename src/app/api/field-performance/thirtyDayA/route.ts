@@ -88,68 +88,46 @@ export async function GET(req: NextRequest) {
     weekEnd.setHours(0, 0, 0, 0);
     weekEnd.setDate(weekEnd.getDate() - weekEnd.getDay());
   }
-  const weekStart = new Date(weekEnd);
-  weekStart.setDate(weekEnd.getDate() - 6);
-  const thirtyDayStart = new Date(weekEnd);
-  thirtyDayStart.setDate(weekEnd.getDate() - 30); // gives 5/13
 
   const fmt = (d: Date) => d.toISOString().split('T')[0];
-  const weekStartStr      = fmt(weekStart);
-  const weekEndStr        = fmt(weekEnd);
-  const thirtyDayStartStr = fmt(thirtyDayStart);
+  const weekEndStr = fmt(weekEnd);
+
+  // thirtyDayA: days 1-15 (5/28 - 6/12)
+  // /week handles current week (6/6-6/12) for production
+  // thirtyDayA handles full first 15 days for completion
+  const rangeEnd   = new Date(weekEnd);                          // 6/12
+  const rangeStart = new Date(weekEnd);
+  rangeStart.setDate(weekEnd.getDate() - 14);                    // 5/29
+
+  const rangeStartStr = fmt(rangeStart);
+  const rangeEndStr   = fmt(rangeEnd);
 
   const log: string[] = [
     `Office: ${officeFilter}`,
-    `Week: ${weekStartStr} → ${weekEndStr}`,
-    `30-day: ${thirtyDayStartStr} → ${weekEndStr}`,
+    `thirtyDayA range: ${rangeStartStr} → ${rangeEndStr} (days 1-15)`,
   ];
   const rl = makeRateLimiter();
 
   try {
-    // ── Get both route sets ──
-    log.push('Fetching week routes (to exclude from 30-day)...');
-    const weekRoutes = await getRoutesForDateRange(weekStartStr, weekEndStr, cfg.key, cfg.token, rl);
-    const weekRouteIDs = new Set(weekRoutes.map(r => r.routeID));
-    log.push(`Week routes: ${weekRoutes.length}`);
+    log.push('Fetching routes...');
+    const routes = await getRoutesForDateRange(rangeStartStr, rangeEndStr, cfg.key, cfg.token, rl);
+    log.push(`Found ${routes.length} routes`);
 
-    log.push('Fetching 30-day routes...');
-    const thirtyDayRoutes = await getRoutesForDateRange(thirtyDayStartStr, weekEndStr, cfg.key, cfg.token, rl);
-    const thirtyDayOnly = thirtyDayRoutes.filter(r => !weekRouteIDs.has(r.routeID));
-    log.push(`30-day extra routes (excl. week): ${thirtyDayOnly.length}`);
-
-    // ── Resolve tech names ──
-    const allTechIDs = [...new Set([
-      ...weekRoutes.map(r => r.assignedTech),
-      ...thirtyDayOnly.map(r => r.assignedTech),
-    ])];
+    // Resolve tech names
+    const techIDs = [...new Set(routes.map(r => r.assignedTech))];
     const techNameMap = new Map<string, string>();
-    if (allTechIDs.length) {
+    if (techIDs.length) {
       const auth = `&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
-      const empData = await rl(`${BASE_URL}/employee/get?employeeIDs=${allTechIDs.join(',')}${auth}`);
+      const empData = await rl(`${BASE_URL}/employee/get?employeeIDs=${techIDs.join(',')}${auth}`);
       (empData.employees || []).forEach((e: any) => {
         techNameMap.set(String(e.employeeID), `${e.fname} ${e.lname}`.trim());
       });
     }
 
-    // ── Accumulate completion stats ──
-    // Start with week routes (already processed for production, but need completion too)
+    // Process routes
     const techCompletion = new Map<string, { completed: number; pending: number; noShow: number }>();
 
-    log.push('Processing week routes for completion...');
-    for (const route of weekRoutes) {
-      const stats = await getRouteCompletionOnly(route.routeID, cfg.key, cfg.token, rl);
-      if (!stats) continue;
-      const tech = route.assignedTech;
-      const prev = techCompletion.get(tech) || { completed: 0, pending: 0, noShow: 0 };
-      techCompletion.set(tech, {
-        completed: prev.completed + stats.completed,
-        pending:   prev.pending   + stats.pending,
-        noShow:    prev.noShow    + stats.noShow,
-      });
-    }
-
-    log.push('Processing 30-day extra routes for completion...');
-    for (const route of thirtyDayOnly) {
+    for (const route of routes) {
       const stats = await getRouteCompletionOnly(route.routeID, cfg.key, cfg.token, rl);
       if (!stats) continue;
       const tech = route.assignedTech;
@@ -160,71 +138,36 @@ export async function GET(req: NextRequest) {
         pending:   prev.pending   + stats.pending,
         noShow:    prev.noShow    + stats.noShow,
       });
-      log.push(`30d route ${route.routeID} (${route.date}) ${name}`);
+      log.push(`Route ${route.routeID} (${route.date}) ${name}`);
     }
 
-    // ── Load PMP techs + upsert completion % to DB ──
-    const pmpTechs = await prisma.technician.findMany({
-      where: { office: officeFilter, team: 'PMP', status: 'ACTIVE', frEmployeeId: { not: null } },
+    // Save counts to AppSetting cache for thirtyDayB to read
+    const cacheKey = `fp_30da_${officeFilter}_${weekEndStr}`;
+    const cacheData: Record<string, { completed: number; pending: number; noShow: number }> = {};
+    for (const techID of techIDs) {
+      cacheData[techID] = techCompletion.get(techID) || { completed: 0, pending: 0, noShow: 0 };
+    }
+    await prisma.appSetting.upsert({
+      where:  { key: cacheKey },
+      update: { value: JSON.stringify(cacheData) },
+      create: { key: cacheKey, value: JSON.stringify(cacheData) },
     });
-    const frIdToTech = new Map(pmpTechs.map(t => [String(t.frEmployeeId), t]));
-    let upserted = 0;
+    log.push(`Saved cache for ${Object.keys(cacheData).length} techs → key: ${cacheKey}`);
 
-    const results: any[] = [];
-    for (const techID of allTechIDs) {
-      const techName = techNameMap.get(techID) || `Tech ${techID}`;
-      const comp     = techCompletion.get(techID) || { completed: 0, pending: 0, noShow: 0 };
-      const total    = comp.completed + comp.pending + comp.noShow;
-      const completionPct = total > 0 ? comp.completed / total : null;
-
-      results.push({
-        techID,
-        techName,
-        completionPct: completionPct !== null ? parseFloat((completionPct * 100).toFixed(1)) : null,
-        ...comp,
-        total,
-      });
-
-      log.push(`${techName}: ${completionPct !== null ? (completionPct * 100).toFixed(1) + '%' : '—'} completion`);
-
-      const dbTech = frIdToTech.get(techID);
-      if (dbTech) {
-        const existing = await prisma.techWeek.findUnique({
-          where: { techId_weekEnd: { techId: dbTech.techId, weekEnd } },
-        });
-        if (existing) {
-          await prisma.techWeek.update({
-            where: { techId_weekEnd: { techId: dbTech.techId, weekEnd } },
-            data: { completionPct, updatedAt: new Date() },
-          });
-        } else {
-          await prisma.techWeek.create({
-            data: {
-              id:           crypto.randomUUID(),
-              technicianId: dbTech.id,
-              techId:       dbTech.techId,
-              weekEnd,
-              office:       officeFilter,
-              team:         'PMP',
-              siteLeader:   dbTech.siteLeader,
-              crewLeader:   dbTech.crewLeader,
-              completionPct,
-              manualAdj:    0,
-            },
-          });
-        }
-        upserted++;
-      }
-    }
+    const results = techIDs.map(techID => ({
+      techID,
+      techName: techNameMap.get(techID) || `Tech ${techID}`,
+      ...techCompletion.get(techID) || { completed: 0, pending: 0, noShow: 0 },
+    }));
 
     return NextResponse.json({
-      status:    'success',
-      step:      'thirtyDay',
-      office:    officeFilter,
-      weekEnd:   weekEndStr,
-      thirtyDayStart: thirtyDayStartStr,
-      routesProcessed: weekRoutes.length + thirtyDayOnly.length,
-      techsUpserted:   upserted,
+      status:          'success',
+      step:            'thirtyDayA',
+      office:          officeFilter,
+      weekEnd:         weekEndStr,
+      rangeStart:      rangeStartStr,
+      rangeEnd:        rangeEndStr,
+      routesProcessed: routes.length,
       results,
       log: log.join('\n'),
     }, { headers: { 'Cache-Control': 'no-store' } });
