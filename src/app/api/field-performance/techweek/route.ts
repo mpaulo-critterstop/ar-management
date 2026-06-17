@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
   if (officeParam && officeParam !== 'ALL' && officeParam !== 'ADMIN') where.office = officeParam;
 
   const weeks = await prisma.techWeek.findMany({
-    where,
+    where: { ...where, technician: { status: 'ACTIVE' } },
     include: { technician: { select: { name: true, status: true } } },
     orderBy: [{ weekEnd: 'desc' }, { totalScore: 'desc' }],
   });
