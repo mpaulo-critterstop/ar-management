@@ -106,6 +106,14 @@ export async function GET(req: NextRequest) {
 
   const pmpRoutes = routes.filter((r: any) => pmpTechIds[String(r.assignedTech)]);
 
+  // Debug: show route counts per tech
+  const routeCountByTech: Record<string, number> = {};
+  for (const r of pmpRoutes) {
+    const empId = String(r.assignedTech);
+    routeCountByTech[empId] = (routeCountByTech[empId] || 0) + 1;
+  }
+  const debugInfo = Object.entries(routeCountByTech).map(([id, count]) => `${pmpTechIds[id]}:${count}routes`).join(', ');
+
   for (const route of pmpRoutes) {
     const stats = await getRouteStats(String(route.routeID), key, token);
     if (!stats) continue;
@@ -130,5 +138,5 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json(results);
+  return NextResponse.json({ debug: { totalRoutes: routes.length, pmpRoutes: pmpRoutes.length, routesByTech: debugInfo }, results });
 }
