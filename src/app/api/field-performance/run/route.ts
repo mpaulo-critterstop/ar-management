@@ -572,6 +572,75 @@ export async function GET(req: NextRequest) {
               if (entry) entry.totalScheduled = scheduled;
             }
             log.push(`  Spots: scheduled counts: ${[...totalScheduledByTech.entries()].map(([k,v]) => `${k}=${v}`).join(', ')}`);
+
+            // ── FETCH 30-DAY ROUTES FOR COMPLETION% ──
+            const thirtyDayStart = new Date(weekEnd);
+            thirtyDayStart.setDate(thirtyDayStart.getDate() - 29);
+            const thirtyDayRouteUrl = frUrl('route', 'search', {
+              officeIDs: String(cfg.officeId),
+              dateStart: fmtDate(thirtyDayStart),
+              dateEnd: fmtDate(weekEnd),
+            }, cfg.key, cfg.token);
+            const thirtyDayRouteSearch = await frFetch(thirtyDayRouteUrl);
+            const thirtyDayRouteIds: number[] = thirtyDayRouteSearch.routeIDs || [];
+            log.push(`  30-day route IDs: ${thirtyDayRouteIds.length}`);
+
+            const thirtyDayRoutes = await fetchInBatches('route', 'get', 'routeIDs', thirtyDayRouteIds, cfg.key, cfg.token);
+            const thirtyDayPmpRoutes = thirtyDayRoutes.filter((r: any) => {
+              const empId = parseInt(r.assignedTech || '0');
+              return pmpTechs.has(empId);
+            });
+            log.push(`  30-day PMP routes: ${thirtyDayPmpRoutes.length}`);
+
+            // Fetch spots for 30-day routes to count scheduled + completed
+            const thirtyDayScheduled = new Map<string, number>();
+            const thirtyDayCompleted = new Map<string, number>();
+
+            for (const route of thirtyDayPmpRoutes) {
+              const empId = parseInt(route.assignedTech || '0');
+              const techId = pmpTechs.get(empId) as string | undefined;
+              if (!techId) continue;
+
+              const spotUrl = frUrl('spot', 'search', { officeIDs: String(cfg.officeId), routeIDs: String(route.routeID) }, cfg.key, cfg.token);
+              const spotSearch = await frFetch(spotUrl);
+              const spotIds: number[] = spotSearch.spotIDs || [];
+              if (spotIds.length === 0) continue;
+
+              const spotDetailUrl = frUrl('spot', 'get', { spotIDs: spotIds.join(',') }, cfg.key, cfg.token);
+              const spotDetail = await frFetch(spotDetailUrl);
+              const sPropName = spotDetail.propertyName;
+              const spots: any[] = sPropName && spotDetail[sPropName] ? Object.values(spotDetail[sPropName] as object) : [];
+
+              // Count scheduled from spots
+              let routeScheduled = 0;
+              const routeApptIds: number[] = [];
+              for (const spot of spots) {
+                const apptIds: number[] = spot.appointmentIDs || [];
+                routeScheduled += apptIds.length;
+                routeApptIds.push(...apptIds);
+              }
+              thirtyDayScheduled.set(techId, (thirtyDayScheduled.get(techId) ?? 0) + routeScheduled);
+
+              // Fetch appointments to count completed
+              if (routeApptIds.length > 0) {
+                const apptUrl = frUrl('appointment', 'get', { appointmentIDs: routeApptIds.join(',') }, cfg.key, cfg.token);
+                const apptData = await frFetch(apptUrl);
+                const appts: any[] = apptData.appointments || [];
+                const completedCount = appts.filter((a: any) => String(a.status) === '1').length;
+                thirtyDayCompleted.set(techId, (thirtyDayCompleted.get(techId) ?? 0) + completedCount);
+              }
+              await new Promise(r => setTimeout(r, 300));
+            }
+
+            // Apply 30-day completion to pmpRoutes
+            for (const [techId, scheduled] of thirtyDayScheduled) {
+              const entry = pmpRoutes.get(techId);
+              if (entry) {
+                entry.totalScheduled = scheduled;
+                entry.completed = thirtyDayCompleted.get(techId) ?? 0;
+              }
+            }
+            log.push(`  30-day completion: ${[...thirtyDayScheduled.entries()].map(([k,v]) => `${k}=${thirtyDayCompleted.get(k) ?? 0}/${v}`).join(', ')}`);
           }
         } catch (e: any) {
           log.push(`  Route API error: ${e.message}`);
