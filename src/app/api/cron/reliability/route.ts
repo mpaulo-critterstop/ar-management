@@ -136,7 +136,7 @@ const BUSINESS_LOCATIONS = [
   { name: 'Lowes Carrollton',            lat: 32.9863, lng: -96.9026 },
 ];
 
-const GEOFENCE_RADIUS_M = 300;          // business and customer locations
+const GEOFENCE_RADIUS_M = 100;          // business and customer locations
 const MIN_TRIP_MILES_FOR_STARTOFDAY = 1.0; // ignore trips under 1 mile when finding start of day
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
