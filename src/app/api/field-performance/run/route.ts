@@ -656,15 +656,13 @@ export async function GET(req: NextRequest) {
             const batch = subIds.slice(i, i + 100);
             const subUrl = frUrl('subscription', 'get', { subscriptionIDs: batch.join(',') }, cfg.key, cfg.token);
             const subData = await frFetch(subUrl);
-            const sPropName = subData.propertyName;
             if (!subData.success) log.push(`  Sub fetch error: ${subData.errorMessage}`);
-            const subs: any[] = sPropName && subData[sPropName] ? Object.values(subData[sPropName] as object) : [];
-            subsFound += subs.length;
-            for (const s of subs) {
+            subData.subscriptions?.forEach((s: any) => {
               const recurring = parseFloat(s.recurringCharge || '0');
               const initial = parseFloat(s.initialServiceTotal || '0');
               subMap.set(String(s.subscriptionID), recurring > 0 ? recurring : initial);
-            }
+              subsFound++;
+            });
             await new Promise(r => setTimeout(r, 300));
           }
           log.push(`  Subs fetched: ${subsFound}, subMap size: ${subMap.size}`);
@@ -683,9 +681,7 @@ export async function GET(req: NextRequest) {
               const batch = ticketIds.slice(i, i + 100);
               const ticketUrl = frUrl('ticket', 'get', { ticketIDs: batch.join(',') }, cfg.key, cfg.token);
               const ticketData = await frFetch(ticketUrl);
-              const tPropName = ticketData.propertyName;
-              const tickets: any[] = tPropName && ticketData[tPropName] ? Object.values(ticketData[tPropName] as object) : [];
-              for (const t of tickets) ticketMap.set(String(t.ticketID), parseFloat(t.subTotal || '0'));
+              ticketData.tickets?.forEach((t: any) => ticketMap.set(String(t.ticketID), parseFloat(t.subTotal || '0')));
               await new Promise(r => setTimeout(r, 300));
             }
           }
