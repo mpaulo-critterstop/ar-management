@@ -13,7 +13,6 @@ export async function GET(req: NextRequest) {
   const results: any[] = [];
 
   // Justin Rogers frEmployeeId = 10583
-  // Step 1: Get all CStat routes for Jun 6-12
   const routeSearchUrl = `${BASE_URL}/route/search?officeIDs=4&dateStart=2026-06-06&dateEnd=2026-06-12&authenticationKey=${key}&authenticationToken=${token}`;
   const routeSearch = await fetch(routeSearchUrl);
   const routeData = await routeSearch.json();
@@ -25,16 +24,17 @@ export async function GET(req: NextRequest) {
   const propName = routeDetailData.propertyName;
   const routes: any[] = propName && routeDetailData[propName] ? Object.values(routeDetailData[propName] as object) : [];
   const justinRoutes = routes.filter((r: any) => String(r.assignedTech) === '10583');
-  results.push({ step: '1. Justin routes', count: justinRoutes.length, routeIds: justinRoutes.map((r: any) => ({ id: r.routeID, date: r.date })) });
 
-  // Step 2: For each route, get spots → appointmentIDs
-  const allApptIds: number[] = [];
-  const apptRouteMap = new Map<number, string>(); // apptID → routeID
+  let totalScheduled = 0, totalCompleted = 0, totalPending = 0, totalNoShow = 0;
+  let totalProduction = 0;
+  const perRoute: any[] = [];
+
   for (const route of justinRoutes) {
+    // Step 1: spots → appointmentIDs
     const spotSearchUrl = `${BASE_URL}/spot/search?officeIDs=4&routeIDs=${route.routeID}&authenticationKey=${key}&authenticationToken=${token}`;
     const spotSearch = await fetch(spotSearchUrl);
-    const spotData = await spotSearch.json();
-    const spotIds: number[] = spotData.spotIDs || [];
+    const spotSearchData = await spotSearch.json();
+    const spotIds: number[] = spotSearchData.spotIDs || [];
     if (spotIds.length === 0) continue;
 
     const spotDetailUrl = `${BASE_URL}/spot/get?spotIDs=${spotIds.join(',')}&authenticationKey=${key}&authenticationToken=${token}`;
@@ -42,60 +42,89 @@ export async function GET(req: NextRequest) {
     const spotDetailData = await spotDetail.json();
     const sPropName = spotDetailData.propertyName;
     const spots: any[] = sPropName && spotDetailData[sPropName] ? Object.values(spotDetailData[sPropName] as object) : [];
-    let routeAppts = 0;
+    const apptIds: number[] = [];
     for (const spot of spots) {
       const ids: number[] = spot.appointmentIDs || [];
-      for (const id of ids) { allApptIds.push(id); apptRouteMap.set(id, route.routeID); routeAppts++; }
+      apptIds.push(...ids);
     }
-    results.push({ routeID: route.routeID, date: route.date, appointmentCount: routeAppts });
+    if (apptIds.length === 0) continue;
+
+    // Step 2: fetch appointments
+    const apptUrl = `${BASE_URL}/appointment/get?appointmentIDs=${apptIds.join(',')}&authenticationKey=${key}&authenticationToken=${token}`;
+    const apptDetail = await fetch(apptUrl);
+    const apptDetailData = await apptDetail.json();
+    const aPropName = apptDetailData.propertyName;
+    const appts: any[] = aPropName && apptDetailData[aPropName] ? Object.values(apptDetailData[aPropName] as object) : [];
+
+    // Step 3: completion counts
+    const completed = appts.filter((a: any) => String(a.status) === '1').length;
+    const pending = appts.filter((a: any) => String(a.status) === '0').length;
+    const noShow = appts.filter((a: any) => String(a.status) === '2' || String(a.statusText || '').toLowerCase() === 'no show').length;
+
+    // Step 4: split valid appts
+    const validAppts = appts.filter((a: any) =>
+      String(a.status) !== '-1' &&
+      String(a.status) !== '2' &&
+      String(a.statusText || '').toLowerCase() !== 'no show'
+    );
+    const subAppts = validAppts.filter((a: any) => parseInt(a.subscriptionID || '0') > 0);
+    const ticketAppts = validAppts.filter((a: any) => parseInt(a.subscriptionID || '0') <= 0 && a.ticketID && String(a.ticketID) !== '0');
+
+    // Step 5: subscription value
+    let routeProduction = 0;
+    const subIds = [...new Set(subAppts.map((a: any) => String(a.subscriptionID)))];
+    if (subIds.length > 0) {
+      const subUrl = `${BASE_URL}/subscription/get?subscriptionIDs=${subIds.join(',')}&authenticationKey=${key}&authenticationToken=${token}`;
+      const subDetail = await fetch(subUrl);
+      const subDetailData = await subDetail.json();
+      const subPropName = subDetailData.propertyName;
+      const subs: any[] = subPropName && subDetailData[subPropName] ? Object.values(subDetailData[subPropName] as object) : [];
+      for (const s of subs) {
+        const recurring = parseFloat(s.recurringCharge || '0');
+        const initial = parseFloat(s.initialServiceTotal || '0');
+        routeProduction += recurring > 0 ? recurring : initial;
+      }
+    }
+
+    // Step 6: ticket value for standalone appointments
+    const ticketIds = [...new Set(ticketAppts.map((a: any) => String(a.ticketID)))];
+    if (ticketIds.length > 0) {
+      const ticketUrl = `${BASE_URL}/ticket/get?ticketIDs=${ticketIds.join(',')}&authenticationKey=${key}&authenticationToken=${token}`;
+      const ticketDetail = await fetch(ticketUrl);
+      const ticketDetailData = await ticketDetail.json();
+      const tPropName = ticketDetailData.propertyName;
+      const tickets: any[] = tPropName && ticketDetailData[tPropName] ? Object.values(ticketDetailData[tPropName] as object) : [];
+      for (const t of tickets) routeProduction += parseFloat(t.subTotal || '0');
+    }
+
+    totalScheduled += apptIds.length;
+    totalCompleted += completed;
+    totalPending += pending;
+    totalNoShow += noShow;
+    totalProduction += routeProduction;
+
+    perRoute.push({
+      routeID: route.routeID,
+      date: route.date,
+      scheduled: apptIds.length,
+      completed, pending, noShow,
+      production: routeProduction.toFixed(2),
+      subAppts: subAppts.length,
+      ticketAppts: ticketAppts.length,
+    });
   }
 
-  results.push({ step: '2. total appointments from spots', count: allApptIds.length });
+  const completionPct = totalScheduled > 0
+    ? ((totalCompleted / totalScheduled) * 100).toFixed(1)
+    : '0';
 
-  // Step 3: Fetch all appointments
-  if (allApptIds.length === 0) return NextResponse.json(results);
-  const apptUrl = `${BASE_URL}/appointment/get?appointmentIDs=${allApptIds.join(',')}&authenticationKey=${key}&authenticationToken=${token}`;
-  const apptDetail = await fetch(apptUrl);
-  const apptDetailData = await apptDetail.json();
-  const aPropName = apptDetailData.propertyName;
-  const appts: any[] = aPropName && apptDetailData[aPropName] ? Object.values(apptDetailData[aPropName] as object) : [];
-
-  const statusBreakdown: Record<string, number> = {};
-  for (const a of appts) {
-    const k = `status=${a.status}(${a.statusText || '?'})`;
-    statusBreakdown[k] = (statusBreakdown[k] || 0) + 1;
-  }
-  results.push({ step: '3. status breakdown', total: appts.length, statusBreakdown });
-
-  // Step 4: Filter + completion
-  const validAppts = appts.filter((a: any) => String(a.status) !== '-1' && String(a.status) !== '2' && String(a.statusText || '').toLowerCase() !== 'no show');
-  const completed = appts.filter((a: any) => String(a.status) === '1').length;
-  results.push({ step: '4. completion%', scheduled: allApptIds.length, completed, pct: `${(completed/allApptIds.length*100).toFixed(1)}%` });
-
-  // Step 5: Production value
-  const subIds = [...new Set(validAppts.map((a: any) => String(a.subscriptionID)).filter(Boolean))];
-  const subUrl = `${BASE_URL}/subscription/get?subscriptionIDs=${subIds.join(',')}&authenticationKey=${key}&authenticationToken=${token}`;
-  const subDetail = await fetch(subUrl);
-  const subDetailData = await subDetail.json();
-  const subPropName = subDetailData.propertyName;
-  const subs: any[] = subPropName && subDetailData[subPropName] ? Object.values(subDetailData[subPropName] as object) : [];
-
-  const subChargeMap = new Map<string, number>();
-  for (const s of subs) {
-    const recurring = parseFloat(s.recurringCharge || '0');
-    const initial = parseFloat(s.initialServiceTotal || '0');
-    subChargeMap.set(String(s.subscriptionID), recurring > 0 ? recurring : initial);
-  }
-
-  let productionValue = 0;
-  const perRoute: Record<string, number> = {};
-  for (const a of validAppts) {
-    const charge = subChargeMap.get(String(a.subscriptionID)) || 0;
-    productionValue += charge;
-    const routeId = apptRouteMap.get(parseInt(a.appointmentID)) || 'unknown';
-    perRoute[routeId] = (perRoute[routeId] || 0) + charge;
-  }
-  results.push({ step: '5. production value', productionValue: productionValue.toFixed(2), perRoute });
+  results.push({
+    tech: 'Justin Rogers (P-004)',
+    totalScheduled, totalCompleted, totalPending, totalNoShow,
+    completionPct: completionPct + '%',
+    totalProduction: totalProduction.toFixed(2),
+    perRoute,
+  });
 
   return NextResponse.json(results);
 }
