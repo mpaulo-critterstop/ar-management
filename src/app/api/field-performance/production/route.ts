@@ -305,9 +305,9 @@ export async function GET(req: NextRequest) {
           updatedAt: new Date(),
         };
 
-        if (revenueEff !== null && existing?.reseviceRate !== undefined &&
+        if (revenueEff !== null && existing?.reseviceRate !== null && existing?.reseviceRate !== undefined &&
             existing?.drivingScore && existing?.reliabilityScore) {
-          const pmpScore = calcPMPScore(revenueEff, existing.reseviceRate, completionPct, existing.drivingScore, existing.reliabilityScore);
+          const pmpScore = calcPMPScore(revenueEff, existing.reseviceRate!, completionPct, existing.drivingScore, existing.reliabilityScore);
           updateData.pmpScore   = pmpScore;
           updateData.totalScore = pmpScore + (existing.manualAdj ?? 0);
         }
