@@ -36,11 +36,11 @@ export async function GET(req: NextRequest) {
   }
 
   const weeks = await prisma.techWeek.findMany({
-    where,
+    where: { ...where, technician: { status: 'ACTIVE' } },
     include: { technician: { select: { name: true, techId: true, status: true } } },
   });
 
-  const active = weeks.filter((w: any) => w.totalScore !== null);
+  const active = weeks.filter((w: any) => w.totalScore !== null && w.technician?.status === 'ACTIVE');
 
   const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
   const scores = active.map((w: any) => w.totalScore!);
