@@ -125,10 +125,15 @@ export async function GET(req: NextRequest) {
     const aCounts: Record<string, { completed: number; pending: number; noShow: number }> = JSON.parse(cached.value);
     log.push(`Loaded thirtyDayA cache for ${Object.keys(aCounts).length} techs`);
 
-    // ── Fetch routes for days 16-30 ──
+    // ── Fetch routes for days 16-30 (PMP only) ──
     log.push(`Fetching routes ${rangeStartStr} → ${rangeEndStr}...`);
-    const routes = await getRoutesForDateRange(rangeStartStr, rangeEndStr, cfg.key, cfg.token, rl);
-    log.push(`Found ${routes.length} routes`);
+    const pmpTechs = await prisma.technician.findMany({
+      where: { office: officeFilter, team: 'PMP', status: 'ACTIVE', frEmployeeId: { not: null } },
+    });
+    const pmpFrIds = new Set(pmpTechs.map(t => String(t.frEmployeeId)));
+    const allRoutes = await getRoutesForDateRange(rangeStartStr, rangeEndStr, cfg.key, cfg.token, rl);
+    const routes = allRoutes.filter(r => pmpFrIds.has(r.assignedTech));
+    log.push(`Found ${routes.length} PMP routes (filtered from ${allRoutes.length} total)`);
 
     // ── Resolve tech names ──
     const allTechIDs = [...new Set([

@@ -113,9 +113,16 @@ export async function GET(req: NextRequest) {
   const rl = makeRateLimiter();
 
   try {
+    // Load PMP techs to filter routes
+    const pmpTechs = await prisma.technician.findMany({
+      where: { office: officeFilter, team: 'PMP', status: 'ACTIVE', frEmployeeId: { not: null } },
+    });
+    const pmpFrIds = new Set(pmpTechs.map(t => String(t.frEmployeeId)));
+
     log.push('Fetching routes...');
-    const routes = await getRoutesForDateRange(rangeStartStr, rangeEndStr, cfg.key, cfg.token, rl);
-    log.push(`Found ${routes.length} routes`);
+    const allRoutes = await getRoutesForDateRange(rangeStartStr, rangeEndStr, cfg.key, cfg.token, rl);
+    const routes = allRoutes.filter(r => pmpFrIds.has(r.assignedTech));
+    log.push(`Found ${routes.length} PMP routes (filtered from ${allRoutes.length} total)`);
 
     // Resolve tech names
     const techIDs = [...new Set(routes.map(r => r.assignedTech))];
