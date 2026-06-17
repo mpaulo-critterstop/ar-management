@@ -550,7 +550,6 @@ export async function GET(req: NextRequest) {
             }
             // Fetch spot details in batches of 100
             let totalScheduledByTech = new Map<string, number>();
-            const apptTechMap = new Map<number, string>(); // appointmentID → techId
             for (let i = 0; i < allSpotIds.length; i += 100) {
               const batch = allSpotIds.slice(i, i + 100);
               const spotUrl = frUrl('spot', 'get', { spotIDs: batch.join(',') }, cfg.key, cfg.token);
