@@ -44,6 +44,26 @@ async function frFetch(url: string): Promise<any> {
   return res.json();
 }
 
+// Per-office rate limiter: pauses at 55 calls/minute to avoid FR limits
+function makeRateLimiter() {
+  let callCount = 0;
+  let minuteStart = Date.now();
+  return async function rateLimitedFetch(url: string): Promise<any> {
+    if (Date.now() - minuteStart > 60000) {
+      callCount = 0;
+      minuteStart = Date.now();
+    }
+    if (callCount >= 55) {
+      const waitTime = 60000 - (Date.now() - minuteStart) + 1000;
+      await new Promise(r => setTimeout(r, waitTime));
+      callCount = 0;
+      minuteStart = Date.now();
+    }
+    callCount++;
+    return frFetch(url);
+  };
+}
+
 async function fetchInBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string): Promise<any[]> {
   const results: any[] = [];
   for (let i = 0; i < ids.length; i += 100) {
@@ -492,6 +512,7 @@ export async function GET(req: NextRequest) {
       const pmpRoutes = new Map<string, { totalScheduled: number; completed: number; productionValue: number; routeCount: number }>();
       const pmpReserviceMap = new Map<string, number>();
       const apptTechMap = new Map<number, string>(); // appointmentID → techId (from spots)
+      const rlFetch = makeRateLimiter(); // per-office rate limiter
 
       if (pmpTechs.size > 0) {
         try {
@@ -542,7 +563,7 @@ export async function GET(req: NextRequest) {
               const techId = pmpTechs.get(empId) as string | undefined;
               if (!techId) continue;
               const spotSearchUrl = frUrl('spot', 'search', { officeIDs: String(cfg.officeId), routeIDs: String(route.routeID) }, cfg.key, cfg.token);
-              const spotSearch = await frFetch(spotSearchUrl);
+              const spotSearch = await rlFetch(spotSearchUrl);
               const spotIds: number[] = spotSearch.spotIDs || [];
               for (const sid of spotIds) spotRouteMap.set(sid, techId);
               allSpotIds.push(...spotIds);
@@ -602,12 +623,12 @@ export async function GET(req: NextRequest) {
               if (!techId) continue;
 
               const spotUrl = frUrl('spot', 'search', { officeIDs: String(cfg.officeId), routeIDs: String(route.routeID) }, cfg.key, cfg.token);
-              const spotSearch = await frFetch(spotUrl);
+              const spotSearch = await rlFetch(spotUrl);
               const spotIds: number[] = spotSearch.spotIDs || [];
               if (spotIds.length === 0) continue;
 
               const spotDetailUrl = frUrl('spot', 'get', { spotIDs: spotIds.join(',') }, cfg.key, cfg.token);
-              const spotDetail = await frFetch(spotDetailUrl);
+              const spotDetail = await rlFetch(spotDetailUrl);
               const sPropName = spotDetail.propertyName;
               const spots: any[] = sPropName && spotDetail[sPropName] ? Object.values(spotDetail[sPropName] as object) : [];
 
@@ -624,12 +645,11 @@ export async function GET(req: NextRequest) {
               // Fetch appointments to count completed
               if (routeApptIds.length > 0) {
                 const apptUrl = frUrl('appointment', 'get', { appointmentIDs: routeApptIds.join(',') }, cfg.key, cfg.token);
-                const apptData = await frFetch(apptUrl);
+                const apptData = await rlFetch(apptUrl);
                 const appts: any[] = apptData.appointments || [];
                 const completedCount = appts.filter((a: any) => String(a.status) === '1').length;
                 thirtyDayCompleted.set(techId, (thirtyDayCompleted.get(techId) ?? 0) + completedCount);
               }
-              await new Promise(r => setTimeout(r, 300));
             }
 
             // Apply 30-day completion to pmpRoutes
