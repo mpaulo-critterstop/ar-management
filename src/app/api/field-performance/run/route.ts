@@ -1,6 +1,6 @@
 // src/app/api/field-performance/run/route.ts
-// Field Performance sync: reservice rate + revEff only
-// Production value and 30-day completion% handled separately
+// Syncs reservice rate + revEff for PMP techs
+// Production value and 30-day completion% handled by /api/field-performance/production
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -17,7 +17,6 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number; re
 
 const PROD_STANDARD_PER_DAY = 5676.92;
 
-// ─── HELPERS ────────────────────────────────────────────────────────────────
 function frUrl(endpoint: string, action: string, params: Record<string, string>, key: string, token: string) {
   const url = new URL(`${BASE_URL}/${endpoint}/${action}`);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
@@ -59,7 +58,6 @@ function getMostRecentFriday(offsetWeeks = 0): Date {
   return d;
 }
 
-// ─── PMP: RESERVICES ─────────────────────────────────────────────────────────
 async function pullReservices(
   cfg: { key: string; token: string; officeId: number; reserviceTypeIds: Set<string> },
   weekStart: Date,
@@ -103,7 +101,6 @@ async function pullReservices(
     return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
   });
 
-  // Build customer → sorted regular appts (descending date)
   const customerAppts = new Map<string, any[]>();
   for (const appt of regularAppts) {
     const custId = String(appt.customerID || '');
@@ -119,7 +116,6 @@ async function pullReservices(
     });
   }
 
-  // Attribute reservice to tech who did last regular service for that customer
   const reseviceCountByTech = new Map<string, number>();
   for (const rs of reservicesThisWeek) {
     const custId = String(rs.customerID || '');
@@ -139,8 +135,7 @@ async function pullReservices(
     reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
   }
 
-  // FR formula: avgServicesPerPeriod = totalServiced / (90/6)
-  const NUMBER_OF_TIME_PERIODS = 90 / 6; // 15
+  const NUMBER_OF_TIME_PERIODS = 90 / 6;
   const threeMonthsAgoMs = weekEnd.getTime() - (3 * 30 * 24 * 60 * 60 * 1000);
   const regularCountByTech = new Map<string, number>();
   for (const appt of regularAppts) {
@@ -162,7 +157,6 @@ async function pullReservices(
   return result;
 }
 
-// ─── SCORING ─────────────────────────────────────────────────────────────────
 function calcPMPScore(revEff: number, reservice: number, completion: number, driving: number, reliability: number): number {
   return (
     revEff * 0.35 +
@@ -173,7 +167,6 @@ function calcPMPScore(revEff: number, reservice: number, completion: number, dri
   );
 }
 
-// ─── MAIN ────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   if (searchParams.get('token') !== 'critterstop2026' && searchParams.get('token') !== process.env.CRON_SECRET) {
@@ -181,10 +174,7 @@ export async function GET(req: NextRequest) {
   }
 
   const weekEndParam = searchParams.get('weekEnd');
-  const weekEnd = weekEndParam
-    ? new Date(weekEndParam + 'T00:00:00.000Z')
-    : getMostRecentFriday();
-
+  const weekEnd = weekEndParam ? new Date(weekEndParam + 'T00:00:00.000Z') : getMostRecentFriday();
   const weekStart = new Date(weekEnd);
   weekStart.setDate(weekStart.getDate() - 6);
   weekStart.setHours(0, 0, 0, 0);
@@ -207,11 +197,10 @@ export async function GET(req: NextRequest) {
     const officeTechs = techs.filter(t => t.office === officeName && t.frEmployeeId);
     const pmpTechs = new Map(officeTechs.filter(t => t.team === 'PMP').map(t => [t.frEmployeeId!, t.techId]));
 
-    try {
-      if (pmpTechs.size === 0) { log.push(`  No PMP techs`); continue; }
-      log.push(`  PMP techs: ${[...pmpTechs.values()].join(',')}`);
+    if (pmpTechs.size === 0) { log.push(`  No PMP techs`); continue; }
 
-      // ── FETCH ROUTES for routeCount ──
+    try {
+      // Fetch routes for routeCount (needed for revEff)
       const routeSearchUrl = frUrl('route', 'search', {
         officeIDs: String(cfg.officeId),
         dateStart: fmtDate(weekStart),
@@ -219,8 +208,6 @@ export async function GET(req: NextRequest) {
       }, cfg.key, cfg.token);
       const routeSearch = await frFetch(routeSearchUrl);
       const routeIds: number[] = routeSearch.routeIDs || [];
-      log.push(`  ${officeName}: ${routeIds.length} route IDs`);
-
       const routeCountByTech = new Map<string, number>();
       if (routeIds.length > 0) {
         const routes = await fetchInBatches('route', 'get', 'routeIDs', routeIds, cfg.key, cfg.token);
@@ -232,8 +219,9 @@ export async function GET(req: NextRequest) {
           routeCountByTech.set(techId, (routeCountByTech.get(techId) ?? 0) + 1);
         }
       }
+      log.push(`  Routes: ${routeIds.length}`);
 
-      // ── RESERVICE RATE ──
+      // Reservice rate
       const pmpReserviceMap = new Map<string, number>();
       try {
         const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);
@@ -243,7 +231,7 @@ export async function GET(req: NextRequest) {
         log.push(`  Reservice error: ${e.message}`);
       }
 
-      // ── UPSERT PMP (reservice + revEff from existing productionValue) ──
+      // Upsert: reservice + revEff (revEff uses productionValue from DB)
       for (const tech of officeTechs.filter(t => t.team === 'PMP')) {
         const reseviceRate = pmpReserviceMap.get(tech.techId) ?? 0;
         const routeCount   = routeCountByTech.get(tech.techId) ?? 0;
@@ -252,24 +240,21 @@ export async function GET(req: NextRequest) {
           where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
         });
 
-        // RevEff uses productionValue already stored in DB
         const productionValue = existing?.productionValue ?? 0;
         const hrDays = tech.hrDays || 8;
         const revenueEff = productionValue > 0 && routeCount > 0
           ? Math.min((productionValue / routeCount / hrDays * 40) / PROD_STANDARD_PER_DAY, 1.1)
           : null;
 
-        const updateData: any = {
-          reseviceRate,
-          revenueEfficiency: revenueEff,
-          updatedAt: new Date(),
-        };
+        const updateData: any = { reseviceRate, updatedAt: new Date() };
+        if (revenueEff !== null) updateData.revenueEfficiency = revenueEff;
 
-        if (revenueEff !== null && existing?.completionPct !== null && existing?.completionPct !== undefined &&
+        const completionPct = existing?.completionPct ?? null;
+        if (revenueEff !== null && completionPct !== null &&
             existing?.drivingScore && existing?.reliabilityScore) {
-          const pmpScore = calcPMPScore(revenueEff, reseviceRate, existing.completionPct, existing.drivingScore, existing.reliabilityScore);
+          const pmpScore = calcPMPScore(revenueEff, reseviceRate, completionPct, existing.drivingScore, existing.reliabilityScore);
           updateData.pmpScore   = pmpScore;
-          updateData.totalScore = pmpScore + (existing?.manualAdj ?? 0);
+          updateData.totalScore = pmpScore + (existing.manualAdj ?? 0);
         }
 
         if (existing) {
@@ -317,7 +302,5 @@ export async function GET(req: NextRequest) {
     executedAt: new Date().toISOString(),
     errors,
     log: log.join('\n'),
-  }, {
-    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
-  });
+  }, { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } });
 }
