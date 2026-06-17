@@ -847,7 +847,7 @@ export async function GET(req: NextRequest) {
         }
 
         updated++;
-        log.push(`  ${tech.techId} ${tech.name}: completion=${completionPct !== null ? (completionPct*100).toFixed(0)+'%' : '—'}, revEff=${revenueEff?.toFixed(2) ?? '—'}, reservice=${(reseviceRate*100).toFixed(1)}%`);
+        log.push(`  ${tech.techId} ${tech.name}: completion=${completionPct !== null ? (completionPct*100).toFixed(0)+'%' : '—'}, revEff=${revenueEff !== null ? (revenueEff*100).toFixed(0)+'%' : '—'}, reservice=${(reseviceRate*100).toFixed(1)}%`);
       }
 
     } catch (e: any) {
