@@ -138,6 +138,7 @@ export async function POST(req: NextRequest) {
     // Load all bouncie device mappings
     const bouncieDevices = await prisma.bouncieDevice.findMany({
       include: { technician: true },
+      where: { technician: { status: 'ACTIVE' } },
     });
 
     // Build IMEI → tech map
