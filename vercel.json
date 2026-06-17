@@ -8,6 +8,5 @@
     "src/app/api/cron/tc-accountability/route.ts": { "maxDuration": 300 },
     "src/app/api/cron/reliability/route.ts": { "maxDuration": 300 },
     "src/app/api/cron/bouncie/route.ts": { "maxDuration": 300 }
-    "src/app/api/field-performance/sync/route.ts": { "maxDuration": 300 }
   }
 }
