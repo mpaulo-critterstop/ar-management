@@ -1,3 +1,5 @@
+export const maxDuration = 300;
+
 // src/app/api/field-performance/production/route.ts
 // Handles CStat PMP route reporting: production value (week) + completion rate (30d)
 // Run via cron or manually: /api/field-performance/production?token=critterstop2026&office=CStat&weekEnd=2026-06-12
