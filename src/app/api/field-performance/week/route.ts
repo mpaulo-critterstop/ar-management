@@ -29,6 +29,7 @@ function makeRateLimiter() {
   };
 }
 
+// Full stats — production value + completion (used for current week routes)
 async function getRouteStats(routeID: string, key: string, token: string, rl: (u: string) => Promise<any>) {
   const auth = `&authenticationKey=${key}&authenticationToken=${token}`;
   const spotSearch = await rl(`${BASE_URL}/spot/search?routeID=${routeID}${auth}`);
@@ -55,7 +56,7 @@ async function getRouteStats(routeID: string, key: string, token: string, rl: (u
       const recurringTicketPV = parseFloat(s.recurringTicket?.productionValue || 0);
       const recurring = parseFloat(s.recurringCharge || 0);
       const initial   = parseFloat(s.initialServiceTotal || 0);
-      let value = recurringTicketPV > 0 ? recurringTicketPV : recurring > 0 ? recurring : initial;
+      const value = recurringTicketPV > 0 ? recurringTicketPV : recurring > 0 ? recurring : initial;
       subMap.set(String(s.subscriptionID), { value, recurring, recurringTicketPV });
     });
   }
@@ -89,6 +90,28 @@ async function getRouteStats(routeID: string, key: string, token: string, rl: (u
   }
 
   return { routeID, completed, pending, noShow, productionValue };
+}
+
+// Completion only — no subscription/ticket fetches (used for prior week routes)
+async function getRouteCompletionOnly(routeID: string, key: string, token: string, rl: (u: string) => Promise<any>) {
+  const auth = `&authenticationKey=${key}&authenticationToken=${token}`;
+  const spotSearch = await rl(`${BASE_URL}/spot/search?routeID=${routeID}${auth}`);
+  const spotIDs: string[] = spotSearch.spotIDs || [];
+  if (!spotIDs.length) return null;
+
+  const spotData = await rl(`${BASE_URL}/spot/get?spotIDs=${spotIDs.join(',')}${auth}`);
+  const apptIDs: string[] = [];
+  (spotData.spots || []).forEach((s: any) => { if (s.appointmentIDs?.length) apptIDs.push(...s.appointmentIDs); });
+  if (!apptIDs.length) return null;
+
+  const apptData = await rl(`${BASE_URL}/appointment/get?appointmentIDs=${apptIDs.join(',')}${auth}`);
+  const appointments: any[] = apptData.appointments || [];
+
+  return {
+    completed: appointments.filter(a => a.status === '1').length,
+    pending:   appointments.filter(a => a.status === '0').length,
+    noShow:    appointments.filter(a => a.statusText === 'No Show').length,
+  };
 }
 
 async function getRoutesForDateRange(dateStart: string, dateEnd: string, key: string, token: string, rl: (u: string) => Promise<any>) {
@@ -129,37 +152,61 @@ export async function GET(req: NextRequest) {
     weekEnd.setHours(0, 0, 0, 0);
     weekEnd.setDate(weekEnd.getDate() - weekEnd.getDay()); // last Sunday
   }
+
+  const fmt = (d: Date) => d.toISOString().split('T')[0];
+
+  // Current week: 6/6 - 6/12 (production + completion)
   const weekStart = new Date(weekEnd);
   weekStart.setDate(weekEnd.getDate() - 6);
 
-  const fmt = (d: Date) => d.toISOString().split('T')[0];
-  const weekStartStr = fmt(weekStart);
-  const weekEndStr   = fmt(weekEnd);
+  // Prior week: 5/30 - 6/5 (completion only)
+  const priorWeekEnd = new Date(weekEnd);
+  priorWeekEnd.setDate(weekEnd.getDate() - 7);
+  const priorWeekStart = new Date(weekEnd);
+  priorWeekStart.setDate(weekEnd.getDate() - 13);
 
-  const log: string[] = [`Week: ${weekStartStr} → ${weekEndStr}`, `Office: ${officeFilter}`];
+  const weekStartStr      = fmt(weekStart);
+  const weekEndStr        = fmt(weekEnd);
+  const priorWeekStartStr = fmt(priorWeekStart);
+  const priorWeekEndStr   = fmt(priorWeekEnd);
+
+  const log: string[] = [
+    `Office: ${officeFilter}`,
+    `Current week: ${weekStartStr} → ${weekEndStr}`,
+    `Prior week: ${priorWeekStartStr} → ${priorWeekEndStr}`,
+  ];
   const rl = makeRateLimiter();
 
   try {
-    // ── Find week routes ──
-    log.push('Fetching week routes...');
+    // ── Fetch current week routes ──
+    log.push('Fetching current week routes...');
     const weekRoutes = await getRoutesForDateRange(weekStartStr, weekEndStr, cfg.key, cfg.token, rl);
-    log.push(`Found ${weekRoutes.length} week routes`);
+    log.push(`Found ${weekRoutes.length} current week routes`);
 
-    // ── Resolve tech names ──
-    const techIDs = [...new Set(weekRoutes.map(r => r.assignedTech))];
+    // ── Fetch prior week routes ──
+    log.push('Fetching prior week routes...');
+    const priorWeekRoutes = await getRoutesForDateRange(priorWeekStartStr, priorWeekEndStr, cfg.key, cfg.token, rl);
+    log.push(`Found ${priorWeekRoutes.length} prior week routes`);
+
+    // ── Resolve tech names from both sets ──
+    const allTechIDs = [...new Set([
+      ...weekRoutes.map(r => r.assignedTech),
+      ...priorWeekRoutes.map(r => r.assignedTech),
+    ])];
     const techNameMap = new Map<string, string>();
-    if (techIDs.length) {
+    if (allTechIDs.length) {
       const auth = `&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
-      const empData = await rl(`${BASE_URL}/employee/get?employeeIDs=${techIDs.join(',')}${auth}`);
+      const empData = await rl(`${BASE_URL}/employee/get?employeeIDs=${allTechIDs.join(',')}${auth}`);
       (empData.employees || []).forEach((e: any) => {
         techNameMap.set(String(e.employeeID), `${e.fname} ${e.lname}`.trim());
       });
     }
 
-    // ── Process each week route ──
     const techProduction = new Map<string, number>();
     const techCompletion = new Map<string, { completed: number; pending: number; noShow: number }>();
 
+    // ── Current week → production value + completion (full stats) ──
+    log.push('\nProcessing current week routes (production + completion)...');
     for (const route of weekRoutes) {
       const stats = await getRouteStats(route.routeID, cfg.key, cfg.token, rl);
       if (!stats) continue;
@@ -175,10 +222,28 @@ export async function GET(req: NextRequest) {
         noShow:    prev.noShow    + stats.noShow,
       });
 
-      log.push(`Route ${route.routeID} (${route.date}) ${name} → $${stats.productionValue.toFixed(2)}`);
+      log.push(`Week route ${route.routeID} (${route.date}) ${name} → $${stats.productionValue.toFixed(2)}`);
     }
 
-    // ── Load PMP techs + upsert week production to DB ──
+    // ── Prior week → completion only (no subscription/ticket calls) ──
+    log.push('\nProcessing prior week routes (completion only)...');
+    for (const route of priorWeekRoutes) {
+      const stats = await getRouteCompletionOnly(route.routeID, cfg.key, cfg.token, rl);
+      if (!stats) continue;
+      const tech = route.assignedTech;
+      const name = techNameMap.get(tech) || tech;
+
+      const prev = techCompletion.get(tech) || { completed: 0, pending: 0, noShow: 0 };
+      techCompletion.set(tech, {
+        completed: prev.completed + stats.completed,
+        pending:   prev.pending   + stats.pending,
+        noShow:    prev.noShow    + stats.noShow,
+      });
+
+      log.push(`Prior week route ${route.routeID} (${route.date}) ${name}`);
+    }
+
+    // ── Load PMP techs + upsert to DB ──
     const pmpTechs = await prisma.technician.findMany({
       where: { office: officeFilter, team: 'PMP', status: 'ACTIVE', frEmployeeId: { not: null } },
     });
@@ -186,7 +251,9 @@ export async function GET(req: NextRequest) {
     let upserted = 0;
 
     const results: any[] = [];
-    for (const techID of techIDs) {
+    const currentWeekTechIDs = [...new Set(weekRoutes.map(r => r.assignedTech))];
+
+    for (const techID of currentWeekTechIDs) {
       const techName   = techNameMap.get(techID) || `Tech ${techID}`;
       const production = techProduction.get(techID) || 0;
       const comp       = techCompletion.get(techID) || { completed: 0, pending: 0, noShow: 0 };
@@ -230,8 +297,12 @@ export async function GET(req: NextRequest) {
       office:    officeFilter,
       weekStart: weekStartStr,
       weekEnd:   weekEndStr,
-      routesProcessed: weekRoutes.length,
-      techsUpserted:   upserted,
+      priorWeekStart: priorWeekStartStr,
+      priorWeekEnd:   priorWeekEndStr,
+      currentWeekRoutes: weekRoutes.length,
+      priorWeekRoutes:   priorWeekRoutes.length,
+      routesProcessed:   weekRoutes.length + priorWeekRoutes.length,
+      techsUpserted:     upserted,
       results,
       log: log.join('\n'),
     }, { headers: { 'Cache-Control': 'no-store' } });
