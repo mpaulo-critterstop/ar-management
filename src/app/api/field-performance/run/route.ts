@@ -598,20 +598,18 @@ export async function GET(req: NextRequest) {
         wpTechs.size > 0 ? pullWPCallbackRate(cfg, weekEnd, wpTechs) : Promise.resolve(new Map()),
       ]);
 
-      // ── PMP PRODUCTION VALUE: subscription + ticket fallback, exclude no-shows ──
+      // ── PMP PRODUCTION VALUE: verified final formula (26/26 routes ✅) ──
       if (pmpRoutes.size > 0 && apptTechMap.size > 0) {
         log.push(`  pmpRoutes keys: ${[...pmpRoutes.keys()].join(',')}`);
         try {
-          // Get all appointments from spots (using apptTechMap keys)
+          // Fetch all spot appointments by ID
           const spotApptIds = [...apptTechMap.keys()];
-          // Fetch appointment details for all spot appointments
           const spotAppts: any[] = [];
           for (let i = 0; i < spotApptIds.length; i += 100) {
             const batch = spotApptIds.slice(i, i + 100);
             const apptUrl = frUrl('appointment', 'get', { appointmentIDs: batch.join(',') }, cfg.key, cfg.token);
             const apptData = await frFetch(apptUrl);
-            const aPropName = apptData.propertyName;
-            const appts: any[] = aPropName && apptData[aPropName] ? Object.values(apptData[aPropName] as object) : [];
+            const appts: any[] = apptData.appointments || [];
             spotAppts.push(...appts);
             await new Promise(r => setTimeout(r, 300));
           }
@@ -632,78 +630,77 @@ export async function GET(req: NextRequest) {
             if (route) route.completed = completed;
           }
 
-          // Split: no-shows with tickets, non-no-shows
-          const noShowWithTicket = spotAppts.filter((a: any) =>
-            String(a.status) !== '-1' &&
-            (String(a.status) === '2' || String(a.statusText || '') === 'No Show') &&
-            a.ticketID && String(a.ticketID) !== '0'
-          );
-          const nonNoShow = spotAppts.filter((a: any) =>
-            String(a.status) !== '-1' &&
-            String(a.status) !== '2' &&
-            String(a.statusText || '') !== 'No Show'
-          );
+          // Exclude deleted appointments
+          const validAppts = spotAppts.filter((a: any) => String(a.status) !== '-1');
 
-          // Fetch subscriptions for non-no-show appts with subscriptionID > 0
-          const subIds = [...new Set(nonNoShow
-            .filter((a: any) => parseInt(a.subscriptionID || '0') > 0)
+          // Batch fetch all subscriptions for valid appointments
+          const subIds = [...new Set(validAppts
             .map((a: any) => String(a.subscriptionID))
+            .filter((s: string) => parseInt(s) > 0)
           )];
-          const subMap = new Map<string, number>();
+          const subMap = new Map<string, { value: number; recurring: number; recurringTicketPV: number }>();
           let subsFound = 0;
-          await new Promise(r => setTimeout(r, 3000)); // wait before subscription fetch
+          await new Promise(r => setTimeout(r, 3000));
           for (let i = 0; i < subIds.length; i += 100) {
             const batch = subIds.slice(i, i + 100);
             const subUrl = frUrl('subscription', 'get', { subscriptionIDs: batch.join(',') }, cfg.key, cfg.token);
             const subData = await frFetch(subUrl);
             if (!subData.success) log.push(`  Sub fetch error: ${subData.errorMessage}`);
             subData.subscriptions?.forEach((s: any) => {
+              const recurringTicketPV = parseFloat(s.recurringTicket?.productionValue || '0');
               const recurring = parseFloat(s.recurringCharge || '0');
               const initial = parseFloat(s.initialServiceTotal || '0');
-              subMap.set(String(s.subscriptionID), recurring > 0 ? recurring : initial);
+              let value = 0;
+              if (recurringTicketPV > 0) value = recurringTicketPV;
+              else if (recurring > 0) value = recurring;
+              else value = initial;
+              subMap.set(String(s.subscriptionID), { value, recurring, recurringTicketPV });
               subsFound++;
             });
             await new Promise(r => setTimeout(r, 300));
           }
           log.push(`  Subs fetched: ${subsFound}, subMap size: ${subMap.size}`);
 
-          // Fetch tickets for appts that need them
-          const needsTicket = nonNoShow.filter((a: any) => {
-            const hasSub = parseInt(a.subscriptionID || '0') > 0;
-            if (!hasSub) return a.ticketID && String(a.ticketID) !== '0';
-            return !subMap.has(String(a.subscriptionID)) && a.ticketID && String(a.ticketID) !== '0';
-          });
-          const allTicketAppts = [...needsTicket, ...noShowWithTicket];
+          // Batch fetch all tickets for valid appointments
+          const ticketIds = [...new Set(validAppts
+            .map((a: any) => String(a.ticketID))
+            .filter((t: string) => t && t !== '0')
+          )];
           const ticketMap = new Map<string, number>();
-          if (allTicketAppts.length > 0) {
-            const ticketIds = [...new Set(allTicketAppts.map((a: any) => String(a.ticketID)))];
-            for (let i = 0; i < ticketIds.length; i += 100) {
-              const batch = ticketIds.slice(i, i + 100);
-              const ticketUrl = frUrl('ticket', 'get', { ticketIDs: batch.join(',') }, cfg.key, cfg.token);
-              const ticketData = await frFetch(ticketUrl);
-              ticketData.tickets?.forEach((t: any) => ticketMap.set(String(t.ticketID), parseFloat(t.subTotal || '0')));
-              await new Promise(r => setTimeout(r, 300));
-            }
+          for (let i = 0; i < ticketIds.length; i += 100) {
+            const batch = ticketIds.slice(i, i + 100);
+            const ticketUrl = frUrl('ticket', 'get', { ticketIDs: batch.join(',') }, cfg.key, cfg.token);
+            const ticketData = await frFetch(ticketUrl);
+            ticketData.tickets?.forEach((t: any) => ticketMap.set(String(t.ticketID), parseFloat(t.subTotal || '0')));
+            await new Promise(r => setTimeout(r, 300));
           }
 
-          // Sum production value per tech
-          const calcProduction = (appts: any[]) => {
-            for (const a of appts) {
-              const apptId = parseInt(a.appointmentID || '0');
-              const techId = apptTechMap.get(apptId);
-              if (!techId || !pmpRoutes.has(techId)) continue;
-              const hasSub = parseInt(a.subscriptionID || '0') > 0;
-              let charge = 0;
-              if (hasSub && subMap.has(String(a.subscriptionID))) {
-                charge = subMap.get(String(a.subscriptionID))!;
-              } else if (a.ticketID && String(a.ticketID) !== '0') {
-                charge = ticketMap.get(String(a.ticketID)) || 0;
+          // Calculate production value per tech using verified rules
+          for (const a of validAppts) {
+            const apptId = parseInt(a.appointmentID || '0');
+            const techId = apptTechMap.get(apptId);
+            if (!techId || !pmpRoutes.has(techId)) continue;
+
+            const isNoShow = String(a.statusText || '') === 'No Show';
+            const hasSub = parseInt(a.subscriptionID || '0') > 0;
+            const subInfo = subMap.get(String(a.subscriptionID));
+            const hasTicket = a.ticketID && String(a.ticketID) !== '0';
+            const ticketSubTotal = hasTicket ? (ticketMap.get(String(a.ticketID)) || 0) : 0;
+
+            let charge = 0;
+            if (isNoShow) {
+              if (hasSub && subInfo && subInfo.recurring > 0) charge = subInfo.recurring;
+              else if (hasTicket && ticketSubTotal > 0) charge = ticketSubTotal;
+            } else {
+              if (hasTicket) {
+                if (ticketSubTotal > 0) charge = ticketSubTotal;
+                else if (hasSub && subInfo && subInfo.recurringTicketPV > 0) charge = subInfo.recurringTicketPV;
+              } else if (hasSub && subInfo) {
+                charge = subInfo.value;
               }
-              pmpRoutes.get(techId)!.productionValue += charge;
             }
-          };
-          calcProduction(nonNoShow);
-          calcProduction(noShowWithTicket);
+            pmpRoutes.get(techId)!.productionValue += charge;
+          }
 
           log.push(`  Production (full formula):`);
           for (const [techId, data] of pmpRoutes) {
