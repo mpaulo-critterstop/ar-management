@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
   const weekStart = new Date(weekEnd);
   weekStart.setDate(weekEnd.getDate() - 6);
   const thirtyDayStart = new Date(weekEnd);
-  thirtyDayStart.setDate(weekEnd.getDate() - 29);
+  thirtyDayStart.setDate(weekEnd.getDate() - 30); // gives 5/13
 
   const fmt = (d: Date) => d.toISOString().split('T')[0];
   const weekStartStr      = fmt(weekStart);
