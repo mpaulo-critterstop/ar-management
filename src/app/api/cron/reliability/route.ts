@@ -333,65 +333,50 @@ export async function POST(req: NextRequest) {
     // Load geocoded customer coordinates
     const customers = await prisma.customer.findMany({
       where: { lat: { not: null }, lng: { not: null } },
-      select: { id: true, externalId: true, lat: true, lng: true },
+      select: { id: true, lat: true, lng: true },
     });
     const customerCoords = customers.map(c => ({ lat: c.lat!, lng: c.lng! }));
-    const custByExternalId = new Map<string, { lat: number; lng: number }>(
-      customers.filter(c => c.externalId && c.lat != null && c.lng != null)
-        .map(c => [c.externalId!, { lat: c.lat!, lng: c.lng! }])
-    );
 
     log.push(`Business locations: ${BUSINESS_LOCATIONS.length}, Geocoded customers: ${customers.length}`);
 
-    // Pre-fetch this week's routes per office to build per-tech customer coord maps
-    // This avoids making FR API calls inside the Bouncie loop
-    const techRouteCustomers = new Map<number, Array<{ lat: number; lng: number }>>(); // frEmployeeId → coords
-    for (const [officeName, cfg] of Object.entries(FR_OFFICES)) {
-      try {
-        const routeSearchUrl = frUrl('route', 'search', {
-          officeIDs: String(cfg.officeId),
-          dateStart: fmtDate(weekStart),
-          dateEnd: fmtDate(weekEnd),
-        }, cfg.key, cfg.token);
-        const routeData = await frFetch(routeSearchUrl);
-        const allRouteIds: number[] = routeData.routeIDs || [];
-        if (allRouteIds.length === 0) continue;
+    // Pre-build per-tech customer coord maps from tc_appointments DB (no FR API calls needed)
+    // This narrows Bouncie GPS matching to only customers on each tech's actual routes
+    const techRouteCustomers = new Map<string, Array<{ lat: number; lng: number }>>(); // techId → coords
+    try {
+      const weekAppts = await prisma.tcAppointment.findMany({
+        where: {
+          weekEnd: { gte: weekStart, lte: weekEnd },
+          customerId: { not: null },
+          techId: { not: null },
+        },
+        select: { techId: true, customerId: true },
+      });
 
-        // Fetch routes in batches of 100
-        const allRoutes: any[] = [];
-        for (let i = 0; i < allRouteIds.length; i += 100) {
-          const batch = allRouteIds.slice(i, i + 100);
-          const rd = await frFetch(frUrl('route', 'get', { routeIDs: batch.join(',') }, cfg.key, cfg.token));
-          allRoutes.push(...(rd.routes || []));
-          await new Promise(r => setTimeout(r, 200));
-        }
-
-        // Group appointment IDs by assignedTech
-        const techApptIds = new Map<number, number[]>();
-        for (const route of allRoutes) {
-          const empId = parseInt(route.assignedTech || route.technicianID || '0');
-          if (!empId) continue;
-          if (!techApptIds.has(empId)) techApptIds.set(empId, []);
-          techApptIds.get(empId)!.push(...(route.appointmentIDs || []));
-        }
-
-        // Fetch appointments and map to customer coords per tech
-        for (const [empId, apptIds] of techApptIds) {
-          const apptData = await frFetch(frUrl('appointment', 'get', { appointmentIDs: apptIds.slice(0, 200).join(',') }, cfg.key, cfg.token));
-          const appts = apptData.appointments || [];
-          const coords: Array<{ lat: number; lng: number }> = [];
-          for (const a of appts) {
-            const cust = custByExternalId.get(String(a.customerID));
-            if (cust) coords.push(cust);
-          }
-          if (coords.length > 0) techRouteCustomers.set(empId, coords);
-          await new Promise(r => setTimeout(r, 200));
-        }
-
-        log.push(`Pre-fetched route customers for ${officeName}: ${techRouteCustomers.size} techs mapped`);
-      } catch (e: any) {
-        log.push(`Route pre-fetch error for ${officeName}: ${e.message}`);
+      // Group customerIds by techId
+      const techCustomerIds = new Map<string, Set<string>>();
+      for (const appt of weekAppts) {
+        if (!appt.techId || !appt.customerId) continue;
+        if (!techCustomerIds.has(appt.techId)) techCustomerIds.set(appt.techId, new Set());
+        techCustomerIds.get(appt.techId)!.add(appt.customerId);
       }
+
+      // Fetch geocoded coords for those customers
+      const allCustIds = [...new Set(weekAppts.map(a => a.customerId).filter(Boolean) as string[])];
+      if (allCustIds.length > 0) {
+        const routeCustomers = await prisma.customer.findMany({
+          where: { externalId: { in: allCustIds }, lat: { not: null }, lng: { not: null } },
+          select: { externalId: true, lat: true, lng: true },
+        });
+        const custCoordMap = new Map(routeCustomers.map(c => [c.externalId!, { lat: c.lat!, lng: c.lng! }]));
+
+        for (const [techId, custIds] of techCustomerIds) {
+          const coords = [...custIds].map(id => custCoordMap.get(id)).filter(Boolean) as Array<{ lat: number; lng: number }>;
+          if (coords.length > 0) techRouteCustomers.set(techId, coords);
+        }
+      }
+      log.push(`Route customer pre-fetch: ${techRouteCustomers.size} techs mapped from tc_appointments`);
+    } catch (e: any) {
+      log.push(`Route customer pre-fetch error: ${e.message}`);
     }
 
     // Process each vehicle
@@ -425,7 +410,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Use pre-fetched route-specific customers if available, else fall back to all
-      const routeCoords = tech.frEmployeeId ? techRouteCustomers.get(tech.frEmployeeId) : undefined;
+      const routeCoords = techRouteCustomers.get(tech.techId);
       const matchCoords = routeCoords && routeCoords.length > 0 ? routeCoords : customerCoords;
       if (routeCoords && routeCoords.length > 0) {
         log.push(`  ${tech.name}: matching against ${routeCoords.length} route customers`);
