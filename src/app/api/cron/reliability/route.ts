@@ -14,7 +14,7 @@ const CLIENT_SECRET = process.env.BOUNCIE_CLIENT_SECRET!;
 const BASE_URL      = 'https://api.bouncie.dev/v1';
 
 // ─── FIELDROUTES CONFIG ───────────────────────────────────────────────────────
-const FR_SUBDOMAIN = 'critterstop';
+const FR_SUBDOMAIN = 'critterstoppest';
 const FR_BASE      = `https://${FR_SUBDOMAIN}.fieldroutes.com/api`;
 const FR_OFFICES: Record<string, { key: string; token: string; officeId: number }> = {
   DFW:   { key: process.env.FIELDROUTES_KEY_DFW!,   token: process.env.FIELDROUTES_TOKEN_DFW!,   officeId: 1 },
