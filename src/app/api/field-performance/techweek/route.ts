@@ -97,6 +97,8 @@ export async function GET(req: NextRequest) {
       reseviceRate: null,
       drivingScore: null,
       reliabilityScore: null,
+      closeOutPct: null,
+      callbackRate: null,
       manualAdj: 0,
       technician: { name: t.name, status: t.status, team: t.team, office: t.office },
     }));

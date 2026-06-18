@@ -106,8 +106,8 @@ export function IndividualsTab({ office, weekEnd }: Props) {
                         {scoreBadge(w.totalScore)}
                       </div>
                     </td>
-                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.closeOutPct !== null ? (w.closeOutPct * 100).toFixed(0) + '%' : '—'}</td>}
-                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.callbackRate !== null ? (w.callbackRate * 100).toFixed(0) + '%' : '—'}</td>}
+                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.closeOutPct != null && !isNaN(w.closeOutPct) ? (w.closeOutPct * 100).toFixed(0) + '%' : '—'}</td>}
+                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.callbackRate != null && !isNaN(w.callbackRate) ? (w.callbackRate * 100).toFixed(0) + '%' : '—'}</td>}
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.revenueEfficiency !== null ? (w.revenueEfficiency * 100).toFixed(0) + '%' : '—'}</td>}
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.reseviceRate !== null && w.reseviceRate > 0 ? (w.reseviceRate * 100).toFixed(1) + '%' : '—'}</td>}
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.completionPct !== null ? (w.completionPct * 100).toFixed(0) + '%' : '—'}</td>}
