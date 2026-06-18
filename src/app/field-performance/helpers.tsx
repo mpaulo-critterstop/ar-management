@@ -33,7 +33,7 @@ export function scoreColors(score: number | null) {
 }
 
 export function scoreBadge(score: number | null): React.ReactNode {
-  if (score === null || score === undefined) return <span style={{ color: TEXT_MUTED, fontSize: 12 }}>—</span>;
+  if (score === null || score === undefined || isNaN(score) || score === 0) return <span style={{ color: TEXT_MUTED, fontSize: 12 }}>—</span>;
   const { bg, text } = scoreColors(score);
   return (
     <span style={{
@@ -49,7 +49,7 @@ export function scoreBadge(score: number | null): React.ReactNode {
 }
 
 export function scoreBar(score: number | null, width = 72) {
-  if (score === null || score === undefined) return null;
+  if (score === null || score === undefined || isNaN(score) || score === 0) return null;
   const pct = Math.min((score / 1.1) * 100, 100);
   const { bar } = scoreColors(score);
   return (
