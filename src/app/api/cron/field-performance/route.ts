@@ -400,12 +400,31 @@ export async function POST(req: NextRequest) {
 
         const coOpps  = metrics.closeoutOpportunities ?? 0;
         const coCount = metrics.closeouts ?? 0;
-        const coPct   = coOpps > 0 ? coCount / coOpps : null;
-
-        // CB Rate from DB window (60-120 days ago), min 10 jobs like Excel
         const cbJobs  = metrics.callbacks ?? 0;
         const cbCount = metrics.callbackCount ?? 0;
-        const cbRate  = cbJobs >= 10 ? cbCount / cbJobs : null;
+
+        // Fetch prior week as fallback (Excel: if <5 CO jobs use prior week, if <10 CB jobs use prior week)
+        const priorWeek = await prisma.techWeek.findFirst({
+          where: { techId: tech.techId, weekEnd: { lt: weekEnd } },
+          orderBy: { weekEnd: 'desc' },
+          select: { closeOutPct: true, callbackRate: true },
+        });
+
+        // CO%: use calculated if ≥5 jobs, else fall back to prior week (Excel rule: AE<5)
+        let coPct: number | null = null;
+        if (coOpps >= 5) {
+          coPct = coCount / coOpps;
+        } else if (priorWeek?.closeOutPct != null) {
+          coPct = priorWeek.closeOutPct; // carry forward prior week
+        }
+
+        // CB Rate: use calculated if ≥10 jobs, else fall back to prior week (Excel rule: AG<10)
+        let cbRate: number | null = null;
+        if (cbJobs >= 10) {
+          cbRate = cbCount / cbJobs;
+        } else if (priorWeek?.callbackRate != null) {
+          cbRate = priorWeek.callbackRate; // carry forward prior week
+        }
 
         const existing = await prisma.techWeek.findUnique({
           where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
