@@ -445,7 +445,7 @@ model TcAppointment {
   office          String?
 
   // CO logic
-  isCoJob         Boolean   @default(false)   // Col J
+  isCoJob         Boolean?  @default(false)   // Col J
   apptStatus      String?   @default("completed") // 'completed' or 'pending'
 
   // Populated as future appointments come in (updated over time)
