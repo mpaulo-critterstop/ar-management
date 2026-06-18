@@ -282,6 +282,7 @@ export async function GET(req: NextRequest) {
           if (String(a.status) === '1') return parseInt(a.servicedBy || a.employeeID || '0');
           return routeToEmpId.get(String(a.routeID)) || parseInt(a.assignedTech || '0');
         }).filter(Boolean))];
+        log.push(`  EmpIds to fetch: ${empIds.join(',')}, routeToEmpId size: ${routeToEmpId.size}`);
         if (empIds.length > 0) {
           const empData = await fetchInBatches('employee', 'get', 'employeeIDs', empIds, cfg.key, cfg.token);
           for (const e of empData) {
