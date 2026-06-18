@@ -323,6 +323,9 @@ export async function GET(req: NextRequest) {
           : (routeToEmpId.get(String(appt.routeID)) || parseInt(appt.assignedTech || '0'));
         const techNameFromFR = employeeMap.get(empId) || '';
         const tech = frEmpToTech.get(empId) || nameToTech.get(techNameFromFR.toLowerCase());
+        if (apptStatus === 'pending') {
+          log.push(`  Pending appt ${frApptId}: routeID=${appt.routeID}, empId=${empId}, techNameFromFR=${techNameFromFR}, tech=${tech?.techId || 'NOT FOUND'}`);
+        }
         const customerName = customerMap.get(custId) || '';
         const jobTitle = serviceTypeMap.get(typeId) || String(typeId);
 
