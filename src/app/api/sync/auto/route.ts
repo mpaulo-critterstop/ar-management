@@ -454,8 +454,7 @@ async function syncInvoices(
         }
         console.log(`[${office}] invoiceDate+dateUpdated loop complete: created=${created}, updated=${updated}, errors=${errors}`);
   return { created, updated, errors };
-    } 
-    else {
+    } else {
       // Regular incremental — dateUpdated filter
       const searchData = await frFetch('ticket/search', `dateUpdated=${dateFrom}`, key, token);
       if (!searchData.success) throw new Error('Ticket search failed');
