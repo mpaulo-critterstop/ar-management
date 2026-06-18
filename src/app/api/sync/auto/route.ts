@@ -314,13 +314,41 @@ async function syncInvoices(
     const dateTo = toDate || new Date().toISOString().split('T')[0];
     console.log(`[${office}] Incremental sync from: ${dateFrom} to: ${dateTo}`);
 
-    if (fromDate) {
-      // Day-by-day invoiceDate loop — process each day immediately to save memory
-      let current = new Date(dateFrom);
-      const end = new Date(dateTo);
-      while (current <= end) {
-        const dateStr = current.toISOString().split('T')[0];
-        const searchData = await frFetch('ticket/search', `invoiceDate=${dateStr}`, key, token);
+   if (fromDate) {
+  // Collect all IDs — both by invoiceDate AND dateUpdated to catch modified old invoices
+  const idSet = new Set<number>();
+
+  // Pass 1: day-by-day invoiceDate loop (catches new invoices)
+  let current = new Date(dateFrom);
+  const end = new Date(dateTo);
+  while (current <= end) {
+    const dateStr = current.toISOString().split('T')[0];
+    const searchData = await frFetch('ticket/search', `invoiceDate=${dateStr}`, key, token);
+    if (searchData.success && searchData.ticketIDs) {
+      searchData.ticketIDs.forEach((id: number) => idSet.add(id));
+    }
+    current.setDate(current.getDate() + 1);
+    await new Promise(r => setTimeout(r, 150));
+  }
+
+  // Pass 2: dateUpdated loop (catches old invoices modified recently)
+  let current2 = new Date(dateFrom);
+  while (current2 <= end) {
+    const dateStr = current2.toISOString().split('T')[0];
+    const searchData = await frFetch('ticket/search', `dateUpdated=${dateStr}`, key, token);
+    if (searchData.success && searchData.ticketIDs) {
+      searchData.ticketIDs.forEach((id: number) => idSet.add(id));
+    }
+    current2.setDate(current2.getDate() + 1);
+    await new Promise(r => setTimeout(r, 150));
+  }
+
+  console.log(`[${office}] Total unique IDs (invoiceDate + dateUpdated): ${idSet.size}`);
+  const allDayIds = Array.from(idSet);
+  const dayTickets = await fetchInBatches('ticket/get', 'ticketIDs', allDayIds, key, token);
+
+  for (const t of dayTickets) {
+    try {
         if (searchData.success && searchData.ticketIDs && searchData.ticketIDs.length > 0) {
           const dayIds = searchData.ticketIDs as number[];
           const dayTickets = await fetchInBatches('ticket/get', 'ticketIDs', dayIds, key, token);
