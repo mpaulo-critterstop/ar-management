@@ -325,6 +325,7 @@ export async function POST(req: NextRequest) {
     // Load bouncie device → tech mappings
     const bouncieDevices = await prisma.bouncieDevice.findMany({
       include: { technician: true },
+      where: { technician: { status: 'ACTIVE' } },
     });
     const imeiToTech = new Map(bouncieDevices.map(d => [d.deviceId!, d.technician]));
     const nameToTech = new Map(bouncieDevices.map(d => [d.bouncieName.toLowerCase(), d.technician]));
@@ -343,8 +344,8 @@ export async function POST(req: NextRequest) {
       const imei: string = vehicle.imei;
       const nickName: string = (vehicle.nickName || '').toLowerCase();
 
-      let tech = imeiToTech.get(imei);
-      if (!tech) tech = nameToTech.get(nickName);
+      let tech = imeiToTech.get(imei) as any;
+      if (!tech) tech = nameToTech.get(nickName) as any;
       if (!tech) continue;
 
       // Fetch trips for the week with geojson GPS
