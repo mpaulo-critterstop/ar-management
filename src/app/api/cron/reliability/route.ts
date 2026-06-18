@@ -339,6 +339,25 @@ export async function POST(req: NextRequest) {
 
     log.push(`Business locations: ${BUSINESS_LOCATIONS.length}, Geocoded customers: ${customers.length}`);
 
+    // Load per-tech route customer cache (pre-fetched by /api/field-performance/routeCustomers)
+    // Falls back to all 32k customers if cache not found for a tech
+    const techRouteCoords = new Map<string, Array<{ lat: number; lng: number }>>();
+    for (const officeName of Object.keys(FR_OFFICES)) {
+      const cacheKey = `rc_customers_${officeName}_${weekEnd.toISOString().split('T')[0]}`;
+      try {
+        const cached = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
+        if (cached?.value) {
+          const map: Record<string, Array<{ lat: number; lng: number }>> = JSON.parse(cached.value);
+          for (const [techId, coords] of Object.entries(map)) {
+            techRouteCoords.set(techId, coords);
+          }
+          log.push(`Loaded route customer cache for ${officeName}: ${Object.keys(map).length} techs`);
+        }
+      } catch (e: any) {
+        log.push(`Route cache load error for ${officeName}: ${e.message}`);
+      }
+    }
+
     // Process each vehicle
     for (const vehicle of vehicles) {
       const imei: string = vehicle.imei;
@@ -371,6 +390,13 @@ export async function POST(req: NextRequest) {
 
       // Sort trips by start time
       trips.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+      // Use route-specific customer coords if available, else fall back to all 32k
+      const routeCoords = techRouteCoords.get(tech.techId);
+      const matchCoords = routeCoords && routeCoords.length > 0 ? routeCoords : customerCoords;
+      if (routeCoords && routeCoords.length > 0) {
+        log.push(`  ${tech.name}: using ${routeCoords.length} route customers`);
+      }
 
       // Group trips by day (using tech's timezone — Central time for all)
       const timeZone = 'America/Chicago';
@@ -427,7 +453,7 @@ export async function POST(req: NextRequest) {
           // ── START OF DAY: first trip end at a known location ──
           if (startOfDay === null) {
             const bizCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
-            const custCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, customerCoords);
+            const custCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, matchCoords);
             const isKnown = bizCheck.match || custCheck;
 
             // Skip short trips ONLY if the endpoint is unknown (likely home/driveway movement)
@@ -449,7 +475,7 @@ export async function POST(req: NextRequest) {
 
           // ── END OF DAY: last trip start from a known location ──
           const bizStartCheck = isBusinessLocation(endpoints.startLat, endpoints.startLng);
-          const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, customerCoords);
+          const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, matchCoords);
           if (bizStartCheck.match || custStartCheck) {
             endOfDay = tripStart;
           }
