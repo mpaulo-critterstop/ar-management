@@ -107,7 +107,8 @@ async function fetchInBatches(
 async function syncCustomers(
   office: string,
   key: string,
-  token: string
+  token: string,
+  fromDate?: string
 ): Promise<{ created: number; updated: number; errors: number }> {
   let created = 0, updated = 0, errors = 0;
 
