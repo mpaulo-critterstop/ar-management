@@ -636,12 +636,13 @@ export async function POST(req: NextRequest) {
 
         log.push(`  ${officeName}: ${allAppts.length} total appts, ${completed.length} with times for FR fallback techs`);
 
-        // Group by tech then by day
+        // Group by tech then by day (CST timezone)
         const techDayAppts = new Map<number, Map<string, any[]>>();
         const timeZone = 'America/Chicago';
         for (const appt of completed) {
           const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
           const timeIn = appt.timeIn || appt.checkIn;
+          // FR times are UTC strings — convert to CST local date for grouping
           const localDate = new Date(timeIn).toLocaleDateString('en-CA', { timeZone });
           if (!techDayAppts.has(empId)) techDayAppts.set(empId, new Map());
           const dayMap = techDayAppts.get(empId)!;
@@ -668,14 +669,17 @@ export async function POST(req: NextRequest) {
             const dateObj = new Date(dateStr + 'T12:00:00.000Z');
 
             // Calculate minutes late
+            // FR timeIn/timeOut are in UTC; scheduled start is local CST (UTC-5 in summer)
             const scheduledStart = tech.startTime || '7:00 AM';
             const [timePart, period] = scheduledStart.split(' ');
             const [h, m] = timePart.split(':').map(Number);
             let scheduledHour = h;
             if (period === 'PM' && h !== 12) scheduledHour += 12;
             if (period === 'AM' && h === 12) scheduledHour = 0;
-            const scheduledDate = new Date(dateStr + 'T00:00:00');
-            scheduledDate.setHours(scheduledHour, m || 0, 0, 0);
+            // Convert CST to UTC by adding 5 hours
+            const scheduledUTCHour = scheduledHour + 5;
+            const scheduledDate = new Date(dateStr + 'T00:00:00.000Z');
+            scheduledDate.setUTCHours(scheduledUTCHour, m || 0, 0, 0);
             const minutesLate = (startOfDay.getTime() - scheduledDate.getTime()) / 60000;
 
             const hrsWorked = (endOfDay.getTime() - startOfDay.getTime()) / (1000 * 60 * 60);
