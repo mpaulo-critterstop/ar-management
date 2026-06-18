@@ -369,6 +369,58 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      // Fetch this tech's FR routes for the week to narrow customer matching
+      let techCustomerCoords: Array<{ lat: number; lng: number }> = [];
+      try {
+        if (tech.frEmployeeId) {
+          const cfg = FR_OFFICES[tech.office];
+          if (cfg) {
+            const routeSearchUrl = frUrl('route', 'search', {
+              officeIDs: String(cfg.officeId),
+              dateStart: fmtDate(weekStart),
+              dateEnd: fmtDate(weekEnd),
+              employeeID: String(tech.frEmployeeId),
+            }, cfg.key, cfg.token);
+            const routeData = await frFetch(routeSearchUrl);
+            const routeIds: number[] = routeData.routeIDs || [];
+
+            if (routeIds.length > 0) {
+              // Fetch appointments for these routes
+              const routeUrl = frUrl('route', 'get', { routeIDs: routeIds.join(',') }, cfg.key, cfg.token);
+              const routeDetails = await frFetch(routeUrl);
+              const routes = routeDetails.routes || [];
+              const apptIds: number[] = routes.flatMap((r: any) => r.appointmentIDs || []);
+
+              if (apptIds.length > 0) {
+                // Fetch appointment lat/lng from DB (geocoded customers)
+                const apptData = await frFetch(frUrl('appointment', 'get', { appointmentIDs: apptIds.slice(0, 200).join(',') }, cfg.key, cfg.token));
+                const appts = apptData.appointments || [];
+                const custIds = [...new Set(appts.map((a: any) => String(a.customerID)).filter(Boolean))];
+
+                if (custIds.length > 0) {
+                  const routeCustomers = await prisma.customer.findMany({
+                    where: { externalId: { in: custIds }, lat: { not: null }, lng: { not: null } },
+                    select: { lat: true, lng: true },
+                  });
+                  techCustomerCoords = routeCustomers.map(c => ({ lat: c.lat!, lng: c.lng! }));
+                }
+              }
+            }
+          }
+        }
+      } catch (e: any) {
+        // Fall back to all customers if route fetch fails
+        techCustomerCoords = customerCoords;
+        log.push(`  ${tech.name}: route customer fetch failed, using all customers`);
+      }
+
+      // Use route-specific customers if we got them, otherwise fall back to all
+      const matchCoords = techCustomerCoords.length > 0 ? techCustomerCoords : customerCoords;
+      if (techCustomerCoords.length > 0) {
+        log.push(`  ${tech.name}: matching against ${techCustomerCoords.length} route customers`);
+
+      }
+
       // Sort trips by start time
       trips.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
@@ -427,7 +479,7 @@ export async function POST(req: NextRequest) {
           // ── START OF DAY: first trip end at a known location ──
           if (startOfDay === null) {
             const bizCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
-            const custCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, customerCoords);
+            const custCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, matchCoords);
             const isKnown = bizCheck.match || custCheck;
 
             // Skip short trips ONLY if the endpoint is unknown (likely home/driveway movement)
@@ -449,7 +501,7 @@ export async function POST(req: NextRequest) {
 
           // ── END OF DAY: last trip start from a known location ──
           const bizStartCheck = isBusinessLocation(endpoints.startLat, endpoints.startLng);
-          const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, customerCoords);
+          const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, matchCoords);
           if (bizStartCheck.match || custStartCheck) {
             endOfDay = tripStart;
           }
