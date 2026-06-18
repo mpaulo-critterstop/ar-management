@@ -782,5 +782,8 @@ export async function GET(req: NextRequest) {
   }
   const weekEnd = searchParams.get('weekEnd');
   const body = weekEnd ? JSON.stringify({ weekEnd }) : '{}';
-  return POST(new NextRequest(req.url, { method: 'POST', headers: req.headers, body }));
+  const headers = new Headers(req.headers);
+  headers.set('Content-Type', 'application/json');
+  headers.set('authorization', `Bearer ${process.env.CRON_SECRET}`);
+  return POST(new NextRequest(req.url, { method: 'POST', headers, body }));
 }
