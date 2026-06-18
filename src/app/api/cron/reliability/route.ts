@@ -379,21 +379,24 @@ export async function POST(req: NextRequest) {
               officeIDs: String(cfg.officeId),
               dateStart: fmtDate(weekStart),
               dateEnd: fmtDate(weekEnd),
-              employeeID: String(tech.frEmployeeId),
             }, cfg.key, cfg.token);
             const routeData = await frFetch(routeSearchUrl);
-            const routeIds: number[] = routeData.routeIDs || [];
+            const allRouteIds: number[] = routeData.routeIDs || [];
 
-            if (routeIds.length > 0) {
-              // Fetch appointments for these routes
-              const routeUrl = frUrl('route', 'get', { routeIDs: routeIds.join(',') }, cfg.key, cfg.token);
+            if (allRouteIds.length > 0) {
+              // Fetch route details and filter by assignedTech
+              const routeUrl = frUrl('route', 'get', { routeIDs: allRouteIds.slice(0, 100).join(',') }, cfg.key, cfg.token);
               const routeDetails = await frFetch(routeUrl);
               const routes = routeDetails.routes || [];
-              const apptIds: number[] = routes.flatMap((r: any) => r.appointmentIDs || []);
+              // Filter to this tech's routes
+              const techRoutes = routes.filter((r: any) =>
+                parseInt(r.assignedTech || r.technicianID || '0') === tech.frEmployeeId
+              );
+              const apptIds: number[] = techRoutes.flatMap((r: any) => r.appointmentIDs || []);
 
               if (apptIds.length > 0) {
-                // Fetch appointment lat/lng from DB (geocoded customers)
-                const apptData = await frFetch(frUrl('appointment', 'get', { appointmentIDs: apptIds.slice(0, 200).join(',') }, cfg.key, cfg.token));
+                const apptUrl = frUrl('appointment', 'get', { appointmentIDs: apptIds.slice(0, 200).join(',') }, cfg.key, cfg.token);
+                const apptData = await frFetch(apptUrl);
                 const appts = apptData.appointments || [];
                 const custIds: string[] = [...new Set<string>(appts.map((a: any) => String(a.customerID)).filter((id: string) => !!id))];
 
@@ -409,9 +412,8 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (e: any) {
-        // Fall back to all customers if route fetch fails
         techCustomerCoords = customerCoords;
-        log.push(`  ${tech.name}: route customer fetch failed, using all customers`);
+        log.push(`  ${tech.name}: route customer fetch failed (${e.message}), using all customers`);
       }
 
       // Use route-specific customers if we got them, otherwise fall back to all
