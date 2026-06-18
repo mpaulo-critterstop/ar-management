@@ -647,7 +647,7 @@ export async function POST(req: NextRequest) {
 
         // Process each tech
         for (const [empId, dayMap] of techDayAppts) {
-          const tech = frIdToTech.get(empId);
+          const tech = frIdToTech.get(empId) as any;
           if (!tech) continue;
 
           let workDays = 0;
