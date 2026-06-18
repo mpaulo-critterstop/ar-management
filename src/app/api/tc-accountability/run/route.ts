@@ -161,7 +161,8 @@ export async function GET(req: NextRequest) {
         return (String(a.status) === '1' || String(a.status) === '0') && TC_SERVICE_IDS.has(typeId);
       });
 
-      log.push(`  Total completed+pending: ${allAppts.length}, relevant: ${relevant.length}`);
+      const pendingSample = relevant.find((a: any) => String(a.status) === '0');
+      if (pendingSample) log.push(`  Pending sample: servicedBy=${pendingSample.servicedBy}, assignedTech=${pendingSample.assignedTech}`);
       if (relevant.length > 0) log.push(`  Sample employeeID: ${relevant[0].employeeID}`);
 
       // Get all future appointments for customers in this batch to compute forward-looking fields
@@ -299,7 +300,9 @@ export async function GET(req: NextRequest) {
         const frApptId = String(appt.appointmentID || appt.id);
         const apptStatus = String(appt.status) === '1' ? 'completed' : 'pending';
         // Use servicedBy for completed, assignedTech for pending
-        const empId = parseInt(appt.servicedBy || appt.assignedTech || appt.employeeID || '0');
+        const empId = apptStatus === 'completed'
+          ? parseInt(appt.servicedBy || appt.assignedTech || appt.employeeID || '0')
+          : parseInt(appt.assignedTech || appt.servicedBy || appt.employeeID || '0');
         const techNameFromFR = employeeMap.get(empId) || '';
         const tech = frEmpToTech.get(empId) || nameToTech.get(techNameFromFR.toLowerCase());
         const customerName = customerMap.get(custId) || '';
