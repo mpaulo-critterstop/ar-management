@@ -111,10 +111,10 @@ async function syncCustomers(
 ): Promise<{ created: number; updated: number; errors: number }> {
   let created = 0, updated = 0, errors = 0;
 
-  const searchData = await frFetch('customer/search', '', key, token);
-  if (!searchData.success) throw new Error('Customer search failed');
-
-  const allIds: number[] = searchData.customerIDs || [];
+  const searchParams = fromDate ? `dateUpdated=${fromDate}` : '';
+const searchData = await frFetch('customer/search', searchParams, key, token);
+if (!searchData.success) throw new Error('Customer search failed');
+const allIds: number[] = searchData.customerIDs || [];
 
   const existing = await prisma.customer.findMany({
     where: { office, externalId: { not: null } },
