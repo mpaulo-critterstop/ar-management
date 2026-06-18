@@ -409,8 +409,9 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // Use pre-fetched route-specific customers if available, else fall back to all
-      const routeCoords = techRouteCustomers.get(tech.techId);
+      // Use pre-fetched route-specific customers only for WP techs (tc_appointments only has WP data)
+      // PMP/IP techs fall back to all 32k customers
+      const routeCoords = tech.team === 'WP' ? techRouteCustomers.get(tech.techId) : undefined;
       const matchCoords = routeCoords && routeCoords.length > 0 ? routeCoords : customerCoords;
       if (routeCoords && routeCoords.length > 0) {
         log.push(`  ${tech.name}: matching against ${routeCoords.length} route customers`);
