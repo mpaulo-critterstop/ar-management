@@ -583,6 +583,9 @@ export async function POST(req: NextRequest) {
 
     log.push(`\nFR fallback: ${techsWithoutBouncie.length} techs without Bouncie`);
 
+    // Wait for FR rate limit to reset before making more FR calls
+    await new Promise(r => setTimeout(r, 5000));
+
     // Group by office to minimize API calls
     const officeGroups = new Map<string, typeof techsWithoutBouncie>();
     for (const tech of techsWithoutBouncie) {
