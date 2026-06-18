@@ -385,13 +385,10 @@ export async function POST(req: NextRequest) {
         ? await pullWPMetrics(cfg, weekStart, weekEnd, wpTechs)
         : new Map();
 
-      // ── PMP DATA ──
-      const [pmpRoutes, pmpReservices] = await Promise.all([
-        pmpTechs.size > 0 ? pullRouteReporting(cfg, weekStart, weekEnd, pmpTechs) : Promise.resolve(new Map()),
-        pmpTechs.size > 0 ? pullReservices(cfg, weekStart, weekEnd, pmpTechs) : Promise.resolve(new Map()),
-      ]);
+      // ── PMP DATA ── (skipped - PMP is handled by /week, /thirtyDayA, /thirtyDayB, /run endpoints)
+      // Do not pull or overwrite PMP data here to avoid corrupting completion%, revEff, reservice
 
-      log.push(`WP techs with data: ${wpMetrics.size}, PMP techs with route data: ${pmpRoutes.size}, pmpTechs map size: ${pmpTechs.size}`);
+      log.push(`WP techs with data: ${wpMetrics.size}`);
 
       // ── UPSERT WP ──
       for (const tech of officeTechs.filter(t => t.team === 'WP')) {
@@ -472,66 +469,7 @@ export async function POST(req: NextRequest) {
         log.push(`  ${tech.techId} ${tech.name}: CO=${coPct !== null ? (coPct*100).toFixed(0)+'%' : '—'} (${coCount}/${coOpps}), CB=${cbRate !== null ? (cbRate*100).toFixed(1)+'%' : '—'}`);
       }
 
-      // ── UPSERT PMP ──
-      for (const tech of officeTechs.filter(t => t.team === 'PMP')) {
-        const routes    = pmpRoutes.get(tech.techId);
-        const resvCount = pmpReservices.get(tech.techId) ?? 0;
-        if (!routes) continue;
-
-        const completionPct    = routes.totalScheduled > 0 ? routes.completed / routes.totalScheduled : null;
-        const stdDays          = tech.hrDays === 10 ? 4 : 5;
-        const revenueEff       = routes.productionValue > 0
-          ? Math.min(routes.productionValue / (stdDays * PROD_STANDARD_PER_DAY), 1.1)
-          : null;
-        const reseviceRate     = routes.completed > 0 ? resvCount / routes.completed : 0;
-
-        const existing = await prisma.techWeek.findUnique({
-          where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
-        });
-
-        const updateData: any = {
-          completionPct,
-          revenueEfficiency: revenueEff,
-          productionValue:   routes.productionValue,
-          reseviceRate,
-          updatedAt: new Date(),
-        };
-
-        if (revenueEff !== null && completionPct !== null &&
-            existing?.drivingScore && existing?.reliabilityScore) {
-          const pmpScore = calcPMPScore(revenueEff, reseviceRate, completionPct, existing.drivingScore, existing.reliabilityScore);
-          updateData.pmpScore   = pmpScore;
-          updateData.totalScore = pmpScore + (existing.manualAdj ?? 0);
-        }
-
-        if (existing) {
-          await prisma.techWeek.update({
-            where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
-            data: updateData,
-          });
-        } else {
-          await prisma.techWeek.create({
-            data: {
-              id: crypto.randomUUID(),
-              technicianId: tech.id,
-              techId: tech.techId,
-              weekEnd,
-              office: tech.office,
-              team: tech.team,
-              siteLeader:        tech.siteLeader,
-              crewLeader:        tech.crewLeader,
-              completionPct,
-              revenueEfficiency: revenueEff,
-              productionValue:   routes.productionValue,
-              reseviceRate,
-              manualAdj: 0,
-            },
-          });
-        }
-
-        updated++;
-        log.push(`  ${tech.techId} ${tech.name}: completion=${completionPct !== null ? (completionPct*100).toFixed(0)+'%' : '—'}, revEff=${revenueEff?.toFixed(2) ?? '—'}, reservice=${(reseviceRate*100).toFixed(1)}%`);
-      }
+      // PMP upsert removed — PMP metrics are handled by /week, /thirtyDayA, /thirtyDayB, /run endpoints
 
     } catch (e: any) {
       const msg = `${officeName} error: ${e.message}`;
