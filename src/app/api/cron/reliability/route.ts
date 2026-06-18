@@ -635,11 +635,6 @@ export async function POST(req: NextRequest) {
         );
 
         log.push(`  ${officeName}: ${allAppts.length} total appts, ${completed.length} with times for FR fallback techs`);
-        // Debug: show sample timeIn and checkIn values
-        if (completed.length > 0) {
-          const s = completed[0];
-          log.push(`  Sample timeIn: ${s.timeIn}, checkIn: ${s.checkIn}, timeOut: ${s.timeOut}, checkOut: ${s.checkOut}`);
-        }
 
         // Group by tech then by day (FR checkIn is actual check-in time, CST local string)
         const techDayAppts = new Map<number, Map<string, any[]>>();
