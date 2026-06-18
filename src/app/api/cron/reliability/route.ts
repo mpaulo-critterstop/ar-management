@@ -395,7 +395,7 @@ export async function POST(req: NextRequest) {
                 // Fetch appointment lat/lng from DB (geocoded customers)
                 const apptData = await frFetch(frUrl('appointment', 'get', { appointmentIDs: apptIds.slice(0, 200).join(',') }, cfg.key, cfg.token));
                 const appts = apptData.appointments || [];
-                const custIds: string[] = [...new Set(appts.map((a: any) => String(a.customerID)).filter((id: string) => !!id))];
+                const custIds: string[] = [...new Set<string>(appts.map((a: any) => String(a.customerID)).filter((id: string) => !!id))];
 
                 if (custIds.length > 0) {
                   const routeCustomers = await prisma.customer.findMany({
