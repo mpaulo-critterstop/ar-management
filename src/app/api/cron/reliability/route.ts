@@ -626,10 +626,11 @@ export async function POST(req: NextRequest) {
         }
 
         // Filter to completed appointments with times, belonging to our techs
+        // Use checkIn/checkOut (actual check-in time) over timeIn/timeOut
         const completed = allAppts.filter((a: any) =>
           String(a.status) === '1' &&
-          (a.timeIn || a.checkIn) &&
-          (a.timeOut || a.checkOut) &&
+          (a.checkIn || a.timeIn) &&
+          (a.checkOut || a.timeOut) &&
           frIds.has(parseInt(a.servicedBy || a.employeeID || '0'))
         );
 
@@ -640,13 +641,13 @@ export async function POST(req: NextRequest) {
           log.push(`  Sample timeIn: ${s.timeIn}, checkIn: ${s.checkIn}, timeOut: ${s.timeOut}, checkOut: ${s.checkOut}`);
         }
 
-        // Group by tech then by day (FR times are local CST strings)
+        // Group by tech then by day (FR checkIn is actual check-in time, CST local string)
         const techDayAppts = new Map<number, Map<string, any[]>>();
         const timeZone = 'America/Chicago';
         for (const appt of completed) {
           const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
-          const timeIn = appt.timeIn || appt.checkIn;
-          // FR times are CST local strings — parse with -05:00 offset then get local date
+          const timeIn = appt.checkIn || appt.timeIn; // prefer checkIn (actual check-in time)
+          // FR times are CST local strings — parse with -05:00 offset
           const cstDate = new Date(timeIn.replace(' ', 'T') + '-05:00');
           const localDate = cstDate.toLocaleDateString('en-CA', { timeZone });
           if (!techDayAppts.has(empId)) techDayAppts.set(empId, new Map());
@@ -667,8 +668,8 @@ export async function POST(req: NextRequest) {
           for (const [dateStr, appts] of dayMap) {
             // FR times are local CST strings (no timezone suffix) — parse as CST by appending offset
             const parseCST = (s: string) => new Date(s.replace(' ', 'T') + '-05:00').getTime();
-            const timeIns = appts.map((a: any) => { const v = a.timeIn || a.checkIn; return v ? parseCST(v) : 0; }).filter(Boolean);
-            const timeOuts = appts.map((a: any) => { const v = a.timeOut || a.checkOut; return v ? parseCST(v) : 0; }).filter(Boolean);
+            const timeIns = appts.map((a: any) => { const v = a.checkIn || a.timeIn; return v ? parseCST(v) : 0; }).filter(Boolean);
+            const timeOuts = appts.map((a: any) => { const v = a.checkOut || a.timeOut; return v ? parseCST(v) : 0; }).filter(Boolean);
             if (timeIns.length === 0 || timeOuts.length === 0) continue;
 
             const startOfDay = new Date(Math.min(...timeIns));
