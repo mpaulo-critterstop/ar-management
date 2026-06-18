@@ -670,17 +670,15 @@ export async function POST(req: NextRequest) {
             const dateObj = new Date(dateStr + 'T12:00:00.000Z');
 
             // Calculate minutes late
-            // FR timeIn/timeOut are in UTC; scheduled start is local CST (UTC-5 in summer)
+            // FR timeIn/timeOut are already in local CST time (no timezone suffix)
             const scheduledStart = tech.startTime || '7:00 AM';
             const [timePart, period] = scheduledStart.split(' ');
             const [h, m] = timePart.split(':').map(Number);
             let scheduledHour = h;
             if (period === 'PM' && h !== 12) scheduledHour += 12;
             if (period === 'AM' && h === 12) scheduledHour = 0;
-            // Convert CST to UTC by adding 5 hours
-            const scheduledUTCHour = scheduledHour + 5;
-            const scheduledDate = new Date(dateStr + 'T00:00:00.000Z');
-            scheduledDate.setUTCHours(scheduledUTCHour, m || 0, 0, 0);
+            // Parse as local time by using date-only + scheduled hour
+            const scheduledDate = new Date(`${dateStr}T${String(scheduledHour).padStart(2,'0')}:${String(m || 0).padStart(2,'0')}:00`);
             const minutesLate = (startOfDay.getTime() - scheduledDate.getTime()) / 60000;
 
             const hrsWorked = (endOfDay.getTime() - startOfDay.getTime()) / (1000 * 60 * 60);
