@@ -584,7 +584,8 @@ export async function POST(req: NextRequest) {
     log.push(`\nFR fallback: ${techsWithoutBouncie.length} techs without Bouncie`);
 
     // Wait for FR rate limit to reset before making more FR calls
-    await new Promise(r => setTimeout(r, 5000));
+    log.push('Waiting 65s for FR rate limit reset...');
+    await new Promise(r => setTimeout(r, 65000));
 
     // Group by office to minimize API calls
     const officeGroups = new Map<string, typeof techsWithoutBouncie>();
@@ -610,8 +611,8 @@ export async function POST(req: NextRequest) {
         }, cfg.key, cfg.token);
         const searchData = await frFetch(searchUrl);
         const apptIds: number[] = searchData.appointmentIDs || [];
+        log.push(`  ${officeName}: FR search returned ${apptIds.length} appt IDs (success=${searchData.success}, error=${searchData.errorMessage || 'none'})`);
         if (apptIds.length === 0) {
-          log.push(`  ${officeName}: no appointments found`);
           continue;
         }
 
