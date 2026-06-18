@@ -452,11 +452,8 @@ async function syncInvoices(
             }
           }
         }
-        current.setDate(current.getDate() + 1);
-        await new Promise(r => setTimeout(r, 150));
-      }
-      console.log(`[${office}] invoiceDate loop complete: created=${created}, updated=${updated}, errors=${errors}`);
-      return { created, updated, errors };
+        console.log(`[${office}] invoiceDate+dateUpdated loop complete: created=${created}, updated=${updated}, errors=${errors}`);
+  return { created, updated, errors };
     } 
     else {
       // Regular incremental — dateUpdated filter
