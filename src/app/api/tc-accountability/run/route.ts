@@ -254,15 +254,33 @@ export async function GET(req: NextRequest) {
         log.push(`  Customer fetch error: ${e.message}`);
       }
 
+      // For pending appointments, fetch routes to get assignedTech
+      const routeToEmpId = new Map<string, number>();
+      try {
+        const pendingRouteIds = [...new Set(
+          relevant
+            .filter((a: any) => String(a.status) === '0')
+            .map((a: any) => String(a.routeID))
+            .filter((id: string) => id && id !== '0')
+        )];
+        if (pendingRouteIds.length > 0) {
+          const routeData = await fetchInBatches('route', 'get', 'routeIDs', pendingRouteIds, cfg.key, cfg.token);
+          for (const r of routeData) {
+            const empId = parseInt(r.assignedTech || '0');
+            if (empId > 0) routeToEmpId.set(String(r.routeID), empId);
+          }
+          log.push(`  Routes fetched for pending: ${pendingRouteIds.length}, mapped: ${routeToEmpId.size}`);
+        }
+      } catch (e: any) {
+        log.push(`  Route fetch error: ${e.message}`);
+      }
+
       // Fetch employee names from FR using employeeIDs
       const employeeMap = new Map<number, string>();
       try {
         const empIds = [...new Set(relevant.map((a: any) => {
-          // For completed use servicedBy, for pending use assignedTech
-          const id = String(a.status) === '1'
-            ? parseInt(a.servicedBy || a.employeeID || '0')
-            : parseInt(a.assignedTech || a.servicedBy || a.employeeID || '0');
-          return id;
+          if (String(a.status) === '1') return parseInt(a.servicedBy || a.employeeID || '0');
+          return routeToEmpId.get(String(a.routeID)) || parseInt(a.assignedTech || '0');
         }).filter(Boolean))];
         if (empIds.length > 0) {
           const empData = await fetchInBatches('employee', 'get', 'employeeIDs', empIds, cfg.key, cfg.token);
@@ -299,10 +317,9 @@ export async function GET(req: NextRequest) {
         const custId = String(appt.customerID);
         const frApptId = String(appt.appointmentID || appt.id);
         const apptStatus = String(appt.status) === '1' ? 'completed' : 'pending';
-        // Use servicedBy for completed, assignedTech for pending
         const empId = apptStatus === 'completed'
           ? parseInt(appt.servicedBy || appt.assignedTech || appt.employeeID || '0')
-          : parseInt(appt.assignedTech || appt.servicedBy || appt.employeeID || '0');
+          : (routeToEmpId.get(String(appt.routeID)) || parseInt(appt.assignedTech || '0'));
         const techNameFromFR = employeeMap.get(empId) || '';
         const tech = frEmpToTech.get(empId) || nameToTech.get(techNameFromFR.toLowerCase());
         const customerName = customerMap.get(custId) || '';
