@@ -615,7 +615,6 @@ export async function POST(req: NextRequest) {
         if (apptIds.length === 0) {
           continue;
         }
-
         // Fetch appointment details in batches
         const allAppts: any[] = [];
         for (let i = 0; i < apptIds.length; i += 100) {
@@ -635,6 +634,8 @@ export async function POST(req: NextRequest) {
         );
 
         log.push(`  ${officeName}: ${allAppts.length} total appts, ${completed.length} with times for FR fallback techs`);
+        // Debug: show sample timeIn value
+        if (completed.length > 0) log.push(`  Sample timeIn: ${completed[0].timeIn || completed[0].checkIn}`);
 
         // Group by tech then by day (CST timezone)
         const techDayAppts = new Map<number, Map<string, any[]>>();
