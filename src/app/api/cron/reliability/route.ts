@@ -339,46 +339,6 @@ export async function POST(req: NextRequest) {
 
     log.push(`Business locations: ${BUSINESS_LOCATIONS.length}, Geocoded customers: ${customers.length}`);
 
-    // Pre-build per-tech customer coord maps from tc_appointments DB (no FR API calls needed)
-    // This narrows Bouncie GPS matching to only customers on each tech's actual routes
-    const techRouteCustomers = new Map<string, Array<{ lat: number; lng: number }>>(); // techId → coords
-    try {
-      const weekAppts = await prisma.tcAppointment.findMany({
-        where: {
-          weekEnd: { gte: weekStart, lte: weekEnd },
-          customerId: { not: null },
-          techId: { not: null },
-        },
-        select: { techId: true, customerId: true },
-      });
-
-      // Group customerIds by techId
-      const techCustomerIds = new Map<string, Set<string>>();
-      for (const appt of weekAppts) {
-        if (!appt.techId || !appt.customerId) continue;
-        if (!techCustomerIds.has(appt.techId)) techCustomerIds.set(appt.techId, new Set());
-        techCustomerIds.get(appt.techId)!.add(appt.customerId);
-      }
-
-      // Fetch geocoded coords for those customers
-      const allCustIds = [...new Set(weekAppts.map(a => a.customerId).filter(Boolean) as string[])];
-      if (allCustIds.length > 0) {
-        const routeCustomers = await prisma.customer.findMany({
-          where: { externalId: { in: allCustIds }, lat: { not: null }, lng: { not: null } },
-          select: { externalId: true, lat: true, lng: true },
-        });
-        const custCoordMap = new Map(routeCustomers.map(c => [c.externalId!, { lat: c.lat!, lng: c.lng! }]));
-
-        for (const [techId, custIds] of techCustomerIds) {
-          const coords = [...custIds].map(id => custCoordMap.get(id)).filter(Boolean) as Array<{ lat: number; lng: number }>;
-          if (coords.length > 0) techRouteCustomers.set(techId, coords);
-        }
-      }
-      log.push(`Route customer pre-fetch: ${techRouteCustomers.size} techs mapped from tc_appointments`);
-    } catch (e: any) {
-      log.push(`Route customer pre-fetch error: ${e.message}`);
-    }
-
     // Process each vehicle
     for (const vehicle of vehicles) {
       const imei: string = vehicle.imei;
@@ -407,14 +367,6 @@ export async function POST(req: NextRequest) {
       if (trips.length === 0) {
         log.push(`  ${tech.name}: no trips this week`);
         continue;
-      }
-
-      // Use pre-fetched route-specific customers only for WP techs (tc_appointments only has WP data)
-      // PMP/IP techs fall back to all 32k customers
-      const routeCoords = tech.team === 'WP' ? techRouteCustomers.get(tech.techId) : undefined;
-      const matchCoords = routeCoords && routeCoords.length > 0 ? routeCoords : customerCoords;
-      if (routeCoords && routeCoords.length > 0) {
-        log.push(`  ${tech.name}: matching against ${routeCoords.length} route customers`);
       }
 
       // Sort trips by start time
@@ -475,7 +427,7 @@ export async function POST(req: NextRequest) {
           // ── START OF DAY: first trip end at a known location ──
           if (startOfDay === null) {
             const bizCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
-            const custCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, matchCoords);
+            const custCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, customerCoords);
             const isKnown = bizCheck.match || custCheck;
 
             // Skip short trips ONLY if the endpoint is unknown (likely home/driveway movement)
@@ -497,7 +449,7 @@ export async function POST(req: NextRequest) {
 
           // ── END OF DAY: last trip start from a known location ──
           const bizStartCheck = isBusinessLocation(endpoints.startLat, endpoints.startLng);
-          const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, matchCoords);
+          const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, customerCoords);
           if (bizStartCheck.match || custStartCheck) {
             endOfDay = tripStart;
           }
