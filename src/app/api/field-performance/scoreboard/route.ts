@@ -40,6 +40,8 @@ export async function GET(req: NextRequest) {
     include: { technician: { select: { name: true, techId: true, status: true } } },
   });
 
+  const totalActiveTechs = await prisma.technician.count({ where: { status: 'ACTIVE' } });
+
   const active = weeks.filter((w: any) => w.totalScore !== null && w.technician?.status === 'ACTIVE');
 
   const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
@@ -88,7 +90,7 @@ export async function GET(req: NextRequest) {
     weekEnd,
     summary: {
       avgScore: avg(scores),
-      activeTechs: active.length,
+      activeTechs: totalActiveTechs,
       avgCloseOutPct: avg(coValues),
       avgCallbackRate: avg(cbValues),
       avgReliability: avg(relValues),
