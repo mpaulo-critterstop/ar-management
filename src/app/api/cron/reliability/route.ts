@@ -637,14 +637,15 @@ export async function POST(req: NextRequest) {
         // Debug: show sample timeIn value
         if (completed.length > 0) log.push(`  Sample timeIn: ${completed[0].timeIn || completed[0].checkIn}`);
 
-        // Group by tech then by day (CST timezone)
+        // Group by tech then by day (CST timezone, FR times are UTC)
         const techDayAppts = new Map<number, Map<string, any[]>>();
         const timeZone = 'America/Chicago';
         for (const appt of completed) {
           const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
           const timeIn = appt.timeIn || appt.checkIn;
-          // FR times are UTC strings — convert to CST local date for grouping
-          const localDate = new Date(timeIn).toLocaleDateString('en-CA', { timeZone });
+          // FR times are UTC strings without Z — add Z to parse as UTC, then convert to CST date
+          const utcDate = new Date(timeIn.replace(' ', 'T') + '.000Z');
+          const localDate = utcDate.toLocaleDateString('en-CA', { timeZone });
           if (!techDayAppts.has(empId)) techDayAppts.set(empId, new Map());
           const dayMap = techDayAppts.get(empId)!;
           if (!dayMap.has(localDate)) dayMap.set(localDate, []);
@@ -661,8 +662,10 @@ export async function POST(req: NextRequest) {
           let totalUtilization = 0;
 
           for (const [dateStr, appts] of dayMap) {
-            const timeIns = appts.map((a: any) => new Date(a.timeIn || a.checkIn).getTime()).filter(Boolean);
-            const timeOuts = appts.map((a: any) => new Date(a.timeOut || a.checkOut).getTime()).filter(Boolean);
+            // FR times are UTC strings in format '2026-06-10 12:14:31' — parse as UTC
+            const parseUTC = (s: string) => new Date(s.replace(' ', 'T') + '.000Z').getTime();
+            const timeIns = appts.map((a: any) => parseUTC(a.timeIn || a.checkIn)).filter(Boolean);
+            const timeOuts = appts.map((a: any) => parseUTC(a.timeOut || a.checkOut)).filter(Boolean);
             if (timeIns.length === 0 || timeOuts.length === 0) continue;
 
             const startOfDay = new Date(Math.min(...timeIns));
@@ -670,15 +673,16 @@ export async function POST(req: NextRequest) {
             const dateObj = new Date(dateStr + 'T12:00:00.000Z');
 
             // Calculate minutes late
-            // FR timeIn/timeOut are already in local CST time (no timezone suffix)
+            // FR timeIn format: '2026-06-10 12:14:31' — this is UTC (no timezone suffix)
+            // Parse as UTC by replacing space with T and adding Z
             const scheduledStart = tech.startTime || '7:00 AM';
             const [timePart, period] = scheduledStart.split(' ');
             const [h, m] = timePart.split(':').map(Number);
             let scheduledHour = h;
             if (period === 'PM' && h !== 12) scheduledHour += 12;
             if (period === 'AM' && h === 12) scheduledHour = 0;
-            // Parse as local time by using date-only + scheduled hour
-            const scheduledDate = new Date(`${dateStr}T${String(scheduledHour).padStart(2,'0')}:${String(m || 0).padStart(2,'0')}:00`);
+            // Scheduled start in UTC = CST + 5 hours
+            const scheduledDate = new Date(`${dateStr}T${String(scheduledHour + 5).padStart(2,'0')}:${String(m || 0).padStart(2,'0')}:00.000Z`);
             const minutesLate = (startOfDay.getTime() - scheduledDate.getTime()) / 60000;
 
             const hrsWorked = (endOfDay.getTime() - startOfDay.getTime()) / (1000 * 60 * 60);
