@@ -583,177 +583,176 @@ export async function POST(req: NextRequest) {
 
     log.push(`\nFR fallback: ${techsWithoutBouncie.length} techs without Bouncie`);
 
+    // Group by office to minimize API calls
+    const officeGroups = new Map<string, typeof techsWithoutBouncie>();
     for (const tech of techsWithoutBouncie) {
-      const cfg = FR_OFFICES[tech.office];
+      if (!officeGroups.has(tech.office)) officeGroups.set(tech.office, []);
+      officeGroups.get(tech.office)!.push(tech);
+    }
+
+    for (const [officeName, officeTechs] of officeGroups) {
+      const cfg = FR_OFFICES[officeName];
       if (!cfg) continue;
 
-      // Fetch routes for the week for this tech
+      // Build frEmployeeId → tech map for this office
+      const frIdToTech = new Map(officeTechs.map(t => [t.frEmployeeId!, t]));
+      const frIds = new Set(officeTechs.map(t => t.frEmployeeId!));
+
       try {
+        // Fetch all appointments for office/week once
         const searchUrl = frUrl('appointment', 'search', {
           officeIDs: String(cfg.officeId),
           dateStart: fmtDate(weekStart),
           dateEnd: fmtDate(weekEnd),
-          employeeID: String(tech.frEmployeeId),
         }, cfg.key, cfg.token);
         const searchData = await frFetch(searchUrl);
         const apptIds: number[] = searchData.appointmentIDs || [];
         if (apptIds.length === 0) {
-          log.push(`  ${tech.name}: no FR appointments`);
+          log.push(`  ${officeName}: no appointments found`);
           continue;
         }
 
-        // Fetch appointment details
+        // Fetch appointment details in batches
         const allAppts: any[] = [];
         for (let i = 0; i < apptIds.length; i += 100) {
           const batch = apptIds.slice(i, i + 100);
           const url = frUrl('appointment', 'get', { appointmentIDs: batch.join(',') }, cfg.key, cfg.token);
           const data = await frFetch(url);
-          const appts = data.appointments || [];
-          allAppts.push(...appts);
+          allAppts.push(...(data.appointments || []));
           await new Promise(r => setTimeout(r, 300));
         }
 
-        // Filter to completed appointments with timeIn/timeOut
+        // Filter to completed appointments with times, belonging to our techs
         const completed = allAppts.filter((a: any) =>
           String(a.status) === '1' &&
           (a.timeIn || a.checkIn) &&
-          (a.timeOut || a.checkOut)
+          (a.timeOut || a.checkOut) &&
+          frIds.has(parseInt(a.servicedBy || a.employeeID || '0'))
         );
 
-        if (completed.length === 0) {
-          log.push(`  ${tech.name}: no completed appointments with times`);
-          continue;
-        }
+        log.push(`  ${officeName}: ${allAppts.length} total appts, ${completed.length} with times for FR fallback techs`);
 
-        // Group by day
+        // Group by tech then by day
+        const techDayAppts = new Map<number, Map<string, any[]>>();
         const timeZone = 'America/Chicago';
-        const byDay = new Map<string, any[]>();
         for (const appt of completed) {
+          const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
           const timeIn = appt.timeIn || appt.checkIn;
           const localDate = new Date(timeIn).toLocaleDateString('en-CA', { timeZone });
-          if (!byDay.has(localDate)) byDay.set(localDate, []);
-          byDay.get(localDate)!.push(appt);
+          if (!techDayAppts.has(empId)) techDayAppts.set(empId, new Map());
+          const dayMap = techDayAppts.get(empId)!;
+          if (!dayMap.has(localDate)) dayMap.set(localDate, []);
+          dayMap.get(localDate)!.push(appt);
         }
 
-        let workDays = 0;
-        let totalMinutesLate = 0;
-        let totalUtilization = 0;
+        // Process each tech
+        for (const [empId, dayMap] of techDayAppts) {
+          const tech = frIdToTech.get(empId);
+          if (!tech) continue;
 
-        for (const [dateStr, appts] of byDay) {
-          // Find earliest timeIn and latest timeOut
-          const timeIns = appts.map((a: any) => new Date(a.timeIn || a.checkIn).getTime()).filter(Boolean);
-          const timeOuts = appts.map((a: any) => new Date(a.timeOut || a.checkOut).getTime()).filter(Boolean);
-          if (timeIns.length === 0 || timeOuts.length === 0) continue;
+          let workDays = 0;
+          let totalMinutesLate = 0;
+          let totalUtilization = 0;
 
-          const startOfDay = new Date(Math.min(...timeIns));
-          const endOfDay = new Date(Math.max(...timeOuts));
-          const dateObj = new Date(dateStr + 'T12:00:00.000Z');
+          for (const [dateStr, appts] of dayMap) {
+            const timeIns = appts.map((a: any) => new Date(a.timeIn || a.checkIn).getTime()).filter(Boolean);
+            const timeOuts = appts.map((a: any) => new Date(a.timeOut || a.checkOut).getTime()).filter(Boolean);
+            if (timeIns.length === 0 || timeOuts.length === 0) continue;
 
-          // Calculate minutes late
-          const scheduledStart = tech.startTime || '7:00 AM';
-          const [timePart, period] = scheduledStart.split(' ');
-          const [h, m] = timePart.split(':').map(Number);
-          let scheduledHour = h;
-          if (period === 'PM' && h !== 12) scheduledHour += 12;
-          if (period === 'AM' && h === 12) scheduledHour = 0;
-          const scheduledMs = new Date(dateStr + 'T00:00:00').setHours(scheduledHour, m || 0, 0, 0);
-          const minutesLate = (startOfDay.getTime() - scheduledMs) / 60000;
+            const startOfDay = new Date(Math.min(...timeIns));
+            const endOfDay = new Date(Math.max(...timeOuts));
+            const dateObj = new Date(dateStr + 'T12:00:00.000Z');
 
-          // Utilization
-          const hrsWorked = (endOfDay.getTime() - startOfDay.getTime()) / (1000 * 60 * 60);
-          const scheduledHrs = tech.hrDays || 8;
-          const utilization = Math.min(hrsWorked / scheduledHrs, 1.2);
+            // Calculate minutes late
+            const scheduledStart = tech.startTime || '7:00 AM';
+            const [timePart, period] = scheduledStart.split(' ');
+            const [h, m] = timePart.split(':').map(Number);
+            let scheduledHour = h;
+            if (period === 'PM' && h !== 12) scheduledHour += 12;
+            if (period === 'AM' && h === 12) scheduledHour = 0;
+            const scheduledDate = new Date(dateStr + 'T00:00:00');
+            scheduledDate.setHours(scheduledHour, m || 0, 0, 0);
+            const minutesLate = (startOfDay.getTime() - scheduledDate.getTime()) / 60000;
 
-          totalMinutesLate += minutesLate;
-          totalUtilization += utilization;
-          workDays++;
+            const hrsWorked = (endOfDay.getTime() - startOfDay.getTime()) / (1000 * 60 * 60);
+            const scheduledHrs = tech.hrDays || 8;
+            const utilization = Math.min(hrsWorked / scheduledHrs, 1.2);
 
-          // Upsert attendance
-          await prisma.techDayAttendance.upsert({
-            where: { techId_date: { techId: tech.techId, date: dateObj } },
-            update: {
-              startTime: startOfDay,
-              finishTime: endOfDay,
-              minutesLate,
-              hrsWorked,
-              weekEnd,
-              status: 'WORKED',
-              updatedAt: new Date(),
-            },
-            create: {
-              id: crypto.randomUUID(),
-              technicianId: tech.id,
-              techId: tech.techId,
-              date: dateObj,
-              weekEnd,
-              office: tech.office,
-              team: tech.team,
-              routeStartTime: tech.startTime,
-              scheduledHrs,
-              startTime: startOfDay,
-              finishTime: endOfDay,
-              minutesLate,
-              hrsWorked,
-              status: 'WORKED',
-            },
-          });
-        }
+            totalMinutesLate += minutesLate;
+            totalUtilization += utilization;
+            workDays++;
 
-        if (workDays === 0) {
-          log.push(`  ${tech.name}: no valid work days from FR`);
-          continue;
-        }
-
-        const avgMinutesLate = totalMinutesLate / workDays;
-        const avgUtilization = totalUtilization / workDays;
-        const reliabilityScore = calcReliability(avgMinutesLate, avgUtilization);
-
-        log.push(`  ${tech.name} (FR): reliability=${reliabilityScore.toFixed(3)}, avgLate=${avgMinutesLate.toFixed(1)}min, workDays=${workDays}`);
-
-        // Upsert TechWeek reliability
-        const existing = await prisma.techWeek.findUnique({
-          where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
-        });
-
-        const updateData: any = {
-          reliabilityScore,
-          minutesLate: avgMinutesLate,
-          utilization: avgUtilization,
-          updatedAt: new Date(),
-        };
-
-        if (existing?.drivingScore !== null && existing?.drivingScore !== undefined) {
-          const drv = existing.drivingScore;
-          if (tech.team === 'PMP' && existing.revenueEfficiency !== null && existing.reseviceRate !== null && existing.completionPct !== null) {
-            const s = calcPMPScore(existing.revenueEfficiency, existing.reseviceRate, existing.completionPct, drv, reliabilityScore);
-            updateData.pmpScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0);
+            await prisma.techDayAttendance.upsert({
+              where: { techId_date: { techId: tech.techId, date: dateObj } },
+              update: { startTime: startOfDay, finishTime: endOfDay, minutesLate, hrsWorked, weekEnd, status: 'WORKED', updatedAt: new Date() },
+              create: {
+                id: crypto.randomUUID(),
+                technicianId: tech.id,
+                techId: tech.techId,
+                date: dateObj,
+                weekEnd,
+                office: tech.office,
+                team: tech.team,
+                routeStartTime: tech.startTime,
+                scheduledHrs,
+                startTime: startOfDay,
+                finishTime: endOfDay,
+                minutesLate,
+                hrsWorked,
+                status: 'WORKED',
+              },
+            });
           }
-        }
 
-        if (existing) {
-          await prisma.techWeek.update({ where: { techId_weekEnd: { techId: tech.techId, weekEnd } }, data: updateData });
-        } else {
-          await prisma.techWeek.create({
-            data: {
-              id: crypto.randomUUID(),
-              technicianId: tech.id,
-              techId: tech.techId,
-              weekEnd,
-              office: tech.office,
-              team: tech.team,
-              siteLeader: tech.siteLeader,
-              crewLeader: tech.crewLeader,
-              reliabilityScore,
-              minutesLate: avgMinutesLate,
-              utilization: avgUtilization,
-              manualAdj: 0,
-            },
+          if (workDays === 0) {
+            log.push(`  ${tech.name}: no valid work days from FR`);
+            continue;
+          }
+
+          const avgMinutesLate = totalMinutesLate / workDays;
+          const avgUtilization = totalUtilization / workDays;
+          const reliabilityScore = calcReliability(avgMinutesLate, avgUtilization);
+
+          log.push(`  ${tech.name} (FR): reliability=${reliabilityScore.toFixed(3)}, avgLate=${avgMinutesLate.toFixed(1)}min, workDays=${workDays}`);
+
+          const existing = await prisma.techWeek.findUnique({
+            where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
           });
-        }
 
-        updated++;
+          const updateData: any = { reliabilityScore, minutesLate: avgMinutesLate, utilization: avgUtilization, updatedAt: new Date() };
+
+          if (existing?.drivingScore !== null && existing?.drivingScore !== undefined) {
+            const drv = existing.drivingScore;
+            if (tech.team === 'PMP' && existing.revenueEfficiency !== null && existing.reseviceRate !== null && existing.completionPct !== null) {
+              const s = calcPMPScore(existing.revenueEfficiency, existing.reseviceRate, existing.completionPct, drv, reliabilityScore);
+              updateData.pmpScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0);
+            }
+          }
+
+          if (existing) {
+            await prisma.techWeek.update({ where: { techId_weekEnd: { techId: tech.techId, weekEnd } }, data: updateData });
+          } else {
+            await prisma.techWeek.create({
+              data: {
+                id: crypto.randomUUID(),
+                technicianId: tech.id,
+                techId: tech.techId,
+                weekEnd,
+                office: tech.office,
+                team: tech.team,
+                siteLeader: tech.siteLeader,
+                crewLeader: tech.crewLeader,
+                reliabilityScore,
+                minutesLate: avgMinutesLate,
+                utilization: avgUtilization,
+                manualAdj: 0,
+              },
+            });
+          }
+          updated++;
+        }
       } catch (e: any) {
-        log.push(`  ${tech.name} FR fallback error: ${e.message}`);
+        log.push(`  ${officeName} FR fallback error: ${e.message}`);
       }
     }
 
