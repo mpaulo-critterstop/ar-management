@@ -381,10 +381,9 @@ export async function POST(req: NextRequest) {
 
     try {
       // ── WP DATA ──
-      const [wpMetrics, wpCallbacks] = await Promise.all([
-        wpTechs.size > 0 ? pullWPMetrics(cfg, weekStart, weekEnd, wpTechs) : Promise.resolve(new Map()),
-        wpTechs.size > 0 ? pullWPCallbackRate(cfg, weekEnd, wpTechs) : Promise.resolve(new Map()),
-      ]);
+      const wpMetrics = wpTechs.size > 0
+        ? await pullWPMetrics(cfg, weekStart, weekEnd, wpTechs)
+        : new Map();
 
       // ── PMP DATA ──
       const [pmpRoutes, pmpReservices] = await Promise.all([
