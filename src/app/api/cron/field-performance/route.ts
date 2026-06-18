@@ -93,98 +93,69 @@ function getMostRecentFriday(offsetWeeks = 0): Date {
 // Callback rate = CB appointments / jobs 60-120 days ago (handled separately)
 
 interface TechWPStats {
-  closeoutOpportunities: number;
-  closeouts: number;
-  callbacks: number;       // CB appts this week (for callback rate numerator)
+  closeoutOpportunities: number;  // CO window: total jobs
+  closeouts: number;               // CO window: closed out jobs
+  callbacks: number;               // CB window: total jobs
+  callbackCount: number;           // CB window: jobs with future CBs
 }
 
 async function pullWPMetrics(
   cfg: { key: string; token: string; officeId: number },
   weekStart: Date,
   weekEnd: Date,
-  // Map of FR employeeId -> techId for WP techs in this office
   wpTechs: Map<number, string>
 ): Promise<Map<string, TechWPStats>> {
 
   const result = new Map<string, TechWPStats>();
-  const initStats = (): TechWPStats => ({ closeoutOpportunities: 0, closeouts: 0, callbacks: 0 });
+  const initStats = (): TechWPStats => ({ closeoutOpportunities: 0, closeouts: 0, callbacks: 0, callbackCount: 0 });
 
-  // Search all appointments for the week
-  const searchUrl = frUrl('appointment', 'search', {
-    officeIDs: String(cfg.officeId),
-    dateStart: fmtDate(weekStart),
-    dateEnd: fmtDate(weekEnd),
-  }, cfg.key, cfg.token);
+  // CO%: use tc_appointments from 15-45 days ago (Excel formula: AD/AE)
+  const coEnd   = new Date(weekEnd); coEnd.setDate(coEnd.getDate() - 15);
+  const coStart = new Date(weekEnd); coStart.setDate(coStart.getDate() - 45);
 
-  const searchData = await frFetch(searchUrl);
-  const apptIds: number[] = searchData.appointmentIDs || [];
-  if (apptIds.length === 0) return result;
+  // CB Rate: use tc_appointments from 60-120 days ago (Excel formula: AH/AG)
+  const cbEnd   = new Date(weekEnd); cbEnd.setDate(cbEnd.getDate() - 60);
+  const cbStart = new Date(weekEnd); cbStart.setDate(cbStart.getDate() - 120);
 
-  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+  // Build techId set for this office's WP techs
+  const wpTechIds = new Set([...wpTechs.values()]);
 
-  // Only completed appointments
-  const completed = allAppts.filter((a: any) => String(a.status) === '1');
-
-  // Group trap checks by customer to determine TC count
-  // We need ALL trap checks (not just this week) to determine TC #
-  // Use the DispatchJob table which already tracks trapCheckCount per customer
-  const customerTCCounts = new Map<string, number>();
-  const dispatchJobs = await prisma.dispatchJob.findMany({
-    where: { status: { in: ['ACTIVE', 'CLOSED'] } },
-    select: { customer: { select: { externalId: true } }, trapCheckCount: true },
+  // Fetch CO window appointments from DB
+  const coAppts = await prisma.tcAppointment.findMany({
+    where: {
+      techId: { in: [...wpTechIds] },
+      date: { gte: coStart, lte: coEnd },
+    },
+    select: { techId: true, closedOut: true, wk1CloseOut: true },
   });
-  for (const job of dispatchJobs) {
-    if (job.customer?.externalId) {
-      customerTCCounts.set(job.customer.externalId, job.trapCheckCount ?? 0);
-    }
-  }
 
-  for (const appt of completed) {
-    const empId = parseInt(appt.servicedBy || appt.employeeID || appt.technicianID || '0');
-    if (!empId || !wpTechs.has(empId)) continue;
+  // Fetch CB window appointments from DB
+  const cbAppts = await prisma.tcAppointment.findMany({
+    where: {
+      techId: { in: [...wpTechIds] },
+      date: { gte: cbStart, lte: cbEnd },
+    },
+    select: { techId: true, futureCbs: true },
+  });
 
-    const techId = wpTechs.get(empId)!;
-    const typeStr = String(appt.type || appt.serviceTypeID || '');
-    const custId = String(appt.customerID);
-
+  // Calculate CO% per tech
+  for (const appt of coAppts) {
+    const techId = appt.techId;
+    if (!techId || !wpTechIds.has(techId)) continue;
     if (!result.has(techId)) result.set(techId, initStats());
     const stats = result.get(techId)!;
+    stats.closeoutOpportunities++;
+    if (appt.closedOut || appt.wk1CloseOut) stats.closeouts++;
+  }
 
-    // ── TRAP CHECKS (TC #2+) ──
-    if (TRAP_CHECK_TYPES.has(typeStr)) {
-      const tcCount = customerTCCounts.get(custId) ?? 0;
-      if (tcCount >= 2) {
-        // This is TC #2 or later — it's a close-out opportunity
-        stats.closeoutOpportunities++;
-        if (hasCloseoutNote(appt)) stats.closeouts++;
-      }
-      // TC #1 → not a close-out opportunity, skip
-    }
-
-    // ── CALLBACKS ── (opportunity + closed out if note present)
-    else if (CALLBACK_TYPES.has(typeStr)) {
-      stats.closeoutOpportunities++;
-      stats.callbacks++;
-      if (hasCloseoutNote(appt)) stats.closeouts++;
-    }
-
-    // ── CALLBACK TRAP CHECKS ── (same logic as TC #2+)
-    else if (CALLBACK_TC_TYPES.has(typeStr)) {
-      stats.closeoutOpportunities++;
-      if (hasCloseoutNote(appt)) stats.closeouts++;
-    }
-
-    // ── ANNUAL INSPECTIONS ── (opportunity itself)
-    else if (ANNUAL_INSP_TYPES.has(typeStr)) {
-      stats.closeoutOpportunities++;
-      if (hasCloseoutNote(appt)) stats.closeouts++;
-    }
-
-    // ── ANNUAL INSPECTION TRAP CHECKS ── (same as TC #2+)
-    else if (ANNUAL_INSP_TC_TYPES.has(typeStr)) {
-      stats.closeoutOpportunities++;
-      if (hasCloseoutNote(appt)) stats.closeouts++;
-    }
+  // Calculate CB rate per tech
+  for (const appt of cbAppts) {
+    const techId = appt.techId;
+    if (!techId || !wpTechIds.has(techId)) continue;
+    if (!result.has(techId)) result.set(techId, initStats());
+    const stats = result.get(techId)!;
+    stats.callbacks++; // total jobs in CB window
+    if (appt.futureCbs && appt.futureCbs > 0) stats.callbackCount++; // jobs with future CBs
   }
 
   return result;
@@ -426,12 +397,16 @@ export async function POST(req: NextRequest) {
       // ── UPSERT WP ──
       for (const tech of officeTechs.filter(t => t.team === 'WP')) {
         const metrics = wpMetrics.get(tech.techId);
-        const cbRate  = wpCallbacks.get(tech.techId) ?? null;
-        if (!metrics && cbRate === null) continue;
+        if (!metrics) continue;
 
-        const coOpps  = metrics?.closeoutOpportunities ?? 0;
-        const coCount = metrics?.closeouts ?? 0;
+        const coOpps  = metrics.closeoutOpportunities ?? 0;
+        const coCount = metrics.closeouts ?? 0;
         const coPct   = coOpps > 0 ? coCount / coOpps : null;
+
+        // CB Rate from DB window (60-120 days ago), min 10 jobs like Excel
+        const cbJobs  = metrics.callbacks ?? 0;
+        const cbCount = metrics.callbackCount ?? 0;
+        const cbRate  = cbJobs >= 10 ? cbCount / cbJobs : null;
 
         const existing = await prisma.techWeek.findUnique({
           where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
