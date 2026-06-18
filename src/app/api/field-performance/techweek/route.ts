@@ -63,13 +63,45 @@ export async function GET(req: NextRequest) {
   if (techId) where.techId = techId;
   if (officeParam && officeParam !== 'ALL' && officeParam !== 'ADMIN') where.office = officeParam;
 
+  // Fetch all TechWeek records for the week
   const weeks = await prisma.techWeek.findMany({
     where: { ...where, technician: { status: 'ACTIVE' } },
-    include: { technician: { select: { name: true, status: true } } },
+    include: { technician: { select: { name: true, status: true, team: true, office: true } } },
     orderBy: [{ weekEnd: 'desc' }, { totalScore: 'desc' }],
   });
 
-  return NextResponse.json(weeks);
+  // Fetch all active techs not in TechWeek records
+  const techsWithWeek = new Set(weeks.map((w: any) => w.techId));
+  const techWhere: any = { status: 'ACTIVE' };
+  if (officeParam && officeParam !== 'ALL' && officeParam !== 'ADMIN') techWhere.office = officeParam;
+
+  const allActiveTechs = await prisma.technician.findMany({
+    where: techWhere,
+    select: { techId: true, name: true, team: true, office: true, status: true },
+  });
+
+  // Build stub records for techs without TechWeek entries
+  const stubWeeks = allActiveTechs
+    .filter((t: any) => !techsWithWeek.has(t.techId))
+    .map((t: any) => ({
+      id: `stub_${t.techId}`,
+      techId: t.techId,
+      weekEnd: weekParam ? new Date(weekParam) : null,
+      office: t.office,
+      team: t.team,
+      totalScore: null,
+      pmpScore: null,
+      completionPct: null,
+      productionValue: null,
+      revenueEfficiency: null,
+      reseviceRate: null,
+      drivingScore: null,
+      reliabilityScore: null,
+      manualAdj: 0,
+      technician: { name: t.name, status: t.status, team: t.team, office: t.office },
+    }));
+
+  return NextResponse.json([...weeks, ...stubWeeks]);
 }
 
 export async function POST(req: NextRequest) {
