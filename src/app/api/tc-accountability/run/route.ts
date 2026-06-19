@@ -84,6 +84,7 @@ export async function GET(req: NextRequest) {
   }
 
   const weekEndParam = new URL(req.url).searchParams.get('weekEnd');
+  const { searchParams } = new URL(req.url);
   const weekEnd = weekEndParam
     ? new Date(weekEndParam + 'T00:00:00.000Z')
     : getMostRecentFriday();
@@ -124,7 +125,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  for (const [officeName, cfg] of Object.entries(OFFICES)) {
+  const officeFilter = searchParams.get('office');
+  const officesToRun = officeFilter && OFFICES[officeFilter]
+    ? { [officeFilter]: OFFICES[officeFilter] }
+    : OFFICES;
+
+  for (const [officeName, cfg] of Object.entries(officesToRun)) {
     try {
       log.push(`\n── ${officeName} ──`);
 
