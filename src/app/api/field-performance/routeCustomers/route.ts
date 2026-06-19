@@ -2,11 +2,13 @@
 // Pre-fetches FR route appointments for the week, extracts customer coords per tech,
 // and stores them in AppSetting cache for use by the reliability cron.
 //
-// Run this BEFORE the reliability cron each week.
-// Usage: /api/field-performance/routeCustomers?token=critterstop2026&weekEnd=YYYY-MM-DD&office=DFW
+// Run this BEFORE the reliability cron each week, in chunks to avoid Vercel timeout.
+// Usage: /api/field-performance/routeCustomers?token=critterstop2026&weekEnd=YYYY-MM-DD&office=DFW&offset=0&limit=40
 //
 // Cache key: rc_customers_<office>_<weekEnd>  e.g. rc_customers_DFW_2026-06-12
 // Cache value: JSON map of { [techId: string]: Array<{ lat: number; lng: number }> }
+
+export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -40,9 +42,11 @@ function fmtDate(d: Date) {
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const token   = searchParams.get('token');
+  const token      = searchParams.get('token');
   const weekEndStr = searchParams.get('weekEnd');
   const officeFilter = searchParams.get('office');
+  const offset     = parseInt(searchParams.get('offset') || '0');
+  const limit      = parseInt(searchParams.get('limit')  || '40');
 
   if (token !== process.env.CRON_SECRET && token !== 'critterstop2026') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -92,7 +96,11 @@ export async function GET(req: NextRequest) {
         allRoutes.push(...(rd.routes || []));
         if (i + 100 < allRouteIds.length) await new Promise(r => setTimeout(r, 300));
       }
-      log.push(`Fetched ${allRoutes.length} route details`);
+      log.push(`Found ${allRoutes.length} route details`);
+
+      // Process only this chunk
+      const chunk = allRoutes.slice(offset, offset + limit);
+      log.push(`Processing routes ${offset}–${offset + chunk.length - 1} of ${allRoutes.length}`);
 
       // 3. Group appointment IDs by assignedTech using spot/search per route
       // Rate limit: ~55 calls/min
@@ -100,7 +108,7 @@ export async function GET(req: NextRequest) {
       let callCount = 0;
       let minuteStart = Date.now();
 
-      for (const route of allRoutes) {
+      for (const route of chunk) {
         const empId = parseInt(route.assignedTech || route.technicianID || '0');
         if (!empId) continue;
         if (!empApptIds.has(empId)) empApptIds.set(empId, new Set());
@@ -184,16 +192,38 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // 7. Save to AppSetting cache
+      // 7. Save to AppSetting cache — merge with existing (chunks build up the cache)
       const cacheKey = `rc_customers_${officeName}_${weekEndStr}`;
+      let existingMap: Record<string, Array<{ lat: number; lng: number }>> = {};
+      try {
+        const existing = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
+        if (existing?.value) existingMap = JSON.parse(existing.value);
+      } catch {}
+
+      // Merge: combine coords arrays for same techId
+      for (const [techId, coords] of Object.entries(techCoordsMap)) {
+        if (existingMap[techId]) {
+          // Deduplicate by lat/lng
+          const seen = new Set(existingMap[techId].map(c => `${c.lat},${c.lng}`));
+          for (const c of coords) {
+            if (!seen.has(`${c.lat},${c.lng}`)) {
+              existingMap[techId].push(c);
+              seen.add(`${c.lat},${c.lng}`);
+            }
+          }
+        } else {
+          existingMap[techId] = coords;
+        }
+      }
+
       await prisma.appSetting.upsert({
         where:  { key: cacheKey },
-        update: { value: JSON.stringify(techCoordsMap) },
-        create: { key: cacheKey, value: JSON.stringify(techCoordsMap) },
+        update: { value: JSON.stringify(existingMap) },
+        create: { key: cacheKey, value: JSON.stringify(existingMap) },
       });
 
-      results[officeName] = Object.keys(techCoordsMap).length;
-      log.push(`Saved cache for ${officeName}: ${Object.keys(techCoordsMap).length} techs → key: ${cacheKey}`);
+      results[officeName] = Object.keys(existingMap).length;
+      log.push(`Saved/merged cache for ${officeName}: ${Object.keys(existingMap).length} techs total → key: ${cacheKey}`);
 
     } catch (e: any) {
       const msg = `${officeName} error: ${e.message}`;
@@ -205,6 +235,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     status: errors.length === 0 ? 'success' : 'partial',
     weekEnd: weekEndStr,
+    offset,
+    limit,
     offices: results,
     errors,
     log: log.join('\n'),
