@@ -96,6 +96,8 @@ export async function GET(req: NextRequest) {
 
   const officeFilter = searchParams.get('office') || 'DFW';
   const weekEndParam = searchParams.get('weekEnd');
+  const offset = parseInt(searchParams.get('offset') || '0');
+  const limit  = parseInt(searchParams.get('limit')  || '30');
   const cfg = OFFICES[officeFilter];
   if (!cfg?.key) return NextResponse.json({ error: `Unknown office: ${officeFilter}` }, { status: 400 });
 
@@ -131,12 +133,14 @@ export async function GET(req: NextRequest) {
     // Filter to only routes assigned to our office techs
     const offriceFrIds = new Set(officeTechs.map(t => String(t.frEmployeeId)));
     const officeRoutes = allRoutes.filter(r => offriceFrIds.has(r.assignedTech));
+    const chunk = officeRoutes.slice(offset, offset + limit);
     log.push(`Found ${officeRoutes.length} routes for ${officeFilter} (filtered from ${allRoutes.length} total)`);
+    log.push(`Processing chunk ${offset}–${offset + chunk.length - 1} of ${officeRoutes.length}`);
 
     // Process each route — get customer IDs
     const techCustomerIds = new Map<string, Set<string>>(); // techId → Set<customerId>
 
-    for (const route of officeRoutes) {
+    for (const route of chunk) {
       const techId = frIdToTechId.get(route.assignedTech);
       if (!techId) continue;
 
@@ -201,6 +205,9 @@ export async function GET(req: NextRequest) {
       status: 'success',
       weekEnd: weekEndStr,
       office: officeFilter,
+      offset,
+      limit,
+      totalRoutes: officeRoutes.length,
       techsMapped: Object.keys(existingMap).length,
       errors,
       log: log.join('\n'),
