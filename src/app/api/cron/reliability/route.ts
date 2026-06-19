@@ -24,7 +24,7 @@ const FR_OFFICES: Record<string, { key: string; token: string; officeId: number 
 };
 
 // Animal relocation service type IDs — Saturday-only trips with ONLY these are excluded
-const ANIMAL_RELOCATION_SERVICE_IDS = new Set([485, 684, 685, 690, 691]);
+const ANIMAL_RELOCATION_SERVICE_IDS = new Set([485, 684, 685, 690, 691, 1039]);
 
 function frUrl(endpoint: string, action: string, params: Record<string, string>, key: string, token: string) {
   const url = new URL(`${FR_BASE}/${endpoint}/${action}`);
