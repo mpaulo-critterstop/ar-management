@@ -160,8 +160,8 @@ const BUSINESS_LOCATIONS = [
   { name: 'Lowes OKC W Memorial',         lat: 35.606458,  lng: -97.556346  },
 ];
 
-const GEOFENCE_RADIUS_M = 150;          // customer locations
-const BUSINESS_GEOFENCE_RADIUS_M = 300; // business locations (larger parking lots, GPS drift)
+const GEOFENCE_RADIUS_M = 300;          // customer locations
+const BUSINESS_GEOFENCE_RADIUS_M = 300; // business locations (large parking lots, GPS drift)
 const MIN_TRIP_MILES_FOR_STARTOFDAY = 1.0; // ignore trips under 1 mile when finding start of day
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
