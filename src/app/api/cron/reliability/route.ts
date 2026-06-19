@@ -68,13 +68,19 @@ async function isSaturdayAnimalOnlyDay(
     const appts = await frFetch(batchUrl);
     const apptList = Array.isArray(appts) ? appts : (appts.appointments || []);
 
-    if (apptList.length === 0) return false;
+    if (apptList.length === 0) return true; // on Saturday with no appointment details, skip
 
     // Check if ALL appointments are animal relocation service types
     const allAnimal = apptList.every((a: any) => {
       const typeId = parseInt(String(a.type || a.serviceTypeID || '0'));
       return ANIMAL_RELOCATION_SERVICE_IDS.has(typeId);
     });
+
+    // Debug: log first appointment fields for troubleshooting
+    if (!allAnimal && apptList.length > 0) {
+      const a = apptList[0];
+      throw new Error(`DEBUG: apptId=${a.appointmentID}, type=${a.type}, serviceTypeID=${a.serviceTypeID}, typeId=${parseInt(String(a.type || a.serviceTypeID || '0'))}`);
+    }
 
     return allAnimal;
   } catch {
