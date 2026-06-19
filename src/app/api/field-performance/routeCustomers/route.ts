@@ -100,6 +100,13 @@ export async function GET(req: NextRequest) {
         const empId = parseInt(route.assignedTech || route.technicianID || '0');
         if (!empId) continue;
         if (!empApptIds.has(empId)) empApptIds.set(empId, new Set());
+        // FR routes store appointments inside spots
+        for (const spot of (route.spots || [])) {
+          for (const apptId of (spot.appointmentIDs || [])) {
+            empApptIds.get(empId)!.add(apptId);
+          }
+        }
+        // Also check direct appointmentIDs just in case
         for (const apptId of (route.appointmentIDs || [])) {
           empApptIds.get(empId)!.add(apptId);
         }
