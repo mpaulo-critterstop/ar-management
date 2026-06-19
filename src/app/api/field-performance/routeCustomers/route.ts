@@ -164,10 +164,9 @@ export async function GET(req: NextRequest) {
       const custCoordMap = new Map<string, { lat: number; lng: number }>(geocodedCustomers.map(c => [c.externalId!, { lat: c.lat!, lng: c.lng! }]));
       log.push(`Geocoded ${custCoordMap.size} of ${allCustomerIds.length} customers`);
 
-      // 6. Build per-tech customer coord map, keyed by techId (our internal ID)
-      // Need to map FR employeeID → our techId via technicians table
+      // Map FR employeeID → our techId across ALL offices (assignedTech may be from any office)
       const officeTechs = await prisma.technician.findMany({
-        where: { office: officeName, status: 'ACTIVE', frEmployeeId: { not: null } },
+        where: { status: 'ACTIVE', frEmployeeId: { not: null } },
         select: { techId: true, frEmployeeId: true, name: true },
       });
       const frEmpToTechId = new Map<number, string>(officeTechs.map(t => [t.frEmployeeId!, t.techId]));
