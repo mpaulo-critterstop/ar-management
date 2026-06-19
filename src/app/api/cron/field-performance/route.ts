@@ -332,12 +332,12 @@ export async function POST(req: NextRequest) {
           select: { closeOutPct: true, callbackRate: true },
         });
 
-        // CO%: use calculated if ≥5 jobs, else fall back to prior week (Excel rule: AE<5)
+        // CO%: use calculated if ≥5 jobs, else fall back to prior week capped at 85% (Excel rule: AE<5, O$3=85%)
         let coPct: number | null = null;
         if (coOpps >= 5) {
           coPct = coCount / coOpps;
         } else if (priorWeek?.closeOutPct != null) {
-          coPct = priorWeek.closeOutPct; // carry forward prior week
+          coPct = Math.min(priorWeek.closeOutPct, 0.85); // cap at 85% per Excel O$3
         }
 
         // CB Rate: use calculated if ≥10 jobs, else fall back to prior week (Excel rule: AG<10)
