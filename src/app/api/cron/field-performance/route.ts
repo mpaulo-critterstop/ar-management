@@ -364,7 +364,7 @@ export async function POST(req: NextRequest) {
         if (coPct !== null && existing?.drivingScore && existing?.reliabilityScore) {
           const wpScore = calcWPScore(coPct, cbRate, existing.drivingScore, existing.reliabilityScore);
           updateData.wpScore    = wpScore;
-          updateData.totalScore = wpScore + (existing.manualAdj ?? 0);
+          updateData.totalScore = wpScore + (existing.manualAdj ?? 0) / 100;
         }
 
         if (existing) {

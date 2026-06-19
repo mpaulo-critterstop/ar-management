@@ -258,7 +258,7 @@ export async function GET(req: NextRequest) {
             existing?.drivingScore && existing?.reliabilityScore) {
           const pmpScore = calcPMPScore(revenueEff, reseviceRate, completionPct, existing.drivingScore, existing.reliabilityScore);
           updateData.pmpScore   = pmpScore;
-          updateData.totalScore = pmpScore + (existing.manualAdj ?? 0);
+          updateData.totalScore = pmpScore + (existing.manualAdj ?? 0) / 100;
         }
 
         if (existing) {
