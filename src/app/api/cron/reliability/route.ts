@@ -86,7 +86,7 @@ async function isSaturdayAnimalOnlyDay(
 // ─── BUSINESS LOCATIONS ──────────────────────────────────────────────────────
 const BUSINESS_LOCATIONS = [
   // DFW Offices
-  { name: 'Southlake HQ',          lat: 32.9400,  lng: -97.1336 },
+  { name: 'Southlake HQ',          lat: 32.9244,  lng: -97.1252 },
   { name: 'Haltom City',           lat: 32.8121,  lng: -97.2698 },
   { name: 'Haltom City Bradley A', lat: 32.7973383, lng: -97.2491626 },
   { name: 'Haltom City Bradley B', lat: 32.7971766, lng: -97.2487747 },
