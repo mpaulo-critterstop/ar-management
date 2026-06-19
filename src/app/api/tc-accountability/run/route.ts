@@ -329,6 +329,9 @@ export async function GET(req: NextRequest) {
           const tcCount = customerTCCounts.get(custId) ?? 0;
           isCoJob = tcCount >= 2;
         }
+        // Rule 3: if closed out, always a CO job regardless of trap check count
+        const closedOut = hasCloseoutNote(appt);
+        if (closedOut) isCoJob = true;
 
         // Future visits
         const future = futureByCustomer.get(custId);
@@ -340,9 +343,7 @@ export async function GET(req: NextRequest) {
         const nextVisitDays = nextNonCb
           ? Math.round((new Date(nextNonCb.date).getTime() - weekEnd.getTime()) / 86400000)
           : null;
-
         const apptDate = new Date(appt.date || appt.dateAdded);
-        const closedOut = hasCloseoutNote(appt);
 
         try {
           await prisma.tcAppointment.upsert({
