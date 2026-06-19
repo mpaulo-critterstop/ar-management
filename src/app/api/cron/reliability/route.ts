@@ -52,7 +52,6 @@ async function isSaturdayAnimalOnlyDay(
 
   try {
     const searchUrl = frUrl('appointment', 'search', {
-      officeIDs: String(cfg.officeId),
       employeeIDs: String(techFREmployeeId),
       dateStart: date,
       dateEnd: date,
@@ -60,7 +59,7 @@ async function isSaturdayAnimalOnlyDay(
 
     const searchData = await frFetch(searchUrl);
     const apptIds: number[] = searchData.appointmentIDs || [];
-    if (apptIds.length === 0) return false; // no appointments = regular trip day, don't skip
+    if (apptIds.length === 0) return true; // no appointments on Saturday = skip (likely animal relocation or off day)
 
     // Fetch appointment details
     const batchUrl = frUrl('appointment', 'get', {
