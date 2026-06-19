@@ -448,6 +448,7 @@ export async function POST(req: NextRequest) {
           const frEmpId = tech.frEmployeeId;
           if (frEmpId) {
             const animalOnly = await isSaturdayAnimalOnlyDay(frEmpId, date, tech.office);
+            log.push(`  ${tech.name} ${date}: Saturday check — frEmpId=${frEmpId}, animalOnly=${animalOnly}`);
             if (animalOnly) {
               log.push(`  ${tech.name} ${date}: Saturday animal relocation only — skipped`);
               continue;
