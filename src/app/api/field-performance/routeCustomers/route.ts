@@ -171,6 +171,8 @@ export async function GET(req: NextRequest) {
         select: { techId: true, frEmployeeId: true, name: true },
       });
       const frEmpToTechId = new Map<number, string>(officeTechs.map(t => [t.frEmployeeId!, t.techId]));
+      log.push(`  frEmpToTechId: ${[...frEmpToTechId.entries()].slice(0,3).map(([k,v]) => `${k}→${v}`).join(', ')}...`);
+      log.push(`  empApptIds keys: ${[...empApptIds.keys()].slice(0,5).join(', ')}...`);
 
       const techCoordsMap: Record<string, Array<{ lat: number; lng: number }>> = {};
       for (const [empId, apptIds] of empApptIds) {
