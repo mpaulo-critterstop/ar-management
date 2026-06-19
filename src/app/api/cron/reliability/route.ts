@@ -528,8 +528,15 @@ export async function POST(req: NextRequest) {
 
         log.push(`  ${tech.name} ${date}: start=${startOfDay.toLocaleTimeString('en-US', {timeZone})}, end=${endOfDay.toLocaleTimeString('en-US', {timeZone})}, late=${minutesLate.toFixed(0)}min, util=${(utilization*100).toFixed(0)}%`);
 
-        // Save per-day attendance record
+        // Save per-day attendance record — skip if manually overridden
         const dateObj = new Date(date + 'T12:00:00.000Z'); // noon UTC to avoid timezone day shift
+        const existingRecord = await prisma.techDayAttendance.findUnique({
+          where: { techId_date: { techId: tech.techId, date: dateObj } },
+          select: { manualOverride: true },
+        });
+        if (existingRecord?.manualOverride) {
+          log.push(`  ${tech.name} ${date}: skipped — manually overridden`);
+        } else {
         await prisma.techDayAttendance.upsert({
           where: { techId_date: { techId: tech.techId, date: dateObj } },
           update: {
@@ -558,6 +565,7 @@ export async function POST(req: NextRequest) {
             status: 'WORKED',
           },
         });
+        }
       }
 
       if (workDays === 0) {
@@ -745,6 +753,11 @@ export async function POST(req: NextRequest) {
             totalUtilization += utilization;
             workDays++;
 
+            const existing2 = await prisma.techDayAttendance.findUnique({
+              where: { techId_date: { techId: tech.techId, date: dateObj } },
+              select: { manualOverride: true },
+            });
+            if (!existing2?.manualOverride) {
             await prisma.techDayAttendance.upsert({
               where: { techId_date: { techId: tech.techId, date: dateObj } },
               update: { startTime: startOfDay, finishTime: endOfDay, minutesLate, hrsWorked, weekEnd, status: 'WORKED', updatedAt: new Date() },
@@ -765,6 +778,7 @@ export async function POST(req: NextRequest) {
                 status: 'WORKED',
               },
             });
+            }
           }
 
           if (workDays === 0) {

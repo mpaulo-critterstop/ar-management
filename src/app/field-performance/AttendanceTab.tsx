@@ -35,7 +35,7 @@ export function AttendanceTab({ office, weekEnd }: Props) {
   const [search, setSearch] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
   const [editing, setEditing] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ routeStartTime: '', scheduledHrs: 8 });
+  const [editForm, setEditForm] = useState({ routeStartTime: '', scheduledHrs: 8, startTime: '', finishTime: '' });
   const [saving, setSaving] = useState(false);
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
@@ -68,18 +68,21 @@ export function AttendanceTab({ office, weekEnd }: Props) {
   const saveEdit = async () => {
     if (!editing) return;
     setSaving(true);
+    const body: any = {
+      id: editing.id,
+      routeStartTime: editForm.routeStartTime,
+      scheduledHrs: editForm.scheduledHrs,
+    };
+    // Only send startTime/finishTime if they were changed
+    if (editForm.startTime) body.startTime = toUTCFromChicago(editing.date, editForm.startTime);
+    if (editForm.finishTime) body.finishTime = toUTCFromChicago(editing.date, editForm.finishTime);
     await fetch('/api/field-performance/attendance-update', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: editing.id,
-        routeStartTime: editForm.routeStartTime,
-        scheduledHrs: editForm.scheduledHrs,
-      }),
+      body: JSON.stringify(body),
     });
     setSaving(false);
     setEditing(null);
-    // Reload records
     const wk = weekEnd.toLocaleDateString('en-CA');
     fetch(`/api/field-performance/attendance?week=${wk}&office=${office}`)
       .then(r => r.json())
@@ -91,8 +94,32 @@ export function AttendanceTab({ office, weekEnd }: Props) {
     setEditForm({
       routeStartTime: r.routeStartTime || '7:00 AM',
       scheduledHrs: r.scheduledHrs || 8,
+      startTime: r.startTime ? toChicagoTimeInput(r.startTime) : '',
+      finishTime: r.finishTime ? toChicagoTimeInput(r.finishTime) : '',
     });
   };
+
+  // Convert a UTC datetime string to Chicago local time HH:MM for input[type=time]
+  function toChicagoTimeInput(dt: string): string {
+    const d = new Date(dt);
+    const local = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Chicago' });
+    return local; // returns "HH:MM"
+  }
+
+  // Convert a date string + HH:MM local time to UTC ISO string
+  function toUTCFromChicago(dateStr: string, timeStr: string): string {
+    const dateOnly = new Date(dateStr).toLocaleDateString('en-CA', { timeZone: 'UTC' });
+    const localStr = `${dateOnly}T${timeStr}:00`;
+    // Treat as Chicago time
+    const d = new Date(new Date(localStr).toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+    // Create UTC from Chicago offset
+    const offset = -5 * 60; // CST offset in minutes (simplified; use -6 for CDT)
+    const utc = new Date(new Date(localStr).getTime() - offset * 60000);
+    // Better: just use Intl to get Chicago offset dynamically
+    const chicagoDate = new Date(localStr);
+    const chicagoOffset = new Date(chicagoDate.toLocaleString('en-US', { timeZone: 'America/Chicago' })).getTime() - chicagoDate.getTime();
+    return new Date(chicagoDate.getTime() - chicagoOffset).toISOString();
+  }
 
   const inputStyle: React.CSSProperties = {
     fontSize: 12, padding: '6px 9px', border: '1px solid #E8E7E3',
@@ -172,7 +199,10 @@ export function AttendanceTab({ office, weekEnd }: Props) {
                   {canEdit && (
                     <td style={td}>
                       <button onClick={() => openEdit(r)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888780', fontSize: 14, padding: 0 }}>✎</button>
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: r.manualOverride ? '#0052cc' : '#888780', fontSize: 14, padding: 0 }}
+                        title={r.manualOverride ? 'Manually overridden' : 'Edit'}>
+                        {r.manualOverride ? '✎*' : '✎'}
+                      </button>
                     </td>
                   )}
                 </tr>
@@ -212,6 +242,22 @@ export function AttendanceTab({ office, weekEnd }: Props) {
             </div>
             <div style={{ fontSize: 11, color: '#b0aea6', marginBottom: 16 }}>
               Actual arrival: {fmtTime(editing.startTime)} — changing scheduled start will recalculate minutes late and reliability score.
+              {editing.manualOverride && <span style={{ color: '#0052cc', marginLeft: 6 }}>⚡ Manually overridden — will not be overwritten by syncs.</span>}
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Actual start time <span style={{ color: '#b0aea6' }}>(override)</span></label>
+              <input type="time" value={editForm.startTime}
+                onChange={e => setEditForm(f => ({ ...f, startTime: e.target.value }))}
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Actual finish time <span style={{ color: '#b0aea6' }}>(override)</span></label>
+              <input type="time" value={editForm.finishTime}
+                onChange={e => setEditForm(f => ({ ...f, finishTime: e.target.value }))}
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }} />
+            </div>
+            <div style={{ fontSize: 11, color: '#b0aea6', marginBottom: 16 }}>
+              Setting start/finish time will mark this record as manually overridden and protect it from future syncs.
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setEditing(null)}

@@ -10,17 +10,23 @@ export async function PATCH(req: NextRequest) {
   if (!['ADMIN', 'LEADERSHIP'].includes(role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json();
-  const { id, routeStartTime, scheduledHrs } = body;
+  const { id, routeStartTime, scheduledHrs, startTime, finishTime } = body;
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
   const record = await prisma.techDayAttendance.findUnique({ where: { id } });
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  // Recalculate minutesLate using new scheduled start time
-  let minutesLate = record.minutesLate;
   const newRouteStartTime = routeStartTime ?? record.routeStartTime;
+  const newSchedHrs = scheduledHrs ?? record.scheduledHrs;
+  const isManualEdit = startTime !== undefined || finishTime !== undefined;
 
-  if (record.startTime && newRouteStartTime) {
+  // Use new times if provided, else keep existing
+  const newStartTime = startTime ? new Date(startTime) : record.startTime;
+  const newFinishTime = finishTime ? new Date(finishTime) : record.finishTime;
+
+  // Recalculate minutesLate
+  let minutesLate = record.minutesLate;
+  if (newStartTime && newRouteStartTime) {
     const match = newRouteStartTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
     if (match) {
       let h = parseInt(match[1]);
@@ -29,22 +35,32 @@ export async function PATCH(req: NextRequest) {
       if (ampm === 'PM' && h !== 12) h += 12;
       if (ampm === 'AM' && h === 12) h = 0;
       const scheduledMins = h * 60 + m;
-      const startLocal = new Date(record.startTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+      const startLocal = new Date(newStartTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
       const startMins = startLocal.getHours() * 60 + startLocal.getMinutes();
       minutesLate = startMins - scheduledMins;
     }
   }
 
-  const newSchedHrs = scheduledHrs ?? record.scheduledHrs;
+  // Recalculate hrsWorked
+  let hrsWorked = record.hrsWorked;
+  if (newStartTime && newFinishTime) {
+    hrsWorked = (newFinishTime.getTime() - newStartTime.getTime()) / (1000 * 60 * 60);
+  }
+
+  const updateData: any = {
+    routeStartTime: newRouteStartTime,
+    scheduledHrs: newSchedHrs,
+    minutesLate,
+    hrsWorked,
+    updatedAt: new Date(),
+  };
+  if (newStartTime) updateData.startTime = newStartTime;
+  if (newFinishTime) updateData.finishTime = newFinishTime;
+  if (isManualEdit) updateData.manualOverride = true;
 
   const updated = await prisma.techDayAttendance.update({
     where: { id },
-    data: {
-      routeStartTime: newRouteStartTime,
-      scheduledHrs: newSchedHrs,
-      minutesLate,
-      updatedAt: new Date(),
-    },
+    data: updateData,
     include: { technician: { select: { name: true } } },
   });
 
