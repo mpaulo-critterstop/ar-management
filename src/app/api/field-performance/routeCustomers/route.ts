@@ -63,11 +63,11 @@ async function getRoutesForDateRange(
   return matching;
 }
 
-// Get customerIDs from a route via spots → appointments
+// Get customerIDs and appointmentIDs from a route via spots → appointments
 async function getRouteCustomerIds(
   routeID: string, key: string, token: string,
   rl: (u: string) => Promise<any>
-): Promise<string[]> {
+): Promise<Array<{ customerId: string; frAppointmentId: string }>> {
   const auth = `&authenticationKey=${key}&authenticationToken=${token}`;
   const spotSearch = await rl(`${BASE_URL}/spot/search?routeID=${routeID}${auth}`);
   const spotIDs: string[] = spotSearch.spotIDs || [];
@@ -81,11 +81,16 @@ async function getRouteCustomerIds(
   if (!apptIDs.length) return [];
 
   const apptData = await rl(`${BASE_URL}/appointment/get?appointmentIDs=${apptIDs.join(',')}${auth}`);
-  const customerIds: string[] = [];
+  const results: Array<{ customerId: string; frAppointmentId: string }> = [];
   (apptData.appointments || []).forEach((a: any) => {
-    if (a.customerID && a.customerID !== '0') customerIds.push(String(a.customerID));
+    if (a.customerID && a.customerID !== '0') {
+      results.push({
+        customerId: String(a.customerID),
+        frAppointmentId: String(a.appointmentID || a.id),
+      });
+    }
   });
-  return [...new Set(customerIds)];
+  return results;
 }
 
 export async function GET(req: NextRequest) {
@@ -138,21 +143,23 @@ export async function GET(req: NextRequest) {
     log.push(`Found ${officeRoutes.length} routes for ${officeFilter} (filtered from ${allRoutes.length} total)`);
     log.push(`Processing chunk ${offset}–${offset + chunk.length - 1} of ${officeRoutes.length}`);
 
-    // Process each route — get customer IDs
-    const techCustomerIds = new Map<string, Set<string>>(); // techId → Set<customerId>
+    // Process each route — get customer IDs and appointment IDs
+    const techCustomerAppts = new Map<string, Map<string, string>>(); // techId → Map<customerId, frAppointmentId>
 
     for (const route of chunk) {
       const techId = frIdToTechId.get(route.assignedTech);
       if (!techId) continue;
 
-      const customerIds = await getRouteCustomerIds(route.routeID, cfg.key, cfg.token, rl);
-      if (!techCustomerIds.has(techId)) techCustomerIds.set(techId, new Set());
-      for (const cid of customerIds) techCustomerIds.get(techId)!.add(cid);
+      const appts = await getRouteCustomerIds(route.routeID, cfg.key, cfg.token, rl);
+      if (!techCustomerAppts.has(techId)) techCustomerAppts.set(techId, new Map());
+      for (const { customerId, frAppointmentId } of appts) {
+        techCustomerAppts.get(techId)!.set(customerId, frAppointmentId);
+      }
     }
-    log.push(`Collected customer IDs for ${techCustomerIds.size} techs`);
+    log.push(`Collected customer IDs for ${techCustomerAppts.size} techs`);
 
     // Look up geocoded coords for all collected customer IDs
-    const allCustomerIds = [...new Set([...techCustomerIds.values()].flatMap(s => [...s]))];
+    const allCustomerIds = [...new Set([...techCustomerAppts.values()].flatMap(m => [...m.keys()]))];
     log.push(`Total unique customers: ${allCustomerIds.length}`);
 
     const geocoded = await prisma.customer.findMany({
@@ -164,19 +171,23 @@ export async function GET(req: NextRequest) {
     );
     log.push(`Geocoded ${coordMap.size} of ${allCustomerIds.length} customers`);
 
-    // Build final techId → coords map
-    const techCoordsMap: Record<string, Array<{ lat: number; lng: number }>> = {};
-    for (const [techId, custIds] of techCustomerIds) {
-      const coords = [...custIds].map(id => coordMap.get(id)).filter(Boolean) as Array<{ lat: number; lng: number }>;
-      if (coords.length > 0) {
-        techCoordsMap[techId] = coords;
-        log.push(`  ${techId}: ${coords.length} route customers`);
+    // Build final techId → array of { lat, lng, customerId, frAppointmentId }
+    const techCoordsMap: Record<string, Array<{ lat: number; lng: number; customerId: string; frAppointmentId: string }>> = {};
+    for (const [techId, custApptMap] of techCustomerAppts) {
+      const entries: Array<{ lat: number; lng: number; customerId: string; frAppointmentId: string }> = [];
+      for (const [customerId, frAppointmentId] of custApptMap) {
+        const coord = coordMap.get(customerId);
+        if (coord) entries.push({ ...coord, customerId, frAppointmentId });
+      }
+      if (entries.length > 0) {
+        techCoordsMap[techId] = entries;
+        log.push(`  ${techId}: ${entries.length} route customers`);
       }
     }
 
     // Save to AppSetting cache (merge with existing, or reset if reset=true)
     const cacheKey = `rc_customers_${officeFilter}_${weekEndStr}`;
-    let existingMap: Record<string, Array<{ lat: number; lng: number }>> = {};
+    let existingMap: Record<string, Array<{ lat: number; lng: number; customerId: string; frAppointmentId: string }>> = {};
     if (reset) {
       log.push(`Cache reset requested — starting fresh for ${officeFilter}`);
     } else {
@@ -186,15 +197,18 @@ export async function GET(req: NextRequest) {
       } catch {}
     }
 
-    // Merge
-    for (const [techId, coords] of Object.entries(techCoordsMap)) {
-      if (existingMap[techId]) {
-        const seen = new Set(existingMap[techId].map((c: any) => `${c.lat},${c.lng}`));
-        for (const c of coords) {
-          if (!seen.has(`${c.lat},${c.lng}`)) { existingMap[techId].push(c); seen.add(`${c.lat},${c.lng}`); }
-        }
+    // Merge by frAppointmentId to avoid duplicates
+    for (const [techId, entries] of Object.entries(techCoordsMap)) {
+      if (!existingMap[techId]) {
+        existingMap[techId] = entries;
       } else {
-        existingMap[techId] = coords;
+        const existingApptIds = new Set(existingMap[techId].map(e => e.frAppointmentId));
+        for (const entry of entries) {
+          if (!existingApptIds.has(entry.frAppointmentId)) {
+            existingMap[techId].push(entry);
+            existingApptIds.add(entry.frAppointmentId);
+          }
+        }
       }
     }
 

@@ -362,14 +362,14 @@ export async function POST(req: NextRequest) {
     log.push(`Business locations: ${BUSINESS_LOCATIONS.length}, Geocoded customers: ${customers.length}`);
 
     // Load per-tech route customer cache (pre-fetched by /api/field-performance/routeCustomers)
-    // Falls back to all 32k customers if cache not found for a tech
-    const techRouteCoords = new Map<string, Array<{ lat: number; lng: number }>>();
+    // Now includes customerId and frAppointmentId for time-at-job calculation
+    const techRouteCoords = new Map<string, Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }>>();
     for (const officeName of Object.keys(FR_OFFICES)) {
       const cacheKey = `rc_customers_${officeName}_${weekEnd.toISOString().split('T')[0]}`;
       try {
         const cached = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
         if (cached?.value) {
-          const map: Record<string, Array<{ lat: number; lng: number }>> = JSON.parse(cached.value);
+          const map: Record<string, Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }>> = JSON.parse(cached.value);
           for (const [techId, coords] of Object.entries(map)) {
             techRouteCoords.set(techId, coords);
           }
@@ -512,6 +512,45 @@ export async function POST(req: NextRequest) {
         if (!startOfDay || !endOfDay) {
           log.push(`  ${tech.name} ${date}: could not determine start/end of day`);
           continue;
+        }
+
+        // ── DWELL TIME: calculate time spent at each customer location ──
+        // For each trip that ends at a route customer, the dwell time is the gap
+        // between that trip's end and the next trip's start (time parked at customer)
+        if (routeCoords && routeCoords.length > 0) {
+          const dwellUpdates: Array<{ frAppointmentId: string; mins: number }> = [];
+
+          for (let i = 0; i < dayTrips.length - 1; i++) {
+            const trip = dayTrips[i];
+            const nextTrip = dayTrips[i + 1];
+            const endpoints = extractTripEndpoints(trip);
+            if (!endpoints) continue;
+
+            // Check if this trip ends at a route customer
+            const matchedCustomer = routeCoords.find(c =>
+              c.frAppointmentId &&
+              haversineDistance(endpoints.endLat, endpoints.endLng, c.lat, c.lng) <= GEOFENCE_RADIUS_M
+            );
+
+            if (matchedCustomer?.frAppointmentId) {
+              const arrivalTime = new Date(trip.endTime);
+              const departureTime = new Date(nextTrip.startTime);
+              const dwellMins = (departureTime.getTime() - arrivalTime.getTime()) / 60000;
+
+              // Only record reasonable dwell times (1 min to 4 hours)
+              if (dwellMins >= 1 && dwellMins <= 240) {
+                dwellUpdates.push({ frAppointmentId: matchedCustomer.frAppointmentId, mins: dwellMins });
+              }
+            }
+          }
+
+          // Update timeAtJobMins for each matched appointment
+          for (const { frAppointmentId, mins } of dwellUpdates) {
+            await prisma.tcAppointment.updateMany({
+              where: { frAppointmentId },
+              data: { timeAtJobMins: mins },
+            });
+          }
         }
 
         // Minutes late
