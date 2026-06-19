@@ -135,7 +135,7 @@ async function pullWPMetrics(
       techId: { in: [...wpTechIds] },
       date: { gte: cbStart, lte: cbEnd },
     },
-    select: { techId: true, futureCbs: true },
+    select: { techId: true, cb60Day: true },
   });
 
   // Calculate CO% per tech
@@ -155,82 +155,7 @@ async function pullWPMetrics(
     if (!result.has(techId)) result.set(techId, initStats());
     const stats = result.get(techId)!;
     stats.callbacks++; // total jobs in CB window
-    if (appt.futureCbs && appt.futureCbs > 0) stats.callbackCount++; // jobs with future CBs
-  }
-
-  return result;
-}
-
-// ─── WP: CALLBACK RATE ───────────────────────────────────────────────────────
-// Callback rate = CB appts in last 60-90 days / jobs completed 60-120 days ago
-// Uses a rolling window, not the current week
-async function pullWPCallbackRate(
-  cfg: { key: string; token: string; officeId: number },
-  weekEnd: Date,
-  wpTechs: Map<number, string>
-): Promise<Map<string, number>> {
-
-  const result = new Map<string, number>();
-
-  // Window: 30-90 days ago for callbacks
-  const cbStart = new Date(weekEnd); cbStart.setDate(cbStart.getDate() - 90);
-  const cbEnd   = new Date(weekEnd); cbEnd.setDate(cbEnd.getDate() - 30);
-
-  // Window: 60-120 days ago for base jobs
-  const baseStart = new Date(weekEnd); baseStart.setDate(baseStart.getDate() - 120);
-  const baseEnd   = new Date(weekEnd); baseEnd.setDate(baseEnd.getDate() - 60);
-
-  // Fetch callbacks in window
-  const cbSearchUrl = frUrl('appointment', 'search', {
-    officeIDs: String(cfg.officeId),
-    dateStart: fmtDate(cbStart),
-    dateEnd: fmtDate(cbEnd),
-  }, cfg.key, cfg.token);
-  const cbSearch = await frFetch(cbSearchUrl);
-  const cbApptIds: number[] = cbSearch.appointmentIDs || [];
-
-  // Fetch base jobs in window (exclusions + TCs = completed jobs)
-  const baseSearchUrl = frUrl('appointment', 'search', {
-    officeIDs: String(cfg.officeId),
-    dateStart: fmtDate(baseStart),
-    dateEnd: fmtDate(baseEnd),
-  }, cfg.key, cfg.token);
-  const baseSearch = await frFetch(baseSearchUrl);
-  const baseApptIds: number[] = baseSearch.appointmentIDs || [];
-
-  if (cbApptIds.length === 0 && baseApptIds.length === 0) return result;
-
-  const [cbAppts, baseAppts] = await Promise.all([
-    cbApptIds.length > 0 ? fetchInBatches('appointment', 'get', 'appointmentIDs', cbApptIds, cfg.key, cfg.token) : [],
-    baseApptIds.length > 0 ? fetchInBatches('appointment', 'get', 'appointmentIDs', baseApptIds, cfg.key, cfg.token) : [],
-  ]);
-
-  // Count callbacks per tech
-  const cbByTech = new Map<string, number>();
-  for (const appt of cbAppts.filter((a: any) => String(a.status) === '1')) {
-    const empId = parseInt(appt.servicedBy || appt.employeeID || appt.technicianID || '0');
-    if (!empId || !wpTechs.has(empId)) continue;
-    const typeStr = String(appt.type || '');
-    if (!CALLBACK_TYPES.has(typeStr)) continue;
-    const techId = wpTechs.get(empId)!;
-    cbByTech.set(techId, (cbByTech.get(techId) ?? 0) + 1);
-  }
-
-  // Count base completed jobs per tech (exclusions + TCs)
-  const baseByTech = new Map<string, number>();
-  for (const appt of baseAppts.filter((a: any) => String(a.status) === '1')) {
-    const empId = parseInt(appt.servicedBy || appt.employeeID || appt.technicianID || '0');
-    if (!empId || !wpTechs.has(empId)) continue;
-    const typeStr = String(appt.type || '');
-    if (!EXCLUSION_TYPES.has(typeStr) && !TRAP_CHECK_TYPES.has(typeStr)) continue;
-    const techId = wpTechs.get(empId)!;
-    baseByTech.set(techId, (baseByTech.get(techId) ?? 0) + 1);
-  }
-
-  // Calculate rate per tech
-  for (const [techId, cbs] of cbByTech) {
-    const base = baseByTech.get(techId) ?? 0;
-    if (base > 0) result.set(techId, cbs / base);
+    if (appt.cb60Day) stats.callbackCount++; // jobs that resulted in a callback within 60 days
   }
 
   return result;
