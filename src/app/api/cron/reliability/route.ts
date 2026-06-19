@@ -136,7 +136,7 @@ const BUSINESS_LOCATIONS = [
   { name: 'Lowes Denton',                lat: 33.1969, lng: -97.0903 },
   { name: 'Lowes Lewisville',            lat: 33.0575, lng: -97.0154 },
   { name: 'Lowes Flower Mound',          lat: 33.0710, lng: -97.0810 },
-  { name: 'Home Depot College Station',   lat: 30.6413519, lng: -96.3145516 },
+  { name: 'Lock N Roll Storage CStat',    lat: 30.6326484, lng: -96.3017319 },
   { name: 'Home Depot Brenham',           lat: 30.1396086, lng: -96.3899173 },
   { name: 'Home Depot Austin S I-35',     lat: 30.2221031, lng: -97.7495362 },
   { name: 'Home Depot Austin Barbara Jordan', lat: 30.3077956, lng: -97.7098452 },
