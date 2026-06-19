@@ -452,6 +452,11 @@ export async function POST(req: NextRequest) {
               log.push(`  ${tech.name} ${date}: Saturday animal relocation only — skipped`);
               continue;
             }
+          } else {
+            // WP techs without frEmployeeId: skip Saturday entirely
+            // They don't have regular Saturday routes so any GPS activity is likely animal relocation
+            log.push(`  ${tech.name} ${date}: Saturday skipped (no frEmployeeId — likely animal relocation)`);
+            continue;
           }
         }
 

@@ -98,6 +98,7 @@ export async function GET(req: NextRequest) {
   const weekEndParam = searchParams.get('weekEnd');
   const offset = parseInt(searchParams.get('offset') || '0');
   const limit  = parseInt(searchParams.get('limit')  || '30');
+  const reset  = searchParams.get('reset') === 'true';
   const cfg = OFFICES[officeFilter];
   if (!cfg?.key) return NextResponse.json({ error: `Unknown office: ${officeFilter}` }, { status: 400 });
 
@@ -173,13 +174,17 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Save to AppSetting cache (merge with existing)
+    // Save to AppSetting cache (merge with existing, or reset if reset=true)
     const cacheKey = `rc_customers_${officeFilter}_${weekEndStr}`;
     let existingMap: Record<string, Array<{ lat: number; lng: number }>> = {};
-    try {
-      const existing = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
-      if (existing?.value) existingMap = JSON.parse(existing.value);
-    } catch {}
+    if (reset) {
+      log.push(`Cache reset requested — starting fresh for ${officeFilter}`);
+    } else {
+      try {
+        const existing = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
+        if (existing?.value) existingMap = JSON.parse(existing.value);
+      } catch {}
+    }
 
     // Merge
     for (const [techId, coords] of Object.entries(techCoordsMap)) {
