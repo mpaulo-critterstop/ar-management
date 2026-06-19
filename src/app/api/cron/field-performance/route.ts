@@ -120,11 +120,12 @@ async function pullWPMetrics(
   // Build techId set for this office's WP techs
   const wpTechIds = new Set([...wpTechs.values()]);
 
-  // Fetch CO window appointments from DB
+  // Fetch CO window appointments from DB — only isCoJob=true as opportunities
   const coAppts = await prisma.tcAppointment.findMany({
     where: {
       techId: { in: [...wpTechIds] },
       date: { gte: coStart, lte: coEnd },
+      isCoJob: true,
     },
     select: { techId: true, closedOut: true, wk1CloseOut: true },
   });
