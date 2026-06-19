@@ -131,9 +131,14 @@ export async function GET(req: NextRequest) {
     // Fetch routes for the week — same as thirtyDayA
     log.push('Fetching routes...');
     const allRoutes = await getRoutesForDateRange(weekStartStr, weekEndStr, cfg.key, cfg.token, rl);
-    // Filter to only routes assigned to our office techs
+    // Filter to only routes assigned to our office techs, excluding Saturdays
     const offriceFrIds = new Set(officeTechs.map(t => String(t.frEmployeeId)));
-    const officeRoutes = allRoutes.filter(r => offriceFrIds.has(r.assignedTech));
+    const officeRoutes = allRoutes.filter(r => {
+      if (!offriceFrIds.has(r.assignedTech)) return false;
+      const dayOfWeek = new Date(r.date + 'T12:00:00.000Z').getDay();
+      if (dayOfWeek === 6) return false; // exclude Saturdays (animal relocation)
+      return true;
+    });
     const chunk = officeRoutes.slice(offset, offset + limit);
     log.push(`Found ${officeRoutes.length} routes for ${officeFilter} (filtered from ${allRoutes.length} total)`);
     log.push(`Processing chunk ${offset}–${offset + chunk.length - 1} of ${officeRoutes.length}`);
