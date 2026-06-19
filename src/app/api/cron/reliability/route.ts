@@ -155,7 +155,8 @@ const BUSINESS_LOCATIONS = [
   { name: 'Lowes OKC W Memorial',         lat: 35.606458,  lng: -97.556346  },
 ];
 
-const GEOFENCE_RADIUS_M = 150;          // business and customer locations
+const GEOFENCE_RADIUS_M = 150;          // customer locations
+const BUSINESS_GEOFENCE_RADIUS_M = 300; // business locations (larger parking lots, GPS drift)
 const MIN_TRIP_MILES_FOR_STARTOFDAY = 1.0; // ignore trips under 1 mile when finding start of day
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -172,7 +173,7 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 function isBusinessLocation(lat: number, lng: number): { match: boolean; name?: string } {
   for (const loc of BUSINESS_LOCATIONS) {
     const dist = haversineDistance(lat, lng, loc.lat, loc.lng);
-    if (dist <= GEOFENCE_RADIUS_M) return { match: true, name: loc.name };
+    if (dist <= BUSINESS_GEOFENCE_RADIUS_M) return { match: true, name: loc.name };
   }
   return { match: false };
 }
