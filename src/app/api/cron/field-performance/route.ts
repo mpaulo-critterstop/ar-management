@@ -340,12 +340,12 @@ export async function POST(req: NextRequest) {
           coPct = Math.min(priorWeek.closeOutPct, 0.85); // cap at 85% per Excel O$3
         }
 
-        // CB Rate: use calculated if ≥10 jobs, else fall back to prior week (Excel rule: AG<10)
+        // CB Rate: use calculated if ≥10 jobs, else fall back to prior week floored at 15% (Excel rule: AG<10, P$3=15%)
         let cbRate: number | null = null;
         if (cbJobs >= 10) {
           cbRate = cbCount / cbJobs;
         } else if (priorWeek?.callbackRate != null) {
-          cbRate = priorWeek.callbackRate; // carry forward prior week
+          cbRate = Math.max(priorWeek.callbackRate, 0.15); // floor at 15% per Excel P$3
         }
 
         const existing = await prisma.techWeek.findUnique({
