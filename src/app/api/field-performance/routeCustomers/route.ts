@@ -1,245 +1,215 @@
 // src/app/api/field-performance/routeCustomers/route.ts
 // Pre-fetches FR route appointments for the week, extracts customer coords per tech,
-// and stores them in AppSetting cache for use by the reliability cron.
+// and caches them for the reliability cron.
 //
-// Run this BEFORE the reliability cron each week, in chunks to avoid Vercel timeout.
-// Usage: /api/field-performance/routeCustomers?token=critterstop2026&weekEnd=YYYY-MM-DD&office=DFW&offset=0&limit=40
+// Uses the SAME logic as thirtyDayA - just fetches for the current week, all techs.
+// Run BEFORE reliability cron each week, per office.
 //
-// Cache key: rc_customers_<office>_<weekEnd>  e.g. rc_customers_DFW_2026-06-12
-// Cache value: JSON map of { [techId: string]: Array<{ lat: number; lng: number }> }
+// Usage: /api/field-performance/routeCustomers?token=critterstop2026&weekEnd=YYYY-MM-DD&office=DFW
+// Cache key: rc_customers_<office>_<weekEnd>
 
 export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-const FR_SUBDOMAIN = 'critterstoppest';
-const FR_BASE      = `https://${FR_SUBDOMAIN}.fieldroutes.com/api`;
-const FR_OFFICES: Record<string, { key: string; token: string; officeId: number }> = {
+const BASE_URL = 'https://critterstoppest.fieldroutes.com/api';
+
+const OFFICES: Record<string, { key: string; token: string; officeId: number }> = {
   DFW:   { key: process.env.FIELDROUTES_KEY_DFW!,   token: process.env.FIELDROUTES_TOKEN_DFW!,   officeId: 1 },
   ATX:   { key: process.env.FIELDROUTES_KEY_ATX!,   token: process.env.FIELDROUTES_TOKEN_ATX!,   officeId: 5 },
   OKC:   { key: process.env.FIELDROUTES_KEY_OKC!,   token: process.env.FIELDROUTES_TOKEN_OKC!,   officeId: 3 },
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4 },
 };
 
-function frUrl(endpoint: string, action: string, params: Record<string, string>, key: string, token: string) {
-  const url = new URL(`${FR_BASE}/${endpoint}/${action}`);
-  url.searchParams.set('authenticationKey', key);
-  url.searchParams.set('authenticationToken', token);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  return url.toString();
+function makeRateLimiter() {
+  let callCount = 0;
+  let minuteStart = Date.now();
+  return async function rl(url: string): Promise<any> {
+    if (Date.now() - minuteStart > 60000) { callCount = 0; minuteStart = Date.now(); }
+    if (callCount >= 55) {
+      const wait = 60000 - (Date.now() - minuteStart) + 1000;
+      await new Promise(r => setTimeout(r, wait));
+      callCount = 0; minuteStart = Date.now();
+    }
+    callCount++;
+    const res = await fetch(url, { signal: AbortSignal.timeout(25000) });
+    if (!res.ok) throw new Error(`FR HTTP ${res.status}`);
+    return res.json();
+  };
 }
 
-async function frFetch(url: string): Promise<any> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`FR fetch failed: ${res.status}`);
-  return res.json();
+// Same as thirtyDayA - get routes for date range
+async function getRoutesForDateRange(
+  dateStart: string, dateEnd: string,
+  key: string, token: string,
+  rl: (u: string) => Promise<any>
+) {
+  const auth = `&authenticationKey=${key}&authenticationToken=${token}`;
+  const routeSearch = await rl(`${BASE_URL}/route/search?${auth}`);
+  const allRouteIDs: string[] = routeSearch.routeIDs || [];
+  const recentIDs = allRouteIDs.slice(-1000);
+  const matching: Array<{ routeID: string; date: string; assignedTech: string }> = [];
+
+  for (let i = 0; i < recentIDs.length; i += 100) {
+    const batch = recentIDs.slice(i, i + 100).join(',');
+    const routeData = await rl(`${BASE_URL}/route/get?routeIDs=${batch}${auth}`);
+    (routeData.routes || []).forEach((r: any) => {
+      if (r.date >= dateStart && r.date <= dateEnd && r.assignedTech && r.assignedTech !== '0') {
+        matching.push({ routeID: String(r.routeID), date: r.date, assignedTech: String(r.assignedTech) });
+      }
+    });
+  }
+  return matching;
 }
 
-function fmtDate(d: Date) {
-  return d.toISOString().split('T')[0];
+// Get customerIDs from a route via spots → appointments
+async function getRouteCustomerIds(
+  routeID: string, key: string, token: string,
+  rl: (u: string) => Promise<any>
+): Promise<string[]> {
+  const auth = `&authenticationKey=${key}&authenticationToken=${token}`;
+  const spotSearch = await rl(`${BASE_URL}/spot/search?routeID=${routeID}${auth}`);
+  const spotIDs: string[] = spotSearch.spotIDs || [];
+  if (!spotIDs.length) return [];
+
+  const spotData = await rl(`${BASE_URL}/spot/get?spotIDs=${spotIDs.join(',')}${auth}`);
+  const apptIDs: string[] = [];
+  (spotData.spots || []).forEach((s: any) => {
+    if (s.appointmentIDs?.length) apptIDs.push(...s.appointmentIDs);
+  });
+  if (!apptIDs.length) return [];
+
+  const apptData = await rl(`${BASE_URL}/appointment/get?appointmentIDs=${apptIDs.join(',')}${auth}`);
+  const customerIds: string[] = [];
+  (apptData.appointments || []).forEach((a: any) => {
+    if (a.customerID && a.customerID !== '0') customerIds.push(String(a.customerID));
+  });
+  return [...new Set(customerIds)];
 }
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const token      = searchParams.get('token');
-  const weekEndStr = searchParams.get('weekEnd');
-  const officeFilter = searchParams.get('office');
-  const offset     = parseInt(searchParams.get('offset') || '0');
-  const limit      = parseInt(searchParams.get('limit')  || '40');
-
-  if (token !== process.env.CRON_SECRET && token !== 'critterstop2026') {
+  if (searchParams.get('token') !== 'critterstop2026' && searchParams.get('token') !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  if (!weekEndStr) {
-    return NextResponse.json({ error: 'weekEnd required' }, { status: 400 });
-  }
 
-  const weekEnd   = new Date(weekEndStr + 'T12:00:00.000Z');
-  const weekStart = new Date(weekEnd.getTime() - 6 * 24 * 60 * 60 * 1000);
+  const officeFilter = searchParams.get('office') || 'DFW';
+  const weekEndParam = searchParams.get('weekEnd');
+  const cfg = OFFICES[officeFilter];
+  if (!cfg?.key) return NextResponse.json({ error: `Unknown office: ${officeFilter}` }, { status: 400 });
 
-  const log: string[] = [];
+  const fmt = (d: Date) => d.toISOString().split('T')[0];
+  const weekEnd = weekEndParam
+    ? new Date(weekEndParam + 'T00:00:00.000Z')
+    : new Date();
+  const weekStart = new Date(weekEnd);
+  weekStart.setDate(weekEnd.getDate() - 6);
+
+  const weekEndStr   = fmt(weekEnd);
+  const weekStartStr = fmt(weekStart);
+
+  const log: string[] = [`Office: ${officeFilter}`, `Week: ${weekStartStr} → ${weekEndStr}`];
+  const rl = makeRateLimiter();
   const errors: string[] = [];
-  const results: Record<string, number> = {}; // office → techs mapped
 
-  const officesToProcess = officeFilter
-    ? [officeFilter]
-    : Object.keys(FR_OFFICES);
+  try {
+    // Load ALL active techs for this office to map assignedTech → techId
+    const officeTechs = await prisma.technician.findMany({
+      where: { office: officeFilter, status: 'ACTIVE', frEmployeeId: { not: null } },
+      select: { techId: true, frEmployeeId: true, name: true },
+    });
+    // assignedTech on route is a string frEmployeeId
+    const frIdToTechId = new Map<string, string>(
+      officeTechs.map(t => [String(t.frEmployeeId), t.techId])
+    );
+    log.push(`Loaded ${officeTechs.length} active techs for ${officeFilter}`);
 
-  for (const officeName of officesToProcess) {
-    const cfg = FR_OFFICES[officeName];
-    if (!cfg) {
-      errors.push(`Unknown office: ${officeName}`);
-      continue;
+    // Fetch routes for the week — same as thirtyDayA
+    log.push('Fetching routes...');
+    const allRoutes = await getRoutesForDateRange(weekStartStr, weekEndStr, cfg.key, cfg.token, rl);
+    // Filter to only routes assigned to our office techs
+    const offriceFrIds = new Set(officeTechs.map(t => String(t.frEmployeeId)));
+    const officeRoutes = allRoutes.filter(r => offriceFrIds.has(r.assignedTech));
+    log.push(`Found ${officeRoutes.length} routes for ${officeFilter} (filtered from ${allRoutes.length} total)`);
+
+    // Process each route — get customer IDs
+    const techCustomerIds = new Map<string, Set<string>>(); // techId → Set<customerId>
+
+    for (const route of officeRoutes) {
+      const techId = frIdToTechId.get(route.assignedTech);
+      if (!techId) continue;
+
+      const customerIds = await getRouteCustomerIds(route.routeID, cfg.key, cfg.token, rl);
+      if (!techCustomerIds.has(techId)) techCustomerIds.set(techId, new Set());
+      for (const cid of customerIds) techCustomerIds.get(techId)!.add(cid);
+    }
+    log.push(`Collected customer IDs for ${techCustomerIds.size} techs`);
+
+    // Look up geocoded coords for all collected customer IDs
+    const allCustomerIds = [...new Set([...techCustomerIds.values()].flatMap(s => [...s]))];
+    log.push(`Total unique customers: ${allCustomerIds.length}`);
+
+    const geocoded = await prisma.customer.findMany({
+      where: { externalId: { in: allCustomerIds }, lat: { not: null }, lng: { not: null } },
+      select: { externalId: true, lat: true, lng: true },
+    });
+    const coordMap = new Map<string, { lat: number; lng: number }>(
+      geocoded.map(c => [c.externalId!, { lat: c.lat!, lng: c.lng! }])
+    );
+    log.push(`Geocoded ${coordMap.size} of ${allCustomerIds.length} customers`);
+
+    // Build final techId → coords map
+    const techCoordsMap: Record<string, Array<{ lat: number; lng: number }>> = {};
+    for (const [techId, custIds] of techCustomerIds) {
+      const coords = [...custIds].map(id => coordMap.get(id)).filter(Boolean) as Array<{ lat: number; lng: number }>;
+      if (coords.length > 0) {
+        techCoordsMap[techId] = coords;
+        log.push(`  ${techId}: ${coords.length} route customers`);
+      }
     }
 
+    // Save to AppSetting cache (merge with existing)
+    const cacheKey = `rc_customers_${officeFilter}_${weekEndStr}`;
+    let existingMap: Record<string, Array<{ lat: number; lng: number }>> = {};
     try {
-      log.push(`\n--- ${officeName} ---`);
+      const existing = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
+      if (existing?.value) existingMap = JSON.parse(existing.value);
+    } catch {}
 
-      // 1. Fetch all routes for this office/week
-      const routeSearchUrl = frUrl('route', 'search', {
-        officeIDs:  String(cfg.officeId),
-        dateStart:  fmtDate(weekStart),
-        dateEnd:    fmtDate(weekEnd),
-      }, cfg.key, cfg.token);
-      const routeSearchData = await frFetch(routeSearchUrl);
-      const allRouteIds: number[] = routeSearchData.routeIDs || [];
-      log.push(`Found ${allRouteIds.length} routes`);
-
-      if (allRouteIds.length === 0) continue;
-
-      // 2. Fetch route details in batches of 100 to get assignedTech + appointmentIDs
-      const allRoutes: any[] = [];
-      for (let i = 0; i < allRouteIds.length; i += 100) {
-        const batch = allRouteIds.slice(i, i + 100);
-        const rd = await frFetch(frUrl('route', 'get', { routeIDs: batch.join(',') }, cfg.key, cfg.token));
-        allRoutes.push(...(rd.routes || []));
-        if (i + 100 < allRouteIds.length) await new Promise(r => setTimeout(r, 300));
-      }
-      log.push(`Found ${allRoutes.length} route details`);
-
-      // Process only this chunk
-      const chunk = allRoutes.slice(offset, offset + limit);
-      log.push(`Processing routes ${offset}–${offset + chunk.length - 1} of ${allRoutes.length}`);
-
-      // 3. Group appointment IDs by assignedTech using spot/search per route
-      // Rate limit: ~55 calls/min
-      const empApptIds = new Map<number, Set<number>>();
-      let callCount = 0;
-      let minuteStart = Date.now();
-
-      for (const route of chunk) {
-        const empId = parseInt(route.assignedTech || route.technicianID || '0');
-        if (!empId) continue;
-        if (!empApptIds.has(empId)) empApptIds.set(empId, new Set());
-
-        try {
-          // Rate limit check
-          if (Date.now() - minuteStart > 60000) { callCount = 0; minuteStart = Date.now(); }
-          if (callCount >= 50) {
-            const wait = 60000 - (Date.now() - minuteStart) + 1000;
-            log.push(`  Rate limit pause ${Math.round(wait/1000)}s...`);
-            await new Promise(r => setTimeout(r, wait));
-            callCount = 0; minuteStart = Date.now();
-          }
-
-          const spotSearch = await frFetch(frUrl('spot', 'search', { routeID: String(route.routeID || route.id) }, cfg.key, cfg.token));
-          callCount++;
-          const spotIds: string[] = spotSearch.spotIDs || [];
-          if (spotIds.length === 0) continue;
-
-          const spotData = await frFetch(frUrl('spot', 'get', { spotIDs: spotIds.join(',') }, cfg.key, cfg.token));
-          callCount++;
-          for (const spot of (spotData.spots || [])) {
-            for (const apptId of (spot.appointmentIDs || [])) {
-              empApptIds.get(empId)!.add(parseInt(apptId));
-            }
-          }
-        } catch (e: any) {
-          // skip this route on error
+    // Merge
+    for (const [techId, coords] of Object.entries(techCoordsMap)) {
+      if (existingMap[techId]) {
+        const seen = new Set(existingMap[techId].map((c: any) => `${c.lat},${c.lng}`));
+        for (const c of coords) {
+          if (!seen.has(`${c.lat},${c.lng}`)) { existingMap[techId].push(c); seen.add(`${c.lat},${c.lng}`); }
         }
+      } else {
+        existingMap[techId] = coords;
       }
-      log.push(`Grouped ${[...empApptIds.values()].reduce((s, v) => s + v.size, 0)} appointments for ${empApptIds.size} techs`);
-
-      // 4. Fetch appointment details to get customerIDs
-      const allApptIds = [...new Set([...empApptIds.values()].flatMap(s => [...s]))];
-      const apptCustomerMap = new Map<number, string>(); // apptId → customerId
-
-      for (let i = 0; i < allApptIds.length; i += 200) {
-        const batch = allApptIds.slice(i, i + 200);
-        const apptData = await frFetch(frUrl('appointment', 'get', { appointmentIDs: batch.join(',') }, cfg.key, cfg.token));
-        for (const appt of (apptData.appointments || [])) {
-          if (appt.customerID) apptCustomerMap.set(appt.appointmentID || appt.id, String(appt.customerID));
-        }
-        if (i + 200 < allApptIds.length) await new Promise(r => setTimeout(r, 300));
-      }
-      log.push(`Fetched customer IDs for ${apptCustomerMap.size} appointments`);
-
-      // 5. Get unique customerIDs and look up their geocoded coords from DB
-      const allCustomerIds = [...new Set(apptCustomerMap.values())];
-      const geocodedCustomers = await prisma.customer.findMany({
-        where: { externalId: { in: allCustomerIds }, lat: { not: null }, lng: { not: null } },
-        select: { externalId: true, lat: true, lng: true },
-      });
-      const custCoordMap = new Map<string, { lat: number; lng: number }>(geocodedCustomers.map(c => [c.externalId!, { lat: c.lat!, lng: c.lng! }]));
-      log.push(`Geocoded ${custCoordMap.size} of ${allCustomerIds.length} customers`);
-
-      // Map FR employeeID → our techId across ALL offices (assignedTech may be from any office)
-      const officeTechs = await prisma.technician.findMany({
-        where: { status: 'ACTIVE', frEmployeeId: { not: null } },
-        select: { techId: true, frEmployeeId: true, name: true },
-      });
-      const frEmpToTechId = new Map<number, string>(officeTechs.map(t => [t.frEmployeeId!, t.techId]));
-      log.push(`  frEmpToTechId: ${[...frEmpToTechId.entries()].slice(0,3).map(([k,v]) => `${k}→${v}`).join(', ')}...`);
-      log.push(`  empApptIds keys: ${[...empApptIds.keys()].slice(0,5).join(', ')}...`);
-
-      const techCoordsMap: Record<string, Array<{ lat: number; lng: number }>> = {};
-      for (const [empId, apptIds] of empApptIds) {
-        const techId = frEmpToTechId.get(empId);
-        if (!techId) continue;
-
-        const coords: Array<{ lat: number; lng: number }> = [];
-        const seen = new Set<string>();
-        for (const apptId of apptIds) {
-          const custId = apptCustomerMap.get(apptId);
-          if (!custId || seen.has(custId)) continue;
-          seen.add(custId);
-          const coord = custCoordMap.get(custId);
-          if (coord) coords.push(coord);
-        }
-        if (coords.length > 0) {
-          techCoordsMap[techId] = coords;
-          log.push(`  ${techId}: ${coords.length} route customers`);
-        }
-      }
-
-      // 7. Save to AppSetting cache — merge with existing (chunks build up the cache)
-      const cacheKey = `rc_customers_${officeName}_${weekEndStr}`;
-      let existingMap: Record<string, Array<{ lat: number; lng: number }>> = {};
-      try {
-        const existing = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
-        if (existing?.value) existingMap = JSON.parse(existing.value);
-      } catch {}
-
-      // Merge: combine coords arrays for same techId
-      for (const [techId, coords] of Object.entries(techCoordsMap)) {
-        if (existingMap[techId]) {
-          // Deduplicate by lat/lng
-          const seen = new Set(existingMap[techId].map(c => `${c.lat},${c.lng}`));
-          for (const c of coords) {
-            if (!seen.has(`${c.lat},${c.lng}`)) {
-              existingMap[techId].push(c);
-              seen.add(`${c.lat},${c.lng}`);
-            }
-          }
-        } else {
-          existingMap[techId] = coords;
-        }
-      }
-
-      await prisma.appSetting.upsert({
-        where:  { key: cacheKey },
-        update: { value: JSON.stringify(existingMap) },
-        create: { key: cacheKey, value: JSON.stringify(existingMap) },
-      });
-
-      results[officeName] = Object.keys(existingMap).length;
-      log.push(`Saved/merged cache for ${officeName}: ${Object.keys(existingMap).length} techs total → key: ${cacheKey}`);
-
-    } catch (e: any) {
-      const msg = `${officeName} error: ${e.message}`;
-      errors.push(msg);
-      log.push(msg);
     }
-  }
 
-  return NextResponse.json({
-    status: errors.length === 0 ? 'success' : 'partial',
-    weekEnd: weekEndStr,
-    offset,
-    limit,
-    offices: results,
-    errors,
-    log: log.join('\n'),
-  }, { headers: { 'Cache-Control': 'no-store' } });
+    await prisma.appSetting.upsert({
+      where:  { key: cacheKey },
+      update: { value: JSON.stringify(existingMap) },
+      create: { key: cacheKey, value: JSON.stringify(existingMap) },
+    });
+
+    log.push(`Saved cache → key: ${cacheKey}, techs: ${Object.keys(existingMap).length}`);
+
+    return NextResponse.json({
+      status: 'success',
+      weekEnd: weekEndStr,
+      office: officeFilter,
+      techsMapped: Object.keys(existingMap).length,
+      errors,
+      log: log.join('\n'),
+    }, { headers: { 'Cache-Control': 'no-store' } });
+
+  } catch (e: any) {
+    errors.push(e.message);
+    return NextResponse.json({
+      status: 'error', weekEnd: weekEndStr, office: officeFilter, errors, log: log.join('\n'),
+    }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
+  }
 }
