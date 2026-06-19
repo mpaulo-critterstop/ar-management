@@ -94,24 +94,44 @@ export async function GET(req: NextRequest) {
       }
       log.push(`Fetched ${allRoutes.length} route details`);
 
-      // 3. Group appointment IDs by assignedTech (FR employee ID)
+      // 3. Group appointment IDs by assignedTech using spot/search per route
+      // Rate limit: ~55 calls/min
       const empApptIds = new Map<number, Set<number>>();
+      let callCount = 0;
+      let minuteStart = Date.now();
+
       for (const route of allRoutes) {
         const empId = parseInt(route.assignedTech || route.technicianID || '0');
         if (!empId) continue;
         if (!empApptIds.has(empId)) empApptIds.set(empId, new Set());
-        // FR routes store appointments inside spots
-        for (const spot of (route.spots || [])) {
-          for (const apptId of (spot.appointmentIDs || [])) {
-            empApptIds.get(empId)!.add(apptId);
+
+        try {
+          // Rate limit check
+          if (Date.now() - minuteStart > 60000) { callCount = 0; minuteStart = Date.now(); }
+          if (callCount >= 50) {
+            const wait = 60000 - (Date.now() - minuteStart) + 1000;
+            log.push(`  Rate limit pause ${Math.round(wait/1000)}s...`);
+            await new Promise(r => setTimeout(r, wait));
+            callCount = 0; minuteStart = Date.now();
           }
-        }
-        // Also check direct appointmentIDs just in case
-        for (const apptId of (route.appointmentIDs || [])) {
-          empApptIds.get(empId)!.add(apptId);
+
+          const spotSearch = await frFetch(frUrl('spot', 'search', { routeID: String(route.routeID || route.id) }, cfg.key, cfg.token));
+          callCount++;
+          const spotIds: string[] = spotSearch.spotIDs || [];
+          if (spotIds.length === 0) continue;
+
+          const spotData = await frFetch(frUrl('spot', 'get', { spotIDs: spotIds.join(',') }, cfg.key, cfg.token));
+          callCount++;
+          for (const spot of (spotData.spots || [])) {
+            for (const apptId of (spot.appointmentIDs || [])) {
+              empApptIds.get(empId)!.add(parseInt(apptId));
+            }
+          }
+        } catch (e: any) {
+          // skip this route on error
         }
       }
-      log.push(`Grouped appointments for ${empApptIds.size} techs`);
+      log.push(`Grouped ${[...empApptIds.values()].reduce((s, v) => s + v.size, 0)} appointments for ${empApptIds.size} techs`);
 
       // 4. Fetch appointment details to get customerIDs
       const allApptIds = [...new Set([...empApptIds.values()].flatMap(s => [...s]))];
