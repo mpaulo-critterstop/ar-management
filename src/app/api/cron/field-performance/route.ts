@@ -133,7 +133,7 @@ async function pullWPMetrics(
   const cbAppts = await prisma.tcAppointment.findMany({
     where: {
       techId: { in: [...wpTechIds] },
-      date: { gte: cbStart, lte: cbEnd },
+      date: { gte: cbStart, lt: cbEnd },
     },
     select: { techId: true, cb60Day: true },
   });
