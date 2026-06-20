@@ -172,12 +172,12 @@ export async function GET(req: NextRequest) {
       // Get all future appointments for customers in this batch to compute forward-looking fields
       const customerIds = [...new Set(relevant.map((a: any) => String(a.customerID)))];
 
-      // Fetch future appointments per customer (scheduled, not completed)
+      // Fetch future appointments per customer — 180 days out, all types
       const futureSearchUrl = frUrl('appointment', 'search', {
         officeIDs: String(cfg.officeId),
         dateStart: fmtDate(new Date(weekEnd.getTime() + 86400000)), // day after weekEnd
-        dateEnd: fmtDate(new Date(weekEnd.getTime() + 90 * 86400000)), // 90 days out
-        customerIDs: customerIds.slice(0, 200).join(','), // batch limit
+        dateEnd: fmtDate(new Date(weekEnd.getTime() + 180 * 86400000)), // 180 days out per Excel
+        customerIDs: customerIds.slice(0, 200).join(','),
       }, cfg.key, cfg.token);
 
       let futureAppts: any[] = [];
@@ -192,57 +192,57 @@ export async function GET(req: NextRequest) {
       }
 
       // Build future visit map per customer
+      // nonCb = trap checks only (not callbacks "<>*call*" and not annual inspections "<>*annual*")
       const futureByCustomer = new Map<string, { nonCb: any[]; cbs: any[] }>();
       for (const fa of futureAppts) {
         const custId = String(fa.customerID);
         if (!futureByCustomer.has(custId)) futureByCustomer.set(custId, { nonCb: [], cbs: [] });
-        const typeId = parseInt(String(fa.type || fa.serviceTypeID || '0'));
-        if (CALLBACK_IDS.has(typeId)) {
+        const jobTitle = String(fa.appointmentTitle || fa.title || fa.type || '').toLowerCase();
+        const isCallback = jobTitle.includes('call');
+        const isAnnual = jobTitle.includes('annual');
+        if (isCallback) {
           futureByCustomer.get(custId)!.cbs.push(fa);
-        } else {
+        } else if (!isAnnual) {
+          // Only trap checks count as future non-CB visits (exclude annual inspections)
           futureByCustomer.get(custId)!.nonCb.push(fa);
         }
       }
 
-      // Also get past appointments within 60 days to check CB flag
-      const pastSearchUrl = frUrl('appointment', 'search', {
+      // Fetch future appointments for cb60Day — callbacks within 60 days after each appointment
+      // We need a wider window: weekStart to weekEnd + 60 days
+      const cbSearchUrl = frUrl('appointment', 'search', {
         officeIDs: String(cfg.officeId),
         dateStart: fmtDate(weekStart),
         dateEnd: fmtDate(new Date(weekEnd.getTime() + 60 * 86400000)),
         customerIDs: customerIds.slice(0, 200).join(','),
-        status: '1',
       }, cfg.key, cfg.token);
 
-      let past60Appts: any[] = [];
+      let cb60Appts: any[] = [];
       try {
-        const pastSearch = await frFetch(pastSearchUrl);
-        const pastIds: number[] = pastSearch.appointmentIDs || [];
-        if (pastIds.length > 0) {
-          past60Appts = await fetchInBatches('appointment', 'get', 'appointmentIDs', pastIds, cfg.key, cfg.token);
+        const cbSearch = await frFetch(cbSearchUrl);
+        const cbIds: number[] = cbSearch.appointmentIDs || [];
+        if (cbIds.length > 0) {
+          cb60Appts = await fetchInBatches('appointment', 'get', 'appointmentIDs', cbIds, cfg.key, cfg.token);
         }
       } catch (e: any) {
-        log.push(`  Past 60d appts fetch error: ${e.message}`);
+        log.push(`  CB 60d appts fetch error: ${e.message}`);
       }
 
-      // Build 60-day CB map and 1wk/2wk close-out map per customer
-      const cb60Map = new Map<string, boolean>();
-      const wk1Map = new Map<string, boolean>();
-      const wk2Map = new Map<string, boolean>();
-
-      for (const pa of past60Appts) {
-        const custId = String(pa.customerID);
-        const typeId = parseInt(String(pa.type || pa.serviceTypeID || '0'));
-        const paDate = new Date(pa.date || pa.dateAdded);
-
-        if (CALLBACK_IDS.has(typeId)) {
-          cb60Map.set(custId, true);
-        }
-        if (hasCloseoutNote(pa)) {
-          const diffDays = (paDate.getTime() - weekEnd.getTime()) / 86400000;
-          if (diffDays <= 7) wk1Map.set(custId, true);
-          if (diffDays <= 14) wk2Map.set(custId, true);
-        }
+      // Build callback map: custId → array of callback dates
+      // cb60Day: COUNTIFS(customer=D, jobTitle contains "call", date > apptDate, date <= apptDate+60)
+      const cbDatesByCustomer = new Map<string, Date[]>();
+      for (const ca of cb60Appts) {
+        const custId = String(ca.customerID);
+        const jobTitle = String(ca.appointmentTitle || ca.title || '').toLowerCase();
+        if (!jobTitle.includes('call')) continue;
+        if (!cbDatesByCustomer.has(custId)) cbDatesByCustomer.set(custId, []);
+        cbDatesByCustomer.get(custId)!.push(new Date(ca.date || ca.dateAdded));
       }
+
+      // wk1CloseOut: next future non-CB visit for same customer has closedOut=true
+      // We build a map: custId → closedOut status of next future visit
+      // This will be calculated per-appointment using futureByCustomer and closedOut flag
+      // wk2CloseOut: futureNonCbVisits === 2 (exactly 2 future non-CB visits per Excel Col O)
 
       // Fetch customer names in batch
       const customerMap = new Map<string, string>();
@@ -339,17 +339,35 @@ export async function GET(req: NextRequest) {
         const closedOut = hasCloseoutNote(appt);
         if (closedOut) isCoJob = true;
 
-        // Future visits
+        // Future visits — trap checks only, not callbacks or annual inspections, within 180 days
         const future = futureByCustomer.get(custId);
         const futureNonCb = future?.nonCb.length ?? 0;
         const futureCbs = future?.cbs.length ?? 0;
-        const nextNonCb = future?.nonCb.sort((a: any, b: any) =>
+
+        // Next visit days — days from appointment date to nearest future non-CB visit
+        const sortedNonCb = (future?.nonCb ?? []).slice().sort((a: any, b: any) =>
           new Date(a.date).getTime() - new Date(b.date).getTime()
-        )[0];
-        const nextVisitDays = nextNonCb
-          ? Math.round((new Date(nextNonCb.date).getTime() - weekEnd.getTime()) / 86400000)
-          : null;
+        );
+        const nextNonCb = sortedNonCb[0];
         const apptDate = new Date(appt.date || appt.dateAdded);
+        const nextVisitDays = nextNonCb
+          ? Math.round((new Date(nextNonCb.date || nextNonCb.dateAdded).getTime() - apptDate.getTime()) / 86400000)
+          : null;
+
+        // wk1CloseOut: next future non-CB visit has closedOut=true (Excel Col N: XLOOKUP finds next visit M=1)
+        // We check if the next future visit has a closeout note
+        const wk1CloseOut = nextNonCb ? hasCloseoutNote(nextNonCb) : false;
+
+        // wk2CloseOut: exactly 2 future non-CB visits (Excel Col O: K5=2)
+        const wk2CloseOut = futureNonCb === 2;
+
+        // cb60Day: count of callbacks within 60 days AFTER this appointment's date
+        const custCbDates = cbDatesByCustomer.get(custId) ?? [];
+        const apptTime = apptDate.getTime();
+        const cb60Count = custCbDates.filter(d =>
+          d.getTime() > apptTime && d.getTime() <= apptTime + 60 * 86400000
+        ).length;
+        const cb60Day = cb60Count > 0;
 
         try {
           await prisma.tcAppointment.upsert({
@@ -366,9 +384,9 @@ export async function GET(req: NextRequest) {
               isCoJob,
               apptStatus,
               closedOut,
-              wk1CloseOut: wk1Map.get(custId) ?? false,
-              wk2CloseOut: wk2Map.get(custId) ?? false,
-              cb60Day: cb60Map.get(custId) ?? false,
+              wk1CloseOut,
+              wk2CloseOut,
+              cb60Day,
               futureNonCbVisits: futureNonCb,
               nextVisitDays,
               futureCbs,
@@ -389,9 +407,9 @@ export async function GET(req: NextRequest) {
               isCoJob,
               apptStatus,
               closedOut,
-              wk1CloseOut: wk1Map.get(custId) ?? false,
-              wk2CloseOut: wk2Map.get(custId) ?? false,
-              cb60Day: cb60Map.get(custId) ?? false,
+              wk1CloseOut,
+              wk2CloseOut,
+              cb60Day,
               futureNonCbVisits: futureNonCb,
               nextVisitDays,
               futureCbs,
