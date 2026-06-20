@@ -64,7 +64,7 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
 function fmtDate(d: Date) { return d.toISOString().split('T')[0]; }
 
 function hasCloseoutNote(appt: any): boolean {
-  const text = [appt.officeNotes, appt.techNotes].filter(Boolean).join(' ').toLowerCase();
+  const text = [appt.officeNotes, appt.notes, appt.appointmentNotes].filter(Boolean).join(' ').toLowerCase();
   return ['ready for insulation', 'ready for far', 'closed out'].some(k => text.includes(k));
 }
 
