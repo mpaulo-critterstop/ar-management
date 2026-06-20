@@ -247,7 +247,7 @@ export async function GET(req: NextRequest) {
       // Fetch customer names in batch
       const customerMap = new Map<string, string>();
       try {
-        const custData = await fetchInBatches('customer', 'get', 'customerIDs', customerIds.slice(0, 500), cfg.key, cfg.token);
+        const custData = await fetchInBatches('customer', 'get', 'customerIDs', customerIds, cfg.key, cfg.token);
         for (const c of custData) {
           const name = c.companyName?.trim()
             ? c.companyName.trim()
