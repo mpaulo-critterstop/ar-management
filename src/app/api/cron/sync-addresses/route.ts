@@ -38,16 +38,36 @@ export async function POST(req: NextRequest) {
   let totalUpdated = 0;
   const errors: string[] = [];
 
+  // Load last sync time from AppSetting
+  const SYNC_KEY = 'addr_last_synced_at';
+  let lastSyncedAt: Date | null = null;
+  try {
+    const setting = await prisma.appSetting.findUnique({ where: { key: SYNC_KEY } });
+    if (setting?.value) lastSyncedAt = new Date(setting.value);
+  } catch {}
+
+  const syncStartTime = new Date();
+  log.push(`Last synced: ${lastSyncedAt ? lastSyncedAt.toISOString() : 'never (full sync)'}`);
+
   for (const [officeName, cfg] of Object.entries(OFFICES)) {
     if (!cfg.key || !cfg.token) continue;
 
     try {
       log.push(`\n--- ${officeName} ---`);
 
-      // Search all customers for this office
-      const searchData = await frFetch('customer/search', `officeIDs=${cfg.officeId}`, cfg.key, cfg.token);
+      // Search customers — if incremental, filter by dateUpdated
+      const searchParams = lastSyncedAt
+        ? `officeIDs=${cfg.officeId}&dateUpdated=${lastSyncedAt.toISOString().split('T')[0]}`
+        : `officeIDs=${cfg.officeId}`;
+
+      const searchData = await frFetch('customer/search', searchParams, cfg.key, cfg.token);
       const customerIds: number[] = searchData.customerIDs || [];
-      log.push(`Found ${customerIds.length} customers`);
+      log.push(`Found ${customerIds.length} customers${lastSyncedAt ? ' (updated since last sync)' : ''}`);
+
+      if (customerIds.length === 0) {
+        log.push(`${officeName}: no new customers to sync`);
+        continue;
+      }
 
       // Fetch in batches
       let updated = 0;
@@ -110,6 +130,18 @@ export async function POST(req: NextRequest) {
   }
 
   log.push(`\nTotal updated: ${totalUpdated}`);
+
+  // Save sync time so next run is incremental
+  try {
+    await prisma.appSetting.upsert({
+      where: { key: SYNC_KEY },
+      update: { value: syncStartTime.toISOString() },
+      create: { key: SYNC_KEY, value: syncStartTime.toISOString() },
+    });
+    log.push(`Next sync will be incremental from: ${syncStartTime.toISOString()}`);
+  } catch (e: any) {
+    log.push(`Warning: could not save sync time: ${e.message}`);
+  }
 
   return NextResponse.json({
     status: errors.length === 0 ? 'success' : 'partial',
