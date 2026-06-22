@@ -35,36 +35,47 @@ export async function GET(req: NextRequest) {
   const techId = searchParams.get('techId') || 'P-013';
   const date = searchParams.get('date') || '2026-06-12';
 
-  // Get Bouncie token
-  const tokenRes = await fetch('https://auth.bouncie.dev/oauth/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: process.env.BOUNCIE_CLIENT_ID!,
-      client_secret: process.env.BOUNCIE_CLIENT_SECRET!,
-      grant_type: 'authorization_code',
-      code: process.env.BOUNCIE_AUTH_CODE!,
-      redirect_uri: process.env.BOUNCIE_REDIRECT_URI!,
-    }),
-  });
-  const tokenData = await tokenRes.json();
-  const bouncieToken = tokenData.access_token;
+  // Get Bouncie token from AppSetting (same as reliability cron)
+  const [tokenSetting, expiresSetting, refreshSetting] = await Promise.all([
+    prisma.appSetting.findUnique({ where: { key: 'bouncie_access_token' } }),
+    prisma.appSetting.findUnique({ where: { key: 'bouncie_token_expires_at' } }),
+    prisma.appSetting.findUnique({ where: { key: 'bouncie_refresh_token' } }),
+  ]);
+
+  if (!tokenSetting || !refreshSetting) return NextResponse.json({ error: 'Bouncie not connected' });
+
+  let bouncieToken = tokenSetting.value;
+  const expiresAt = new Date(expiresSetting?.value || 0);
+  if (expiresAt.getTime() - Date.now() <= 5 * 60 * 1000) {
+    const res = await fetch('https://auth.bouncie.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: process.env.BOUNCIE_CLIENT_ID,
+        client_secret: process.env.BOUNCIE_CLIENT_SECRET,
+        grant_type: 'refresh_token',
+        refresh_token: refreshSetting.value,
+      }),
+    });
+    const tokens = await res.json();
+    bouncieToken = tokens.access_token;
+  }
 
   // Get vehicles
   const vehicles = await bouncieFetch('/vehicles', bouncieToken);
 
   // Find tech
-  const tech = await prisma.technician.findFirst({ where: { techId } });
+  const tech = await prisma.technician.findFirst({ where: { techId }, select: { id: true, name: true, techId: true, bouncieImei: true } });
   if (!tech) return NextResponse.json({ error: 'Tech not found' });
 
-  // Find vehicle by name match
-  const techName = tech.name.toLowerCase();
+  // Find vehicle by IMEI or name
   const vehicle = vehicles.find((v: any) =>
-    (v.nickName || '').toLowerCase().includes(techName.split(' ')[0].toLowerCase()) ||
-    (v.nickName || '').toLowerCase().includes(techName.split(' ').pop()!.toLowerCase())
+    (tech.bouncieImei && v.imei === tech.bouncieImei) ||
+    (v.nickName || '').toLowerCase().includes(tech.name.split(' ')[0].toLowerCase()) ||
+    (v.nickName || '').toLowerCase().includes(tech.name.split(' ').pop()!.toLowerCase())
   );
 
-  if (!vehicle) return NextResponse.json({ error: 'Vehicle not found', techName, vehicles: vehicles.map((v: any) => v.nickName) });
+  if (!vehicle) return NextResponse.json({ error: 'Vehicle not found', techName: tech.name, bouncieImei: tech.bouncieImei, vehicles: vehicles.map((v: any) => ({ nickName: v.nickName, imei: v.imei })) });
 
   // Get route customer cache
   const cacheKey = `rc_customers_DFW_${date}`;
