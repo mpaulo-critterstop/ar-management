@@ -501,13 +501,11 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // ── END OF DAY: last trip END at a known location ──
-          // Record every trip that ends at a known customer/business location
-          // The last one found will be used as end of day
-          const bizEndCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
-          const custEndCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, matchCoords);
-          if (bizEndCheck.match || custEndCheck) {
-            endOfDay = tripEnd;
+          // ── END OF DAY: last trip start from a known location ──
+          const bizStartCheck = isBusinessLocation(endpoints.startLat, endpoints.startLng);
+          const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, matchCoords);
+          if (bizStartCheck.match || custStartCheck) {
+            endOfDay = tripStart;
           }
         }
 
