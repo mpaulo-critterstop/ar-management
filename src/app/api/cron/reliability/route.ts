@@ -501,24 +501,13 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // ── END OF DAY: last trip start from a known location ──
-          // Only count as end of day if the tech dwelled there for at least 10 minutes
-          // (quick stops like gas stations < 10 min should not count as end of day)
-          const bizStartCheck = isBusinessLocation(endpoints.startLat, endpoints.startLng);
-          const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, matchCoords);
-          if (bizStartCheck.match || custStartCheck) {
-            // Calculate dwell time: how long was the tech at this location before this trip started?
-            const prevTrip = tripIdx > 0 ? dayTrips[tripIdx - 1] : null;
-            if (prevTrip) {
-              const prevTripEnd = new Date(prevTrip.endTime);
-              const dwellMins = (tripStart.getTime() - prevTripEnd.getTime()) / 60000;
-              if (dwellMins >= 10) {
-                endOfDay = tripStart;
-              }
-              // else: quick stop (< 10 min dwell), don't set as end of day
-            } else {
-              endOfDay = tripStart;
-            }
+          // ── END OF DAY: last trip END at a known location ──
+          // Record every trip that ends at a known customer/business location
+          // The last one found will be used as end of day
+          const bizEndCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
+          const custEndCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, matchCoords);
+          if (bizEndCheck.match || custEndCheck) {
+            endOfDay = tripEnd;
           }
         }
 
