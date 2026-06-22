@@ -502,20 +502,20 @@ export async function POST(req: NextRequest) {
           }
 
           // ── END OF DAY: last trip start from a known location ──
-          // Only count as end of day if no more trips start within 30 minutes
+          // Only count as end of day if the tech dwelled there for at least 10 minutes
+          // (quick stops like gas stations < 10 min should not count as end of day)
           const bizStartCheck = isBusinessLocation(endpoints.startLat, endpoints.startLng);
           const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, matchCoords);
           if (bizStartCheck.match || custStartCheck) {
-            // Check if next trip starts within 30 minutes (tech just passing through)
-            const nextTrip = dayTrips[tripIdx + 1];
-            if (nextTrip) {
-              const nextTripStart = new Date(nextTrip.startTime);
-              const gapMins = (nextTripStart.getTime() - tripStart.getTime()) / 60000;
-              if (gapMins <= 30) {
-                // Quick stop — not end of day, skip
-              } else {
+            // Calculate dwell time: how long was the tech at this location before this trip started?
+            const prevTrip = tripIdx > 0 ? dayTrips[tripIdx - 1] : null;
+            if (prevTrip) {
+              const prevTripEnd = new Date(prevTrip.endTime);
+              const dwellMins = (tripStart.getTime() - prevTripEnd.getTime()) / 60000;
+              if (dwellMins >= 10) {
                 endOfDay = tripStart;
               }
+              // else: quick stop (< 10 min dwell), don't set as end of day
             } else {
               endOfDay = tripStart;
             }
