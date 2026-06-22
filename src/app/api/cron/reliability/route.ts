@@ -389,16 +389,17 @@ export async function POST(req: NextRequest) {
       if (!tech) continue;
 
       // Fetch trips for the week with geojson GPS
-      // Window: weekStart (midnight UTC Mon) to weekEnd + 30hrs (6AM UTC Sat = midnight CST Sat)
-      // This captures late night trips that cross midnight UTC
+      // Window: 6AM UTC Monday to 6AM UTC Saturday = midnight CST Monday to midnight CST Saturday
+      // Exactly 7 days — stays within Bouncie's limit while capturing full CST days
       let trips: any[] = [];
       try {
-        const weekEndExtended = new Date(weekEnd.getTime() + 30 * 60 * 60 * 1000); // weekEnd + 30hrs = 6AM UTC next day
+        const bouncieStart = new Date(weekStart.getTime() + 6 * 60 * 60 * 1000); // weekStart + 6hrs = 6AM UTC Mon
+        const bouncieEnd = new Date(weekEnd.getTime() + 6 * 60 * 60 * 1000);     // weekEnd + 6hrs = 6AM UTC Sat
         trips = await bouncieFetch('/trips', token, {
           imei,
           'gps-format':   'geojson',
-          'starts-after': weekStart.toISOString(),
-          'ends-before':  weekEndExtended.toISOString(),
+          'starts-after': bouncieStart.toISOString(),
+          'ends-before':  bouncieEnd.toISOString(),
         });
         if (!Array.isArray(trips)) trips = [];
       } catch (e: any) {
