@@ -89,9 +89,10 @@ export async function GET(req: NextRequest) {
   const routeMap = cached?.value ? JSON.parse(cached.value) : {};
   const routeCoords: Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }> = routeMap[techId] || [];
 
-  // Fetch trips for the day
+  // Fetch trips for the day - extend to 6AM UTC next day to capture late night trips
   const dayStart = new Date(`${date}T00:00:00.000Z`);
-  const dayEnd = new Date(`${date}T23:59:59.000Z`);
+  const dayEnd = new Date(`${date}T06:00:00.000Z`);
+  dayEnd.setDate(dayEnd.getDate() + 1); // 6AM UTC next day = midnight CST
   const trips = await bouncieFetch('/trips', bouncieToken, {
     imei: vehicle.imei,
     'gps-format': 'geojson',
