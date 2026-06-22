@@ -394,7 +394,7 @@ export async function POST(req: NextRequest) {
       let trips: any[] = [];
       try {
         const bouncieStart = new Date(weekStart.getTime() + 6 * 60 * 60 * 1000); // weekStart + 6hrs = 6AM UTC Mon
-        const bouncieEnd = new Date(weekEnd.getTime() + 6 * 60 * 60 * 1000);     // weekEnd + 6hrs = 6AM UTC Sat
+        const bouncieEnd = new Date(weekEnd.getTime() + 30 * 60 * 60 * 1000);    // weekEnd + 30hrs = 6AM UTC Sat = midnight CST Fri
         trips = await bouncieFetch('/trips', token, {
           imei,
           'gps-format':   'geojson',
