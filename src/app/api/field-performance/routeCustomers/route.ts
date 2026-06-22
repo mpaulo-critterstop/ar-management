@@ -1,12 +1,12 @@
 // src/app/api/field-performance/routeCustomers/route.ts
-// Pre-fetches FR route appointments for the week, extracts customer coords per tech,
+// Pre-fetches FR route appointments for the week, extracts customer coords per tech PER DAY,
 // and caches them for the reliability cron.
 //
-// Uses the SAME logic as thirtyDayA - just fetches for the current week, all techs.
-// Run BEFORE reliability cron each week, per office.
+// Cache key: rc_customers_<office>_<date> (one per day, not per week)
+// This ensures each day only matches customers scheduled for THAT day.
 //
 // Usage: /api/field-performance/routeCustomers?token=critterstop2026&weekEnd=YYYY-MM-DD&office=DFW
-// Cache key: rc_customers_<office>_<weekEnd>
+// Run once per office per week (saves 5 daily cache keys internally)
 
 export const maxDuration = 300;
 
@@ -39,7 +39,6 @@ function makeRateLimiter() {
   };
 }
 
-// Same as thirtyDayA - get routes for date range
 async function getRoutesForDateRange(
   dateStart: string, dateEnd: string,
   key: string, token: string,
@@ -63,7 +62,6 @@ async function getRoutesForDateRange(
   return matching;
 }
 
-// Get customerIDs and appointmentIDs from a route via spots → appointments
 async function getRouteCustomerIds(
   routeID: string, key: string, token: string,
   rl: (u: string) => Promise<any>
@@ -122,44 +120,49 @@ export async function GET(req: NextRequest) {
   const errors: string[] = [];
 
   try {
-    // Load ALL active techs for this office to map assignedTech → techId
     const officeTechs = await prisma.technician.findMany({
       where: { office: officeFilter, status: 'ACTIVE', frEmployeeId: { not: null } },
       select: { techId: true, frEmployeeId: true, name: true },
     });
-    // assignedTech on route is a string frEmployeeId
     const frIdToTechId = new Map<string, string>(
       officeTechs.map(t => [String(t.frEmployeeId), t.techId])
     );
     log.push(`Loaded ${officeTechs.length} active techs for ${officeFilter}`);
 
-    // Fetch routes for the week — same as thirtyDayA
     log.push('Fetching routes...');
     const allRoutes = await getRoutesForDateRange(weekStartStr, weekEndStr, cfg.key, cfg.token, rl);
-    // Filter to only routes assigned to our office techs
     const offriceFrIds = new Set(officeTechs.map(t => String(t.frEmployeeId)));
     const officeRoutes = allRoutes.filter(r => offriceFrIds.has(r.assignedTech));
     const chunk = officeRoutes.slice(offset, offset + limit);
     log.push(`Found ${officeRoutes.length} routes for ${officeFilter} (filtered from ${allRoutes.length} total)`);
     log.push(`Processing chunk ${offset}–${offset + chunk.length - 1} of ${officeRoutes.length}`);
 
-    // Process each route — get customer IDs and appointment IDs
-    const techCustomerAppts = new Map<string, Map<string, string>>(); // techId → Map<customerId, frAppointmentId>
+    // Process each route — group by date AND tech
+    // techDateAppts: date → techId → Map<customerId, frAppointmentId>
+    const techDateAppts = new Map<string, Map<string, Map<string, string>>>();
 
     for (const route of chunk) {
       const techId = frIdToTechId.get(route.assignedTech);
       if (!techId) continue;
 
       const appts = await getRouteCustomerIds(route.routeID, cfg.key, cfg.token, rl);
-      if (!techCustomerAppts.has(techId)) techCustomerAppts.set(techId, new Map());
+      const date = route.date; // e.g. "2026-06-08"
+
+      if (!techDateAppts.has(date)) techDateAppts.set(date, new Map());
+      const dateMap = techDateAppts.get(date)!;
+      if (!dateMap.has(techId)) dateMap.set(techId, new Map());
       for (const { customerId, frAppointmentId } of appts) {
-        techCustomerAppts.get(techId)!.set(customerId, frAppointmentId);
+        dateMap.get(techId)!.set(customerId, frAppointmentId);
       }
     }
-    log.push(`Collected customer IDs for ${techCustomerAppts.size} techs`);
+    log.push(`Collected routes for ${techDateAppts.size} days`);
 
-    // Look up geocoded coords for all collected customer IDs
-    const allCustomerIds = [...new Set([...techCustomerAppts.values()].flatMap(m => [...m.keys()]))];
+    // Geocode all unique customers across all days
+    const allCustomerIds = [...new Set(
+      [...techDateAppts.values()].flatMap(dateMap =>
+        [...dateMap.values()].flatMap(custMap => [...custMap.keys()])
+      )
+    )];
     log.push(`Total unique customers: ${allCustomerIds.length}`);
 
     const geocoded = await prisma.customer.findMany({
@@ -171,54 +174,51 @@ export async function GET(req: NextRequest) {
     );
     log.push(`Geocoded ${coordMap.size} of ${allCustomerIds.length} customers`);
 
-    // Build final techId → array of { lat, lng, customerId, frAppointmentId }
-    const techCoordsMap: Record<string, Array<{ lat: number; lng: number; customerId: string; frAppointmentId: string }>> = {};
-    for (const [techId, custApptMap] of techCustomerAppts) {
-      const entries: Array<{ lat: number; lng: number; customerId: string; frAppointmentId: string }> = [];
-      for (const [customerId, frAppointmentId] of custApptMap) {
-        const coord = coordMap.get(customerId);
-        if (coord) entries.push({ ...coord, customerId, frAppointmentId });
-      }
-      if (entries.length > 0) {
-        techCoordsMap[techId] = entries;
-        log.push(`  ${techId}: ${entries.length} route customers`);
-      }
-    }
+    // Save one cache key per day: rc_customers_<office>_<date>
+    for (const [date, dateMap] of techDateAppts) {
+      const cacheKey = `rc_customers_${officeFilter}_${date}`;
 
-    // Save to AppSetting cache (merge with existing, or reset if reset=true)
-    const cacheKey = `rc_customers_${officeFilter}_${weekEndStr}`;
-    let existingMap: Record<string, Array<{ lat: number; lng: number; customerId: string; frAppointmentId: string }>> = {};
-    if (reset) {
-      log.push(`Cache reset requested — starting fresh for ${officeFilter}`);
-    } else {
-      try {
-        const existing = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
-        if (existing?.value) existingMap = JSON.parse(existing.value);
-      } catch {}
-    }
+      const techCoordsMap: Record<string, Array<{ lat: number; lng: number; customerId: string; frAppointmentId: string }>> = {};
+      for (const [techId, custApptMap] of dateMap) {
+        const entries: Array<{ lat: number; lng: number; customerId: string; frAppointmentId: string }> = [];
+        for (const [customerId, frAppointmentId] of custApptMap) {
+          const coord = coordMap.get(customerId);
+          if (coord) entries.push({ ...coord, customerId, frAppointmentId });
+        }
+        if (entries.length > 0) techCoordsMap[techId] = entries;
+      }
 
-    // Merge by frAppointmentId to avoid duplicates
-    for (const [techId, entries] of Object.entries(techCoordsMap)) {
-      if (!existingMap[techId]) {
-        existingMap[techId] = entries;
-      } else {
-        const existingApptIds = new Set(existingMap[techId].map(e => e.frAppointmentId));
-        for (const entry of entries) {
-          if (!existingApptIds.has(entry.frAppointmentId)) {
-            existingMap[techId].push(entry);
-            existingApptIds.add(entry.frAppointmentId);
+      // Merge with existing or reset
+      let existingMap: Record<string, Array<{ lat: number; lng: number; customerId: string; frAppointmentId: string }>> = {};
+      if (!reset) {
+        try {
+          const existing = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
+          if (existing?.value) existingMap = JSON.parse(existing.value);
+        } catch {}
+      }
+
+      for (const [techId, entries] of Object.entries(techCoordsMap)) {
+        if (!existingMap[techId]) {
+          existingMap[techId] = entries;
+        } else {
+          const existingApptIds = new Set(existingMap[techId].map(e => e.frAppointmentId));
+          for (const entry of entries) {
+            if (!existingApptIds.has(entry.frAppointmentId)) {
+              existingMap[techId].push(entry);
+              existingApptIds.add(entry.frAppointmentId);
+            }
           }
         }
       }
+
+      await prisma.appSetting.upsert({
+        where:  { key: cacheKey },
+        update: { value: JSON.stringify(existingMap) },
+        create: { key: cacheKey, value: JSON.stringify(existingMap) },
+      });
+
+      log.push(`Saved ${cacheKey}: ${Object.keys(existingMap).length} techs, ${Object.values(existingMap).reduce((s, v) => s + v.length, 0)} customers`);
     }
-
-    await prisma.appSetting.upsert({
-      where:  { key: cacheKey },
-      update: { value: JSON.stringify(existingMap) },
-      create: { key: cacheKey, value: JSON.stringify(existingMap) },
-    });
-
-    log.push(`Saved cache → key: ${cacheKey}, techs: ${Object.keys(existingMap).length}`);
 
     return NextResponse.json({
       status: 'success',
@@ -227,7 +227,7 @@ export async function GET(req: NextRequest) {
       offset,
       limit,
       totalRoutes: officeRoutes.length,
-      techsMapped: Object.keys(existingMap).length,
+      daysProcessed: techDateAppts.size,
       errors,
       log: log.join('\n'),
     }, { headers: { 'Cache-Control': 'no-store' } });

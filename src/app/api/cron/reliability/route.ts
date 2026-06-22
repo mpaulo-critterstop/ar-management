@@ -360,24 +360,29 @@ export async function POST(req: NextRequest) {
 
     log.push(`Business locations: ${BUSINESS_LOCATIONS.length}, Geocoded customers: ${customers.length}`);
 
-    // Load per-tech route customer cache (pre-fetched by /api/field-performance/routeCustomers)
-    // Now includes customerId and frAppointmentId for time-at-job calculation
+    // Load per-tech per-day route customer cache
     const techRouteCoords = new Map<string, Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }>>();
     for (const officeName of Object.keys(FR_OFFICES)) {
-      const cacheKey = `rc_customers_${officeName}_${weekEnd.toISOString().split('T')[0]}`;
-      try {
-        const cached = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
-        if (cached?.value) {
-          const map: Record<string, Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }>> = JSON.parse(cached.value);
-          for (const [techId, coords] of Object.entries(map)) {
-            techRouteCoords.set(techId, coords);
+      // Load each day's cache: rc_customers_<office>_<date>
+      const dayDate = new Date(weekStart);
+      while (dayDate <= weekEnd) {
+        const dateStr = dayDate.toISOString().split('T')[0];
+        const cacheKey = `rc_customers_${officeName}_${dateStr}`;
+        try {
+          const cached = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
+          if (cached?.value) {
+            const map: Record<string, Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }>> = JSON.parse(cached.value);
+            for (const [techId, coords] of Object.entries(map)) {
+              techRouteCoords.set(`${techId}_${dateStr}`, coords);
+            }
           }
-          log.push(`Loaded route customer cache for ${officeName}: ${Object.keys(map).length} techs`);
+        } catch (e: any) {
+          log.push(`Route cache load error for ${officeName} ${dateStr}: ${e.message}`);
         }
-      } catch (e: any) {
-        log.push(`Route cache load error for ${officeName}: ${e.message}`);
+        dayDate.setDate(dayDate.getDate() + 1);
       }
     }
+    log.push(`Loaded per-day route customer cache: ${techRouteCoords.size} tech-day entries`);
 
     // Process each vehicle
     for (const vehicle of vehicles) {
@@ -417,25 +422,7 @@ export async function POST(req: NextRequest) {
 
       // Use route-specific customer coords if available
       // If no route cache for this tech, fall back to combined pool of ALL other techs' route customers
-      const routeCoords = techRouteCoords.get(tech.techId);
-      const hasRouteCache = routeCoords && routeCoords.length > 0;
-
-      // Build combined pool from all other techs' route customers (for fallback)
-      const allOtherRouteCoords = hasRouteCache ? null : (() => {
-        const combined: Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }> = [];
-        for (const [tid, coords] of techRouteCoords.entries()) {
-          if (tid !== tech.techId) combined.push(...coords);
-        }
-        return combined.length > 0 ? combined : null;
-      })();
-
-      const matchCoords = hasRouteCache ? routeCoords! : (allOtherRouteCoords || customerCoords);
-      if (hasRouteCache) {
-        log.push(`  ${tech.name}: using ${routeCoords!.length} route customers`);
-      } else if (allOtherRouteCoords) {
-        log.push(`  ${tech.name}: no route cache — using ${allOtherRouteCoords.length} combined route customers from other techs`);
-      }
-
+      // matchCoords will be resolved per-day inside the day loop
       // Group trips by day (using tech's timezone — Central time for all)
       const timeZone = 'America/Chicago';
       const tripsByDay = new Map<string, any[]>();
@@ -456,6 +443,26 @@ export async function POST(req: NextRequest) {
 
       for (const [date, dayTrips] of tripsByDay) {
         dayTrips.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+        // Load per-day route customer cache for this tech
+        const dayRouteCoords = techRouteCoords.get(`${tech.techId}_${date}`);
+        const hasDayRouteCache = dayRouteCoords && dayRouteCoords.length > 0;
+
+        // Fallback: combined other techs' customers for this day
+        const allOtherDayCoords = hasDayRouteCache ? null : (() => {
+          const combined: Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }> = [];
+          for (const [key, coords] of techRouteCoords.entries()) {
+            if (key.endsWith(`_${date}`) && !key.startsWith(`${tech.techId}_`)) combined.push(...coords);
+          }
+          return combined.length > 0 ? combined : null;
+        })();
+
+        const matchCoords = hasDayRouteCache ? dayRouteCoords! : (allOtherDayCoords || customerCoords);
+        if (hasDayRouteCache) {
+          log.push(`  ${tech.name}: using ${dayRouteCoords!.length} route customers for ${date}`);
+        } else if (allOtherDayCoords) {
+          log.push(`  ${tech.name}: no route cache for ${date} — using ${allOtherDayCoords.length} combined route customers from other techs`);
+        }
 
         // ── SUNDAY: always skip ──
         const dayOfWeek = new Date(date + 'T12:00:00.000Z').getDay(); // 0=Sun, 6=Sat
@@ -543,7 +550,7 @@ export async function POST(req: NextRequest) {
         // ── DWELL TIME: calculate time spent at each customer location ──
         // For each trip that ends at a route customer, the dwell time is the gap
         // between that trip's end and the next trip's start (time parked at customer)
-        if (routeCoords && routeCoords.length > 0) {
+        if (dayRouteCoords && dayRouteCoords.length > 0) {
           const dwellUpdates: Array<{ frAppointmentId: string; mins: number }> = [];
 
           for (let i = 0; i < dayTrips.length - 1; i++) {
@@ -553,7 +560,7 @@ export async function POST(req: NextRequest) {
             if (!endpoints) continue;
 
             // Check if this trip ends at a route customer
-            const matchedCustomer = routeCoords.find(c =>
+            const matchedCustomer = dayRouteCoords.find((c: any) =>
               c.frAppointmentId &&
               haversineDistance(endpoints.endLat, endpoints.endLng, c.lat, c.lng) <= GEOFENCE_RADIUS_M
             );
