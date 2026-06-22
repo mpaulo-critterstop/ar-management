@@ -469,7 +469,8 @@ export async function POST(req: NextRequest) {
         let startOfDay: Date | null = null;
         let endOfDay: Date | null = null;
 
-        for (const trip of dayTrips) {
+        for (let tripIdx = 0; tripIdx < dayTrips.length; tripIdx++) {
+          const trip = dayTrips[tripIdx];
           const endpoints = extractTripEndpoints(trip);
           if (!endpoints) continue;
 
@@ -501,10 +502,23 @@ export async function POST(req: NextRequest) {
           }
 
           // ── END OF DAY: last trip start from a known location ──
+          // Only count as end of day if no more trips start within 30 minutes
           const bizStartCheck = isBusinessLocation(endpoints.startLat, endpoints.startLng);
           const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, matchCoords);
           if (bizStartCheck.match || custStartCheck) {
-            endOfDay = tripStart;
+            // Check if next trip starts within 30 minutes (tech just passing through)
+            const nextTrip = dayTrips[tripIdx + 1];
+            if (nextTrip) {
+              const nextTripStart = new Date(nextTrip.startTime);
+              const gapMins = (nextTripStart.getTime() - tripStart.getTime()) / 60000;
+              if (gapMins <= 30) {
+                // Quick stop — not end of day, skip
+              } else {
+                endOfDay = tripStart;
+              }
+            } else {
+              endOfDay = tripStart;
+            }
           }
         }
 
