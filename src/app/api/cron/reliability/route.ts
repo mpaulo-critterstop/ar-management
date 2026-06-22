@@ -511,7 +511,10 @@ export async function POST(req: NextRequest) {
           const bizEndCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
           const custEndCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, matchCoords);
           if (bizEndCheck.match || custEndCheck) {
-            if (!endOfDay || tripEnd > endOfDay) endOfDay = tripEnd;
+            // Only use trip end if it's after start of day and after current endOfDay
+            if (startOfDay && tripEnd > startOfDay && (!endOfDay || tripEnd > endOfDay)) {
+              endOfDay = tripEnd;
+            }
           }
         }
 
