@@ -389,14 +389,16 @@ export async function POST(req: NextRequest) {
       if (!tech) continue;
 
       // Fetch trips for the week with geojson GPS
+      // Window: weekStart (midnight UTC Mon) to weekEnd + 30hrs (6AM UTC Sat = midnight CST Sat)
+      // This captures late night trips that cross midnight UTC
       let trips: any[] = [];
       try {
-        const weekEndPlusOne = new Date(weekEnd.getTime() + 24 * 60 * 60 * 1000);
+        const weekEndExtended = new Date(weekEnd.getTime() + 30 * 60 * 60 * 1000); // weekEnd + 30hrs = 6AM UTC next day
         trips = await bouncieFetch('/trips', token, {
           imei,
           'gps-format':   'geojson',
           'starts-after': weekStart.toISOString(),
-          'ends-before':  weekEndPlusOne.toISOString(),
+          'ends-before':  weekEndExtended.toISOString(),
         });
         if (!Array.isArray(trips)) trips = [];
       } catch (e: any) {
@@ -412,11 +414,25 @@ export async function POST(req: NextRequest) {
       // Sort trips by start time
       trips.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
-      // Use route-specific customer coords if available, else fall back to all 32k
+      // Use route-specific customer coords if available
+      // If no route cache for this tech, fall back to combined pool of ALL other techs' route customers
       const routeCoords = techRouteCoords.get(tech.techId);
-      const matchCoords = routeCoords && routeCoords.length > 0 ? routeCoords : customerCoords;
-      if (routeCoords && routeCoords.length > 0) {
-        log.push(`  ${tech.name}: using ${routeCoords.length} route customers`);
+      const hasRouteCache = routeCoords && routeCoords.length > 0;
+
+      // Build combined pool from all other techs' route customers (for fallback)
+      const allOtherRouteCoords = hasRouteCache ? null : (() => {
+        const combined: Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }> = [];
+        for (const [tid, coords] of techRouteCoords.entries()) {
+          if (tid !== tech.techId) combined.push(...coords);
+        }
+        return combined.length > 0 ? combined : null;
+      })();
+
+      const matchCoords = hasRouteCache ? routeCoords! : (allOtherRouteCoords || customerCoords);
+      if (hasRouteCache) {
+        log.push(`  ${tech.name}: using ${routeCoords!.length} route customers`);
+      } else if (allOtherRouteCoords) {
+        log.push(`  ${tech.name}: no route cache — using ${allOtherRouteCoords.length} combined route customers from other techs`);
       }
 
       // Group trips by day (using tech's timezone — Central time for all)
