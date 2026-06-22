@@ -501,11 +501,17 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // ── END OF DAY: last trip start from a known location ──
+          // ── END OF DAY: latest trip start OR end at a known location ──
           const bizStartCheck = isBusinessLocation(endpoints.startLat, endpoints.startLng);
           const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, matchCoords);
           if (bizStartCheck.match || custStartCheck) {
-            endOfDay = tripStart;
+            if (!endOfDay || tripStart > endOfDay) endOfDay = tripStart;
+          }
+
+          const bizEndCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
+          const custEndCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, matchCoords);
+          if (bizEndCheck.match || custEndCheck) {
+            if (!endOfDay || tripEnd > endOfDay) endOfDay = tripEnd;
           }
         }
 
