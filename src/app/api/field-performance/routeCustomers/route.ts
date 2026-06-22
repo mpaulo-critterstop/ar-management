@@ -47,7 +47,7 @@ async function getRoutesForDateRange(
   const auth = `&authenticationKey=${key}&authenticationToken=${token}`;
   const routeSearch = await rl(`${BASE_URL}/route/search?${auth}`);
   const allRouteIDs: string[] = routeSearch.routeIDs || [];
-  const recentIDs = allRouteIDs.slice(-1000);
+  const recentIDs = allRouteIDs.slice(-5000);
   const matching: Array<{ routeID: string; date: string; assignedTech: string }> = [];
 
   for (let i = 0; i < recentIDs.length; i += 100) {
