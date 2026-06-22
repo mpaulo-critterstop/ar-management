@@ -67,19 +67,21 @@ export async function GET(req: NextRequest) {
   // Find tech
   const tech = await prisma.technician.findFirst({ 
     where: { techId }, 
-    select: { id: true, name: true, techId: true, bouncieDevice: { select: { imei: true } } } 
+    select: { id: true, name: true, techId: true, bouncieDevice: { select: { bouncieName: true, deviceId: true } } } 
   });
   if (!tech) return NextResponse.json({ error: 'Tech not found' });
 
-  // Find vehicle by IMEI or name
-  const techImei = tech.bouncieDevice?.imei;
+  // Find vehicle by deviceId or name match
+  const techDeviceId = tech.bouncieDevice?.deviceId;
+  const techBouncieName = tech.bouncieDevice?.bouncieName?.toLowerCase();
   const vehicle = vehicles.find((v: any) =>
-    (techImei && v.imei === techImei) ||
+    (techDeviceId && v.imei === techDeviceId) ||
+    (techBouncieName && (v.nickName || '').toLowerCase().includes(techBouncieName)) ||
     (v.nickName || '').toLowerCase().includes(tech.name.split(' ')[0].toLowerCase()) ||
     (v.nickName || '').toLowerCase().includes(tech.name.split(' ').pop()!.toLowerCase())
   );
 
-  if (!vehicle) return NextResponse.json({ error: 'Vehicle not found', techName: tech.name, techImei, vehicles: vehicles.map((v: any) => ({ nickName: v.nickName, imei: v.imei })) });
+  if (!vehicle) return NextResponse.json({ error: 'Vehicle not found', techName: tech.name, techBouncieName, techDeviceId, vehicles: vehicles.map((v: any) => ({ nickName: v.nickName, imei: v.imei })) });
 
   // Get route customer cache
   const cacheKey = `rc_customers_DFW_${date}`;
