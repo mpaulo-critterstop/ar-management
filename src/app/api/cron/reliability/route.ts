@@ -107,10 +107,9 @@ const BUSINESS_LOCATIONS = [
   // CStat
   { name: 'College Station Office', lat: 30.5856,  lng: -96.3063 },
   // Suppliers
-  { name: 'Control Source',         lat: 33.0376,  lng: -97.0641 },
+  { name: 'Control Source',         lat: 33.0417197, lng: -96.9918763 },
   { name: 'Veseris Dallas',         lat: 32.8972,  lng: -96.7537 },
   { name: 'Veseris Grand Prairie',  lat: 32.7459,  lng: -97.0208 },
-  { name: 'SiteOne Southlake',      lat: 32.9321,  lng: -97.1268 },
   // Home Depot DFW
   { name: 'Home Depot Dallas FW Ave',    lat: 32.7560, lng: -96.8645 },
   { name: 'Home Depot Irving 8555',      lat: 32.9234, lng: -96.9804 },
