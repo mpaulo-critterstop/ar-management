@@ -915,7 +915,10 @@ export async function POST(req: NextRequest) {
 
     const manualRecords = await prisma.techDayAttendance.findMany({
       where: {
-        weekEnd,
+        weekEnd: {
+          gte: new Date(weekEnd.toISOString().split('T')[0] + 'T00:00:00.000Z'),
+          lte: new Date(weekEnd.toISOString().split('T')[0] + 'T23:59:59.999Z'),
+        },
         manualOverride: true,
         status: 'WORKED',
         techId: { notIn: [...processedTechIds] },
