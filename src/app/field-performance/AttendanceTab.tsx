@@ -36,6 +36,9 @@ export function AttendanceTab({ office, weekEnd }: Props) {
   const [teamFilter, setTeamFilter] = useState('');
   const [editing, setEditing] = useState<any>(null);
   const [editForm, setEditForm] = useState({ routeStartTime: '', scheduledHrs: 8, startTime: '', finishTime: '' });
+  const [adding, setAdding] = useState(false);
+  const [addForm, setAddForm] = useState({ techId: '', date: '', routeStartTime: '8:00 AM', scheduledHrs: 8, startTime: '', finishTime: '' });
+  const [techs, setTechs] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
@@ -49,6 +52,13 @@ export function AttendanceTab({ office, weekEnd }: Props) {
       .then(d => { setRecords(Array.isArray(d) ? d : []); setLoading(false); })
       .catch(() => setLoading(false));
   }, [office, weekEnd]);
+
+  useEffect(() => {
+    fetch(`/api/field-performance/techs?office=${office}`)
+      .then(r => r.json())
+      .then(d => setTechs(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, [office]);
 
   const filtered = records.filter(r => {
     const q = search.toLowerCase();
@@ -64,6 +74,37 @@ export function AttendanceTab({ office, weekEnd }: Props) {
     ? worked.reduce((a, b) => a + (b.minutesLate ?? 0), 0) / worked.length
     : null;
   const onTime = worked.filter(r => (r.minutesLate ?? 0) <= 10).length;
+
+  const refreshRecords = () => {
+    const wk = weekEnd.toLocaleDateString('en-CA');
+    fetch(`/api/field-performance/attendance?week=${wk}&office=${office}`)
+      .then(r => r.json())
+      .then(d => setRecords(Array.isArray(d) ? d : []));
+  };
+
+  const saveAdd = async () => {
+    if (!addForm.techId || !addForm.date) return;
+    setSaving(true);
+    const weekEndStr = weekEnd.toLocaleDateString('en-CA');
+    const body: any = {
+      techId: addForm.techId,
+      date: addForm.date + 'T12:00:00.000Z',
+      weekEnd: weekEndStr + 'T12:00:00.000Z',
+      routeStartTime: addForm.routeStartTime,
+      scheduledHrs: addForm.scheduledHrs,
+    };
+    if (addForm.startTime) body.startTime = toUTCFromChicago(addForm.date, addForm.startTime);
+    if (addForm.finishTime) body.finishTime = toUTCFromChicago(addForm.date, addForm.finishTime);
+    await fetch('/api/field-performance/attendance-update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    setSaving(false);
+    setAdding(false);
+    setAddForm({ techId: '', date: '', routeStartTime: '8:00 AM', scheduledHrs: 8, startTime: '', finishTime: '' });
+    refreshRecords();
+  };
 
   const saveEdit = async () => {
     if (!editing) return;
@@ -83,10 +124,7 @@ export function AttendanceTab({ office, weekEnd }: Props) {
     });
     setSaving(false);
     setEditing(null);
-    const wk = weekEnd.toLocaleDateString('en-CA');
-    fetch(`/api/field-performance/attendance?week=${wk}&office=${office}`)
-      .then(r => r.json())
-      .then(d => setRecords(Array.isArray(d) ? d : []));
+    refreshRecords();
   };
 
   const openEdit = (r: any) => {
@@ -154,6 +192,12 @@ export function AttendanceTab({ office, weekEnd }: Props) {
           <option value="PMP">PMP</option>
           <option value="IP">IP</option>
         </select>
+        {canEdit && (
+          <button onClick={() => setAdding(true)}
+            style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', cursor: 'pointer' }}>
+            + Add day
+          </button>
+        )}
       </div>
 
       <div style={card}>
@@ -212,6 +256,71 @@ export function AttendanceTab({ office, weekEnd }: Props) {
         </div>
       </div>
       <div style={{ fontSize: 12, color: '#b0aea6', marginTop: 8 }}>{filtered.length} day records</div>
+
+      {/* Add Day Modal */}
+      {adding && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, padding: 24, width: 340 }}>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>Add Attendance Day</div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Technician</label>
+              <select value={addForm.techId} onChange={e => setAddForm(f => ({ ...f, techId: e.target.value }))}
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }}>
+                <option value="">Select technician...</option>
+                {techs.sort((a, b) => a.name.localeCompare(b.name)).map((t: any) => (
+                  <option key={t.techId} value={t.techId}>{t.name} ({t.techId})</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Date</label>
+              <input type="date" value={addForm.date} onChange={e => setAddForm(f => ({ ...f, date: e.target.value }))}
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Scheduled start time</label>
+              <select value={addForm.routeStartTime} onChange={e => setAddForm(f => ({ ...f, routeStartTime: e.target.value }))}
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }}>
+                <option value="6:00 AM">6:00 AM</option>
+                <option value="7:00 AM">7:00 AM</option>
+                <option value="8:00 AM">8:00 AM</option>
+                <option value="9:00 AM">9:00 AM</option>
+              </select>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Scheduled hours</label>
+              <select value={addForm.scheduledHrs} onChange={e => setAddForm(f => ({ ...f, scheduledHrs: Number(e.target.value) }))}
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }}>
+                <option value={8}>8 hrs</option>
+                <option value={10}>10 hrs</option>
+              </select>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Actual start time</label>
+              <input type="time" value={addForm.startTime} onChange={e => setAddForm(f => ({ ...f, startTime: e.target.value }))}
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Actual finish time</label>
+              <input type="time" value={addForm.finishTime} onChange={e => setAddForm(f => ({ ...f, finishTime: e.target.value }))}
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }} />
+            </div>
+            <div style={{ fontSize: 11, color: '#b0aea6', marginBottom: 16 }}>
+              This record will be marked as manually overridden and protected from future syncs.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setAdding(false)}
+                style={{ padding: '7px 16px', fontSize: 13, borderRadius: 8, border: '1px solid #E8E7E3', background: '#F8F7F4', cursor: 'pointer', color: '#888780' }}>
+                Cancel
+              </button>
+              <button onClick={saveAdd} disabled={saving || !addForm.techId || !addForm.date}
+                style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving || !addForm.techId || !addForm.date ? '#b0aea6' : '#0052cc', color: '#fff', cursor: saving || !addForm.techId || !addForm.date ? 'default' : 'pointer' }}>
+                {saving ? 'Saving...' : 'Add record'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {editing && (
