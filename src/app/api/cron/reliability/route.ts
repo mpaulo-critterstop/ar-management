@@ -909,6 +909,98 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── MANUAL OVERRIDE FALLBACK: techs with manually added attendance records ──
+    // Handles techs with no Bouncie AND no FR appointments (e.g. IPs, additional techs)
+    const processedTechIds = new Set([...bouncieTechIds, ...techsWithoutBouncie.map(t => t.techId)]);
+
+    const manualRecords = await prisma.techDayAttendance.findMany({
+      where: {
+        weekEnd,
+        manualOverride: true,
+        status: 'WORKED',
+        techId: { notIn: [...processedTechIds] },
+      },
+      include: { technician: true },
+    });
+
+    if (manualRecords.length > 0) {
+      log.push(`\nManual override fallback: processing ${manualRecords.length} records for ${new Set(manualRecords.map(r => r.techId)).size} techs`);
+
+      // Group by tech
+      const manualByTech = new Map<string, typeof manualRecords>();
+      for (const rec of manualRecords) {
+        if (!manualByTech.has(rec.techId)) manualByTech.set(rec.techId, []);
+        manualByTech.get(rec.techId)!.push(rec);
+      }
+
+      for (const [techId, recs] of manualByTech) {
+        const tech = recs[0].technician as any;
+        if (!tech) continue;
+
+        let workDays = 0;
+        let totalMinutesLate = 0;
+        let totalUtilization = 0;
+
+        for (const rec of recs) {
+          if (!rec.startTime || !rec.finishTime) continue;
+          const minutesLate = rec.minutesLate ?? 0;
+          const hrsWorked = rec.hrsWorked ?? 0;
+          const scheduledHrs = rec.scheduledHrs || 8;
+          const utilization = Math.min(hrsWorked / scheduledHrs, 1.2);
+          totalMinutesLate += minutesLate;
+          totalUtilization += utilization;
+          workDays++;
+        }
+
+        if (workDays === 0) {
+          log.push(`  ${tech.name} (manual): no valid work days`);
+          continue;
+        }
+
+        const avgMinutesLate = totalMinutesLate / workDays;
+        const avgUtilization = totalUtilization / workDays;
+        const reliabilityScore = calcReliability(avgMinutesLate, avgUtilization);
+
+        log.push(`  ${tech.name} (manual): reliability=${reliabilityScore.toFixed(3)}, avgLate=${avgMinutesLate.toFixed(1)}min, workDays=${workDays}`);
+
+        const existing = await prisma.techWeek.findUnique({
+          where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
+        });
+
+        const updateData: any = { reliabilityScore, minutesLate: avgMinutesLate, utilization: avgUtilization, updatedAt: new Date() };
+
+        if (existing?.drivingScore !== null && existing?.drivingScore !== undefined) {
+          const drv = existing.drivingScore;
+          if (tech.team === 'PMP' && existing.revenueEfficiency !== null && existing.reseviceRate !== null && existing.completionPct !== null) {
+            const s = calcPMPScore(existing.revenueEfficiency, existing.reseviceRate, existing.completionPct, drv, reliabilityScore);
+            updateData.pmpScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0);
+          }
+        }
+
+        if (existing) {
+          await prisma.techWeek.update({ where: { techId_weekEnd: { techId: tech.techId, weekEnd } }, data: updateData });
+        } else {
+          await prisma.techWeek.create({
+            data: {
+              id: crypto.randomUUID(),
+              technicianId: tech.id,
+              techId: tech.techId,
+              weekEnd,
+              office: tech.office,
+              team: tech.team,
+              siteLeader: tech.siteLeader,
+              crewLeader: tech.crewLeader,
+              reliabilityScore,
+              minutesLate: avgMinutesLate,
+              utilization: avgUtilization,
+              manualAdj: 0,
+            },
+          });
+        }
+        updated++;
+      }
+    }
+
   } catch (e: any) {
     errors.push(e.message);
     log.push(`ERROR: ${e.message}`);
