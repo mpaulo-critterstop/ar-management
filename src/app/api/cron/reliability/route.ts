@@ -101,7 +101,8 @@ const BUSINESS_LOCATIONS = [
   { name: 'The Colony',             lat: 33.0862,  lng: -96.8884 },
   { name: 'Justin',                 lat: 33.0748,  lng: -97.2951 },
   // ATX
-  { name: 'Austin Office',          lat: 30.3868,  lng: -97.7218 },
+  { name: 'Austin Office',          lat: 30.3806345, lng: -97.7239255 },
+  { name: 'Austin S Capital Office', lat: 30.2874081, lng: -97.82458 },
   // OKC
   { name: 'OKC Office',             lat: 35.4442,  lng: -97.5198 },
   // CStat
