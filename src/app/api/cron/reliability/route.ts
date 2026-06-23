@@ -450,24 +450,22 @@ export async function POST(req: NextRequest) {
       for (const [date, dayTrips] of tripsByDay) {
         dayTrips.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
-        // Load per-day route customer cache for this tech
-        const dayRouteCoords = techRouteCoords.get(`${tech.techId}_${date}`);
-        const hasDayRouteCache = dayRouteCoords && dayRouteCoords.length > 0;
-
-        // Fallback: combined other techs' customers for this day
-        const allOtherDayCoords = hasDayRouteCache ? null : (() => {
-          const combined: Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }> = [];
-          for (const [key, coords] of techRouteCoords.entries()) {
-            if (key.endsWith(`_${date}`) && !key.startsWith(`${tech.techId}_`)) combined.push(...coords);
+        // Build matchCoords: own day customers + other techs' day customers (same day only)
+        // This handles techs who have 1-2 own customers but spend rest of day helping other techs
+        const dayRouteCoords = techRouteCoords.get(`${tech.techId}_${date}`) || [];
+        const otherDayCoords: Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }> = [];
+        for (const [key, coords] of techRouteCoords.entries()) {
+          if (key.endsWith(`_${date}`) && !key.startsWith(`${tech.techId}_`)) {
+            otherDayCoords.push(...coords);
           }
-          return combined.length > 0 ? combined : null;
-        })();
+        }
+        const combinedDayCoords = [...dayRouteCoords, ...otherDayCoords];
+        const matchCoords = combinedDayCoords.length > 0 ? combinedDayCoords : customerCoords;
 
-        const matchCoords = hasDayRouteCache ? dayRouteCoords! : (allOtherDayCoords || customerCoords);
-        if (hasDayRouteCache) {
-          log.push(`  ${tech.name}: using ${dayRouteCoords!.length} route customers for ${date}`);
-        } else if (allOtherDayCoords) {
-          log.push(`  ${tech.name}: no route cache for ${date} — using ${allOtherDayCoords.length} combined route customers from other techs`);
+        if (dayRouteCoords.length > 0) {
+          log.push(`  ${tech.name}: using ${dayRouteCoords.length} own + ${otherDayCoords.length} other techs' route customers for ${date}`);
+        } else {
+          log.push(`  ${tech.name}: no own route for ${date} — using ${otherDayCoords.length} combined route customers from other techs`);
         }
 
         // ── SUNDAY: always skip ──
