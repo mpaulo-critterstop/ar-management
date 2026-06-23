@@ -911,7 +911,7 @@ export async function POST(req: NextRequest) {
 
     // ── MANUAL OVERRIDE FALLBACK: techs with manually added attendance records ──
     // Handles techs with no Bouncie AND no FR appointments (e.g. IPs, additional techs)
-    const processedTechIds = new Set([...bouncieTechIds, ...techsWithoutBouncie.map(t => t.techId)]);
+    const processedTechIds = new Set([...bouncieTechIds]);
 
     const manualRecords = await prisma.techDayAttendance.findMany({
       where: {
