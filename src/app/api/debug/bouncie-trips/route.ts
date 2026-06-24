@@ -28,6 +28,7 @@ const BUSINESS_LOCATIONS = [
 ];
 
 export async function GET(req: NextRequest) {
+  try {
   const { searchParams } = new URL(req.url);
   const token = searchParams.get('token');
   if (token !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -173,4 +174,7 @@ export async function GET(req: NextRequest) {
     trips: analyzedTrips,
     endOfDayWouldBe: analyzedTrips.filter(t => t.setsEndOfDay).pop()?.startTime || 'none',
   });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message, stack: e.stack?.split('\n').slice(0, 5) }, { status: 500 });
+  }
 }
