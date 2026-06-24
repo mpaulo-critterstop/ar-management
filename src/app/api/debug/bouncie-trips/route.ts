@@ -158,6 +158,9 @@ export async function GET(req: NextRequest) {
       startMatch,
       endMatch,
       setsEndOfDay: startMatch !== 'unknown',
+      rawFields: Object.keys(trip).filter(k => k !== 'gps'),
+      idleTime: trip.idleTime ?? trip.idle_time ?? trip.idleDuration ?? trip.idle ?? null,
+      duration: trip.duration ?? trip.tripDuration ?? null,
     };
   });
 
