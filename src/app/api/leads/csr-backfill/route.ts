@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   if (token !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const offset = parseInt(req.nextUrl.searchParams.get('offset') || '0');
-  const limit = parseInt(req.nextUrl.searchParams.get('limit') || '20');
+  const limit = parseInt(req.nextUrl.searchParams.get('limit') || '50');
 
   const allLeads = await prisma.lead.findMany({
     where: {
@@ -46,69 +46,99 @@ export async function GET(req: NextRequest) {
 
   const total = allLeads.length;
   const batch = allLeads.slice(offset, offset + limit);
+
+  // Step 1: Fetch all appointments in this batch in one go per office
+  const byOffice: Record<string, typeof batch> = {};
+  for (const lead of batch) {
+    if (!byOffice[lead.office]) byOffice[lead.office] = [];
+    byOffice[lead.office].push(lead);
+  }
+
+  // Map: externalId -> { groupId, employeeID }
+  const apptMap: Record<string, { groupId: string | null; employeeId: string }> = {};
+
+  for (const [officeKey, leads] of Object.entries(byOffice)) {
+    const office = FR_OFFICES.find(o => o.key === officeKey);
+    if (!office) continue;
+
+    // Fetch up to 50 appointments at once
+    const ids = leads.map(l => l.externalId).join(',');
+    const data = await frFetch('appointment/get', `appointmentIDs=${ids}`, office.apiKey, office.token);
+    await sleep(1100);
+
+    for (const appt of (data.appointments || [])) {
+      const groupId = appt.groupID && appt.groupID !== '0' ? String(appt.groupID) : null;
+      apptMap[String(appt.appointmentID)] = { groupId, employeeId: String(appt.employeeID || '0') };
+    }
+  }
+
+  // Step 2: Find unique groupIds we need to resolve
+  const groupsToResolve: Record<string, { office: string; ids: string[] }> = {};
+  for (const lead of batch) {
+    const appt = apptMap[lead.externalId];
+    if (!appt?.groupId) continue;
+    if (!groupsToResolve[appt.groupId]) {
+      groupsToResolve[appt.groupId] = { office: lead.office, ids: [] };
+    }
+  }
+
+  // Step 3: For each unique group, fetch group members (deduplicated!)
+  // groupId -> { firstBooker, lastRescheduler }
+  const groupCache: Record<string, { firstBooker: string; lastRescheduler: string }> = {};
+
+  for (const [groupId, { office: officeKey }] of Object.entries(groupsToResolve)) {
+    const office = FR_OFFICES.find(o => o.key === officeKey);
+    if (!office) continue;
+
+    const searchData = await frFetch('appointment/search', `groupID=${groupId}`, office.apiKey, office.token);
+    await sleep(1100);
+
+    const groupApptIds = (searchData.appointmentIDs || []).slice(0, 50).join(',');
+    if (!groupApptIds) {
+      groupCache[groupId] = { firstBooker: '0', lastRescheduler: '0' };
+      continue;
+    }
+
+    const groupAppts = await frFetch('appointment/get', `appointmentIDs=${groupApptIds}`, office.apiKey, office.token);
+    await sleep(1100);
+
+    const sorted = (groupAppts.appointments || [])
+      .sort((a: any, b: any) => new Date(a.dateAdded).getTime() - new Date(b.dateAdded).getTime());
+
+    groupCache[groupId] = {
+      firstBooker: String(sorted[0]?.employeeID || '0'),
+      lastRescheduler: String(sorted[sorted.length - 1]?.employeeID || '0'),
+    };
+  }
+
+  // Step 4: Assign points to each lead
   const log: string[] = [];
   let processed = 0;
   let errors = 0;
 
   for (const lead of batch) {
-    const office = FR_OFFICES.find(o => o.key === lead.office);
-    if (!office) { log.push(`Unknown office for lead ${lead.externalId}`); continue; }
-
     try {
-      // Fetch the appointment to get groupId
-      const apptData = await frFetch('appointment/get', `appointmentIDs=${lead.externalId}`, office.apiKey, office.token);
-      await sleep(1100);
+      const appt = apptMap[lead.externalId];
+      if (!appt) { log.push(`No appointment: ${lead.externalId}`); continue; }
 
-      const appt = apptData.appointments?.[0];
-      if (!appt) { log.push(`No appointment found for ${lead.externalId}`); continue; }
+      const groupId = appt.groupId || lead.externalId;
 
-      const groupId = appt.groupID && appt.groupID !== '0' ? String(appt.groupID) : null;
-
-      if (!groupId) {
-        // No group — solo booking, original CSR gets 1.0
-        const bookerFrId = String(appt.employeeID || '0');
-        await upsertCsrLead(lead.id, lead.externalId, bookerFrId, 'original', 1.0);
-        await prisma.lead.update({ where: { id: lead.id }, data: { groupId: lead.externalId } });
-        log.push(`${lead.externalId}: solo, booker=${bookerFrId}`);
-        processed++;
-        continue;
-      }
-
-      // Fetch all appointments in the group
-      const groupData = await frFetch('appointment/search', `groupID=${groupId}`, office.apiKey, office.token);
-      await sleep(1100);
-
-      const groupIds = (groupData.appointmentIDs || []).slice(0, 50).join(',');
-      if (!groupIds) {
-        const bookerFrId = String(appt.employeeID || '0');
-        await upsertCsrLead(lead.id, groupId, bookerFrId, 'original', 1.0);
-        await prisma.lead.update({ where: { id: lead.id }, data: { groupId } });
-        processed++;
-        continue;
-      }
-
-      const groupAppts = await frFetch('appointment/get', `appointmentIDs=${groupIds}`, office.apiKey, office.token);
-      await sleep(1100);
-
-      const sorted = (groupAppts.appointments || [])
-        .sort((a: any, b: any) => new Date(a.dateAdded).getTime() - new Date(b.dateAdded).getTime());
-
-      if (sorted.length <= 1) {
-        const bookerFrId = String(appt.employeeID || '0');
-        await upsertCsrLead(lead.id, groupId, bookerFrId, 'original', 1.0);
+      if (!appt.groupId) {
+        // Solo booking
+        await upsertCsrLead(lead.id, groupId, appt.employeeId, 'original', 1.0);
       } else {
-        const firstBooker = String(sorted[0].employeeID || '0');
-        const lastRescheduler = String(sorted[sorted.length - 1].employeeID || '0');
-        if (firstBooker === lastRescheduler) {
-          await upsertCsrLead(lead.id, groupId, firstBooker, 'original', 1.0);
+        const group = groupCache[appt.groupId];
+        if (!group) { log.push(`No group data: ${lead.externalId}`); continue; }
+
+        if (group.firstBooker === group.lastRescheduler) {
+          await upsertCsrLead(lead.id, appt.groupId, group.firstBooker, 'original', 1.0);
         } else {
-          await upsertCsrLead(lead.id, groupId, firstBooker, 'original', 0.5);
-          await upsertCsrLead(lead.id, groupId, lastRescheduler, 'rescheduler', 0.5);
+          await upsertCsrLead(lead.id, appt.groupId, group.firstBooker, 'original', 0.5);
+          await upsertCsrLead(lead.id, appt.groupId, group.lastRescheduler, 'rescheduler', 0.5);
         }
       }
 
       await prisma.lead.update({ where: { id: lead.id }, data: { groupId } });
-      log.push(`${lead.externalId}: group=${groupId}, appts=${sorted.length}`);
       processed++;
     } catch (e: any) {
       errors++;
@@ -129,6 +159,7 @@ export async function GET(req: NextRequest) {
     hasMore,
     nextOffset: hasMore ? nextOffset : null,
     nextUrl: hasMore ? `/api/leads/csr-backfill?token=critterstop2026&offset=${nextOffset}&limit=${limit}` : null,
-    log,
+    uniqueGroups: Object.keys(groupCache).length,
+    log: log.slice(0, 20),
   });
 }
