@@ -428,7 +428,7 @@ export default function LeadsPage() {
           </div>
         </div>
       )}
-      )}
+      </>)}
 
       {/* CSR Leads Tracker Tab */}
       {activeTab === 'csr' && (
