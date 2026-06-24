@@ -10,7 +10,6 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const from = searchParams.get('from');
   const to = searchParams.get('to');
-  const csrEmployeeId = searchParams.get('csrEmployeeId');
 
   const where: any = {};
   if (from || to) {
@@ -18,7 +17,6 @@ export async function GET(req: NextRequest) {
     if (from) where.lead.inspectionDate.gte = new Date(from);
     if (to) where.lead.inspectionDate.lte = new Date(to);
   }
-  if (csrEmployeeId) where.csrEmployeeId = csrEmployeeId;
 
   const csrLeads = await prisma.csrLead.findMany({
     where,
@@ -28,15 +26,14 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // Aggregate by CSR - use Set to count unique leads only
+  // Aggregate by CSR name (consolidates all sub-IDs under one row)
   const csrMap: Record<string, any> = {};
   for (const cl of csrLeads) {
-    const key = cl.frEmployeeId;
+    // Use name as the grouping key — consolidates all sub-IDs
+    const key = cl.csrName || `FR Employee ${cl.frEmployeeId}`;
     if (!csrMap[key]) {
       csrMap[key] = {
-        frEmployeeId: cl.frEmployeeId,
-        csrEmployeeId: cl.csrEmployeeId,
-        name: cl.csrName || cl.csrEmployee?.name || `FR Employee ${cl.frEmployeeId}`,
+        name: key,
         active: cl.csrEmployee?.active ?? true,
         totalPoints: 0,
         originalBookings: 0,
@@ -60,7 +57,7 @@ export async function GET(req: NextRequest) {
   const totalPoints = csrStats.reduce((s: number, c: any) => s + c.totalPoints, 0);
   const totalLeads = csrLeads.filter(cl => cl.role === 'original').length;
   const totalRescheduled = csrLeads.filter(cl => cl.role === 'rescheduler').length;
-  const activeCSRs = new Set(csrStats.filter((c: any) => c.active).map((c: any) => c.frEmployeeId)).size;
+  const activeCSRs = new Set(csrStats.filter((c: any) => c.active && !c.name.startsWith('FR Employee')).map((c: any) => c.name)).size;
 
   return NextResponse.json({
     csrStats,
