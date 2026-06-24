@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
     where: {
       inspectionDate: { gte: new Date('2026-01-01') },
       status: { in: ['SOLD', 'INSPECTED'] },
+      NOT: { externalId: { startsWith: 'csv_' } },
     },
     select: { id: true, externalId: true, office: true },
     orderBy: { createdAt: 'asc' },
