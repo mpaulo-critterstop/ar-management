@@ -215,8 +215,40 @@ model Lead {
   invoiceId       String?  @unique
   invoice         Invoice? @relation(fields: [invoiceId], references: [id])
   amount          Float?
+  groupId         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  csrLeads        CsrLead[]
+}
+
+model CsrEmployee {
+  id            String    @id @default(cuid())
+  frEmployeeId  String    @unique
+  name          String
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  csrLeads      CsrLead[]
+  @@map("csr_employees")
+}
+
+model CsrLead {
+  id              String       @id @default(cuid())
+  leadId          String
+  lead            Lead         @relation(fields: [leadId], references: [id])
+  csrEmployeeId   String?
+  csrEmployee     CsrEmployee? @relation(fields: [csrEmployeeId], references: [id])
+  frEmployeeId    String
+  csrName         String?
+  points          Float
+  role            String
+  groupId         String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  @@unique([leadId, role])
+  @@index([frEmployeeId])
+  @@index([groupId])
+  @@map("csr_leads")
 }
 
 model DispatchJob {

@@ -59,9 +59,11 @@ export async function POST(req: NextRequest) {
       }));
     }
     if (action === 'create_recap_subscription') {
+      // Recap uses a different endpoint/format than call state subscriptions
       return NextResponse.json(await dialpadFetch('/subscriptions/call', 'POST', {
         webhook_id,
-        call_states: ['recap'],
+        call_states: ['hangup'],
+        enabled: true,
       }));
     }
     if (action === 'delete_subscription') {

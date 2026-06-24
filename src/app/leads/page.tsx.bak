@@ -60,25 +60,6 @@ export default function LeadsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState<'leads' | 'csr'>('leads');
-
-  // CSR tab state
-  const [csrStats, setCsrStats] = useState<any[]>([]);
-  const [csrKpis, setCsrKpis] = useState<any>(null);
-  const [csrLoading, setCsrLoading] = useState(false);
-  const [csrFrom, setCsrFrom] = useState('');
-  const [csrTo, setCsrTo] = useState('');
-  const [csrFromInput, setCsrFromInput] = useState('');
-  const [csrToInput, setCsrToInput] = useState('');
-  const [csrFilter, setCsrFilter] = useState('');
-  const [showManageCSR, setShowManageCSR] = useState(false);
-  const [csrEmployees, setCsrEmployees] = useState<any[]>([]);
-  const [editingCSR, setEditingCSR] = useState<any>(null);
-  const [newCSRName, setNewCSRName] = useState('');
-  const [newCSRId, setNewCSRId] = useState('');
-  const [showAddCSR, setShowAddCSR] = useState(false);
-
   // Import state
   const [showImport, setShowImport] = useState(false);
   const [importOffice, setImportOffice] = useState('DFW');
@@ -113,30 +94,6 @@ export default function LeadsPage() {
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
   useEffect(() => {
-
-  const fetchCSR = useCallback(async () => {
-    setCsrLoading(true);
-    const params = new URLSearchParams();
-    if (csrFrom) params.set('from', csrFrom);
-    if (csrTo) params.set('to', csrTo);
-    if (csrFilter) params.set('csrEmployeeId', csrFilter);
-    const res = await fetch('/api/leads/csr?' + params.toString());
-    const data = await res.json();
-    setCsrStats(data.csrStats || []);
-    setCsrKpis(data.kpis || null);
-    setCsrLoading(false);
-  }, [csrFrom, csrTo, csrFilter]);
-
-  useEffect(() => { if (activeTab === 'csr') fetchCSR(); }, [activeTab, fetchCSR]);
-
-  const fetchCSREmployees = useCallback(async () => {
-    const res = await fetch('/api/leads/csr-employees');
-    const data = await res.json();
-    setCsrEmployees(data.employees || []);
-  }, []);
-
-  useEffect(() => { if (showManageCSR) fetchCSREmployees(); }, [showManageCSR, fetchCSREmployees]);
-
     fetch('/api/pm')
       .then(r => r.json())
       .then(d => setAllPMs(['All', ...d.filter((p: any) => p.active).map((p: any) => p.name).sort()]));
@@ -216,12 +173,6 @@ export default function LeadsPage() {
             <div style={{ width: '0.5px', background: '#D3D1C7', height: 20, margin: '0 2px' }} />
             <button onClick={() => router.push('/kpi')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: '#888780', background: 'transparent', border: '0.5px solid transparent', cursor: 'pointer' }}>
               KPIs
-            </button>
-          </div>
-            </button>
-            <div style={{ width: '0.5px', background: '#D3D1C7', height: 20, margin: '0 2px' }} />
-            <button onClick={() => setActiveTab('csr')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: activeTab === 'csr' ? '#0052cc' : '#888780', background: activeTab === 'csr' ? '#e6f0ff' : 'transparent', border: activeTab === 'csr' ? '0.5px solid #b3d0ff' : '0.5px solid transparent', cursor: 'pointer' }}>
-              CSR leads tracker
             </button>
           </div>
         </div>
@@ -304,7 +255,6 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {activeTab === 'leads' && (<>
       {/* KPI cards */}
       {kpis && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
@@ -424,151 +374,6 @@ export default function LeadsPage() {
               <button onClick={handleImport} disabled={importing || importRows.length === 0} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: 'none', background: importRows.length === 0 ? '#D3D1C7' : ACCENT, color: '#fff', cursor: importRows.length === 0 ? 'not-allowed' : 'pointer', fontWeight: 500 }}>
                 {importing ? 'Importing...' : 'Import ' + importRows.length + ' rows'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-      )}
-
-      {/* CSR Leads Tracker Tab */}
-      {activeTab === 'csr' && (
-        <div style={{ marginTop: 16 }}>
-          {/* Filters + Manage button */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <input type="date" value={csrFromInput} onChange={e => setCsrFromInput(e.target.value)} style={{ padding: '6px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }} />
-              <span style={{ fontSize: 12, color: '#888780' }}>to</span>
-              <input type="date" value={csrToInput} onChange={e => setCsrToInput(e.target.value)} style={{ padding: '6px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }} />
-              <button onClick={() => { setCsrFrom(csrFromInput); setCsrTo(csrToInput); }} style={{ padding: '6px 14px', fontSize: 13, borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', cursor: 'pointer' }}>Apply</button>
-              {(csrFrom || csrTo) && <button onClick={() => { setCsrFrom(''); setCsrTo(''); setCsrFromInput(''); setCsrToInput(''); }} style={{ padding: '6px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780' }}>Clear</button>}
-            </div>
-            <button onClick={() => setShowManageCSR(true)} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: '#444441' }}>
-              👥 Manage CSRs
-            </button>
-          </div>
-
-          {/* KPI cards */}
-          {csrKpis && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
-              {[
-                { label: 'Total points', value: csrKpis.totalPoints.toFixed(1) },
-                { label: 'Leads booked', value: csrKpis.totalLeads },
-                { label: 'Rescheduled', value: csrKpis.totalRescheduled },
-                { label: 'Active CSRs', value: csrKpis.activeCSRs },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ background: '#F1EFE8', borderRadius: 10, padding: '12px 16px' }}>
-                  <div style={{ fontSize: 12, color: '#888780', marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 500, color: '#2C2C2A' }}>{value}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* CSR table */}
-          {csrLoading ? (
-            <div style={{ textAlign: 'center', padding: 40, color: '#888780' }}>Loading...</div>
-          ) : (
-            <div style={{ background: '#fff', border: '0.5px solid #D3D1C7', borderRadius: 12, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ borderBottom: '0.5px solid #D3D1C7', background: '#F9F8F5' }}>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#888780', width: 40 }}>#</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#888780' }}>CSR name</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 90 }}>Points</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 100 }}>Original</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 110 }}>Rescheduled</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 90 }}>Total leads</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 500, color: '#888780', width: 80 }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {csrStats.length === 0 ? (
-                    <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: '#888780' }}>No CSR data yet — run the backfill first.</td></tr>
-                  ) : csrStats.map((csr, i) => (
-                    <tr key={csr.frEmployeeId} style={{ borderBottom: '0.5px solid #E8E7E3', background: i % 2 === 0 ? '#fff' : '#FAFAF8' }}>
-                      <td style={{ padding: '10px 14px', color: '#888780', fontSize: 12 }}>{i + 1}</td>
-                      <td style={{ padding: '10px 14px', fontWeight: 500, color: '#2C2C2A' }}>{csr.name}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#0052cc' }}>{csr.totalPoints.toFixed(1)}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', color: '#444441' }}>{csr.originalBookings}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', color: '#444441' }}>{csr.rescheduled}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', color: '#444441' }}>{csr.totalLeads}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                        <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: csr.active ? '#EAF3DE' : '#FCEBEB', color: csr.active ? '#3B6D11' : '#A32D2D' }}>
-                          {csr.active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Manage CSRs Modal */}
-      {showManageCSR && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 24, width: 460, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 500 }}>CSR employees</h3>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setShowAddCSR(true)} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>+ Add CSR</button>
-                <button onClick={() => { setShowManageCSR(false); setEditingCSR(null); setShowAddCSR(false); }} style={{ padding: '6px 10px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer' }}>✕</button>
-              </div>
-            </div>
-
-            {showAddCSR && (
-              <div style={{ background: '#F1EFE8', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 8, color: '#444441' }}>New CSR</div>
-                <input placeholder="Full name" value={newCSRName} onChange={e => setNewCSRName(e.target.value)} style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', marginBottom: 6, boxSizing: 'border-box' }} />
-                <input placeholder="FR Employee ID (e.g. 10169)" value={newCSRId} onChange={e => setNewCSRId(e.target.value)} style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', marginBottom: 8, boxSizing: 'border-box' }} />
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={async () => {
-                    if (!newCSRName || !newCSRId) return;
-                    await fetch('/api/leads/csr-employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newCSRName, frEmployeeId: newCSRId }) });
-                    setNewCSRName(''); setNewCSRId(''); setShowAddCSR(false);
-                    fetchCSREmployees();
-                  }} style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', cursor: 'pointer' }}>Save</button>
-                  <button onClick={() => setShowAddCSR(false)} style={{ padding: '6px 10px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780' }}>Cancel</button>
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {csrEmployees.map(emp => (
-                <div key={emp.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', border: '0.5px solid #D3D1C7', borderRadius: 10 }}>
-                  {editingCSR?.id === emp.id ? (
-                    <div style={{ flex: 1, marginRight: 8 }}>
-                      <input value={editingCSR.name} onChange={e => setEditingCSR({ ...editingCSR, name: e.target.value })} style={{ width: '100%', padding: '5px 8px', fontSize: 12, borderRadius: 6, border: '0.5px solid #D3D1C7', marginBottom: 4, boxSizing: 'border-box' }} />
-                      <input value={editingCSR.frEmployeeId} onChange={e => setEditingCSR({ ...editingCSR, frEmployeeId: e.target.value })} style={{ width: '100%', padding: '5px 8px', fontSize: 12, borderRadius: 6, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
-                      <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                        <button onClick={async () => {
-                          await fetch('/api/leads/csr-employees', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editingCSR) });
-                          setEditingCSR(null); fetchCSREmployees();
-                        }} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, border: 'none', background: '#0052cc', color: '#fff', cursor: 'pointer' }}>Save</button>
-                        <button onClick={() => setEditingCSR(null)} style={{ padding: '4px 8px', fontSize: 11, borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780' }}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: emp.active ? '#2C2C2A' : '#888780' }}>{emp.name}</div>
-                      <div style={{ fontSize: 11, color: '#888780' }}>FR ID: {emp.frEmployeeId}</div>
-                    </div>
-                  )}
-                  {editingCSR?.id !== emp.id && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <button onClick={async () => {
-                        await fetch('/api/leads/csr-employees', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: emp.id, active: !emp.active }) });
-                        fetchCSREmployees();
-                      }} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: 'none', background: emp.active ? '#EAF3DE' : '#FCEBEB', color: emp.active ? '#3B6D11' : '#A32D2D', cursor: 'pointer' }}>
-                        {emp.active ? 'Active' : 'Inactive'}
-                      </button>
-                      <button onClick={() => setEditingCSR({ ...emp })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888780', fontSize: 15, padding: 2 }}>✎</button>
-                    </div>
-                  )}
-                </div>
-              ))}
             </div>
           </div>
         </div>
