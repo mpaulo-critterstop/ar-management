@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // Aggregate by CSR
+  // Aggregate by CSR - use Set to count unique leads only
   const csrMap: Record<string, any> = {};
   for (const cl of csrLeads) {
     const key = cl.frEmployeeId;
@@ -41,16 +41,20 @@ export async function GET(req: NextRequest) {
         totalPoints: 0,
         originalBookings: 0,
         rescheduled: 0,
-        totalLeads: 0,
+        uniqueLeadIds: new Set<string>(),
       };
     }
     csrMap[key].totalPoints += cl.points;
-    csrMap[key].totalLeads += 1;
+    csrMap[key].uniqueLeadIds.add(cl.leadId);
     if (cl.role === 'original') csrMap[key].originalBookings += 1;
     if (cl.role === 'rescheduler') csrMap[key].rescheduled += 1;
   }
 
-  const csrStats = Object.values(csrMap).sort((a: any, b: any) => b.totalPoints - a.totalPoints);
+  const csrStats = Object.values(csrMap).map((c: any) => ({
+    ...c,
+    totalLeads: c.uniqueLeadIds.size,
+    uniqueLeadIds: undefined,
+  })).sort((a: any, b: any) => b.totalPoints - a.totalPoints);
 
   // KPIs
   const totalPoints = csrStats.reduce((s: number, c: any) => s + c.totalPoints, 0);
