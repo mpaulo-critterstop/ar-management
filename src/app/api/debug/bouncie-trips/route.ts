@@ -37,30 +37,9 @@ export async function GET(req: NextRequest) {
   const date = searchParams.get('date') || '2026-06-12';
 
   // Get Bouncie token from AppSetting (same as reliability cron)
-  const [tokenSetting, expiresSetting, refreshSetting] = await Promise.all([
-    prisma.appSetting.findUnique({ where: { key: 'bouncie_access_token' } }),
-    prisma.appSetting.findUnique({ where: { key: 'bouncie_token_expires_at' } }),
-    prisma.appSetting.findUnique({ where: { key: 'bouncie_refresh_token' } }),
-  ]);
-
-  if (!tokenSetting || !refreshSetting) return NextResponse.json({ error: 'Bouncie not connected' });
-
-  let bouncieToken = tokenSetting.value;
-  const expiresAt = new Date(expiresSetting?.value || 0);
-  if (expiresAt.getTime() - Date.now() <= 5 * 60 * 1000) {
-    const res = await fetch('https://auth.bouncie.com/oauth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: process.env.BOUNCIE_CLIENT_ID,
-        client_secret: process.env.BOUNCIE_CLIENT_SECRET,
-        grant_type: 'refresh_token',
-        refresh_token: refreshSetting.value,
-      }),
-    });
-    const tokens = await res.json();
-    bouncieToken = tokens.access_token;
-  }
+  const tokenSetting = await prisma.appSetting.findUnique({ where: { key: 'bouncie_access_token' } });
+  if (!tokenSetting?.value) return NextResponse.json({ error: 'Bouncie token not found — run reliability cron first' });
+  const bouncieToken = tokenSetting.value;
 
   // Get vehicles
   const vehicles = await bouncieFetch('/vehicles', bouncieToken);
