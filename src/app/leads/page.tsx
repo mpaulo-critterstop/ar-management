@@ -383,11 +383,14 @@ export default function LeadsPage() {
                   <tr style={{ borderBottom: '0.5px solid #D3D1C7', background: '#F9F8F5' }}>
                     <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#888780', width: 40 }}>#</th>
                     <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#888780' }}>CSR name</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 80 }}>Points</th>
+                  <tr style={{ borderBottom: '0.5px solid #D3D1C7', background: '#F9F8F5' }}>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#888780', width: 40 }}>#</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#888780' }}>CSR name</th>
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 100 }}>Completed</th>
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 130 }}>Rescheduled by others</th>
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 140 }}>Rescheduled from others</th>
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 90 }}>Total leads</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 80 }}>Points</th>
                     <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 500, color: '#888780', width: 80 }}>Status</th>
                   </tr>
                 </thead>
@@ -398,11 +401,11 @@ export default function LeadsPage() {
                     <tr key={csr.frEmployeeId} style={{ borderBottom: '0.5px solid #E8E7E3', background: i % 2 === 0 ? '#fff' : '#FAFAF8' }}>
                       <td style={{ padding: '10px 14px', color: '#888780', fontSize: 12 }}>{i + 1}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 500, color: '#2C2C2A' }}>{csr.name}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#0052cc' }}>{csr.totalPoints.toFixed(1)}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: '#444441' }}>{csr.completed}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: '#444441' }}>{csr.rescheduledByOthers}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: '#444441' }}>{csr.rescheduledFromOthers}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: '#444441' }}>{csr.totalLeads}</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#0052cc' }}>{csr.totalPoints.toFixed(1)}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                         <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: csr.active ? '#EAF3DE' : '#FCEBEB', color: csr.active ? '#3B6D11' : '#A32D2D' }}>
                           {csr.active ? 'Active' : 'Inactive'}
