@@ -82,6 +82,9 @@ export default function LeadsPage() {
   const [newCSRName, setNewCSRName] = useState('');
   const [newCSRId, setNewCSRId] = useState('');
   const [showAddCSR, setShowAddCSR] = useState(false);
+  const [drawerCSR, setDrawerCSR] = useState<any>(null);
+  const [drawerData, setDrawerData] = useState<any>(null);
+  const [drawerLoading, setDrawerLoading] = useState(false);
 
   // Import state
   const [showImport, setShowImport] = useState(false);
@@ -427,7 +430,18 @@ export default function LeadsPage() {
                   {csrStats.length === 0 ? (
                     <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#888780' }}>No CSR data yet — run the backfill first.</td></tr>
                   ) : csrStats.map((csr, i) => (
-                    <tr key={csr.name} style={{ borderBottom: '0.5px solid #E8E7E3', background: i % 2 === 0 ? '#fff' : '#FAFAF8' }}>
+                    <tr key={csr.name} onClick={async () => {
+                      setDrawerCSR(csr);
+                      setDrawerData(null);
+                      setDrawerLoading(true);
+                      const params = new URLSearchParams({ csrName: csr.name });
+                      if (csrFrom) params.set('from', csrFrom);
+                      if (csrTo) params.set('to', csrTo);
+                      const res = await fetch('/api/leads/csr-detail?' + params.toString());
+                      const data = await res.json();
+                      setDrawerData(data);
+                      setDrawerLoading(false);
+                    }} style={{ borderBottom: '0.5px solid #E8E7E3', background: i % 2 === 0 ? '#fff' : '#FAFAF8', cursor: 'pointer' }}>
                       <td style={{ padding: '10px 14px', color: '#888780', fontSize: 12 }}>{i + 1}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 500, color: '#2C2C2A' }}>{csr.name}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: '#444441' }}>{csr.completed}</td>
@@ -549,6 +563,127 @@ export default function LeadsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* CSR Detail Drawer */}
+      {drawerCSR && (
+        <>
+          {/* Backdrop */}
+          <div onClick={() => { setDrawerCSR(null); setDrawerData(null); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 1000 }} />
+          {/* Drawer */}
+          <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 680, background: '#fff', zIndex: 1001, boxShadow: '-4px 0 24px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column' }}>
+            {/* Header */}
+            <div style={{ padding: '20px 24px', borderBottom: '0.5px solid #E8E7E3', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 500, color: '#2C2C2A' }}>{drawerCSR.name}</div>
+                <div style={{ fontSize: 12, color: '#888780', marginTop: 2 }}>{drawerCSR.totalPoints.toFixed(1)} points · {drawerCSR.totalLeads} total leads</div>
+              </div>
+              <button onClick={() => { setDrawerCSR(null); setDrawerData(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#888780', padding: 4 }}>✕</button>
+            </div>
+            {/* Body */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+              {drawerLoading ? (
+                <div style={{ textAlign: 'center', padding: 40, color: '#888780' }}>Loading...</div>
+              ) : drawerData && (
+                <>
+                  {/* Completed */}
+                  <div style={{ marginBottom: 28 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#2C2C2A', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ background: '#EAF3DE', color: '#3B6D11', padding: '2px 8px', borderRadius: 6, fontSize: 12 }}>Completed</span>
+                      <span style={{ color: '#888780', fontSize: 12 }}>{drawerData.completed.length} leads</span>
+                    </div>
+                    {drawerData.completed.length === 0 ? (
+                      <div style={{ fontSize: 12, color: '#888780' }}>None</div>
+                    ) : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ background: '#F8F7F4' }}>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Date</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Office</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Service type</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {drawerData.completed.map((r: any, i: number) => (
+                            <tr key={i} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.date}</td>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.office}</td>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.serviceType}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+
+                  {/* Rescheduled by others */}
+                  <div style={{ marginBottom: 28 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#2C2C2A', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ background: '#FEF3E2', color: '#854F0B', padding: '2px 8px', borderRadius: 6, fontSize: 12 }}>Rescheduled by others</span>
+                      <span style={{ color: '#888780', fontSize: 12 }}>{drawerData.rescheduledByOthers.length} leads</span>
+                    </div>
+                    {drawerData.rescheduledByOthers.length === 0 ? (
+                      <div style={{ fontSize: 12, color: '#888780' }}>None</div>
+                    ) : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ background: '#F8F7F4' }}>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Date</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Office</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Service type</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Rescheduled by</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {drawerData.rescheduledByOthers.map((r: any, i: number) => (
+                            <tr key={i} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.date}</td>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.office}</td>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.serviceType}</td>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.rescheduledBy}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+
+                  {/* Rescheduled from others */}
+                  <div style={{ marginBottom: 28 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#2C2C2A', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ background: '#E6F1FB', color: '#185FA5', padding: '2px 8px', borderRadius: 6, fontSize: 12 }}>Rescheduled from others</span>
+                      <span style={{ color: '#888780', fontSize: 12 }}>{drawerData.rescheduledFromOthers.length} leads</span>
+                    </div>
+                    {drawerData.rescheduledFromOthers.length === 0 ? (
+                      <div style={{ fontSize: 12, color: '#888780' }}>None</div>
+                    ) : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ background: '#F8F7F4' }}>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Date</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Office</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Service type</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Originally booked by</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {drawerData.rescheduledFromOthers.map((r: any, i: number) => (
+                            <tr key={i} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.date}</td>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.office}</td>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.serviceType}</td>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.originallyBookedBy}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
