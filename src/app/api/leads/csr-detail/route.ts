@@ -32,17 +32,20 @@ export async function GET(req: NextRequest) {
 
   // Fetch leads with customer name joined
   const leads = await prisma.$queryRawUnsafe<any[]>(`
-    SELECT DISTINCT ON (cl."leadId", cl.role)
-      cl.id, cl."leadId", cl."frEmployeeId", cl.role, cl.points,
-      ca."externalId", ca."appointmentDate", ca.office, ca."serviceTypeName",
-      ca."originalAppointmentId",
-      COALESCE(c.name, '—') as "customerName"
-    FROM "csr_leads" cl
-    JOIN "csr_appointments" ca ON cl."leadId" = ca.id
-    LEFT JOIN "customers" c ON ca."customerId" = c.id OR ca."customerId" = c."externalId"
-    WHERE cl."frEmployeeId" IN (${frIdList})
-    ${dateWhere}
-    ORDER BY cl."leadId", cl.role, ca."appointmentDate" DESC
+    SELECT * FROM (
+      SELECT DISTINCT ON (cl."leadId", cl.role)
+        cl.id, cl."leadId", cl."frEmployeeId", cl.role, cl.points,
+        ca."externalId", ca."appointmentDate", ca.office, ca."serviceTypeName",
+        ca."originalAppointmentId",
+        COALESCE(c.name, '—') as "customerName"
+      FROM "csr_leads" cl
+      JOIN "csr_appointments" ca ON cl."leadId" = ca.id
+      LEFT JOIN "customers" c ON ca."customerId" = c.id OR ca."customerId" = c."externalId"
+      WHERE cl."frEmployeeId" IN (${frIdList})
+      ${dateWhere}
+      ORDER BY cl."leadId", cl.role, ca."appointmentDate" DESC
+    ) sub
+    ORDER BY "appointmentDate" DESC
   `, ...params);
 
   // Find reschedulers for "rescheduled by others"
