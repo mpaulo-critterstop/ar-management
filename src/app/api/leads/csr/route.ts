@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     ...c,
     totalLeads: c.uniqueLeadIds.size,
     uniqueLeadIds: undefined,
-  })).sort((a: any, b: any) => b.totalPoints - a.totalPoints);
+  })).filter((c: any) => !c.name.startsWith('FR Employee')).sort((a: any, b: any) => b.totalPoints - a.totalPoints);
 
   const totalPoints = csrStats.reduce((s: number, c: any) => s + c.totalPoints, 0);
   const totalLeads = filteredLeads.filter(cl => cl.role === 'original' && cl.points === 1.0).length
