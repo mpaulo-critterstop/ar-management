@@ -11,33 +11,30 @@ export async function GET(req: NextRequest) {
   const from = searchParams.get('from');
   const to = searchParams.get('to');
 
-  const where: any = {};
+  // Get valid appointment IDs based on date filter
+  let validLeadIds: Set<string> | null = null;
   if (from || to) {
-    where.AND = [];
-    if (from) where.AND.push({ createdAt: { gte: new Date(from) } });
-    if (to) where.AND.push({ createdAt: { lte: new Date(to) } });
+    const conditions: string[] = [];
+    const params: any[] = [];
+    if (from) { conditions.push(`"appointmentDate" >= $${params.length + 1}`); params.push(new Date(from)); }
+    if (to) { conditions.push(`"appointmentDate" <= $${params.length + 1}`); params.push(new Date(to + 'T23:59:59')); }
+    const appts = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT id FROM "csr_appointments" WHERE ${conditions.join(' AND ')}`,
+      ...params
+    );
+    validLeadIds = new Set(appts.map((a: any) => a.id));
   }
 
   const csrLeads = await prisma.csrLead.findMany({
-    where,
     include: { csrEmployee: true },
   });
 
-  // If date filtering, also filter by appointmentDate from csr_appointments
-  let filteredLeads = csrLeads;
-  if (from || to) {
-    const apptWhere: string[] = [];
-    const params: any[] = [];
-    if (from) { apptWhere.push(`"appointmentDate" >= $${params.length + 1}`); params.push(new Date(from)); }
-    if (to) { apptWhere.push(`"appointmentDate" <= $${params.length + 1}`); params.push(new Date(to)); }
-
-    const appts = await prisma.$queryRawUnsafe<any[]>(
-      `SELECT id FROM "csr_appointments" WHERE ${apptWhere.join(' AND ')}`,
-      ...params
-    );
-    const validIds = new Set(appts.map((a: any) => a.id));
-    filteredLeads = csrLeads.filter(cl => validIds.has(cl.leadId));
-  }
+  // Filter by date if needed, and hide FR Employee 0
+  const filteredLeads = csrLeads.filter(cl => {
+    if (cl.frEmployeeId === '0') return false; // hide unattributed
+    if (validLeadIds && !validLeadIds.has(cl.leadId)) return false;
+    return true;
+  });
 
   // Aggregate by CSR name
   const csrMap: Record<string, any> = {};
@@ -68,7 +65,9 @@ export async function GET(req: NextRequest) {
   const totalPoints = csrStats.reduce((s: number, c: any) => s + c.totalPoints, 0);
   const totalLeads = filteredLeads.filter(cl => cl.role === 'original').length;
   const totalRescheduled = filteredLeads.filter(cl => cl.role === 'rescheduler').length;
-  const activeCSRs = new Set(csrStats.filter((c: any) => c.active && !c.name.startsWith('FR Employee')).map((c: any) => c.name)).size;
+  const activeCSRs = new Set(
+    csrStats.filter((c: any) => c.active && !c.name.startsWith('FR Employee')).map((c: any) => c.name)
+  ).size;
 
   return NextResponse.json({
     csrStats,
