@@ -218,7 +218,6 @@ model Lead {
   groupId         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  csrLeads        CsrLead[]
 }
 
 model CsrEmployee {
@@ -235,7 +234,6 @@ model CsrEmployee {
 model CsrLead {
   id              String       @id @default(cuid())
   leadId          String
-  lead            Lead         @relation(fields: [leadId], references: [id])
   csrEmployeeId   String?
   csrEmployee     CsrEmployee? @relation(fields: [csrEmployeeId], references: [id])
   frEmployeeId    String
@@ -250,6 +248,7 @@ model CsrLead {
   @@index([groupId])
   @@map("csr_leads")
 }
+
 
 model DispatchJob {
   id              String    @id @default(cuid())
