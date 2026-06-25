@@ -32,17 +32,17 @@ export async function GET(req: NextRequest) {
 
   // Fetch leads with customer name joined
   const leads = await prisma.$queryRawUnsafe<any[]>(`
-    SELECT 
+    SELECT DISTINCT ON (cl."leadId", cl.role)
       cl.id, cl."leadId", cl."frEmployeeId", cl.role, cl.points,
       ca."externalId", ca."appointmentDate", ca.office, ca."serviceTypeName",
       ca."originalAppointmentId",
       COALESCE(c.name, '—') as "customerName"
     FROM "csr_leads" cl
     JOIN "csr_appointments" ca ON cl."leadId" = ca.id
-    LEFT JOIN "customers" c ON ca."customerId" = c.id OR (ca."customerId" = c."externalId" AND NOT EXISTS (SELECT 1 FROM "customers" c2 WHERE ca."customerId" = c2.id))
+    LEFT JOIN "customers" c ON ca."customerId" = c.id OR ca."customerId" = c."externalId"
     WHERE cl."frEmployeeId" IN (${frIdList})
     ${dateWhere}
-    ORDER BY ca."appointmentDate" DESC
+    ORDER BY cl."leadId", cl.role, ca."appointmentDate" DESC
   `, ...params);
 
   // Find reschedulers for "rescheduled by others"
