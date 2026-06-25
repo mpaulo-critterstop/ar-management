@@ -383,12 +383,9 @@ export default function LeadsPage() {
                   <tr style={{ borderBottom: '0.5px solid #D3D1C7', background: '#F9F8F5' }}>
                     <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#888780', width: 40 }}>#</th>
                     <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#888780' }}>CSR name</th>
-                  <tr style={{ borderBottom: '0.5px solid #D3D1C7', background: '#F9F8F5' }}>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#888780', width: 40 }}>#</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#888780' }}>CSR name</th>
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 100 }}>Completed</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 130 }}>Rescheduled by others</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 140 }}>Rescheduled from others</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 140 }}>Rescheduled by others</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 150 }}>Rescheduled from others</th>
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 90 }}>Total leads</th>
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 80 }}>Points</th>
                     <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 500, color: '#888780', width: 80 }}>Status</th>
@@ -398,7 +395,7 @@ export default function LeadsPage() {
                   {csrStats.length === 0 ? (
                     <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#888780' }}>No CSR data yet — run the backfill first.</td></tr>
                   ) : csrStats.map((csr, i) => (
-                    <tr key={csr.frEmployeeId} style={{ borderBottom: '0.5px solid #E8E7E3', background: i % 2 === 0 ? '#fff' : '#FAFAF8' }}>
+                    <tr key={csr.name} style={{ borderBottom: '0.5px solid #E8E7E3', background: i % 2 === 0 ? '#fff' : '#FAFAF8' }}>
                       <td style={{ padding: '10px 14px', color: '#888780', fontSize: 12 }}>{i + 1}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 500, color: '#2C2C2A' }}>{csr.name}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: '#444441' }}>{csr.completed}</td>
@@ -416,10 +413,6 @@ export default function LeadsPage() {
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
-      )}
-
       {/* Manage CSRs Modal */}
       {showManageCSR && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
