@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       COALESCE(c.name, '—') as "customerName"
     FROM "csr_leads" cl
     JOIN "csr_appointments" ca ON cl."leadId" = ca.id
-    LEFT JOIN "customers" c ON ca."customerId" = c.id OR ca."customerId" = c."externalId"
+    LEFT JOIN "customers" c ON ca."customerId" = c.id OR (ca."customerId" = c."externalId" AND NOT EXISTS (SELECT 1 FROM "customers" c2 WHERE ca."customerId" = c2.id))
     WHERE cl."frEmployeeId" IN (${frIdList})
     ${dateWhere}
     ORDER BY ca."appointmentDate" DESC
