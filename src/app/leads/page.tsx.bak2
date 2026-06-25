@@ -64,18 +64,10 @@ export default function LeadsPage() {
   const [csrStats, setCsrStats] = useState<any[]>([]);
   const [csrKpis, setCsrKpis] = useState<any>(null);
   const [csrLoading, setCsrLoading] = useState(false);
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth(); // 0-indexed
-  const [csrSelectedYear, setCsrSelectedYear] = useState(currentYear);
-  const [csrSelectedMonth, setCsrSelectedMonth] = useState(currentMonth);
-  const [csrFrom, setCsrFrom] = useState(() => {
-    const d = new Date(currentYear, currentMonth, 1);
-    return d.toISOString().split('T')[0];
-  });
-  const [csrTo, setCsrTo] = useState(() => {
-    const d = new Date(currentYear, currentMonth + 1, 0);
-    return d.toISOString().split('T')[0];
-  });
+  const [csrFrom, setCsrFrom] = useState('');
+  const [csrTo, setCsrTo] = useState('');
+  const [csrFromInput, setCsrFromInput] = useState('');
+  const [csrToInput, setCsrToInput] = useState('');
   const [showManageCSR, setShowManageCSR] = useState(false);
   const [csrEmployees, setCsrEmployees] = useState<any[]>([]);
   const [editingCSR, setEditingCSR] = useState<any>(null);
@@ -353,42 +345,17 @@ export default function LeadsPage() {
       {/* CSR LEADS TRACKER TAB */}
       {activeTab === 'csr' && (
         <div style={{ marginTop: 16 }}>
-          {/* Year + Month selector */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {[currentYear - 1, currentYear].filter(y => y >= 2026).concat(currentYear < new Date().getFullYear() ? [currentYear + 1] : []).map(y => (
-                  <button key={y} onClick={() => {
-                    setCsrSelectedYear(y);
-                    const m = csrSelectedMonth;
-                    const from = new Date(y, m, 1).toISOString().split('T')[0];
-                    const to = new Date(y, m + 1, 0).toISOString().split('T')[0];
-                    setCsrFrom(from); setCsrTo(to);
-                  }} style={{ padding: '5px 16px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', cursor: 'pointer', fontWeight: 500, background: csrSelectedYear === y ? '#0052cc' : '#fff', color: csrSelectedYear === y ? '#fff' : '#444441' }}>
-                    {y}
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => setShowManageCSR(true)} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: '#444441' }}>
-                👥 Manage CSRs
-              </button>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input type="date" value={csrFromInput} onChange={e => setCsrFromInput(e.target.value)} style={{ padding: '6px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }} />
+              <span style={{ fontSize: 12, color: '#888780' }}>to</span>
+              <input type="date" value={csrToInput} onChange={e => setCsrToInput(e.target.value)} style={{ padding: '6px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }} />
+              <button onClick={() => { setCsrFrom(csrFromInput); setCsrTo(csrToInput); }} style={{ padding: '6px 14px', fontSize: 13, borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', cursor: 'pointer' }}>Apply</button>
+              {(csrFrom || csrTo) && <button onClick={() => { setCsrFrom(''); setCsrTo(''); setCsrFromInput(''); setCsrToInput(''); }} style={{ padding: '6px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780' }}>Clear</button>}
             </div>
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((month, idx) => {
-                const isSelected = csrSelectedMonth === idx;
-                const isFuture = csrSelectedYear === currentYear && idx > currentMonth;
-                return (
-                  <button key={month} disabled={isFuture} onClick={() => {
-                    setCsrSelectedMonth(idx);
-                    const from = new Date(csrSelectedYear, idx, 1).toISOString().split('T')[0];
-                    const to = new Date(csrSelectedYear, idx + 1, 0).toISOString().split('T')[0];
-                    setCsrFrom(from); setCsrTo(to);
-                  }} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', cursor: isFuture ? 'not-allowed' : 'pointer', fontWeight: isSelected ? 500 : 400, background: isSelected ? '#0052cc' : isFuture ? '#F1EFE8' : '#fff', color: isSelected ? '#fff' : isFuture ? '#C4C2B8' : '#444441' }}>
-                    {month}
-                  </button>
-                );
-              })}
-            </div>
+            <button onClick={() => setShowManageCSR(true)} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: '#444441' }}>
+              👥 Manage CSRs
+            </button>
           </div>
 
           {csrKpis && (
