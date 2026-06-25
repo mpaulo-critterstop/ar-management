@@ -12,7 +12,7 @@ const OFFICES = {
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: '4' },
 };
 
-const WILDLIFE_INSPECTION_IDS = new Set(['645', '1037', '884', '722', '544', '719', '619']);
+const WILDLIFE_INSPECTION_IDS = new Set(['645', '1037', '884', '722', '544', '619']);
 const SOLD_SERVICE_IDS = [553, 716, 720, 501, 674, 479, 541, 542, 624, 510];
 const TRAPPING_IDS = new Set(['720']);
 const FAR_IDS = new Set(['501', '674', '479', '541', '542', '624']);
