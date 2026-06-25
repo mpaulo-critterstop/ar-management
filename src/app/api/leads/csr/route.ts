@@ -13,23 +13,35 @@ export async function GET(req: NextRequest) {
 
   const where: any = {};
   if (from || to) {
-    where.lead = { inspectionDate: {} };
-    if (from) where.lead.inspectionDate.gte = new Date(from);
-    if (to) where.lead.inspectionDate.lte = new Date(to);
+    where.AND = [];
+    if (from) where.AND.push({ createdAt: { gte: new Date(from) } });
+    if (to) where.AND.push({ createdAt: { lte: new Date(to) } });
   }
 
   const csrLeads = await prisma.csrLead.findMany({
     where,
-    include: {
-      csrEmployee: true,
-      lead: { select: { inspectionDate: true, office: true, status: true } },
-    },
+    include: { csrEmployee: true },
   });
 
-  // Aggregate by CSR name (consolidates all sub-IDs under one row)
+  // If date filtering, also filter by appointmentDate from csr_appointments
+  let filteredLeads = csrLeads;
+  if (from || to) {
+    const apptWhere: string[] = [];
+    const params: any[] = [];
+    if (from) { apptWhere.push(`"appointmentDate" >= $${params.length + 1}`); params.push(new Date(from)); }
+    if (to) { apptWhere.push(`"appointmentDate" <= $${params.length + 1}`); params.push(new Date(to)); }
+
+    const appts = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT id FROM "csr_appointments" WHERE ${apptWhere.join(' AND ')}`,
+      ...params
+    );
+    const validIds = new Set(appts.map((a: any) => a.id));
+    filteredLeads = csrLeads.filter(cl => validIds.has(cl.leadId));
+  }
+
+  // Aggregate by CSR name
   const csrMap: Record<string, any> = {};
-  for (const cl of csrLeads) {
-    // Use name as the grouping key — consolidates all sub-IDs
+  for (const cl of filteredLeads) {
     const key = cl.csrName || `FR Employee ${cl.frEmployeeId}`;
     if (!csrMap[key]) {
       csrMap[key] = {
@@ -53,10 +65,9 @@ export async function GET(req: NextRequest) {
     uniqueLeadIds: undefined,
   })).sort((a: any, b: any) => b.totalPoints - a.totalPoints);
 
-  // KPIs
   const totalPoints = csrStats.reduce((s: number, c: any) => s + c.totalPoints, 0);
-  const totalLeads = csrLeads.filter(cl => cl.role === 'original').length;
-  const totalRescheduled = csrLeads.filter(cl => cl.role === 'rescheduler').length;
+  const totalLeads = filteredLeads.filter(cl => cl.role === 'original').length;
+  const totalRescheduled = filteredLeads.filter(cl => cl.role === 'rescheduler').length;
   const activeCSRs = new Set(csrStats.filter((c: any) => c.active && !c.name.startsWith('FR Employee')).map((c: any) => c.name)).size;
 
   return NextResponse.json({
