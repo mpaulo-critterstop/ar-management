@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   `;
 
   const total = allNulls.length;
-  const batch = allNulls.slice(offset, offset + limit);
+  const batch = allNulls.slice(0, limit); // always process first N remaining
 
   // Group by office
   const byOffice: Record<string, any[]> = {};
@@ -85,6 +85,6 @@ export async function GET(req: NextRequest) {
     updated,
     errors,
     hasMore,
-    nextUrl: hasMore ? `/api/sync/csr-wildlife-fix?token=critterstop2026&offset=${nextOffset}` : null,
+    nextUrl: hasMore ? `/api/sync/csr-wildlife-fix?token=critterstop2026&offset=0` : null,
   });
 }
