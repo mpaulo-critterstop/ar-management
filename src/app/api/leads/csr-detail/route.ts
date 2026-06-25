@@ -14,49 +14,39 @@ export async function GET(req: NextRequest) {
 
   if (!csrName) return NextResponse.json({ error: 'csrName required' }, { status: 400 });
 
-  // Get all frEmployeeIds for this CSR name
+  // Get all frEmployeeIds for this CSR
   const employees = await prisma.csrEmployee.findMany({
     where: { name: csrName },
     select: { frEmployeeId: true },
   });
   const frEmployeeIds = employees.map(e => e.frEmployeeId);
+  if (!frEmployeeIds.length) return NextResponse.json({ completed: [], rescheduledByOthers: [], rescheduledFromOthers: [] });
 
-  // Also get frEmployeeIds for all OTHER CSRs (for "rescheduled by" and "originally booked by" lookups)
-  const allEmployees = await prisma.csrEmployee.findMany({
-    select: { frEmployeeId: true, name: true },
-  });
-  const employeeNameMap: Record<string, string> = {};
-  for (const e of allEmployees) {
-    employeeNameMap[e.frEmployeeId] = e.name;
-  }
-
-  // Get date-filtered appointment IDs
-  let apptWhere = '';
-  const params: any[] = [];
-  if (from) { params.push(new Date(from)); apptWhere += ` AND ca."appointmentDate" >= $${params.length}`; }
-  if (to) { params.push(new Date(to + 'T23:59:59')); apptWhere += ` AND ca."appointmentDate" <= $${params.length}`; }
-
-  // Get all csr_leads for this CSR with appointment details
   const frIdList = frEmployeeIds.map(id => `'${id}'`).join(',');
-  if (!frIdList) return NextResponse.json({ completed: [], rescheduledByOthers: [], rescheduledFromOthers: [] });
 
+  // Build date filter
+  let dateWhere = '';
+  const params: any[] = [];
+  if (from) { params.push(new Date(from)); dateWhere += ` AND ca."appointmentDate" >= $${params.length}`; }
+  if (to) { params.push(new Date(to + 'T23:59:59')); dateWhere += ` AND ca."appointmentDate" <= $${params.length}`; }
+
+  // Fetch leads with customer name joined
   const leads = await prisma.$queryRawUnsafe<any[]>(`
     SELECT 
       cl.id, cl."leadId", cl."frEmployeeId", cl.role, cl.points,
       ca."externalId", ca."appointmentDate", ca.office, ca."serviceTypeName",
-      ca."originalAppointmentId", ca."employeeId" as "completedEmployeeId"
+      ca."originalAppointmentId",
+      COALESCE(c.name, '—') as "customerName"
     FROM "csr_leads" cl
     JOIN "csr_appointments" ca ON cl."leadId" = ca.id
+    LEFT JOIN "customers" c ON ca."customerId" = c.id
     WHERE cl."frEmployeeId" IN (${frIdList})
-    ${apptWhere}
+    ${dateWhere}
     ORDER BY ca."appointmentDate" DESC
   `, ...params);
 
-  // For rescheduled by others — find who rescheduled (the rescheduler's employeeId)
-  // These are original bookings with 0.5 points — need to find the rescheduler
+  // Find reschedulers for "rescheduled by others"
   const rescheduledByOthersAppts = leads.filter(l => l.role === 'original' && Number(l.points) === 0.5);
-  
-  // For each, find the rescheduler from csr_leads with same leadId and role=rescheduler
   const reschedulerLeads = rescheduledByOthersAppts.length > 0 ? await prisma.$queryRawUnsafe<any[]>(`
     SELECT cl."leadId", cl."frEmployeeId", cl."csrName"
     FROM "csr_leads" cl
@@ -69,9 +59,8 @@ export async function GET(req: NextRequest) {
     reschedulerMap[r.leadId] = r.csrName || `FR Employee ${r.frEmployeeId}`;
   }
 
-  // For rescheduled from others — find who originally booked
+  // Find original bookers for "rescheduled from others"
   const rescheduledFromOthersAppts = leads.filter(l => l.role === 'rescheduler');
-  
   const originalLeads = rescheduledFromOthersAppts.length > 0 ? await prisma.$queryRawUnsafe<any[]>(`
     SELECT cl."leadId", cl."frEmployeeId", cl."csrName"
     FROM "csr_leads" cl
@@ -84,28 +73,31 @@ export async function GET(req: NextRequest) {
     originalBookerMap[r.leadId] = r.csrName || `FR Employee ${r.frEmployeeId}`;
   }
 
-  // Build response
   const formatDate = (d: any) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+  const svcType = (t: string) => t || 'Wildlife Inspection';
 
   const completed = leads
     .filter(l => l.role === 'original' && Number(l.points) === 1.0)
     .map(l => ({
       date: formatDate(l.appointmentDate),
+      customer: l.customerName,
       office: l.office,
-      serviceType: l.serviceTypeName === 'wildlife' ? 'Wildlife Inspection' : (l.serviceTypeName || '—'),
+      serviceType: svcType(l.serviceTypeName),
     }));
 
   const rescheduledByOthers = rescheduledByOthersAppts.map(l => ({
     date: formatDate(l.appointmentDate),
+    customer: l.customerName,
     office: l.office,
-    serviceType: l.serviceTypeName === 'wildlife' ? 'Wildlife Inspection' : (l.serviceTypeName || '—'),
+    serviceType: svcType(l.serviceTypeName),
     rescheduledBy: reschedulerMap[l.leadId] || 'Unknown',
   }));
 
   const rescheduledFromOthers = rescheduledFromOthersAppts.map(l => ({
     date: formatDate(l.appointmentDate),
+    customer: l.customerName,
     office: l.office,
-    serviceType: l.serviceTypeName === 'wildlife' ? 'Wildlife Inspection' : (l.serviceTypeName || '—'),
+    serviceType: svcType(l.serviceTypeName),
     originallyBookedBy: originalBookerMap[l.leadId] || 'Unknown',
   }));
 

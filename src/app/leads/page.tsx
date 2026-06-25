@@ -599,6 +599,7 @@ export default function LeadsPage() {
                         <thead>
                           <tr style={{ background: '#F8F7F4' }}>
                             <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Date</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Customer</th>
                             <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Office</th>
                             <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Service type</th>
                           </tr>
@@ -607,6 +608,7 @@ export default function LeadsPage() {
                           {drawerData.completed.map((r: any, i: number) => (
                             <tr key={i} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
                               <td style={{ padding: '7px 10px', color: '#444441' }}>{r.date}</td>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.customer}</td>
                               <td style={{ padding: '7px 10px', color: '#444441' }}>{r.office}</td>
                               <td style={{ padding: '7px 10px', color: '#444441' }}>{r.serviceType}</td>
                             </tr>
@@ -629,6 +631,7 @@ export default function LeadsPage() {
                         <thead>
                           <tr style={{ background: '#F8F7F4' }}>
                             <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Date</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Customer</th>
                             <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Office</th>
                             <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Service type</th>
                             <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Rescheduled by</th>
@@ -638,6 +641,7 @@ export default function LeadsPage() {
                           {drawerData.rescheduledByOthers.map((r: any, i: number) => (
                             <tr key={i} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
                               <td style={{ padding: '7px 10px', color: '#444441' }}>{r.date}</td>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.customer}</td>
                               <td style={{ padding: '7px 10px', color: '#444441' }}>{r.office}</td>
                               <td style={{ padding: '7px 10px', color: '#444441' }}>{r.serviceType}</td>
                               <td style={{ padding: '7px 10px', color: '#444441' }}>{r.rescheduledBy}</td>
@@ -661,6 +665,7 @@ export default function LeadsPage() {
                         <thead>
                           <tr style={{ background: '#F8F7F4' }}>
                             <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Date</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Customer</th>
                             <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Office</th>
                             <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Service type</th>
                             <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Originally booked by</th>
@@ -670,6 +675,7 @@ export default function LeadsPage() {
                           {drawerData.rescheduledFromOthers.map((r: any, i: number) => (
                             <tr key={i} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
                               <td style={{ padding: '7px 10px', color: '#444441' }}>{r.date}</td>
+                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.customer}</td>
                               <td style={{ padding: '7px 10px', color: '#444441' }}>{r.office}</td>
                               <td style={{ padding: '7px 10px', color: '#444441' }}>{r.serviceType}</td>
                               <td style={{ padding: '7px 10px', color: '#444441' }}>{r.originallyBookedBy}</td>
