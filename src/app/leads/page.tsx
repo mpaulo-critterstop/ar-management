@@ -244,7 +244,19 @@ export default function LeadsPage() {
             for (const office of ['DFW', 'ATX', 'OKC', 'CStat']) {
               await fetch(`/api/sync/csr-appointments?token=critterstop2026&office=${office}`);
             }
-            // Step 3: Run incremental CSR backfill for new records
+            // Step 3: Fix wildlife records with missing employeeId
+            let wildlifeFixDone = false;
+            let wildlifeFixUrl = '/api/sync/csr-wildlife-fix?token=critterstop2026&offset=0';
+            while (!wildlifeFixDone) {
+              const wRes = await fetch('https://hub.critterstop.com' + wildlifeFixUrl);
+              const wData = await wRes.json();
+              if (wData.hasMore && wData.nextUrl) {
+                wildlifeFixUrl = wData.nextUrl;
+              } else {
+                wildlifeFixDone = true;
+              }
+            }
+            // Step 4: Run incremental CSR backfill for new records
             await fetch('/api/leads/csr-backfill?token=critterstop2026&mode=incremental');
             await fetchLeads();
             setSyncing(false);
