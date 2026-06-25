@@ -413,6 +413,10 @@ export default function LeadsPage() {
                 </tbody>
               </table>
             </div>
+          )}
+        </div>
+      )}
+
       {/* Manage CSRs Modal */}
       {showManageCSR && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
