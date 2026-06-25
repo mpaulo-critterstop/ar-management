@@ -234,12 +234,20 @@ export default function LeadsPage() {
           onClick={async () => {
             if (syncing) return;
             setSyncing(true);
-            fetch('/api/sync/appointments', {
+            // Step 1: Sync main wildlife leads
+            await fetch('/api/sync/appointments', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-cron-secret': 'critterstop-cron-2024' },
               body: JSON.stringify({}),
             });
-            setTimeout(async () => { await fetchLeads(); setSyncing(false); }, 30000);
+            // Step 2: Sync new CSR appointment types (runs for each office)
+            for (const office of ['DFW', 'ATX', 'OKC', 'CStat']) {
+              await fetch(`/api/sync/csr-appointments?token=critterstop2026&office=${office}`);
+            }
+            // Step 3: Run incremental CSR backfill for new records
+            await fetch('/api/leads/csr-backfill?token=critterstop2026&mode=incremental');
+            await fetchLeads();
+            setSyncing(false);
           }}
           disabled={syncing}
           style={{ background: '#fff', color: '#888780', border: '0.5px solid #D3D1C7', padding: '7px 14px', borderRadius: 9, cursor: syncing ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, opacity: syncing ? 0.7 : 1 }}

@@ -47,19 +47,31 @@ export async function GET(req: NextRequest) {
 
   const offset = parseInt(req.nextUrl.searchParams.get('offset') || '0');
   const limit = parseInt(req.nextUrl.searchParams.get('limit') || '40');
+  const mode = req.nextUrl.searchParams.get('mode') || 'full';
 
-  // Clear all existing CSR leads on first run
-  if (offset === 0) {
+  // Clear all existing CSR leads on first run (full mode only)
+  if (mode === 'full' && offset === 0) {
     await prisma.csrLead.deleteMany({});
   }
 
-  // Fetch from csr_appointments instead of Lead
-  const allAppts = await prisma.$queryRaw<any[]>`
-    SELECT id, "externalId", office, "appointmentDate", "serviceTypeId", "originalAppointmentId", "employeeId"
-    FROM "csr_appointments"
-    WHERE "appointmentDate" >= '2026-01-01'
-    ORDER BY "appointmentDate" ASC
-  `;
+  // Fetch from csr_appointments
+  // In incremental mode, only fetch records not yet in csr_leads
+  const allAppts = mode === 'incremental'
+    ? await prisma.$queryRaw<any[]>`
+        SELECT ca.id, ca."externalId", ca.office, ca."appointmentDate", ca."serviceTypeId", ca."originalAppointmentId", ca."employeeId"
+        FROM "csr_appointments" ca
+        WHERE ca."appointmentDate" >= '2026-01-01'
+        AND NOT EXISTS (
+          SELECT 1 FROM "csr_leads" cl WHERE cl."leadId" = ca.id
+        )
+        ORDER BY ca."appointmentDate" ASC
+      `
+    : await prisma.$queryRaw<any[]>`
+        SELECT id, "externalId", office, "appointmentDate", "serviceTypeId", "originalAppointmentId", "employeeId"
+        FROM "csr_appointments"
+        WHERE "appointmentDate" >= '2026-01-01'
+        ORDER BY "appointmentDate" ASC
+      `;
 
   const total = allAppts.length;
   const batch = allAppts.slice(offset, offset + limit);
