@@ -66,16 +66,12 @@ export async function GET(req: NextRequest) {
     uniqueLeadIds: undefined,
   })).filter((c: any) => !c.name.startsWith('FR Employee')).sort((a: any, b: any) => b.totalPoints - a.totalPoints);
 
-  const totalPoints = csrStats.reduce((s: number, c: any) => s + c.totalPoints, 0);
-  const totalLeads = filteredLeads.filter(cl => cl.role === 'original' && cl.points === 1.0).length
-    + filteredLeads.filter(cl => cl.role === 'original' && cl.points === 0.5).length;
-  const totalRescheduled = filteredLeads.filter(cl => cl.role === 'rescheduler').length;
-  const activeCSRs = new Set(
-    csrStats.filter((c: any) => c.active && !c.name.startsWith('FR Employee')).map((c: any) => c.name)
-  ).size;
+  const completedLeads = filteredLeads.filter(cl => cl.role === 'original' && cl.points === 1.0).length;
+  const totalRescheduledByOthers = filteredLeads.filter(cl => cl.role === 'original' && cl.points === 0.5).length;
+  const totalRescheduledFromOthers = filteredLeads.filter(cl => cl.role === 'rescheduler').length;
 
   return NextResponse.json({
     csrStats,
-    kpis: { totalPoints, totalLeads, totalRescheduled, activeCSRs },
+    kpis: { completedLeads, totalRescheduledByOthers, totalRescheduledFromOthers },
   });
 }

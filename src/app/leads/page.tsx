@@ -392,12 +392,11 @@ export default function LeadsPage() {
           </div>
 
           {csrKpis && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
               {[
-                { label: 'Total points', value: csrKpis.totalPoints.toFixed(1) },
-                { label: 'Leads booked', value: csrKpis.totalLeads },
-                { label: 'Rescheduled', value: csrKpis.totalRescheduled },
-                { label: 'Active CSRs', value: csrKpis.activeCSRs },
+                { label: 'Completed leads', value: csrKpis.completedLeads },
+                { label: 'Rescheduled by others', value: csrKpis.totalRescheduledByOthers },
+                { label: 'Rescheduled from others', value: csrKpis.totalRescheduledFromOthers },
               ].map(({ label, value }) => (
                 <div key={label} style={{ background: '#F1EFE8', borderRadius: 10, padding: '12px 16px' }}>
                   <div style={{ fontSize: 12, color: '#888780', marginBottom: 4 }}>{label}</div>
