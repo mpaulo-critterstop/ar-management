@@ -92,20 +92,20 @@ export async function GET(req: NextRequest) {
     .map(l => ({
       date: formatDate(l.appointmentDate),
       office: l.office,
-      serviceType: l.serviceTypeName || '—',
+      serviceType: l.serviceTypeName === 'wildlife' ? 'Wildlife Inspection' : (l.serviceTypeName || '—'),
     }));
 
   const rescheduledByOthers = rescheduledByOthersAppts.map(l => ({
     date: formatDate(l.appointmentDate),
     office: l.office,
-    serviceType: l.serviceTypeName || '—',
+    serviceType: l.serviceTypeName === 'wildlife' ? 'Wildlife Inspection' : (l.serviceTypeName || '—'),
     rescheduledBy: reschedulerMap[l.leadId] || 'Unknown',
   }));
 
   const rescheduledFromOthers = rescheduledFromOthersAppts.map(l => ({
     date: formatDate(l.appointmentDate),
     office: l.office,
-    serviceType: l.serviceTypeName || '—',
+    serviceType: l.serviceTypeName === 'wildlife' ? 'Wildlife Inspection' : (l.serviceTypeName || '—'),
     originallyBookedBy: originalBookerMap[l.leadId] || 'Unknown',
   }));
 
