@@ -11,27 +11,36 @@ export async function GET(req: NextRequest) {
   const from = searchParams.get('from');
   const to = searchParams.get('to');
 
-  // Get valid appointment IDs based on date filter
+  // Get valid leadIds based on appointmentDate filter
   let validLeadIds: Set<string> | null = null;
   if (from || to) {
     const conditions: string[] = [];
     const params: any[] = [];
     if (from) { conditions.push(`"appointmentDate" >= $${params.length + 1}`); params.push(new Date(from)); }
     if (to) { conditions.push(`"appointmentDate" <= $${params.length + 1}`); params.push(new Date(to + 'T23:59:59')); }
+
     const appts = await prisma.$queryRawUnsafe<any[]>(
-      `SELECT id FROM "csr_appointments" WHERE ${conditions.join(' AND ')}`,
+      `SELECT id, "externalId" FROM "csr_appointments" WHERE ${conditions.join(' AND ')}`,
       ...params
     );
-    validLeadIds = new Set(appts.map((a: any) => a.id));
+
+    // Build all possible ID formats used as leadId in csr_leads
+    validLeadIds = new Set();
+    for (const a of appts) {
+      validLeadIds.add(a.id);
+      validLeadIds.add(`wild_dfw_${a.externalId}`);
+      validLeadIds.add(`wild_${a.externalId}`);
+      validLeadIds.add(`csr_appt_${a.externalId}`);
+    }
   }
 
   const csrLeads = await prisma.csrLead.findMany({
     include: { csrEmployee: true },
   });
 
-  // Filter by date if needed, and hide FR Employee 0
+  // Filter by date and hide FR Employee 0
   const filteredLeads = csrLeads.filter(cl => {
-    if (cl.frEmployeeId === '0') return false; // hide unattributed
+    if (cl.frEmployeeId === '0') return false;
     if (validLeadIds && !validLeadIds.has(cl.leadId)) return false;
     return true;
   });
