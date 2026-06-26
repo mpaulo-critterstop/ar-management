@@ -111,7 +111,7 @@ export function IndividualsTab({ office, weekEnd }: Props) {
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.revenueEfficiency !== null ? (w.revenueEfficiency * 100).toFixed(0) + '%' : '—'}</td>}
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.reseviceRate !== null && w.reseviceRate > 0 ? (w.reseviceRate * 100).toFixed(1) + '%' : '—'}</td>}
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.completionPct !== null ? (w.completionPct * 100).toFixed(0) + '%' : '—'}</td>}
-                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.drivingScore !== null ? (w.drivingScore * 100).toFixed(0) + '%' : '—'}</td>}
+                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.drivingOverride ? <span style={{color:'#791F1F',fontWeight:500}}>0% ⚠</span> : w.drivingScore !== null ? (w.drivingScore * 100).toFixed(0) + '%' : '—'}</td>}
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.reliabilityScore !== null ? (w.reliabilityScore * 100).toFixed(0) + '%' : '—'}</td>}
                   </tr>
                 ))}
@@ -149,7 +149,7 @@ export function IndividualsTab({ office, weekEnd }: Props) {
               { label: 'Rev. efficiency', val: selected.revenueEfficiency !== null ? (selected.revenueEfficiency * 100).toFixed(0) + '%' : '—' },
               { label: 'Reservice rate', val: selected.reseviceRate !== null ? (selected.reseviceRate * 100).toFixed(0) + '%' : '—' },
               { label: 'Completion %', val: selected.completionPct !== null ? (selected.completionPct * 100).toFixed(0) + '%' : '—' },
-              { label: 'Driving', val: selected.drivingScore !== null ? (selected.drivingScore * 100).toFixed(0) + '%' : '—' },
+              { label: 'Driving', val: selected.drivingOverride ? '0% (override)' : selected.drivingScore !== null ? (selected.drivingScore * 100).toFixed(0) + '%' : '—' },
               { label: 'Reliability', val: selected.reliabilityScore !== null ? (selected.reliabilityScore * 100).toFixed(0) + '%' : '—' },
               { label: 'Reviews (30d)', val: selected.reviewCount ?? '—' },
               { label: 'Manual adj.', val: selected.manualAdj !== null && selected.manualAdj !== 0 ? (selected.manualAdj > 0 ? '+' : '') + selected.manualAdj?.toFixed(2) : '—' },
