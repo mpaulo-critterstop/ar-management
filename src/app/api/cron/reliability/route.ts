@@ -602,13 +602,13 @@ export async function POST(req: NextRequest) {
         const dateObj = new Date(date + 'T12:00:00.000Z');
         const existingRecord = await prisma.techDayAttendance.findUnique({
           where: { techId_date: { techId: tech.techId, date: dateObj } },
-          select: { manualOverride: true, minutesLate: true, utilization: true },
+          select: { manualOverride: true, minutesLate: true, hrsWorked: true, scheduledHrs: true },
         });
 
         if (existingRecord?.manualOverride) {
           // Use manually saved values instead of auto-detected ones
           const manualLate = existingRecord.minutesLate ?? minutesLate;
-          const manualUtil = existingRecord.utilization ?? utilization;
+          const manualUtil = existingRecord.hrsWorked != null && existingRecord.scheduledHrs ? Math.min(existingRecord.hrsWorked / existingRecord.scheduledHrs, 1.5) : utilization;
           totalMinutesLate += manualLate;
           totalUtilization += manualUtil;
           workDays++;
