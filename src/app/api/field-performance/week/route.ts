@@ -93,13 +93,13 @@ async function getRouteStats(routeID: string, key: string, token: string, rl: (u
 
 async function getRoutesForDateRange(dateStart: string, dateEnd: string, key: string, token: string, rl: (u: string) => Promise<any>) {
   const auth = `&authenticationKey=${key}&authenticationToken=${token}`;
-  const routeSearch = await rl(`${BASE_URL}/route/search?${auth}`);
+  // Use date-filtered search to avoid missing routes when rerunnning past weeks
+  const routeSearch = await rl(`${BASE_URL}/route/search?dateStart=${dateStart}&dateEnd=${dateEnd}${auth}`);
   const allRouteIDs: string[] = routeSearch.routeIDs || [];
-  const recentIDs = allRouteIDs.slice(-1000);
   const matching: Array<{ routeID: string; date: string; assignedTech: string }> = [];
 
-  for (let i = 0; i < recentIDs.length; i += 100) {
-    const batch = recentIDs.slice(i, i + 100).join(',');
+  for (let i = 0; i < allRouteIDs.length; i += 100) {
+    const batch = allRouteIDs.slice(i, i + 100).join(',');
     const routeData = await rl(`${BASE_URL}/route/get?routeIDs=${batch}${auth}`);
     (routeData.routes || []).forEach((r: any) => {
       if (r.date >= dateStart && r.date <= dateEnd && r.assignedTech && r.assignedTech !== '0') {
