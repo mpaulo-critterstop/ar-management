@@ -79,6 +79,7 @@ export async function GET(req: NextRequest) {
   const weekEndParam = searchParams.get('weekEnd');
   const rangeStartParam = searchParams.get('rangeStart');
   const rangeEndParam   = searchParams.get('rangeEnd');
+  const isFinal = searchParams.get('final') !== 'false'; // default true, set false to keep cache
   const cfg = OFFICES[officeFilter];
   if (!cfg?.key) return NextResponse.json({ error: `Unknown or unconfigured office: ${officeFilter}` }, { status: 400 });
 
@@ -226,8 +227,12 @@ export async function GET(req: NextRequest) {
     }
 
     // ── Clean up A cache ──
-    await prisma.appSetting.delete({ where: { key: cacheKey } }).catch(() => {});
-    log.push('Cleaned up thirtyDayA cache');
+    if (isFinal) {
+      await prisma.appSetting.delete({ where: { key: cacheKey } }).catch(() => {});
+      log.push('Cleaned up thirtyDayA cache');
+    } else {
+      log.push('thirtyDayA cache preserved for next call (final=false)');
+    }
 
     return NextResponse.json({
       status:          'success',
