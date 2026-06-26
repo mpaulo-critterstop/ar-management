@@ -598,21 +598,28 @@ export async function POST(req: NextRequest) {
         const hoursWorked = (endOfDay.getTime() - startOfDay.getTime()) / (1000 * 60 * 60);
         const utilization = Math.min(hoursWorked / scheduledHours, 1.5); // cap at 150%
 
+        // Check for manual override BEFORE adding to totals
+        const dateObj = new Date(date + 'T12:00:00.000Z');
+        const existingRecord = await prisma.techDayAttendance.findUnique({
+          where: { techId_date: { techId: tech.techId, date: dateObj } },
+          select: { manualOverride: true, minutesLate: true, utilization: true },
+        });
+
+        if (existingRecord?.manualOverride) {
+          // Use manually saved values instead of auto-detected ones
+          const manualLate = existingRecord.minutesLate ?? minutesLate;
+          const manualUtil = existingRecord.utilization ?? utilization;
+          totalMinutesLate += manualLate;
+          totalUtilization += manualUtil;
+          workDays++;
+          log.push(`  ${tech.name} ${date}: manually overridden — late=${manualLate.toFixed(0)}min, util=${(manualUtil*100).toFixed(0)}%`);
+        } else {
         totalMinutesLate += minutesLate;
         totalUtilization += utilization;
         workDays++;
 
         log.push(`  ${tech.name} ${date}: start=${startOfDay.toLocaleTimeString('en-US', {timeZone})}, end=${endOfDay.toLocaleTimeString('en-US', {timeZone})}, late=${minutesLate.toFixed(0)}min, util=${(utilization*100).toFixed(0)}%`);
 
-        // Save per-day attendance record — skip if manually overridden
-        const dateObj = new Date(date + 'T12:00:00.000Z'); // noon UTC to avoid timezone day shift
-        const existingRecord = await prisma.techDayAttendance.findUnique({
-          where: { techId_date: { techId: tech.techId, date: dateObj } },
-          select: { manualOverride: true },
-        });
-        if (existingRecord?.manualOverride) {
-          log.push(`  ${tech.name} ${date}: skipped — manually overridden`);
-        } else {
         await prisma.techDayAttendance.upsert({
           where: { techId_date: { techId: tech.techId, date: dateObj } },
           update: {
