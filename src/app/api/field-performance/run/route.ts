@@ -250,13 +250,19 @@ export async function GET(req: NextRequest) {
           ? Math.min((productionValue / routeCount / hrDays * 40) / PROD_STANDARD_PER_DAY, 1.1)
           : null;
 
-        const updateData: any = { reseviceRate, updatedAt: new Date() };
+        // Only overwrite reseviceRate if not already set — prevents FR inconsistency from overwriting correct values
+        const effectiveReseviceRate = (existing?.reseviceRate !== null && existing?.reseviceRate !== undefined)
+          ? existing.reseviceRate
+          : reseviceRate;
+
+        const updateData: any = { reseviceRate: effectiveReseviceRate, updatedAt: new Date() };
         if (revenueEff !== null) updateData.revenueEfficiency = revenueEff;
 
         const completionPct = existing?.completionPct ?? null;
         if (revenueEff !== null && completionPct !== null &&
             existing?.drivingScore && existing?.reliabilityScore) {
-          const pmpScore = calcPMPScore(revenueEff, reseviceRate, completionPct, existing.drivingScore, existing.reliabilityScore);
+          const effectiveDriving = existing?.drivingOverride ? 0 : existing.drivingScore;
+          const pmpScore = calcPMPScore(revenueEff, effectiveReseviceRate, completionPct, effectiveDriving, existing.reliabilityScore);
           updateData.pmpScore   = pmpScore;
           updateData.totalScore = pmpScore + (existing.manualAdj ?? 0) / 100;
         }
@@ -285,7 +291,7 @@ export async function GET(req: NextRequest) {
         }
 
         updated++;
-        log.push(`  ${tech.techId} ${tech.name}: revEff=${revenueEff !== null ? (revenueEff*100).toFixed(0)+'%' : '—'}, reservice=${(reseviceRate*100).toFixed(1)}%`);
+        log.push(`  ${tech.techId} ${tech.name}: revEff=${revenueEff !== null ? (revenueEff*100).toFixed(0)+'%' : '—'}, reservice=${(effectiveReseviceRate*100).toFixed(1)}%`);
       }
 
     } catch (e: any) {
