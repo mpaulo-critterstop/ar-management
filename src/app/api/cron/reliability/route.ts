@@ -674,9 +674,9 @@ export async function POST(req: NextRequest) {
         updatedAt: new Date(),
       };
 
-      // Recalculate total score
+      // Recalculate total score — honor driving override
       if (existing?.drivingScore !== null && existing?.drivingScore !== undefined) {
-        const drv = existing.drivingScore;
+        const drv = existing.drivingOverride ? 0 : existing.drivingScore;
         if (tech.team === 'WP' && existing.closeOutPct !== null) {
           const s = calcWPScore(existing.closeOutPct, existing.callbackRate ?? null, drv, reliabilityScore);
           updateData.wpScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0);

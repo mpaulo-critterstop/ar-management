@@ -263,18 +263,20 @@ export async function POST(req: NextRequest) {
       };
 
       // Recalculate total score if reliability also present
+      // Honor driving override — use 0 if overridden
       if (existing?.reliabilityScore !== null && existing?.reliabilityScore !== undefined) {
         const rel = existing.reliabilityScore;
+        const effectiveDriving = existing?.drivingOverride ? 0 : drivingScore;
         if (tech.team === 'WP' && existing.closeOutPct !== null) {
-          const wpScore = calcWPScore(existing.closeOutPct, existing.callbackRate ?? null, drivingScore, rel);
+          const wpScore = calcWPScore(existing.closeOutPct, existing.callbackRate ?? null, effectiveDriving, rel);
           updateData.wpScore    = wpScore;
           updateData.totalScore = wpScore + (existing.manualAdj ?? 0);
         } else if (tech.team === 'PMP' && existing.revenueEfficiency !== null && existing.reseviceRate !== null && existing.completionPct !== null) {
-          const pmpScore = calcPMPScore(existing.revenueEfficiency, existing.reseviceRate, existing.completionPct, drivingScore, rel);
+          const pmpScore = calcPMPScore(existing.revenueEfficiency, existing.reseviceRate, existing.completionPct, effectiveDriving, rel);
           updateData.pmpScore   = pmpScore;
           updateData.totalScore = pmpScore + (existing.manualAdj ?? 0);
         } else if (tech.team === 'IP') {
-          const ipScore = calcIPScore(drivingScore, rel);
+          const ipScore = calcIPScore(effectiveDriving, rel);
           updateData.ipScore    = ipScore;
           updateData.totalScore = ipScore + (existing.manualAdj ?? 0);
         }

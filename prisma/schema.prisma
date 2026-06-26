@@ -376,6 +376,10 @@ model TechWeek {
   reliabilityScore Float?
   reviewCount     Int?       @default(0)
 
+  // Driving override (vehicular incident)
+  drivingOverride     Boolean?   @default(false)
+  drivingOverrideNote String?
+
   // Raw driving inputs
   maxSpeed        Float?
   safetyAlertsPer1k Float?

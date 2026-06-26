@@ -23,12 +23,19 @@ function idleBadge(ratio: number | null) {
   return <span style={{ color, fontSize: 12 }}>{pct}%</span>;
 }
 
+const inputStyle: React.CSSProperties = { fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff' };
+
 export function DrivingTab({ office, weekEnd }: Props) {
   const [weeks, setWeeks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
   const [sort, setSort] = useState('score');
+
+  // Override modal state
+  const [overrideModal, setOverrideModal] = useState<any>(null);
+  const [overrideNote, setOverrideNote] = useState('');
+  const [overrideSaving, setOverrideSaving] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -39,58 +46,81 @@ export function DrivingTab({ office, weekEnd }: Props) {
       .catch(() => setLoading(false));
   }, [office, weekEnd]);
 
-  const withDriving = weeks.filter(w => w.drivingScore !== null);
-
-  const filtered = withDriving
-    .filter(w => {
-      const q = search.toLowerCase();
-      const nameMatch = w.technician?.name?.toLowerCase().includes(q);
-      const idMatch = w.techId?.toLowerCase().includes(q);
-      const teamMatch = !teamFilter || w.team === teamFilter;
-      return (!search || nameMatch || idMatch) && teamMatch;
-    })
+  const filtered = weeks
+    .filter(w => !search || w.technician?.name?.toLowerCase().includes(search.toLowerCase()))
+    .filter(w => !teamFilter || w.team === teamFilter)
     .sort((a, b) => {
       if (sort === 'score') return (b.drivingScore ?? -1) - (a.drivingScore ?? -1);
-      if (sort === 'alerts') return (a.safetyAlertsPer1k ?? 999) - (b.safetyAlertsPer1k ?? 999);
+      if (sort === 'alerts') return (b.safetyAlertsPer1k ?? -1) - (a.safetyAlertsPer1k ?? -1);
       if (sort === 'speed') return (b.maxSpeed ?? 0) - (a.maxSpeed ?? 0);
       if (sort === 'idle') return (b.idleRatio ?? 0) - (a.idleRatio ?? 0);
-      if (sort === 'name') return (a.technician?.name ?? '').localeCompare(b.technician?.name ?? '');
-      return 0;
+      return (a.technician?.name ?? '').localeCompare(b.technician?.name ?? '');
     });
 
-  // Summary
-  const avgScore = filtered.length > 0
+  const withDriving = weeks.filter(w => w.drivingScore !== null);
+  const avgScore = withDriving.length
     ? filtered.reduce((a, b) => a + (b.drivingScore ?? 0), 0) / filtered.length
     : null;
   const speedViolations = filtered.filter(w => (w.maxSpeed ?? 0) > 80).length;
-  const highAlerts = filtered.filter(w => (w.safetyAlertsPer1k ?? 0) > 30).length;
 
-  const inputStyle: React.CSSProperties = {
-    fontSize: 12, padding: '6px 9px', border: '1px solid #E8E7E3',
-    borderRadius: 8, background: '#fff', color: '#2C2C2A'
+  const handleOverrideSave = async () => {
+    if (!overrideNote.trim()) return;
+    setOverrideSaving(true);
+    const res = await fetch('/api/field-performance/driving-override', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        techId: overrideModal.techId,
+        weekEnd: weekEnd.toLocaleDateString('en-CA'),
+        override: true,
+        note: overrideNote,
+      }),
+    });
+    if (res.ok) {
+      setWeeks(prev => prev.map(w => w.techId === overrideModal.techId
+        ? { ...w, drivingOverride: true, drivingOverrideNote: overrideNote }
+        : w
+      ));
+    }
+    setOverrideSaving(false);
+    setOverrideModal(null);
+    setOverrideNote('');
+  };
+
+  const handleOverrideRemove = async (w: any) => {
+    await fetch('/api/field-performance/driving-override', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        techId: w.techId,
+        weekEnd: weekEnd.toLocaleDateString('en-CA'),
+        override: false,
+        note: '',
+      }),
+    });
+    setWeeks(prev => prev.map(wk => wk.techId === w.techId
+      ? { ...wk, drivingOverride: false, drivingOverrideNote: null }
+      : wk
+    ));
   };
 
   return (
     <div>
-      {/* Summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 10 }}>
-        {[
-          { label: 'Avg driving score', value: avgScore?.toFixed(2) ?? '—', color: avgScore !== null ? (avgScore >= 0.90 ? '#27500A' : avgScore >= 0.75 ? '#633806' : '#791F1F') : undefined },
-          { label: 'Techs tracked', value: filtered.length },
-          { label: 'Speed violations (>80mph)', value: speedViolations, color: speedViolations > 0 ? '#791F1F' : undefined },
-          { label: 'High alerts (>30/1k mi)', value: highAlerts, color: highAlerts > 0 ? '#791F1F' : undefined },
-        ].map(k => (
-          <div key={k.label} style={{ background: '#F8F7F4', borderRadius: 8, padding: '10px 14px' }}>
-            <div style={{ fontSize: 11, color: '#888780', marginBottom: 3 }}>{k.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 500, color: k.color || '#2C2C2A' }}>{k.value}</div>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+        {avgScore !== null && (
+          <div style={{ ...card, padding: '12px 20px', minWidth: 140 }}>
+            <div style={{ fontSize: 11, color: '#888780', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg driving score</div>
+            <div style={{ fontSize: 26, fontWeight: 500 }}>{(avgScore * 100).toFixed(1)}%</div>
           </div>
-        ))}
+        )}
+        <div style={{ ...card, padding: '12px 20px', minWidth: 140 }}>
+          <div style={{ fontSize: 11, color: '#888780', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Speed violations</div>
+          <div style={{ fontSize: 26, fontWeight: 500, color: speedViolations > 0 ? '#791F1F' : '#27500A' }}>{speedViolations}</div>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-        <input type="text" placeholder="Search name or Tech ID..." value={search}
-          onChange={e => setSearch(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <input placeholder="Search tech..." value={search} onChange={e => setSearch(e.target.value)} style={inputStyle} />
         <select value={teamFilter} onChange={e => setTeamFilter(e.target.value)} style={inputStyle}>
           <option value="">All teams</option>
           <option value="WP">WP</option>
@@ -115,36 +145,45 @@ export function DrivingTab({ office, weekEnd }: Props) {
                 <th style={{ ...th, width: 150 }}>Name</th>
                 <th style={{ ...th, width: 46 }}>Team</th>
                 <th style={{ ...th, width: 55 }}>Office</th>
-                <th style={{ ...th, width: 95 }}>Driving score</th>
+                <th style={{ ...th, width: 110 }}>Driving score</th>
                 <th style={{ ...th, width: 85 }}>Max speed</th>
                 <th style={{ ...th, width: 95 }}>Alerts / 1k mi</th>
                 <th style={{ ...th, width: 75 }}>Idle ratio</th>
-<th style={{ ...th, width: 80 }}>Speed penalty</th>
+                <th style={{ ...th, width: 80 }}>Speed penalty</th>
                 <th style={{ ...th, width: 75 }}>Idle bonus</th>
+                <th style={{ ...th, width: 90 }}>Override</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>Loading...</td></tr>
+                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No driving data for this week yet.</td></tr>
+                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No driving data for this week yet.</td></tr>
               ) : filtered.map(w => {
                 const speedPenalty = (w.maxSpeed ?? 0) > 90 ? 50 : (w.maxSpeed ?? 0) > 80 ? 8 : 0;
                 const idleBonus = Math.max(0.08 - Math.max((w.idleRatio ?? 0) - 0.35, 0) * 0.50, 0);
                 return (
                   <tr key={w.id}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = w.drivingOverride ? '#FEF3F2' : ''}
+                    style={{ background: w.drivingOverride ? '#FEF3F2' : '' }}
                   >
                     <td style={{ ...td, fontSize: 11, color: '#888780' }}>{w.techId}</td>
                     <td style={{ ...td, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.technician?.name}</td>
                     <td style={td}>{teamPill(w.team)}</td>
                     <td style={{ ...td, fontSize: 12 }}>{w.office}</td>
                     <td style={td}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        {scoreBar(w.drivingScore, 52)}
-                        {scoreBadge(w.drivingScore)}
-                      </div>
+                      {w.drivingOverride ? (
+                        <div>
+                          <span style={{ fontSize: 11, color: '#791F1F', fontWeight: 500 }}>0% (override)</span>
+                          <div style={{ fontSize: 10, color: '#888780', marginTop: 2, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={w.drivingOverrideNote}>{w.drivingOverrideNote}</div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          {scoreBar(w.drivingScore, 52)}
+                          {scoreBadge(w.drivingScore)}
+                        </div>
+                      )}
                     </td>
                     <td style={td}>{speedBadge(w.maxSpeed)}</td>
                     <td style={td}>{alertsBadge(w.safetyAlertsPer1k)}</td>
@@ -155,6 +194,17 @@ export function DrivingTab({ office, weekEnd }: Props) {
                     <td style={{ ...td, fontSize: 12, color: idleBonus > 0 ? '#27500A' : '#b0aea6' }}>
                       {idleBonus > 0 ? `+${(idleBonus).toFixed(3)}` : '0'}
                     </td>
+                    <td style={td}>
+                      {w.drivingOverride ? (
+                        <button onClick={() => handleOverrideRemove(w)} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780' }}>
+                          Remove
+                        </button>
+                      ) : (
+                        <button onClick={() => { setOverrideModal(w); setOverrideNote(''); }} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#791F1F' }}>
+                          Set 0%
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -163,6 +213,32 @@ export function DrivingTab({ office, weekEnd }: Props) {
         </div>
       </div>
       <div style={{ fontSize: 12, color: '#b0aea6', marginTop: 8 }}>{filtered.length} techs with driving data</div>
+
+      {/* Override Modal */}
+      {overrideModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 24, width: 420, maxWidth: '90vw' }}>
+            <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 4 }}>Override driving score</div>
+            <div style={{ fontSize: 13, color: '#888780', marginBottom: 16 }}>{overrideModal.technician?.name} — driving score will be set to 0%</div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, color: '#888780', display: 'block', marginBottom: 6 }}>Reason / note <span style={{ color: '#791F1F' }}>*</span></label>
+              <textarea
+                value={overrideNote}
+                onChange={e => setOverrideNote(e.target.value)}
+                placeholder="e.g. Vehicular incident on 6/9 — invoice #12345"
+                rows={3}
+                style={{ width: '100%', fontSize: 13, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box', resize: 'vertical' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setOverrideModal(null); setOverrideNote(''); }} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleOverrideSave} disabled={overrideSaving || !overrideNote.trim()} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: 'none', background: !overrideNote.trim() ? '#D3D1C7' : '#791F1F', color: '#fff', cursor: !overrideNote.trim() ? 'not-allowed' : 'pointer', fontWeight: 500 }}>
+                {overrideSaving ? 'Saving...' : 'Set driving to 0%'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
