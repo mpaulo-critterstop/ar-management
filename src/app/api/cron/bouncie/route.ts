@@ -337,6 +337,8 @@ export async function GET(req: NextRequest) {
   }
   const weekEnd = searchParams.get('weekEnd');
   const body = weekEnd ? JSON.stringify({ weekEnd }) : '{}';
-  return POST(new NextRequest(req.url, { method: 'POST', headers: req.headers, body }));
+  const newHeaders = new Headers(req.headers);
+  newHeaders.set('authorization', `Bearer ${process.env.CRON_SECRET}`);
+  return POST(new NextRequest(req.url, { method: 'POST', headers: newHeaders, body }));
 }
 // Thu Jun 11 21:07:56 UTC 2026
