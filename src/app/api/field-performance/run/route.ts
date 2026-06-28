@@ -31,7 +31,7 @@ async function frFetch(url: string): Promise<any> {
   return res.json();
 }
 
-async function fetchInBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string): Promise<any[]> {
+async function fetchInBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string, delayMs = 300): Promise<any[]> {
   const results: any[] = [];
   let failed = 0;
   for (let i = 0; i < ids.length; i += 100) {
@@ -45,7 +45,7 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
     } else {
       failed++;
     }
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, delayMs));
   }
   if (failed > 0) results.push({ __failed__: failed });
   return results;
@@ -101,7 +101,7 @@ async function pullReservices(
   result.set('__ids__', apptIds.length);
   if (apptIds.length === 0) { return result; }
 
-  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token, 600);
   const failedEntry = allAppts.find((a: any) => a.__failed__);
   const failedBatches = failedEntry ? failedEntry.__failed__ : 0;
   const cleanAppts = allAppts.filter((a: any) => !a.__failed__);
