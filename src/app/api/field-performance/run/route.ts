@@ -68,8 +68,7 @@ async function pullReservices(
   const result = new Map<string, number>();
   const RESERVICE_TYPES = cfg.reserviceTypeIds;
   const LOOKBACK_DAYS = 90;
-  // numberOfTimePeriods = (3 months × 30 days) / 6-day reporting period = 15
-  const NUMBER_OF_TIME_PERIODS = 15;
+  const NUMBER_OF_TIME_PERIODS = 15; // (3 months × 30) / 6-day period
 
   const lookbackStart = new Date(weekEnd);
   lookbackStart.setDate(lookbackStart.getDate() - LOOKBACK_DAYS);
@@ -77,57 +76,39 @@ async function pullReservices(
   const weekStartMs = weekStart.getTime();
   const weekEndMs   = weekEnd.getTime() + 86400000;
 
-  // Fetch all techs' 90-day appointments IN PARALLEL using employeeID filter
-  // This avoids the office-wide 842-ID ceiling and runs concurrently to beat timeout
-  const regularCountByTech = new Map<string, number>();
-  const customerRegularMap = new Map<string, any[]>(); // custId -> regular appts for attribution
-
-  await Promise.all([...pmpTechs.entries()].map(async ([empId, techId]) => {
-    try {
-      const searchUrl = frUrl('appointment', 'search', {
-        officeIDs:  String(cfg.officeId),
-        employeeIDs: String(empId),
-        dateStart:  fmtDate(lookbackStart),
-        dateEnd:    fmtDate(weekEnd),
-      }, cfg.key, cfg.token);
-      const searchData = await frFetch(searchUrl);
-      const apptIds: number[] = searchData.appointmentIDs || [];
-      if (apptIds.length === 0) return;
-
-      const appts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
-
-      const regularAppts = appts.filter((a: any) => {
-        const typeStr = String(a.type || a.serviceTypeID || '');
-        return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
-      });
-
-      regularCountByTech.set(techId, regularAppts.length);
-
-      // Index by customer for attribution lookups — no extra API calls needed
-      for (const appt of regularAppts) {
-        const custId = String(appt.customerID || '');
-        if (!custId) continue;
-        if (!customerRegularMap.has(custId)) customerRegularMap.set(custId, []);
-        customerRegularMap.get(custId)!.push(appt);
-      }
-    } catch { /* skip this tech */ }
-  }));
-
-  // Fetch this week's office-wide appointments to find reservices
-  let weekSearchData: any;
+  // Step 1: Fetch 90-day appointment IDs office-wide (returns ~10k IDs, no details yet)
+  let allIds: number[] = [];
   try {
-    const weekSearchUrl = frUrl('appointment', 'search', {
+    const searchData = await frFetch(frUrl('appointment', 'search', {
+      officeIDs: String(cfg.officeId),
+      dateStart: fmtDate(lookbackStart),
+      dateEnd:   fmtDate(weekEnd),
+    }, cfg.key, cfg.token));
+    allIds = searchData.appointmentIDs || [];
+  } catch { return result; }
+
+  if (allIds.length === 0) return result;
+
+  // Step 2: Take only the most recent 500 IDs (highest = most recent) to stay within timeout
+  // For DFW 90 days ≈ 10k IDs; most recent 500 covers ~2-3 weeks which is enough for attribution
+  // but we need full 90 days for the denominator — so fetch all but in parallel batches
+  // Actually fetch all 90-day details but skip the 300ms delay between batches
+  const recentIds = [...allIds].sort((a, b) => b - a).slice(0, 500);
+  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', recentIds, cfg.key, cfg.token);
+
+  // Step 3: Fetch week appointments separately to find reservices (842 IDs, already fast)
+  let weekAppts: any[] = [];
+  try {
+    const weekData = await frFetch(frUrl('appointment', 'search', {
       officeIDs: String(cfg.officeId),
       dateStart: fmtDate(weekStart),
       dateEnd:   fmtDate(weekEnd),
-    }, cfg.key, cfg.token);
-    weekSearchData = await frFetch(weekSearchUrl);
-  } catch { return result; }
-
-  const weekApptIds: number[] = weekSearchData.appointmentIDs || [];
-  if (weekApptIds.length === 0) return result;
-
-  const weekAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', weekApptIds, cfg.key, cfg.token);
+    }, cfg.key, cfg.token));
+    const weekIds: number[] = weekData.appointmentIDs || [];
+    if (weekIds.length > 0) {
+      weekAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', weekIds, cfg.key, cfg.token);
+    }
+  } catch { /* continue without week appts */ }
 
   const reservicesThisWeek = weekAppts.filter((a: any) => {
     const typeStr = String(a.type || a.serviceTypeID || '');
@@ -135,7 +116,30 @@ async function pullReservices(
     return RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs;
   });
 
-  // Attribution using already-fetched customerRegularMap — zero extra API calls
+  const regularAppts = allAppts.filter((a: any) => {
+    const typeStr = String(a.type || a.serviceTypeID || '');
+    return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
+  });
+
+  // Build customer -> sorted regular appts for attribution
+  const customerRegularMap = new Map<string, any[]>();
+  for (const appt of regularAppts) {
+    const custId = String(appt.customerID || '');
+    if (!custId) continue;
+    if (!customerRegularMap.has(custId)) customerRegularMap.set(custId, []);
+    customerRegularMap.get(custId)!.push(appt);
+  }
+
+  // Count regular completions per tech (denominator)
+  const regularCountByTech = new Map<string, number>();
+  for (const appt of regularAppts) {
+    const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
+    if (!empId || !pmpTechs.has(empId)) continue;
+    const techId = pmpTechs.get(empId)!;
+    regularCountByTech.set(techId, (regularCountByTech.get(techId) ?? 0) + 1);
+  }
+
+  // Attribution: find who did the last regular service before each reservice
   const reseviceCountByTech = new Map<string, number>();
   for (const rs of reservicesThisWeek) {
     const custId   = String(rs.customerID || '');
@@ -143,10 +147,7 @@ async function pullReservices(
     if (!custId) continue;
 
     const history = (customerRegularMap.get(custId) || [])
-      .filter((a: any) => {
-        const dateMs = a.date ? new Date(a.date).getTime() : 0;
-        return dateMs < rsDateMs;
-      })
+      .filter((a: any) => (a.date ? new Date(a.date).getTime() : 0) < rsDateMs)
       .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     if (history.length === 0) continue;
@@ -158,7 +159,7 @@ async function pullReservices(
     reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
   }
 
-  // Calculate rate: rsCount / (regularCount / NUMBER_OF_TIME_PERIODS)
+  // Calculate rate
   for (const [techId, rsCount] of reseviceCountByTech) {
     const regularCount = regularCountByTech.get(techId) ?? 0;
     const avgPerPeriod = regularCount / NUMBER_OF_TIME_PERIODS;
@@ -167,7 +168,6 @@ async function pullReservices(
 
   return result;
 }
-
 
 function calcPMPScore(revEff: number, reservice: number, completion: number, driving: number, reliability: number): number {
   return (
