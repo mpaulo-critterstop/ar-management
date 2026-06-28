@@ -235,7 +235,8 @@ export async function GET(req: NextRequest) {
       }
       log.push(`  Routes: ${routeIds.length}`);
 
-      // Reservice rate
+      // Reservice rate — wait for FR rate limit to reset after route fetch
+      await new Promise(r => setTimeout(r, 3000));
       const pmpReserviceMap = new Map<string, number>();
       try {
         const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);
