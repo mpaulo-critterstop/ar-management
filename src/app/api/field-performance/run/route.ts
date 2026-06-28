@@ -89,11 +89,9 @@ async function pullReservices(
 
   if (allIds.length === 0) return result;
 
-  // Step 2: Take only the most recent 500 IDs (highest = most recent) to stay within timeout
-  // For DFW 90 days ≈ 10k IDs; most recent 500 covers ~2-3 weeks which is enough for attribution
-  // but we need full 90 days for the denominator — so fetch all but in parallel batches
-  // Actually fetch all 90-day details but skip the 300ms delay between batches
-  const recentIds = [...allIds].sort((a, b) => b - a).slice(0, 500);
+  // Take most recent 2000 IDs (highest = most recent) — covers ~3-4 weeks for DFW
+  // 20 batches × 300ms = ~6s, well within timeout
+  const recentIds = [...allIds].sort((a, b) => b - a).slice(0, 2000);
   const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', recentIds, cfg.key, cfg.token);
 
   // Step 3: Fetch week appointments separately to find reservices (842 IDs, already fast)
