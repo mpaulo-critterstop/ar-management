@@ -42,7 +42,6 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
       const items = Array.isArray(data[propName]) ? data[propName] : Object.values(data[propName] as object);
       results.push(...items);
     }
-    await new Promise(r => setTimeout(r, 300));
   }
   return results;
 }
@@ -78,6 +77,7 @@ async function pullReservices(
   const result = new Map<string, number>();
   const RESERVICE_TYPES = cfg.reserviceTypeIds;
   const LOOKBACK_DAYS = 90;
+  const NUMBER_OF_TIME_PERIODS = 15; // (3 months × 30) / 6-day period
 
   const lookbackStart = new Date(weekEnd);
   lookbackStart.setDate(lookbackStart.getDate() - LOOKBACK_DAYS);
@@ -98,10 +98,8 @@ async function pullReservices(
 
   if (allIds.length === 0) return result;
 
-  // Take most recent 5000 IDs (highest = most recent)
-  // 50 batches × 300ms = ~15s, within timeout
-  const recentIds = [...allIds].sort((a, b) => b - a).slice(0, 5000);
-  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', recentIds, cfg.key, cfg.token);
+  // Fetch all 90-day appointment details — no delay between batches for speed
+  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', allIds, cfg.key, cfg.token);
 
   // Step 3: Fetch week appointments separately to find reservices (842 IDs, already fast)
   let weekAppts: any[] = [];
@@ -127,17 +125,6 @@ async function pullReservices(
     const typeStr = String(a.type || a.serviceTypeID || '');
     return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
   });
-
-  // Calculate actual days covered by fetched appointments to get accurate NUMBER_OF_TIME_PERIODS
-  // Rather than assuming full 90 days, compute from the oldest appointment date we actually have
-  let oldestDateMs = weekEnd.getTime();
-  for (const appt of regularAppts) {
-    const d = appt.date ? new Date(appt.date).getTime() : 0;
-    if (d > 0 && d < oldestDateMs) oldestDateMs = d;
-  }
-  const actualDaysCovered = Math.max(1, (weekEnd.getTime() - oldestDateMs) / 86400000);
-  // numberOfTimePeriods = actualDaysCovered / 6 (6-day service period)
-  const NUMBER_OF_TIME_PERIODS = actualDaysCovered / 6;
 
   // Build customer -> sorted regular appts for attribution
   const customerRegularMap = new Map<string, any[]>();
