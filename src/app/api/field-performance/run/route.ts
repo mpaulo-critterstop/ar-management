@@ -102,7 +102,8 @@ async function pullReservices(
   if (apptIds.length === 0) { return result; }
 
   const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
-  const failedBatches = allAppts.find((a: any) => a.__failed__)?..__failed__ ?? 0;
+  const failedEntry = allAppts.find((a: any) => a.__failed__);
+  const failedBatches = failedEntry ? failedEntry.__failed__ : 0;
   const cleanAppts = allAppts.filter((a: any) => !a.__failed__);
   result.set('__appts__', cleanAppts.length);
   result.set('__failed__', failedBatches);
