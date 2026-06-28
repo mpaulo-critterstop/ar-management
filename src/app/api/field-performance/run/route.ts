@@ -86,7 +86,7 @@ async function pullReservices(
     try {
       const searchUrl = frUrl('appointment', 'search', {
         officeIDs:  String(cfg.officeId),
-        employeeID: String(empId),
+        employeeIDs: String(empId),
         dateStart:  fmtDate(lookbackStart),
         dateEnd:    fmtDate(weekEnd),
       }, cfg.key, cfg.token);
