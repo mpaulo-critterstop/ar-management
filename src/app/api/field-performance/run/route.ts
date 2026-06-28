@@ -76,46 +76,32 @@ async function pullReservices(
 
   const result = new Map<string, number>();
   const RESERVICE_TYPES = cfg.reserviceTypeIds;
-  const LOOKBACK_DAYS = 90;
-  const NUMBER_OF_TIME_PERIODS = 15; // (3 months × 30) / 6-day period
+  const LOOKBACK_DAYS = 120;
 
+  // Fetch 120 days of appointments for this office
   const lookbackStart = new Date(weekEnd);
   lookbackStart.setDate(lookbackStart.getDate() - LOOKBACK_DAYS);
 
+  let searchData: any;
+  try {
+    const searchUrl = frUrl('appointment', 'search', {
+      officeIDs: String(cfg.officeId),
+      dateStart: fmtDate(lookbackStart),
+      dateEnd: fmtDate(weekEnd),
+    }, cfg.key, cfg.token);
+    searchData = await frFetch(searchUrl);
+  } catch { return result; }
+
+  const apptIds: number[] = searchData.appointmentIDs || [];
+  if (apptIds.length === 0) { return result; }
+
+  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+
+  // Separate reservices (this week) from regular services (120 days)
   const weekStartMs = weekStart.getTime();
   const weekEndMs   = weekEnd.getTime() + 86400000;
 
-  // Step 1: Fetch 90-day appointment IDs office-wide (returns ~10k IDs, no details yet)
-  let allIds: number[] = [];
-  try {
-    const searchData = await frFetch(frUrl('appointment', 'search', {
-      officeIDs: String(cfg.officeId),
-      dateStart: fmtDate(lookbackStart),
-      dateEnd:   fmtDate(weekEnd),
-    }, cfg.key, cfg.token));
-    allIds = searchData.appointmentIDs || [];
-  } catch { return result; }
-
-  if (allIds.length === 0) return result;
-
-  // Fetch all 90-day appointment details — no delay between batches for speed
-  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', allIds, cfg.key, cfg.token);
-
-  // Step 3: Fetch week appointments separately to find reservices (842 IDs, already fast)
-  let weekAppts: any[] = [];
-  try {
-    const weekData = await frFetch(frUrl('appointment', 'search', {
-      officeIDs: String(cfg.officeId),
-      dateStart: fmtDate(weekStart),
-      dateEnd:   fmtDate(weekEnd),
-    }, cfg.key, cfg.token));
-    const weekIds: number[] = weekData.appointmentIDs || [];
-    if (weekIds.length > 0) {
-      weekAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', weekIds, cfg.key, cfg.token);
-    }
-  } catch { /* continue without week appts */ }
-
-  const reservicesThisWeek = weekAppts.filter((a: any) => {
+  const reservicesThisWeek = allAppts.filter((a: any) => {
     const typeStr = String(a.type || a.serviceTypeID || '');
     const dateMs  = a.date ? new Date(a.date).getTime() : 0;
     return RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs;
@@ -126,45 +112,56 @@ async function pullReservices(
     return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
   });
 
-  // Build customer -> sorted regular appts for attribution
-  const customerRegularMap = new Map<string, any[]>();
+  // Build customer -> sorted regular appts (descending date)
+  const customerAppts = new Map<string, any[]>();
   for (const appt of regularAppts) {
     const custId = String(appt.customerID || '');
     if (!custId) continue;
-    if (!customerRegularMap.has(custId)) customerRegularMap.set(custId, []);
-    customerRegularMap.get(custId)!.push(appt);
+    if (!customerAppts.has(custId)) customerAppts.set(custId, []);
+    customerAppts.get(custId)!.push(appt);
+  }
+  for (const [, appts] of customerAppts) {
+    appts.sort((a: any, b: any) => {
+      const aDate = a.date ? new Date(a.date).getTime() : 0;
+      const bDate = b.date ? new Date(b.date).getTime() : 0;
+      return bDate - aDate;
+    });
   }
 
-  // Count regular completions per tech (denominator)
+  // FR attributes reservice to the tech who did the LAST REGULAR SERVICE for that customer
+  const reseviceCountByTech = new Map<string, number>();
+  for (const rs of reservicesThisWeek) {
+    const custId  = String(rs.customerID || '');
+    if (!custId || custId === '0') continue;
+    const rsDateMs = rs.date ? new Date(rs.date).getTime() : 0;
+    const history  = customerAppts.get(custId) || [];
+    if (history.length === 0) continue;
+    const lastRegular = history.find((a: any) => {
+      const aDate = a.date ? new Date(a.date).getTime() : 0;
+      return aDate < rsDateMs;
+    });
+    if (!lastRegular) continue;
+    const empId = parseInt(lastRegular.servicedBy || lastRegular.employeeID || '0');
+    if (!empId || !pmpTechs.has(empId)) continue;
+    const techId = pmpTechs.get(empId) as string | undefined;
+    if (!techId) continue;
+    reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
+  }
+
+  // FR formula: numberOfTimePeriods = (3 months × 30) / 6-day period = 15
+  const NUMBER_OF_TIME_PERIODS = 90 / 6; // 15
+  const threeMonthsAgoMs = weekEnd.getTime() - (3 * 30 * 24 * 60 * 60 * 1000);
   const regularCountByTech = new Map<string, number>();
   for (const appt of regularAppts) {
+    const dateMs = appt.date ? new Date(appt.date).getTime() : 0;
+    if (dateMs < threeMonthsAgoMs) continue; // only last 3 months for denominator
     const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
     if (!empId || !pmpTechs.has(empId)) continue;
     const techId = pmpTechs.get(empId)!;
     regularCountByTech.set(techId, (regularCountByTech.get(techId) ?? 0) + 1);
   }
 
-  // Attribution: find who did the last regular service before each reservice
-  const reseviceCountByTech = new Map<string, number>();
-  for (const rs of reservicesThisWeek) {
-    const custId   = String(rs.customerID || '');
-    const rsDateMs = rs.date ? new Date(rs.date).getTime() : 0;
-    if (!custId) continue;
-
-    const history = (customerRegularMap.get(custId) || [])
-      .filter((a: any) => (a.date ? new Date(a.date).getTime() : 0) < rsDateMs)
-      .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    if (history.length === 0) continue;
-
-    const responsibleEmpId = parseInt(history[0].servicedBy || history[0].employeeID || '0');
-    if (!responsibleEmpId || !pmpTechs.has(responsibleEmpId)) continue;
-
-    const techId = pmpTechs.get(responsibleEmpId)!;
-    reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
-  }
-
-  // Calculate rate
+  // Calculate rate: rsCount / (regularCount / NUMBER_OF_TIME_PERIODS)
   for (const [techId, rsCount] of reseviceCountByTech) {
     const regularCount = regularCountByTech.get(techId) ?? 0;
     const avgPerPeriod = regularCount / NUMBER_OF_TIME_PERIODS;
