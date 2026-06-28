@@ -93,9 +93,11 @@ async function pullReservices(
   } catch { return result; }
 
   const apptIds: number[] = searchData.appointmentIDs || [];
+  result.set('__ids__', apptIds.length);
   if (apptIds.length === 0) { return result; }
 
   const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+  result.set('__appts__', allAppts.length);
 
   // Separate reservices (this week) from regular services (120 days)
   const weekStartMs = weekStart.getTime();
@@ -243,7 +245,7 @@ export async function GET(req: NextRequest) {
         for (const [k, v] of rsMap) {
           if (!k.startsWith('__')) pmpReserviceMap.set(k, v);
         }
-        log.push(`  Reservice: ${[...pmpReserviceMap.entries()].map(([k,v]) => `${k}=${(v*100).toFixed(1)}%`).join(', ') || 'none'}`);
+        log.push(`  Reservice: ids=${rsMap.get('__ids__') ?? 0}, appts=${rsMap.get('__appts__') ?? 0}, ${[...rsMap.entries()].filter(([k]) => !k.startsWith('__')).map(([k,v]) => `${k}=${(v*100).toFixed(1)}%`).join(', ') || 'none'}`);
       } catch (e: any) {
         log.push(`  Reservice error: ${e.message}`);
       }
