@@ -91,7 +91,7 @@ async function pullReservices(
 
   // Take most recent 2000 IDs (highest = most recent) — covers ~3-4 weeks for DFW
   // 20 batches × 300ms = ~6s, well within timeout
-  const recentIds = [...allIds].sort((a, b) => b - a).slice(0, 2000);
+  const recentIds = [...allIds].sort((a, b) => b - a).slice(0, 5000);
   const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', recentIds, cfg.key, cfg.token);
 
   // Step 3: Fetch week appointments separately to find reservices (842 IDs, already fast)
