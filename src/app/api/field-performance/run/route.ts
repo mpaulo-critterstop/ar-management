@@ -47,6 +47,16 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
   return results;
 }
 
+// Faster parallel batch fetcher — splits IDs into chunks and fetches concurrently
+// Use for large ID sets where sequential fetching would timeout
+async function fetchInParallelBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string, chunkSize = 500): Promise<any[]> {
+  const chunks: any[][] = [];
+  for (let i = 0; i < ids.length; i += chunkSize) chunks.push(ids.slice(i, i + chunkSize));
+
+  const chunkResults = await Promise.all(chunks.map(chunk => fetchInBatches(endpoint, action, idParam, chunk, key, token)));
+  return chunkResults.flat();
+}
+
 function fmtDate(d: Date) { return d.toISOString().split('T')[0]; }
 
 function getMostRecentFriday(offsetWeeks = 0): Date {
@@ -89,10 +99,8 @@ async function pullReservices(
 
   if (allIds.length === 0) return result;
 
-  // Take most recent 2000 IDs (highest = most recent) — covers ~3-4 weeks for DFW
-  // 20 batches × 300ms = ~6s, well within timeout
-  const recentIds = [...allIds].sort((a, b) => b - a).slice(0, 5000);
-  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', recentIds, cfg.key, cfg.token);
+  // Fetch all 90-day appointment details in parallel chunks to stay within timeout
+  const allAppts = await fetchInParallelBatches('appointment', 'get', 'appointmentIDs', allIds, cfg.key, cfg.token);
 
   // Step 3: Fetch week appointments separately to find reservices (842 IDs, already fast)
   let weekAppts: any[] = [];
