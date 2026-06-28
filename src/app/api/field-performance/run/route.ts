@@ -88,10 +88,10 @@ async function pullReservices(
     let searchData: any;
     try {
       const searchUrl = frUrl('appointment', 'search', {
-        officeIDs:   String(cfg.officeId),
-        employeeID:  String(empId),
-        dateStart:   fmtDate(lookbackStart),
-        dateEnd:     fmtDate(weekEnd),
+        officeIDs:      String(cfg.officeId),
+        employeeID:     String(empId),
+        scheduledStart: fmtDate(lookbackStart),
+        scheduledEnd:   fmtDate(weekEnd),
       }, cfg.key, cfg.token);
       searchData = await frFetch(searchUrl);
     } catch { continue; }
@@ -118,9 +118,9 @@ async function pullReservices(
   let weekSearchData: any;
   try {
     const weekSearchUrl = frUrl('appointment', 'search', {
-      officeIDs: String(cfg.officeId),
-      dateStart: fmtDate(weekStart),
-      dateEnd:   fmtDate(weekEnd),
+      officeIDs:      String(cfg.officeId),
+      scheduledStart: fmtDate(weekStart),
+      scheduledEnd:   fmtDate(weekEnd),
     }, cfg.key, cfg.token);
     weekSearchData = await frFetch(weekSearchUrl);
   } catch { return result; }
@@ -147,10 +147,10 @@ async function pullReservices(
       let custSearch: any;
       try {
         const custUrl = frUrl('appointment', 'search', {
-          officeIDs:  String(cfg.officeId),
-          customerID: custId,
-          dateStart:  fmtDate(lookbackStart),
-          dateEnd:    fmtDate(weekEnd),
+          officeIDs:      String(cfg.officeId),
+          customerID:     custId,
+          scheduledStart: fmtDate(lookbackStart),
+          scheduledEnd:   fmtDate(weekEnd),
         }, cfg.key, cfg.token);
         custSearch = await frFetch(custUrl);
       } catch { continue; }
