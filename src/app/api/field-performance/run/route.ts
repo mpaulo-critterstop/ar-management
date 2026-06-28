@@ -66,94 +66,27 @@ async function pullReservices(
 ): Promise<Map<string, number>> {
 
   const result = new Map<string, number>();
-  const RESERVICE_TYPES = cfg.reserviceTypeIds;
-  const LOOKBACK_DAYS = 90;
-
-  const lookbackStart = new Date(weekEnd);
-  lookbackStart.setDate(lookbackStart.getDate() - LOOKBACK_DAYS);
 
   let searchData: any;
   try {
-    const searchUrl = frUrl('appointment', 'search', {
+    const searchUrl = frUrl('reservice', 'search', {
       officeIDs: String(cfg.officeId),
-      dateStart: fmtDate(lookbackStart),
+      dateStart: fmtDate(weekStart),
       dateEnd: fmtDate(weekEnd),
     }, cfg.key, cfg.token);
     searchData = await frFetch(searchUrl);
-  } catch { return result; }
+  } catch (e: any) { return result; }
 
-  const apptIds: number[] = searchData.appointmentIDs || [];
-  if (apptIds.length === 0) return result;
+  const reserviceIds: number[] = searchData.reserviceIDs || searchData.reServiceIDs || [];
+  if (reserviceIds.length === 0) return result;
 
-  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+  const reservices = await fetchInBatches('reservice', 'get', 'reserviceIDs', reserviceIds, cfg.key, cfg.token);
 
-  const weekStartMs = weekStart.getTime();
-  const weekEndMs   = weekEnd.getTime() + 86400000;
-
-  const reservicesThisWeek = allAppts.filter((a: any) => {
-    const typeStr = String(a.type || a.serviceTypeID || '');
-    const dateMs  = a.date ? new Date(a.date).getTime() : 0;
-    return RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs;
-  });
-
-  const regularAppts = allAppts.filter((a: any) => {
-    const typeStr = String(a.type || a.serviceTypeID || '');
-    return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
-  });
-
-  result.set('__debug_reservices__', reservicesThisWeek.length);
-
-  const customerAppts = new Map<string, any[]>();
-  for (const appt of regularAppts) {
-    const custId = String(appt.customerID || '');
-    if (!custId) continue;
-    if (!customerAppts.has(custId)) customerAppts.set(custId, []);
-    customerAppts.get(custId)!.push(appt);
-  }
-  for (const [, appts] of customerAppts) {
-    appts.sort((a: any, b: any) => {
-      const aDate = a.date ? new Date(a.date).getTime() : 0;
-      const bDate = b.date ? new Date(b.date).getTime() : 0;
-      return bDate - aDate;
-    });
-  }
-
-  const reseviceCountByTech = new Map<string, number>();
-  for (const rs of reservicesThisWeek) {
-    const custId = String(rs.customerID || '');
-    if (!custId || custId === '0') continue;
-    const rsDateMs = rs.date ? new Date(rs.date).getTime() : 0;
-    const history  = customerAppts.get(custId) || [];
-    if (history.length === 0) continue;
-    const lastRegular = history.find((a: any) => {
-      const aDate = a.date ? new Date(a.date).getTime() : 0;
-      return aDate < rsDateMs;
-    });
-    if (!lastRegular) continue;
-    const empId = parseInt(lastRegular.servicedBy || lastRegular.employeeID || '0');
-    if (!empId || !pmpTechs.has(empId)) continue;
-    const techId = pmpTechs.get(empId) as string | undefined;
-    if (!techId) continue;
-    reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
-  }
-
-  const NUMBER_OF_TIME_PERIODS = 90 / 6;
-  const threeMonthsAgoMs = weekEnd.getTime() - (3 * 30 * 24 * 60 * 60 * 1000);
-  const regularCountByTech = new Map<string, number>();
-  for (const appt of regularAppts) {
-    const dateMs = appt.date ? new Date(appt.date).getTime() : 0;
-    if (dateMs < threeMonthsAgoMs) continue;
-    const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
+  for (const rs of reservices) {
+    const empId = parseInt(rs.servicedBy || rs.employeeID || rs.technicianID || '0');
     if (!empId || !pmpTechs.has(empId)) continue;
     const techId = pmpTechs.get(empId)!;
-    regularCountByTech.set(techId, (regularCountByTech.get(techId) ?? 0) + 1);
-  }
-  for (const [techId, count] of regularCountByTech) {
-    regularCountByTech.set(techId, count / NUMBER_OF_TIME_PERIODS);
-  }
-  for (const [techId, rsCount] of reseviceCountByTech) {
-    const regularCount = regularCountByTech.get(techId) ?? 0;
-    if (regularCount > 0) result.set(techId, rsCount / regularCount);
+    result.set(techId, (result.get(techId) ?? 0) + 1);
   }
 
   return result;
