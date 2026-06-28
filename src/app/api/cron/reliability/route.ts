@@ -506,8 +506,14 @@ export async function POST(req: NextRequest) {
           const tripStart = new Date(trip.startTime);
           const tripMiles = parseFloat(trip.distance || '0');
 
-          // ── START OF DAY: first trip end at a known location ──
+          // ── START OF DAY: first trip end OR start at a known location ──
           if (startOfDay === null) {
+            // Check if trip START is at a business — tech idled at office without ending trip
+            const bizStartCheck = isBusinessLocation(endpoints.startLat, endpoints.startLng);
+            if (bizStartCheck.match) {
+              startOfDay = tripStart;
+              log.push(`    ${date} start matched (idle at office): ${tripStart.toLocaleTimeString('en-US',{timeZone})} (${bizStartCheck.name}, ${tripMiles.toFixed(1)} mi)`);
+            } else {
             const bizCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
             const custCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, matchCoords);
             const isKnown = bizCheck.match || custCheck;
@@ -527,6 +533,7 @@ export async function POST(req: NextRequest) {
               log.push(`    ${date} skip unknown address at ${tripEnd.toLocaleTimeString('en-US',{timeZone})} lat=${endpoints.endLat.toFixed(4)},lng=${endpoints.endLng.toFixed(4)} (${tripMiles.toFixed(1)} mi)`);
               continue;
             }
+            } // end else (trip start not at business)
           }
 
           // ── END OF DAY: latest trip start OR end at a known location ──
