@@ -33,6 +33,7 @@ async function frFetch(url: string): Promise<any> {
 
 async function fetchInBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string): Promise<any[]> {
   const results: any[] = [];
+  let failed = 0;
   for (let i = 0; i < ids.length; i += 100) {
     const batch = ids.slice(i, i + 100);
     const url = frUrl(endpoint, action, { [idParam]: batch.join(',') }, key, token);
@@ -41,9 +42,12 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
     if (data.success && propName && data[propName]) {
       const items = Array.isArray(data[propName]) ? data[propName] : Object.values(data[propName] as object);
       results.push(...items);
+    } else {
+      failed++;
     }
     await new Promise(r => setTimeout(r, 300));
   }
+  if (failed > 0) results.push({ __failed__: failed });
   return results;
 }
 
@@ -98,19 +102,22 @@ async function pullReservices(
   if (apptIds.length === 0) { return result; }
 
   const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
-  result.set('__appts__', allAppts.length);
+  const failedBatches = allAppts.find((a: any) => a.__failed__)?..__failed__ ?? 0;
+  const cleanAppts = allAppts.filter((a: any) => !a.__failed__);
+  result.set('__appts__', cleanAppts.length);
+  result.set('__failed__', failedBatches);
 
   // Separate reservices (this week) from regular services (120 days)
   const weekStartMs = weekStart.getTime();
   const weekEndMs   = weekEnd.getTime() + 86400000;
 
-  const reservicesThisWeek = allAppts.filter((a: any) => {
+  const reservicesThisWeek = cleanAppts.filter((a: any) => {
     const typeStr = String(a.type || a.serviceTypeID || '');
     const dateMs  = a.date ? new Date(a.date).getTime() : 0;
     return RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs;
   });
 
-  const regularAppts = allAppts.filter((a: any) => {
+  const regularAppts = cleanAppts.filter((a: any) => {
     const typeStr = String(a.type || a.serviceTypeID || '');
     return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
   });
@@ -246,7 +253,7 @@ export async function GET(req: NextRequest) {
         for (const [k, v] of rsMap) {
           if (!k.startsWith('__')) pmpReserviceMap.set(k, v);
         }
-        log.push(`  Reservice: ids=${rsMap.get('__ids__') ?? 0}, appts=${rsMap.get('__appts__') ?? 0}, ${[...rsMap.entries()].filter(([k]) => !k.startsWith('__')).map(([k,v]) => `${k}=${(v*100).toFixed(1)}%`).join(', ') || 'none'}`);
+        log.push(`  Reservice: ids=${rsMap.get('__ids__') ?? 0}, appts=${rsMap.get('__appts__') ?? 0}, failed=${rsMap.get('__failed__') ?? 0}, ${[...rsMap.entries()].filter(([k]) => !k.startsWith('__')).map(([k,v]) => `${k}=${(v*100).toFixed(1)}%`).join(', ') || 'none'}`);
       } catch (e: any) {
         log.push(`  Reservice error: ${e.message}`);
       }
