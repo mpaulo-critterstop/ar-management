@@ -99,8 +99,8 @@ export async function GET(req: NextRequest) {
 
   const officeFilter = searchParams.get('office') || 'DFW';
   const weekEndParam = searchParams.get('weekEnd');
-  const offset = parseInt(searchParams.get('offset') || '0');
-  const limit  = parseInt(searchParams.get('limit')  || '30');
+  const offset = 0;
+  const limit  = 9999; // process all routes in one call
   const reset  = searchParams.get('reset') === 'true';
   const cfg = OFFICES[officeFilter];
   if (!cfg?.key) return NextResponse.json({ error: `Unknown office: ${officeFilter}` }, { status: 400 });
