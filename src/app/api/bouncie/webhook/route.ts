@@ -12,6 +12,12 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    // Validate authKey from Bouncie
+    const authKey = req.headers.get('authorization') || body.authKey;
+    if (authKey !== 'critterstop-cron-2024' && authKey !== process.env.CRON_SECRET) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { eventType, imei, transactionId, data } = body;
 
     // Only process tripData events
