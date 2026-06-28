@@ -145,10 +145,14 @@ async function pullReservices(
     regularCountByTech.set(techId, (regularCountByTech.get(techId) ?? 0) + 1);
   }
 
-  // Calculate rate
+  // Calculate rate: rsCount / (regularCount / NUMBER_OF_TIME_PERIODS)
+  // NUMBER_OF_TIME_PERIODS = 90 days / 6-week service cycle = 15
+  // This matches the spreadsheet's "Total Re-services / Average Serviced Per Period" formula
+  const NUMBER_OF_TIME_PERIODS = 15;
   for (const [techId, rsCount] of reseviceCountByTech) {
     const regularCount = regularCountByTech.get(techId) ?? 0;
-    if (regularCount > 0) result.set(techId, rsCount / regularCount);
+    const avgPerPeriod = regularCount / NUMBER_OF_TIME_PERIODS;
+    if (avgPerPeriod > 0) result.set(techId, rsCount / avgPerPeriod);
   }
 
   return result;
