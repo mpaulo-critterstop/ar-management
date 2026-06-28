@@ -67,10 +67,11 @@ async function pullReservices(
 
   const result = new Map<string, number>();
   const RESERVICE_TYPES = cfg.reserviceTypeIds;
-  const LOOKBACK_DAYS = 90;
+  const ATTRIBUTION_LOOKBACK_DAYS = 120; // how far back to find last regular service for attribution
+  const DENOMINATOR_LOOKBACK_DAYS = 90;   // 90-day window for avg serviced per period
 
   const lookbackStart = new Date(weekEnd);
-  lookbackStart.setDate(lookbackStart.getDate() - LOOKBACK_DAYS);
+  lookbackStart.setDate(lookbackStart.getDate() - ATTRIBUTION_LOOKBACK_DAYS);
 
   let searchData: any;
   try {
@@ -138,7 +139,7 @@ async function pullReservices(
   }
 
   const NUMBER_OF_TIME_PERIODS = 90 / 6;
-  const threeMonthsAgoMs = weekEnd.getTime() - (3 * 30 * 24 * 60 * 60 * 1000);
+  const threeMonthsAgoMs = weekEnd.getTime() - (DENOMINATOR_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
   const regularCountByTech = new Map<string, number>();
   for (const appt of regularAppts) {
     const dateMs = appt.date ? new Date(appt.date).getTime() : 0;
