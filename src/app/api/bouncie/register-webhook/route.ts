@@ -47,8 +47,10 @@ export async function GET(req: NextRequest) {
       method: 'POST',
       headers: { Authorization: token, 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        name: 'Critter Stop Hub - Trip Events',
         url: WEBHOOK_URL,
-        eventTypes: ['tripData'],
+        authKey: process.env.CRON_SECRET || 'critterstop-cron-2024',
+        events: ['tripData'],
       }),
     });
 
