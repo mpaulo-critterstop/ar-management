@@ -42,6 +42,7 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
       const items = Array.isArray(data[propName]) ? data[propName] : Object.values(data[propName] as object);
       results.push(...items);
     }
+    await new Promise(r => setTimeout(r, 300));
   }
   return results;
 }
@@ -96,10 +97,7 @@ async function pullReservices(
   result.set('__ids__', apptIds.length);
   if (apptIds.length === 0) { return result; }
 
-  // Fetch most recent 3000 IDs only — enough for 90-day attribution + denominator
-  // FR rate limits mean we can't fetch all 10k; descending sort ensures recency
-  const idsToFetch = apptIds.slice(0, 3000);
-  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', idsToFetch, cfg.key, cfg.token);
+  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
   result.set('__appts__', allAppts.length);
 
   // Separate reservices (this week) from regular services (120 days)
