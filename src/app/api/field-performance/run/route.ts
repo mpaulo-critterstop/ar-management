@@ -92,11 +92,14 @@ async function pullReservices(
     searchData = await frFetch(searchUrl);
   } catch { return result; }
 
-  const apptIds: number[] = searchData.appointmentIDs || [];
+  const apptIds: number[] = (searchData.appointmentIDs || []).sort((a: number, b: number) => b - a);
   result.set('__ids__', apptIds.length);
   if (apptIds.length === 0) { return result; }
 
-  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+  // Fetch most recent 3000 IDs only — enough for 90-day attribution + denominator
+  // FR rate limits mean we can't fetch all 10k; descending sort ensures recency
+  const idsToFetch = apptIds.slice(0, 3000);
+  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', idsToFetch, cfg.key, cfg.token);
   result.set('__appts__', allAppts.length);
 
   // Separate reservices (this week) from regular services (120 days)
