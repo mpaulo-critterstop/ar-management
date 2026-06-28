@@ -507,3 +507,18 @@ model TcAppointment {
   @@index([customerId])
   @@map("tc_appointments")
 }
+
+model BouncieTripEvent {
+  id            String   @id @default(cuid())
+  transactionId String
+  imei          String
+  timestamp     DateTime
+  speed         Float
+  lat           Float
+  lng           Float
+  createdAt     DateTime @default(now())
+
+  @@index([imei, timestamp])
+  @@index([transactionId])
+  @@map("bouncie_trip_events")
+}

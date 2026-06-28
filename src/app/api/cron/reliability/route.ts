@@ -497,6 +497,30 @@ export async function POST(req: NextRequest) {
         let startOfDay: Date | null = null;
         let endOfDay: Date | null = null;
 
+        // ── IDLE AT OFFICE CHECK: tech idles at office without turning engine off ──
+        // Check bouncie_trip_events for speed=0 near a business location before 10AM
+        if (startOfDay === null) {
+          const dayStart = new Date(date + 'T06:00:00.000Z'); // 6AM UTC = midnight CST
+          const dayMorningEnd = new Date(date + 'T15:00:00.000Z'); // 10AM CST
+          const idleAtOffice = await prisma.bouncieTripEvent.findFirst({
+            where: {
+              imei,
+              timestamp: { gte: dayStart, lte: dayMorningEnd },
+              speed: { lte: 1 }, // speed=0 or near-zero = idling
+            },
+            orderBy: { timestamp: 'asc' },
+          });
+
+          if (idleAtOffice) {
+            // Check if this idle event is near a business location
+            const nearBizCheck = isBusinessLocation(idleAtOffice.lat, idleAtOffice.lng);
+            if (nearBizCheck.match) {
+              startOfDay = idleAtOffice.timestamp;
+              log.push(`    ${date} start matched (idle at ${nearBizCheck.name}): ${idleAtOffice.timestamp.toLocaleTimeString('en-US',{timeZone})} (speed=${idleAtOffice.speed.toFixed(1)}mph)`);
+            }
+          }
+        }
+
         for (let tripIdx = 0; tripIdx < dayTrips.length; tripIdx++) {
           const trip = dayTrips[tripIdx];
           const endpoints = extractTripEndpoints(trip);
