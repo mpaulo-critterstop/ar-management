@@ -66,27 +66,89 @@ async function pullReservices(
 ): Promise<Map<string, number>> {
 
   const result = new Map<string, number>();
+  const RESERVICE_TYPES = cfg.reserviceTypeIds;
+  const LOOKBACK_DAYS = 90;
+
+  // Fetch 90 days of appointments for this office
+  const lookbackStart = new Date(weekEnd);
+  lookbackStart.setDate(lookbackStart.getDate() - LOOKBACK_DAYS);
 
   let searchData: any;
   try {
-    const searchUrl = frUrl('reservice', 'search', {
+    const searchUrl = frUrl('appointment', 'search', {
       officeIDs: String(cfg.officeId),
-      dateStart: fmtDate(weekStart),
+      dateStart: fmtDate(lookbackStart),
       dateEnd: fmtDate(weekEnd),
     }, cfg.key, cfg.token);
     searchData = await frFetch(searchUrl);
-  } catch (e: any) { return result; }
+  } catch { return result; }
 
-  const reserviceIds: number[] = searchData.reserviceIDs || searchData.reServiceIDs || [];
-  if (reserviceIds.length === 0) return result;
+  const apptIds: number[] = searchData.appointmentIDs || [];
+  if (apptIds.length === 0) return result;
 
-  const reservices = await fetchInBatches('reservice', 'get', 'reserviceIDs', reserviceIds, cfg.key, cfg.token);
+  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token);
 
-  for (const rs of reservices) {
-    const empId = parseInt(rs.servicedBy || rs.employeeID || rs.technicianID || '0');
+  // Separate reservices (this week) from regular services (90 days)
+  const weekStartMs = weekStart.getTime();
+  const weekEndMs   = weekEnd.getTime() + 86400000;
+
+  const reservicesThisWeek = allAppts.filter((a: any) => {
+    const typeStr = String(a.type || a.serviceTypeID || '');
+    const dateMs  = a.date ? new Date(a.date).getTime() : 0;
+    return RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs;
+  });
+
+  const regularAppts = allAppts.filter((a: any) => {
+    const typeStr = String(a.type || a.serviceTypeID || '');
+    return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
+  });
+
+  // Build customer -> sorted regular appts (descending date)
+  const customerAppts = new Map<string, any[]>();
+  for (const appt of regularAppts) {
+    const custId = String(appt.customerID || '');
+    if (!custId) continue;
+    if (!customerAppts.has(custId)) customerAppts.set(custId, []);
+    customerAppts.get(custId)!.push(appt);
+  }
+  for (const [, appts] of customerAppts) {
+    appts.sort((a: any, b: any) => {
+      const aDate = a.date ? new Date(a.date).getTime() : 0;
+      const bDate = b.date ? new Date(b.date).getTime() : 0;
+      return bDate - aDate;
+    });
+  }
+
+  // For each reservice this week, find the responsible tech (did last regular service)
+  const reseviceCountByTech = new Map<string, number>();
+  for (const rs of reservicesThisWeek) {
+    const custId   = String(rs.customerID || '');
+    const rsDateMs = rs.date ? new Date(rs.date).getTime() : 0;
+    const history  = customerAppts.get(custId) || [];
+    const lastRegular = history.find((a: any) => {
+      const aDate = a.date ? new Date(a.date).getTime() : 0;
+      return aDate < rsDateMs;
+    });
+    if (!lastRegular) continue;
+    const empId = parseInt(lastRegular.servicedBy || lastRegular.employeeID || '0');
     if (!empId || !pmpTechs.has(empId)) continue;
     const techId = pmpTechs.get(empId)!;
-    result.set(techId, (result.get(techId) ?? 0) + 1);
+    reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
+  }
+
+  // Count regular completions per tech over 90 days
+  const regularCountByTech = new Map<string, number>();
+  for (const appt of regularAppts) {
+    const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
+    if (!empId || !pmpTechs.has(empId)) continue;
+    const techId = pmpTechs.get(empId)!;
+    regularCountByTech.set(techId, (regularCountByTech.get(techId) ?? 0) + 1);
+  }
+
+  // Calculate rate
+  for (const [techId, rsCount] of reseviceCountByTech) {
+    const regularCount = regularCountByTech.get(techId) ?? 0;
+    if (regularCount > 0) result.set(techId, rsCount / regularCount);
   }
 
   return result;
