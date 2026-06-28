@@ -99,8 +99,8 @@ export async function GET(req: NextRequest) {
 
   const officeFilter = searchParams.get('office') || 'DFW';
   const weekEndParam = searchParams.get('weekEnd');
-  const offset = 0;
-  const limit  = 9999; // process all routes in one call
+  const offset = parseInt(searchParams.get('offset') || '0');
+  const limit  = parseInt(searchParams.get('limit')  || '30');
   const reset  = searchParams.get('reset') === 'true';
   const cfg = OFFICES[officeFilter];
   if (!cfg?.key) return NextResponse.json({ error: `Unknown office: ${officeFilter}` }, { status: 400 });
@@ -130,11 +130,29 @@ export async function GET(req: NextRequest) {
     log.push(`Loaded ${officeTechs.length} active techs for ${officeFilter}`);
 
     log.push('Fetching routes...');
-    const allRoutes = await getRoutesForDateRange(weekStartStr, weekEndStr, cfg.key, cfg.token, rl);
     const offriceFrIds = new Set(officeTechs.map(t => String(t.frEmployeeId)));
-    const officeRoutes = allRoutes.filter(r => offriceFrIds.has(r.assignedTech));
+    const routeListCacheKey = `rc_routelist_${officeFilter}_${weekEndStr}`;
+
+    let officeRoutes: any[];
+    if (offset === 0 || reset) {
+      // First chunk — fetch from FR and cache route list for subsequent chunks
+      const allRoutes = await getRoutesForDateRange(weekStartStr, weekEndStr, cfg.key, cfg.token, rl);
+      officeRoutes = allRoutes.filter(r => offriceFrIds.has(r.assignedTech));
+      await prisma.appSetting.upsert({
+        where: { key: routeListCacheKey },
+        update: { value: JSON.stringify(officeRoutes) },
+        create: { key: routeListCacheKey, value: JSON.stringify(officeRoutes) },
+      });
+      log.push(`Fetched ${officeRoutes.length} routes from FR and cached`);
+    } else {
+      // Subsequent chunks — read route list from cache instead of re-fetching FR
+      const cached = await prisma.appSetting.findUnique({ where: { key: routeListCacheKey } });
+      officeRoutes = cached ? JSON.parse(cached.value) : [];
+      log.push(`Loaded ${officeRoutes.length} routes from cache`);
+    }
+
     const chunk = officeRoutes.slice(offset, offset + limit);
-    log.push(`Found ${officeRoutes.length} routes for ${officeFilter} (filtered from ${allRoutes.length} total)`);
+    log.push(`Found ${officeRoutes.length} routes for ${officeFilter} (filtered from FR total)`);
     log.push(`Processing chunk ${offset}–${offset + chunk.length - 1} of ${officeRoutes.length}`);
 
     // Process each route — group by date AND tech
