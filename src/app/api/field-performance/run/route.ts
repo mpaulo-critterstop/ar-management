@@ -76,7 +76,7 @@ async function pullReservices(
 
   const result = new Map<string, number>();
   const RESERVICE_TYPES = cfg.reserviceTypeIds;
-  const LOOKBACK_DAYS = 120;
+  const LOOKBACK_DAYS = 90;
 
   // Fetch 120 days of appointments for this office
   const lookbackStart = new Date(weekEnd);
