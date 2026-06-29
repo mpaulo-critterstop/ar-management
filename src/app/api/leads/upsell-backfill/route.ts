@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
         where: { id: existingLead.id },
         data: {
           upsellInvoiceId: inv.id,
-          upsellAmount: inv.amount,
+          upsellAmount: Number(inv.amount),
           upsellDate: inv.date,
         },
       });
