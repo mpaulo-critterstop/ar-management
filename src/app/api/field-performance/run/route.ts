@@ -123,17 +123,22 @@ async function pullReservices(
     return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
   });
 
-  // Build customer -> sorted ALL completed appts (descending date) for attribution
-  // FR attributes reservice to whoever did the LAST SERVICE regardless of type
+  // Build customer -> sorted regular appts (descending date)
+  // FR attributes to last appointment but that's flawed for multi-subscription customers
+  // Our logic: last completed REGULAR service = more accurate attribution
   const customerAppts = new Map<string, any[]>();
-  for (const appt of allAppts.filter((a: any) => String(a.status) === '1')) {
+  for (const appt of regularAppts) {
     const custId = String(appt.customerID || '');
     if (!custId) continue;
     if (!customerAppts.has(custId)) customerAppts.set(custId, []);
     customerAppts.get(custId)!.push(appt);
   }
   for (const [, appts] of customerAppts) {
-    appts.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    appts.sort((a: any, b: any) => {
+      const aDate = a.date ? new Date(a.date).getTime() : 0;
+      const bDate = b.date ? new Date(b.date).getTime() : 0;
+      return bDate - aDate;
+    });
   }
 
   // FR attributes reservice to the tech who did the LAST REGULAR SERVICE for that customer
