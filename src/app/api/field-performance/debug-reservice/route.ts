@@ -30,5 +30,23 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const CSTAT_KEY   = process.env.FIELDROUTES_KEY_CSTAT  || 'v26mmb5lm48qnvciq271v189bseepdj3iechgt4tjjta75ee09lrjo4laou0d15l';
+  const CSTAT_TOKEN = process.env.FIELDROUTES_TOKEN_CSTAT || 'q7b1tv49r3emq3mibkg43j71vt0qd60fgrjesjmqa3nnqe3brog3uadlvo03j3mj';
+  const CSTAT_AUTH  = `authenticationKey=${CSTAT_KEY}&authenticationToken=${CSTAT_TOKEN}`;
+
+  // Fetch a sample CStat appointment to check field names
+  const cstatWeek = await fetch(`${BASE_URL}/appointment/search?officeIDs=4&dateStart=2026-06-13&dateEnd=2026-06-19&${CSTAT_AUTH}`).then(r=>r.json());
+  const cstatIds: number[] = (cstatWeek.appointmentIDs || []).slice(0, 3);
+  let cstatSample: any = null;
+  if (cstatIds.length > 0) {
+    const cstatAppt = await fetch(`${BASE_URL}/appointment/get?appointmentIDs=${cstatIds.join(',')}&${CSTAT_AUTH}`).then(r=>r.json());
+    const prop = cstatAppt.propertyName;
+    const appts = prop && cstatAppt[prop] ? Object.values(cstatAppt[prop] as object) : [];
+    cstatSample = appts[0] || null;
+  }
+
+  results.push({ test: 'CStat week sample appointment', ids: cstatIds, sample_keys: cstatSample ? Object.keys(cstatSample) : [], type: cstatSample?.type, serviceTypeID: cstatSample?.serviceTypeID, serviceType: cstatSample?.serviceType });
+
   return NextResponse.json(results);
+}
 }
