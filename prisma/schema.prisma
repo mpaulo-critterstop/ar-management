@@ -221,6 +221,8 @@ model Lead {
   upsellDate      DateTime?
   upsellInvoiceId String?   @unique
   upsellInvoice   Invoice?  @relation("LeadUpsellInvoice", fields: [upsellInvoiceId], references: [id])
+  followUpSent    Boolean   @default(false)
+  followUpSentAt  DateTime?
   groupId         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

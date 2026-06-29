@@ -1,0 +1,3 @@
+ALTER TABLE "Lead"
+ADD COLUMN "followUpSent" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "followUpSentAt" TIMESTAMP(3);

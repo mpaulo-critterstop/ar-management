@@ -1,0 +1,93 @@
+// src/app/api/cron/pestai-followup/route.ts
+// Daily cron: pushes unsold leads (INSPECTED, 5+ days old) to PestAI via GoHighLevel webhook
+
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+const PESTAI_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/1205bdae-3b41-42d5-a056-ef27a6e45f38';
+const DAYS_THRESHOLD = 5;
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  if (searchParams.get('token') !== 'critterstop2026' && searchParams.get('token') !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const office = searchParams.get('office') || undefined;
+  const dryRun = searchParams.get('dry') === 'true';
+
+  // Find INSPECTED leads older than 5 days that haven't been sent yet
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - DAYS_THRESHOLD);
+
+  const leads = await prisma.lead.findMany({
+    where: {
+      status: 'INSPECTED',
+      followUpSent: false,
+      inspectionDate: { lte: cutoff },
+      ...(office ? { office } : {}),
+    },
+    include: {
+      customer: { select: { name: true, phone: true, email: true, serviceAddr: true } },
+    },
+    orderBy: { inspectionDate: 'asc' },
+  });
+
+  const results: any[] = [];
+  let sent = 0, failed = 0;
+
+  for (const lead of leads) {
+    const daysSince = Math.floor((Date.now() - new Date(lead.inspectionDate!).getTime()) / 86400000);
+
+    const payload = {
+      customerName:        lead.customer?.name || '',
+      phone:               lead.customer?.phone || '',
+      email:               lead.customer?.email || '',
+      address:             lead.customer?.serviceAddr || '',
+      inspectionDate:      lead.inspectionDate ? lead.inspectionDate.toISOString().split('T')[0] : '',
+      pmName:              lead.pmName || '',
+      office:              lead.office || '',
+      leadId:              lead.id,
+      daysSinceInspection: daysSince,
+      notes:               `Unsold lead — inspected ${daysSince} days ago`,
+    };
+
+    if (dryRun) {
+      results.push({ leadId: lead.id, customer: lead.customer?.name, status: 'would_send', payload });
+      continue;
+    }
+
+    try {
+      const res = await fetch(PESTAI_WEBHOOK, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        await prisma.lead.update({
+          where: { id: lead.id },
+          data: { followUpSent: true, followUpSentAt: new Date() },
+        });
+        results.push({ leadId: lead.id, customer: lead.customer?.name, status: 'sent' });
+        sent++;
+      } else {
+        results.push({ leadId: lead.id, customer: lead.customer?.name, status: 'failed', error: res.status });
+        failed++;
+      }
+    } catch (err: any) {
+      results.push({ leadId: lead.id, customer: lead.customer?.name, status: 'error', error: err.message });
+      failed++;
+    }
+
+    // Small delay between sends to avoid overwhelming the webhook
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  return NextResponse.json({
+    dryRun,
+    total: leads.length,
+    sent,
+    failed,
+    results,
+  });
+}
