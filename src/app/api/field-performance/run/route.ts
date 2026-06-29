@@ -123,20 +123,17 @@ async function pullReservices(
     return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
   });
 
-  // Build customer -> sorted regular appts (descending date)
+  // Build customer -> sorted ALL completed appts (descending date) for attribution
+  // FR attributes reservice to whoever did the LAST SERVICE regardless of type
   const customerAppts = new Map<string, any[]>();
-  for (const appt of regularAppts) {
+  for (const appt of allAppts.filter((a: any) => String(a.status) === '1')) {
     const custId = String(appt.customerID || '');
     if (!custId) continue;
     if (!customerAppts.has(custId)) customerAppts.set(custId, []);
     customerAppts.get(custId)!.push(appt);
   }
   for (const [, appts] of customerAppts) {
-    appts.sort((a: any, b: any) => {
-      const aDate = a.date ? new Date(a.date).getTime() : 0;
-      const bDate = b.date ? new Date(b.date).getTime() : 0;
-      return bDate - aDate;
-    });
+    appts.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
   // FR attributes reservice to the tech who did the LAST REGULAR SERVICE for that customer
