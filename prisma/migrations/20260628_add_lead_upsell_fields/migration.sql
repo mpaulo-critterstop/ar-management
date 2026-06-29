@@ -1,0 +1,4 @@
+ALTER TABLE "Lead"
+ADD COLUMN "upsellAmount" DOUBLE PRECISION,
+ADD COLUMN "upsellDate" TIMESTAMP(3),
+ADD COLUMN "upsellInvoiceId" TEXT UNIQUE;

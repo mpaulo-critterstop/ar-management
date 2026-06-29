@@ -84,7 +84,8 @@ model Invoice {
   updatedAt      DateTime      @updatedAt
   customer       Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   payments        Payment[]
-  lead            Lead?
+  lead            Lead?     @relation("LeadInvoice")
+  upsellLead      Lead?     @relation("LeadUpsellInvoice")
   dispatchJob     DispatchJob?
   notes          CollectionNote[]
   plan           PaymentPlan?
@@ -213,8 +214,12 @@ model Lead {
   inspectionDate  DateTime?
   status          String   @default("PENDING")
   invoiceId       String?  @unique
-  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+  invoice         Invoice? @relation("LeadInvoice", fields: [invoiceId], references: [id])
   amount          Float?
+  upsellAmount    Float?
+  upsellDate      DateTime?
+  upsellInvoiceId String?   @unique
+  upsellInvoice   Invoice?  @relation("LeadUpsellInvoice", fields: [upsellInvoiceId], references: [id])
   groupId         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

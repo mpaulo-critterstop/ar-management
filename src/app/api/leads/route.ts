@@ -15,28 +15,34 @@ export async function GET(req: NextRequest) {
   const pmName = searchParams.get('pm') || undefined;
   const from = searchParams.get('from') || undefined;
   const to = searchParams.get('to') || undefined;
+  const dateField = searchParams.get('dateField') || 'all';
 
   const where: any = {};
   if (office) where.office = office;
   if (status) where.status = status;
   if (pmName) where.pmName = pmName;
- const dateField = searchParams.get('dateField') || 'all';
+
   if (from || to) {
+    const fromDate = from ? new Date(from) : undefined;
+    const toDate = to ? new Date(to) : undefined;
     if (dateField === 'sold') {
       where.invoice = { date: {} };
-      if (from) where.invoice.date.gte = new Date(from);
-      if (to) where.invoice.date.lte = new Date(to);
+      if (from) where.invoice.date.gte = fromDate;
+      if (to) where.invoice.date.lte = toDate;
     } else if (dateField === 'inspection') {
       where.inspectionDate = {};
-      if (from) where.inspectionDate.gte = new Date(from);
-      if (to) where.inspectionDate.lte = new Date(to);
+      if (from) where.inspectionDate.gte = fromDate;
+      if (to) where.inspectionDate.lte = toDate;
+    } else if (dateField === 'upsell') {
+      where.upsellDate = {};
+      if (from) where.upsellDate.gte = fromDate;
+      if (to) where.upsellDate.lte = toDate;
     } else {
-      // 'all' - filter by either inspection date OR sold date within range
-      const fromDate = from ? new Date(from) : undefined;
-      const toDate = to ? new Date(to) : undefined;
+      // 'all' - filter by inspection, sold, OR upsell date
       where.OR = [
         { inspectionDate: { ...(fromDate && { gte: fromDate }), ...(toDate && { lte: toDate }) } },
         { invoice: { date: { ...(fromDate && { gte: fromDate }), ...(toDate && { lte: toDate }) } } },
+        { upsellDate: { ...(fromDate && { gte: fromDate }), ...(toDate && { lte: toDate }) } },
       ];
     }
   }
@@ -46,19 +52,19 @@ export async function GET(req: NextRequest) {
     include: {
       customer: { select: { name: true, serviceAddr: true } },
       invoice: { select: { amount: true, paid: true, status: true, externalId: true, date: true } },
+      upsellInvoice: { select: { amount: true, paid: true, status: true, externalId: true, date: true } },
     },
     orderBy: { inspectionDate: 'desc' },
   });
 
-  // KPI query - ignores status filter so totals are always based on all leads
+  // KPI query - ignores status filter
   const kpiWhere = { ...where };
   delete kpiWhere.status;
   const kpiLeads = await prisma.lead.findMany({
     where: kpiWhere,
-    select: { status: true, amount: true },
+    select: { status: true, amount: true, upsellAmount: true, upsellDate: true },
   });
 
-  // Calculate KPIs
   const total = kpiLeads.length;
   const sold = kpiLeads.filter(l => l.status === 'SOLD').length;
   const inspected = kpiLeads.filter(l => l.status === 'INSPECTED').length;
@@ -67,29 +73,36 @@ export async function GET(req: NextRequest) {
   const bookedRevenue = kpiLeads
     .filter(l => l.status === 'SOLD')
     .reduce((sum, l) => sum + (l.amount || 0), 0);
+  const upsellRevenue = kpiLeads
+    .filter(l => l.upsellAmount)
+    .reduce((sum, l) => sum + (l.upsellAmount || 0), 0);
   const avgSale = sold > 0 ? bookedRevenue / sold : 0;
 
-  // KPIs by PM
+  // KPIs by PM — upsellRevenue attributed to PM in upsellDate month
   const pmMap: Record<string, any> = {};
   for (const lead of leads) {
     const pm = lead.pmName || 'Unassigned';
-    if (!pmMap[pm]) pmMap[pm] = { pmName: pm, total: 0, sold: 0, bookedRevenue: 0 };
+    if (!pmMap[pm]) pmMap[pm] = { pmName: pm, total: 0, sold: 0, bookedRevenue: 0, upsellRevenue: 0 };
     pmMap[pm].total++;
     if (lead.status === 'SOLD') {
       pmMap[pm].sold++;
       pmMap[pm].bookedRevenue += lead.amount || 0;
     }
+    if (lead.upsellAmount) {
+      pmMap[pm].upsellRevenue += lead.upsellAmount;
+    }
   }
 
   const pmKpis = Object.values(pmMap).map((pm: any) => ({
     ...pm,
+    totalRevenue: pm.bookedRevenue + pm.upsellRevenue,
     conversionRate: pm.total > 0 ? (pm.sold / pm.total) * 100 : 0,
     avgSale: pm.sold > 0 ? pm.bookedRevenue / pm.sold : 0,
-  })).sort((a: any, b: any) => b.bookedRevenue - a.bookedRevenue);
+  })).sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
 
   return NextResponse.json({
     leads,
-    kpis: { total, sold, inspected, pending, conversionRate, bookedRevenue, avgSale },
+    kpis: { total, sold, inspected, pending, conversionRate, bookedRevenue, upsellRevenue, totalRevenue: bookedRevenue + upsellRevenue, avgSale },
     pmKpis,
   });
 }
