@@ -210,8 +210,27 @@ async function processTicket(
       create: { id: String(t.ticketID), ...invoiceData },
     });
 
-    if (result.createdAt.getTime() === result.updatedAt.getTime()) {
+    const isNew = result.createdAt.getTime() === result.updatedAt.getTime();
+    if (isNew) {
       created.count++;
+      // Auto-attach as upsell if this is a FAR invoice for a customer with an existing SOLD lead
+      const FAR_SERVICE_IDS = new Set(['501', '674', '479', '541', '542', '624']);
+      if (FAR_SERVICE_IDS.has(String(serviceId)) && amount > 0) {
+        const existingLead = await prisma.lead.findFirst({
+          where: { customerId: customer.id, status: 'SOLD', upsellInvoiceId: null },
+          orderBy: { inspectionDate: 'desc' },
+        });
+        if (existingLead) {
+          await prisma.lead.update({
+            where: { id: existingLead.id },
+            data: {
+              upsellInvoiceId: result.id,
+              upsellAmount: amount,
+              upsellDate: new Date(invoiceDate),
+            },
+          });
+        }
+      }
     } else {
       updated.count++;
     }
