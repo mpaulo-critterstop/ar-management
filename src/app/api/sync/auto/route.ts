@@ -292,7 +292,11 @@ async function syncCustomers(
         await prisma.customer.update({ where: { id: existingId }, data: customerData });
         updated++;
       } else {
-        await prisma.customer.create({ data: customerData });
+        await prisma.customer.upsert({
+          where: { externalId_office: { externalId: String(c.customerID), office } },
+          update: customerData,
+          create: customerData,
+        });
         created++;
       }
     } catch {
