@@ -329,22 +329,43 @@ export default function LeadsPage() {
                 <tbody>
                   {loading ? (
                     <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: '#888780' }}>Loading...</td></tr>
-                  ) : displayed.map((lead: any) => (
-                    <tr key={lead.id} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
-                      <td style={{ padding: '10px 12px', fontWeight: 500 }}>{lead.customer?.name || '—'}</td>
-                      <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.inspectionDate ? lead.inspectionDate.split('T')[0] : '—'}</td>
-                      <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.invoice?.date ? lead.invoice.date.split('T')[0] : '—'}</td>
-                      <td style={{ padding: '10px 12px' }}>{lead.pmName || '—'}</td>
-                      <td style={{ padding: '10px 12px' }}>
-                        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: lead.status === 'SOLD' ? '#E1F5EE' : lead.status === 'INSPECTED' ? '#E6F1FB' : '#FAEEDA', color: lead.status === 'SOLD' ? '#0F6E56' : lead.status === 'INSPECTED' ? '#185FA5' : '#854F0B' }}>
-                          {lead.status}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.invoice?.externalId || '—'}</td>
-                      <td style={{ padding: '10px 12px' }}>{lead.amount ? fmt(lead.amount) : '—'}</td>
-                      <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.office}</td>
-                    </tr>
-                  ))}
+                  ) : displayed.flatMap((lead: any) => {
+                    const rows = [(
+                      <tr key={lead.id} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
+                        <td style={{ padding: '10px 12px', fontWeight: 500 }}>{lead.customer?.name || '—'}</td>
+                        <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.inspectionDate ? lead.inspectionDate.split('T')[0] : '—'}</td>
+                        <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.invoice?.date ? lead.invoice.date.split('T')[0] : '—'}</td>
+                        <td style={{ padding: '10px 12px' }}>{lead.pmName || '—'}</td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: lead.status === 'SOLD' ? '#E1F5EE' : lead.status === 'INSPECTED' ? '#E6F1FB' : '#FAEEDA', color: lead.status === 'SOLD' ? '#0F6E56' : lead.status === 'INSPECTED' ? '#185FA5' : '#854F0B' }}>
+                            {lead.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.invoice?.externalId || '—'}</td>
+                        <td style={{ padding: '10px 12px' }}>{lead.amount ? fmt(lead.amount) : '—'}</td>
+                        <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.office}</td>
+                      </tr>
+                    )];
+                    if (lead.upsellAmount && lead.upsellDate) {
+                      rows.push(
+                        <tr key={lead.id + '_upsell'} style={{ borderBottom: '0.5px solid #F1EFE8', background: '#FDFCF8' }}>
+                          <td style={{ padding: '10px 12px', fontWeight: 500 }}>{lead.customer?.name || '—'}</td>
+                          <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.inspectionDate ? lead.inspectionDate.split('T')[0] : '—'}</td>
+                          <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.upsellDate.split('T')[0]}</td>
+                          <td style={{ padding: '10px 12px' }}>{lead.pmName || '—'}</td>
+                          <td style={{ padding: '10px 12px' }}>
+                            <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: '#F0EAFD', color: '#6B3FA0' }}>
+                              Upsell
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.upsellInvoice?.externalId || '—'}</td>
+                          <td style={{ padding: '10px 12px' }}>{fmt(lead.upsellAmount)}</td>
+                          <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.office}</td>
+                        </tr>
+                      );
+                    }
+                    return rows;
+                  })}
                   {!loading && leads.length === 0 && (
                     <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: '#888780' }}>No leads found</td></tr>
                   )}
