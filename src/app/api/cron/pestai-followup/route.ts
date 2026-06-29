@@ -15,22 +15,28 @@ export async function GET(req: NextRequest) {
 
   const office = searchParams.get('office') || undefined;
   const dryRun = searchParams.get('dry') === 'true';
+  const limit  = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+  const maxDays = searchParams.get('maxDays') ? parseInt(searchParams.get('maxDays')!) : 60;
 
   // Find INSPECTED leads older than 5 days that haven't been sent yet
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - DAYS_THRESHOLD);
 
+  const maxCutoff = new Date();
+  maxCutoff.setDate(maxCutoff.getDate() - maxDays);
+
   const leads = await prisma.lead.findMany({
     where: {
       status: 'INSPECTED',
       followUpSent: false,
-      inspectionDate: { lte: cutoff },
+      inspectionDate: { lte: cutoff, gte: maxCutoff },
       ...(office ? { office } : {}),
     },
     include: {
       customer: { select: { name: true, phone: true, email: true, serviceAddr: true } },
     },
     orderBy: { inspectionDate: 'asc' },
+    ...(limit ? { take: limit } : {}),
   });
 
   const results: any[] = [];
