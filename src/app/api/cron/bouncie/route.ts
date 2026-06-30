@@ -145,15 +145,17 @@ export async function POST(req: NextRequest) {
     const imeiToTech = new Map(bouncieDevices.map(d => [d.deviceId!, d.technician]));
 
     // Also build nickName → device record map as fallback (for stale IMEI detection)
+    // Normalize (NFKC + collapse whitespace) to avoid invisible Unicode mismatches (e.g. non-breaking spaces)
+    const normalize = (s: string) => s.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
     const nameToDevice = new Map(bouncieDevices.map(d => [
-      d.bouncieName.toLowerCase(),
+      normalize(d.bouncieName),
       d,
     ]));
 
     // Load ALL active technicians (not just ones with existing BouncieDevice rows)
     // so brand-new trucks can be auto-mapped by name match
     const allActiveTechs = await prisma.technician.findMany({ where: { status: 'ACTIVE' } });
-    const nameToActiveTech = new Map(allActiveTechs.map(t => [t.name.toLowerCase(), t]));
+    const nameToActiveTech = new Map(allActiveTechs.map(t => [normalize(t.name), t]));
 
     log.push(`Bouncie device mappings: ${bouncieDevices.length}`);
 
@@ -169,11 +171,7 @@ export async function POST(req: NextRequest) {
 
     for (const vehicle of vehicles) {
       const imei: string = vehicle.imei;
-      const nickName: string = (vehicle.nickName || '').toLowerCase();
-
-      if (nickName.includes('luke')) {
-        log.push(`  DEBUG nickName="${nickName}" len=${nickName.length} hasKey=${nameToDevice.has(nickName)} keys=${JSON.stringify([...nameToDevice.keys()].filter(k => k.includes('luke')))}`);
-      }
+      const nickName: string = normalize(vehicle.nickName || '');
 
       // Find tech by IMEI first, then by nickname (handles truck swaps / stale IMEIs)
       let tech = imeiToTech.get(imei);
