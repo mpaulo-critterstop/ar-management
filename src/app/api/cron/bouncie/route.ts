@@ -171,6 +171,10 @@ export async function POST(req: NextRequest) {
       const imei: string = vehicle.imei;
       const nickName: string = (vehicle.nickName || '').toLowerCase();
 
+      if (nickName.includes('luke')) {
+        log.push(`  DEBUG nickName="${nickName}" len=${nickName.length} hasKey=${nameToDevice.has(nickName)} keys=${JSON.stringify([...nameToDevice.keys()].filter(k => k.includes('luke')))}`);
+      }
+
       // Find tech by IMEI first, then by nickname (handles truck swaps / stale IMEIs)
       let tech = imeiToTech.get(imei);
       if (!tech) {
