@@ -45,17 +45,22 @@ export async function GET(req: NextRequest) {
   for (const lead of leads) {
     const daysSince = Math.floor((Date.now() - new Date(lead.inspectionDate!).getTime()) / 86400000);
 
+    const nameParts = (lead.customer?.name || '').trim().split(' ');
+    const fname = nameParts[0] || '';
+    const lname = nameParts.slice(1).join(' ') || '';
+
     const payload = {
-      customerName:        lead.customer?.name || '',
-      phone:               lead.customer?.phone || '',
-      email:               lead.customer?.email || '',
-      address:             lead.customer?.serviceAddr || '',
-      inspectionDate:      lead.inspectionDate ? lead.inspectionDate.toISOString().split('T')[0] : '',
-      pmName:              lead.pmName || '',
-      office:              lead.office || '',
-      leadId:              lead.id,
-      daysSinceInspection: daysSince,
-      notes:               `Unsold lead — inspected ${daysSince} days ago`,
+      fname,
+      lname,
+      phone1:      (lead.customer?.phone || '').replace(/\D/g, ''),
+      email:       lead.customer?.email || '',
+      address:     lead.customer?.serviceAddr || '',
+      serviceDate: lead.inspectionDate ? lead.inspectionDate.toISOString().split('T')[0] : '',
+      techName:    lead.pmName || '',
+      officeName:  lead.office || '',
+      description: `Unsold lead — inspected ${daysSince} days ago`,
+      customerID:  lead.id,
+      salesRep:    lead.pmName || '',
     };
 
     if (dryRun) {
