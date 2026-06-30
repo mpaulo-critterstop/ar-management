@@ -116,7 +116,10 @@ async function syncLeads(office: string, key: string, token: string) {
         where: {
           customerId: lead.customerId,
           office,
-          serviceId: { in: SOLD_SERVICE_IDS },
+          OR: [
+            { serviceId: { in: SOLD_SERVICE_IDS } },
+            { serviceId: 0 }, // FR sometimes returns no serviceId; trust amount > 0
+          ],
           amount: { gt: 0 },
           ...(lead.inspectionDate && { date: { gte: new Date(lead.inspectionDate.toISOString().split('T')[0]) } }),
         },
