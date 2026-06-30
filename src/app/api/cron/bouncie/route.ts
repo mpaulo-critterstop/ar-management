@@ -150,6 +150,11 @@ export async function POST(req: NextRequest) {
       d,
     ]));
 
+    // Load ALL active technicians (not just ones with existing BouncieDevice rows)
+    // so brand-new trucks can be auto-mapped by name match
+    const allActiveTechs = await prisma.technician.findMany({ where: { status: 'ACTIVE' } });
+    const nameToActiveTech = new Map(allActiveTechs.map(t => [t.name.toLowerCase(), t]));
+
     log.push(`Bouncie device mappings: ${bouncieDevices.length}`);
 
     // Aggregate trips per tech
@@ -180,6 +185,22 @@ export async function POST(req: NextRequest) {
               data: { deviceId: imei },
             });
           }
+        }
+      }
+      // No BouncieDevice row exists at all — check if nickname matches an active tech's name directly
+      if (!tech) {
+        const matchedTech = nameToActiveTech.get(nickName);
+        if (matchedTech) {
+          tech = matchedTech;
+          log.push(`  New Bouncie device for ${vehicle.nickName} (${imei}) — auto-creating mapping`);
+          await prisma.bouncieDevice.create({
+            data: {
+              id: crypto.randomUUID(),
+              deviceId: imei,
+              bouncieName: vehicle.nickName,
+              technicianId: matchedTech.id,
+            },
+          });
         }
       }
       if (!tech) {
@@ -249,7 +270,7 @@ export async function POST(req: NextRequest) {
 
     // Calculate scores and upsert
     for (const [techId, agg] of techTrips) {
-      const tech = [...imeiToTech.values(), ...[...nameToDevice.values()].map(d => d.technician)]
+      const tech = [...imeiToTech.values(), ...[...nameToDevice.values()].map(d => d.technician), ...allActiveTechs]
         .find(t => t.techId === techId);
       if (!tech) continue;
 
