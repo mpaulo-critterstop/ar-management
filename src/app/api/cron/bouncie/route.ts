@@ -144,10 +144,10 @@ export async function POST(req: NextRequest) {
     // Build IMEI → tech map
     const imeiToTech = new Map(bouncieDevices.map(d => [d.deviceId!, d.technician]));
 
-    // Also build nickName → tech map as fallback
-    const nameToTech = new Map(bouncieDevices.map(d => [
+    // Also build nickName → device record map as fallback (for stale IMEI detection)
+    const nameToDevice = new Map(bouncieDevices.map(d => [
       d.bouncieName.toLowerCase(),
-      d.technician,
+      d,
     ]));
 
     log.push(`Bouncie device mappings: ${bouncieDevices.length}`);
@@ -166,9 +166,22 @@ export async function POST(req: NextRequest) {
       const imei: string = vehicle.imei;
       const nickName: string = (vehicle.nickName || '').toLowerCase();
 
-      // Find tech by IMEI or nickname
+      // Find tech by IMEI first, then by nickname (handles truck swaps / stale IMEIs)
       let tech = imeiToTech.get(imei);
-      if (!tech) tech = nameToTech.get(nickName);
+      if (!tech) {
+        const deviceByName = nameToDevice.get(nickName);
+        if (deviceByName) {
+          tech = deviceByName.technician;
+          // IMEI changed for this tech's nickname — self-heal the mapping
+          if (deviceByName.deviceId !== imei) {
+            log.push(`  IMEI changed for ${vehicle.nickName}: ${deviceByName.deviceId} → ${imei} (auto-updating)`);
+            await prisma.bouncieDevice.update({
+              where: { id: deviceByName.id },
+              data: { deviceId: imei },
+            });
+          }
+        }
+      }
       if (!tech) {
         log.push(`  No tech mapping for vehicle: ${vehicle.nickName} (${imei})`);
         continue;
@@ -236,7 +249,7 @@ export async function POST(req: NextRequest) {
 
     // Calculate scores and upsert
     for (const [techId, agg] of techTrips) {
-      const tech = [...imeiToTech.values(), ...nameToTech.values()]
+      const tech = [...imeiToTech.values(), ...[...nameToDevice.values()].map(d => d.technician)]
         .find(t => t.techId === techId);
       if (!tech) continue;
 
