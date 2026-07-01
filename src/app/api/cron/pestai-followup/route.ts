@@ -71,6 +71,7 @@ export async function GET(req: NextRequest) {
     try {
       const res = await fetch(PESTAI_WEBHOOK, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
