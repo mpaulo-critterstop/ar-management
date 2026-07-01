@@ -1,11 +1,9 @@
 // src/app/api/cron/leads-forecast/route.ts
 // Daily cron: posts upcoming wildlife inspection counts per day and per PM to Slack #adsmanagement
-// Runs at 8am CST daily via cron-job.org
 
 import { NextRequest, NextResponse } from 'next/server';
 
 const BASE_URL = 'https://critterstoppest.fieldroutes.com/api';
-const SLACK_WEBHOOK = process.env.SLACK_WEBHOOK_ADS!;
 const WILDLIFE_SERVICE_IDS = new Set(['619', '645']);
 
 const OFFICES: Record<string, { key: string; token: string; officeId: number }> = {
@@ -15,10 +13,7 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number }> 
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4 },
 };
 
-function fmtDate(d: Date) {
-  return d.toISOString().split('T')[0];
-}
-
+function fmtDate(d: Date) { return d.toISOString().split('T')[0]; }
 function fmtDisplay(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00Z');
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
@@ -33,7 +28,6 @@ export async function GET(req: NextRequest) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStr = fmtDate(today);
-
   const farFuture = new Date(today);
   farFuture.setFullYear(farFuture.getFullYear() + 1);
   const farFutureStr = fmtDate(farFuture);
@@ -43,13 +37,15 @@ export async function GET(req: NextRequest) {
 
   for (const [officeName, cfg] of Object.entries(OFFICES)) {
     if (!cfg.key || !cfg.token) continue;
+    const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
 
     try {
-      const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+      // 1. Search for upcoming appointments
       const searchData = await fetch(`${BASE_URL}/appointment/search?officeIDs=${cfg.officeId}&dateStart=${todayStr}&dateEnd=${farFutureStr}&${auth}`).then(r => r.json());
       const apptIds: number[] = searchData.appointmentIDs || [];
       if (apptIds.length === 0) continue;
 
+      // 2. Fetch appointment details in batches
       const allAppts: any[] = [];
       for (let i = 0; i < apptIds.length; i += 100) {
         const batch = apptIds.slice(i, i + 100);
@@ -62,30 +58,49 @@ export async function GET(req: NextRequest) {
         await new Promise(r => setTimeout(r, 300));
       }
 
+      // 3. Filter to pending wildlife inspections
       const wildlife = allAppts.filter((a: any) => {
         const typeStr = String(a.type || a.serviceTypeID || '');
         return WILDLIFE_SERVICE_IDS.has(typeStr) && String(a.status) === '0';
       });
 
       byOffice[officeName] += wildlife.length;
+      if (wildlife.length === 0) continue;
 
-      const empIds = [...new Set(wildlife.map((a: any) => String(a.assignedTech || a.employeeID || '')).filter(Boolean))];
-      const empMap: Record<string, string> = {};
-      if (empIds.length > 0) {
-        for (let i = 0; i < empIds.length; i += 100) {
-          const batch = empIds.slice(i, i + 100);
-          const empData = await fetch(`${BASE_URL}/employee/get?employeeIDs=${batch.join(',')}&${auth}`).then(r => r.json());
-          empData.employees?.forEach((e: any) => {
-            empMap[String(e.employeeID)] = `${e.fname} ${e.lname}`.trim();
-          });
-          await new Promise(r => setTimeout(r, 300));
+      // 4. Collect unique routeIDs and fetch routes to get assignedTech
+      const routeIds = [...new Set(wildlife.map((a: any) => String(a.routeID || '0')).filter(id => id !== '0'))];
+      const routeToTech: Record<string, string> = {};
+      for (let i = 0; i < routeIds.length; i += 100) {
+        const batch = routeIds.slice(i, i + 100);
+        const routeData = await fetch(`${BASE_URL}/route/get?routeIDs=${batch.join(',')}&${auth}`).then(r => r.json());
+        const prop = routeData.propertyName;
+        const routes: any[] = prop && routeData[prop] ? (Array.isArray(routeData[prop]) ? routeData[prop] : Object.values(routeData[prop] as object)) : [];
+        for (const route of routes) {
+          if (route.assignedTech && route.assignedTech !== '0') {
+            routeToTech[String(route.routeID)] = String(route.assignedTech);
+          }
         }
+        await new Promise(r => setTimeout(r, 300));
       }
 
+      // 5. Resolve employee names
+      const empIds = [...new Set(Object.values(routeToTech))];
+      const empMap: Record<string, string> = {};
+      for (let i = 0; i < empIds.length; i += 100) {
+        const batch = empIds.slice(i, i + 100);
+        const empData = await fetch(`${BASE_URL}/employee/get?employeeIDs=${batch.join(',')}&${auth}`).then(r => r.json());
+        empData.employees?.forEach((e: any) => {
+          empMap[String(e.employeeID)] = `${e.fname} ${e.lname}`.trim();
+        });
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      // 6. Group by PM and date
       for (const appt of wildlife) {
-        const empId = String(appt.assignedTech || appt.employeeID || '');
-        const pmName = empMap[empId] || `Unknown (${empId})`;
-        const dateStr = (appt.date || appt.start || '').split('T')[0];
+        const routeId = String(appt.routeID || '0');
+        const techId = routeToTech[routeId] || '0';
+        const pmName = empMap[techId] || `Unassigned`;
+        const dateStr = (appt.date || '').split('T')[0] || String(appt.date || '');
         if (!dateStr) continue;
         if (!byPmDate[pmName]) byPmDate[pmName] = {};
         byPmDate[pmName][dateStr] = (byPmDate[pmName][dateStr] || 0) + 1;
@@ -118,12 +133,14 @@ export async function GET(req: NextRequest) {
   }
 
   const message = lines.join('\n');
-
-  await fetch(SLACK_WEBHOOK, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: message }),
-  });
+  const SLACK_WEBHOOK = process.env.SLACK_WEBHOOK_ADS!;
+  if (SLACK_WEBHOOK) {
+    await fetch(SLACK_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: message }),
+    });
+  }
 
   return NextResponse.json({ success: true, total, byOffice, message });
 }
