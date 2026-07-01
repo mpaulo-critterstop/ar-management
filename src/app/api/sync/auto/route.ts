@@ -121,9 +121,15 @@ async function processTicket(
         where: { externalId: String(t.ticketID), office },
       });
       if (voidedInvoice) {
+        // Revert primary lead
         await prisma.lead.updateMany({
           where: { invoiceId: voidedInvoice.id },
           data: { status: 'INSPECTED', invoiceId: null, amount: null },
+        });
+        // Clear upsell if this was an upsell invoice
+        await prisma.lead.updateMany({
+          where: { upsellInvoiceId: voidedInvoice.id },
+          data: { upsellInvoiceId: null, upsellAmount: null, upsellDate: null },
         });
       }
       return;
@@ -134,6 +140,21 @@ async function processTicket(
         where: { externalId: String(t.ticketID), office },
         data: { status: 'PAID', paid: parseFloat(t.total), amount: parseFloat(t.total) },
       });
+      const inactiveInvoice = await prisma.invoice.findFirst({
+        where: { externalId: String(t.ticketID), office },
+      });
+      if (inactiveInvoice) {
+        // Revert primary lead to INSPECTED
+        await prisma.lead.updateMany({
+          where: { invoiceId: inactiveInvoice.id },
+          data: { status: 'INSPECTED', invoiceId: null, amount: null },
+        });
+        // Clear upsell if this was an upsell invoice
+        await prisma.lead.updateMany({
+          where: { upsellInvoiceId: inactiveInvoice.id },
+          data: { upsellInvoiceId: null, upsellAmount: null, upsellDate: null },
+        });
+      }
       return;
     }
 
@@ -245,6 +266,17 @@ async function processTicket(
       }
     } else {
       updated.count++;
+      // Sync lead amount if this invoice is linked as primary or upsell and amount changed
+      if (amount > 0) {
+        await prisma.lead.updateMany({
+          where: { invoiceId: result.id },
+          data: { amount },
+        });
+        await prisma.lead.updateMany({
+          where: { upsellInvoiceId: result.id },
+          data: { upsellAmount: amount },
+        });
+      }
     }
   } catch {
     errors.count++;
