@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
           inspectionDate: { gte: months[11].start, lte: months[0].end },
           ...(officeFilter && officeFilter !== 'All' && { office: { equals: officeFilter, mode: 'insensitive' } }),
           ...(pmFilter && { pmName: pmFilter }),        },
-        include: { invoice: { select: { amount: true, date: true } } },
+        select: { id: true, inspectionDate: true, status: true, amount: true, pmName: true, office: true, upsellAmount: true, upsellDate: true, invoice: { select: { amount: true, date: true } } },
       });
 
       const allPayments = await prisma.payment.findMany({
@@ -101,7 +101,8 @@ export async function GET(req: NextRequest) {
         const totalClosed = soldByInspection.length;
         // Booked based on sold date
         const soldBySoldDate = allLeads.filter(l => l.status === 'SOLD' && l.invoice?.date && new Date(l.invoice.date) >= start && new Date(l.invoice.date) <= end);
-        const booked = soldBySoldDate.reduce((s, l) => s + Number(l.amount || 0), 0);
+        const upsellBySoldDate = allLeads.filter(l => l.upsellAmount && l.upsellDate && new Date(l.upsellDate) >= start && new Date(l.upsellDate) <= end);
+        const booked = soldBySoldDate.reduce((s, l) => s + Number(l.amount || 0), 0) + upsellBySoldDate.reduce((s, l) => s + Number(l.upsellAmount || 0), 0);
         const closingPct = totalLeads > 0 ? (totalClosed / totalLeads) * 100 : 0;
         const avgSale = totalClosed > 0 ? booked / totalClosed : 0;
         const bookedPerLead = totalLeads > 0 ? booked / totalLeads : 0;
@@ -128,7 +129,8 @@ const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBook
           const soldByInspection = monthLeads.filter(l => l.status === 'SOLD');
           const totalClosed = soldByInspection.length;
           const soldBySoldDate = pmLeads.filter(l => l.status === 'SOLD' && l.invoice?.date && new Date(l.invoice.date) >= start && new Date(l.invoice.date) <= end);
-          const booked = soldBySoldDate.reduce((s, l) => s + Number(l.amount || 0), 0);
+          const upsellBySoldDate = pmLeads.filter(l => l.upsellAmount && l.upsellDate && new Date(l.upsellDate) >= start && new Date(l.upsellDate) <= end);
+          const booked = soldBySoldDate.reduce((s, l) => s + Number(l.amount || 0), 0) + upsellBySoldDate.reduce((s, l) => s + Number(l.upsellAmount || 0), 0);
           const closingPct = totalLeads > 0 ? (totalClosed / totalLeads) * 100 : 0;
           const avgSale = totalClosed > 0 ? booked / totalClosed : 0;
           const bookedPerLead = totalLeads > 0 ? booked / totalLeads : 0;
@@ -160,7 +162,7 @@ const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBook
 ...(officeFilter && officeFilter !== 'All' && { office: { equals: officeFilter, mode: 'insensitive' } }),
           ...(pmFilter && { pmName: pmFilter }),
         },
-        include: { invoice: { select: { amount: true, date: true } } },
+        select: { id: true, inspectionDate: true, status: true, amount: true, pmName: true, office: true, upsellAmount: true, upsellDate: true, invoice: { select: { amount: true, date: true } } },
       });
 
       // Company weekly
@@ -170,7 +172,8 @@ const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBook
         const soldByInspection = weekLeads.filter(l => l.status === 'SOLD');
         const totalClosed = soldByInspection.length;
         const soldBySoldDate = allLeads.filter(l => l.status === 'SOLD' && l.invoice?.date && new Date(l.invoice.date) >= start && new Date(l.invoice.date) <= end);
-        const booked = soldBySoldDate.reduce((s, l) => s + Number(l.amount || 0), 0);
+        const upsellBySoldDate = allLeads.filter(l => l.upsellAmount && l.upsellDate && new Date(l.upsellDate) >= start && new Date(l.upsellDate) <= end);
+        const booked = soldBySoldDate.reduce((s, l) => s + Number(l.amount || 0), 0) + upsellBySoldDate.reduce((s, l) => s + Number(l.upsellAmount || 0), 0);
         const closingPct = totalLeads > 0 ? (totalClosed / totalLeads) * 100 : 0;
         const avgSale = totalClosed > 0 ? booked / totalClosed : 0;
         const bookedPerLead = totalLeads > 0 ? booked / totalLeads : 0;
@@ -186,7 +189,8 @@ const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBook
           const soldByInspection = weekLeads.filter(l => l.status === 'SOLD');
           const totalClosed = soldByInspection.length;
           const soldBySoldDate = pmLeads.filter(l => l.status === 'SOLD' && l.invoice?.date && new Date(l.invoice.date) >= start && new Date(l.invoice.date) <= end);
-          const booked = soldBySoldDate.reduce((s, l) => s + Number(l.amount || 0), 0);
+          const upsellBySoldDate = pmLeads.filter(l => l.upsellAmount && l.upsellDate && new Date(l.upsellDate) >= start && new Date(l.upsellDate) <= end);
+          const booked = soldBySoldDate.reduce((s, l) => s + Number(l.amount || 0), 0) + upsellBySoldDate.reduce((s, l) => s + Number(l.upsellAmount || 0), 0);
           const closingPct = totalLeads > 0 ? (totalClosed / totalLeads) * 100 : 0;
           const avgSale = totalClosed > 0 ? booked / totalClosed : 0;
           const bookedPerLead = totalLeads > 0 ? booked / totalLeads : 0;
