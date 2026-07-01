@@ -5,7 +5,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-const FAR_SERVICE_IDS = new Set(['501', '674', '479', '541', '542', '624', '553', '716']);
+const FAR_SERVICE_IDS    = new Set(['501', '674', '479', '541', '542', '624']);
+const EXCLUSION_SERVICE_IDS = new Set(['553', '716']);
+const ALL_UPSELL_IDS     = new Set([...FAR_SERVICE_IDS, ...EXCLUSION_SERVICE_IDS]);
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -19,7 +21,7 @@ export async function GET(req: NextRequest) {
   const dryRun = searchParams.get('dry') !== 'false'; // dry run by default
 
   const where: any = {
-    serviceId: { in: [...FAR_SERVICE_IDS].map(Number) },
+    serviceId: { in: [...ALL_UPSELL_IDS].map(Number) },
     amount: { gt: 0 },
   };
   if (office) where.office = office;
@@ -58,6 +60,24 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
+    // Skip if this invoice is already the lead's primary invoice
+    if (existingLead.invoiceId === inv.id) {
+      results.push({ invoice: inv.externalId, status: 'already_primary_invoice', lead: existingLead.id });
+      continue;
+    }
+
+    // For exclusion invoices, only upsell if invoice is in a different month than inspection
+    if (EXCLUSION_SERVICE_IDS.has(String(inv.serviceId))) {
+      const invoiceMonth = new Date(inv.date!).getMonth() + '-' + new Date(inv.date!).getFullYear();
+      const inspectionMonth = existingLead.inspectionDate
+        ? new Date(existingLead.inspectionDate).getMonth() + '-' + new Date(existingLead.inspectionDate).getFullYear()
+        : null;
+      if (invoiceMonth === inspectionMonth) {
+        results.push({ invoice: inv.externalId, status: 'same_month_exclusion_skipped', lead: existingLead.id });
+        continue;
+      }
+    }
+
     if (!dryRun) {
       await prisma.lead.update({
         where: { id: existingLead.id },
@@ -86,6 +106,8 @@ export async function GET(req: NextRequest) {
     summary: {
       attached: results.filter(r => r.status === 'attached' || r.status === 'would_attach').length,
       already_attached: results.filter(r => r.status === 'already_attached').length,
+      already_primary_invoice: results.filter(r => r.status === 'already_primary_invoice').length,
+      same_month_exclusion_skipped: results.filter(r => r.status === 'same_month_exclusion_skipped').length,
       no_sold_lead: results.filter(r => r.status === 'no_sold_lead').length,
     },
   });

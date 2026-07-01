@@ -214,21 +214,33 @@ async function processTicket(
     if (isNew) {
       created.count++;
       // Auto-attach as upsell if this is a FAR invoice for a customer with an existing SOLD lead
-      const FAR_SERVICE_IDS = new Set(['501', '674', '479', '541', '542', '624', '553', '716']);
-      if (FAR_SERVICE_IDS.has(String(serviceId)) && amount > 0) {
+      const FAR_SERVICE_IDS       = new Set(['501', '674', '479', '541', '542', '624']);
+      const EXCLUSION_SERVICE_IDS = new Set(['553', '716']);
+      const ALL_UPSELL_IDS        = new Set([...FAR_SERVICE_IDS, ...EXCLUSION_SERVICE_IDS]);
+
+      if (ALL_UPSELL_IDS.has(String(serviceId)) && amount > 0) {
         const existingLead = await prisma.lead.findFirst({
           where: { customerId: customer.id, status: 'SOLD', upsellInvoiceId: null },
           orderBy: { inspectionDate: 'desc' },
         });
-        if (existingLead) {
-          await prisma.lead.update({
-            where: { id: existingLead.id },
-            data: {
-              upsellInvoiceId: result.id,
-              upsellAmount: amount,
-              upsellDate: new Date(invoiceDate),
-            },
-          });
+        if (existingLead && existingLead.invoiceId !== result.id) {
+          // For exclusion invoices, only upsell if in a different month than inspection
+          let shouldAttach = true;
+          if (EXCLUSION_SERVICE_IDS.has(String(serviceId)) && existingLead.inspectionDate) {
+            const invoiceMonth = new Date(invoiceDate).getMonth() + '-' + new Date(invoiceDate).getFullYear();
+            const inspectionMonth = new Date(existingLead.inspectionDate).getMonth() + '-' + new Date(existingLead.inspectionDate).getFullYear();
+            if (invoiceMonth === inspectionMonth) shouldAttach = false;
+          }
+          if (shouldAttach) {
+            await prisma.lead.update({
+              where: { id: existingLead.id },
+              data: {
+                upsellInvoiceId: result.id,
+                upsellAmount: amount,
+                upsellDate: new Date(invoiceDate),
+              },
+            });
+          }
         }
       }
     } else {
