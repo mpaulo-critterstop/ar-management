@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-const FAR_SERVICE_IDS = new Set(['501', '674', '479', '541', '542', '624']);
+const FAR_SERVICE_IDS = new Set(['501', '674', '479', '541', '542', '624', '553', '716']);
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

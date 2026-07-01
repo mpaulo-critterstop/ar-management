@@ -214,7 +214,7 @@ async function processTicket(
     if (isNew) {
       created.count++;
       // Auto-attach as upsell if this is a FAR invoice for a customer with an existing SOLD lead
-      const FAR_SERVICE_IDS = new Set(['501', '674', '479', '541', '542', '624']);
+      const FAR_SERVICE_IDS = new Set(['501', '674', '479', '541', '542', '624', '553', '716']);
       if (FAR_SERVICE_IDS.has(String(serviceId)) && amount > 0) {
         const existingLead = await prisma.lead.findFirst({
           where: { customerId: customer.id, status: 'SOLD', upsellInvoiceId: null },
