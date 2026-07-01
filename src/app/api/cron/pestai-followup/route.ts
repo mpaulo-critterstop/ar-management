@@ -75,15 +75,17 @@ export async function GET(req: NextRequest) {
         body: JSON.stringify(payload),
       });
 
+      const resText = await res.text();
+
       if (res.ok) {
         await prisma.lead.update({
           where: { id: lead.id },
           data: { followUpSent: true, followUpSentAt: new Date() },
         });
-        results.push({ leadId: lead.id, customer: lead.customer?.name, status: 'sent' });
+        results.push({ leadId: lead.id, customer: lead.customer?.name, status: 'sent', httpStatus: res.status, response: resText });
         sent++;
       } else {
-        results.push({ leadId: lead.id, customer: lead.customer?.name, status: 'failed', error: res.status });
+        results.push({ leadId: lead.id, customer: lead.customer?.name, status: 'failed', httpStatus: res.status, response: resText });
         failed++;
       }
     } catch (err: any) {
