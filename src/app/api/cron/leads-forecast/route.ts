@@ -27,7 +27,9 @@ export async function GET(req: NextRequest) {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayStr = fmtDate(today);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = fmtDate(tomorrow);
   const farFuture = new Date(today);
   farFuture.setFullYear(farFuture.getFullYear() + 1);
   const farFutureStr = fmtDate(farFuture);
@@ -41,7 +43,7 @@ export async function GET(req: NextRequest) {
 
     try {
       // 1. Search for upcoming appointments
-      const searchData = await fetch(`${BASE_URL}/appointment/search?officeIDs=${cfg.officeId}&dateStart=${todayStr}&dateEnd=${farFutureStr}&${auth}`).then(r => r.json());
+      const searchData = await fetch(`${BASE_URL}/appointment/search?officeIDs=${cfg.officeId}&dateStart=${tomorrowStr}&dateEnd=${farFutureStr}&${auth}`).then(r => r.json());
       const apptIds: number[] = searchData.appointmentIDs || [];
       if (apptIds.length === 0) continue;
 
