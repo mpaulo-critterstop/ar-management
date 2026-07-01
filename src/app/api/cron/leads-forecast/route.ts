@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const BASE_URL = 'https://critterstoppest.fieldroutes.com/api';
-const WILDLIFE_SERVICE_IDS = new Set(['619', '645']);
+const WILDLIFE_SERVICE_IDS = new Set(['619', '645', '294', '676', '719', '514', '544', '612', '508', '681']);
 
 const OFFICES: Record<string, { key: string; token: string; officeId: number }> = {
   DFW:   { key: process.env.FIELDROUTES_KEY_DFW!,   token: process.env.FIELDROUTES_TOKEN_DFW!,   officeId: 1 },
