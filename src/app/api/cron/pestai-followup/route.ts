@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Small delay between sends to avoid overwhelming the webhook
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 1000));
   }
 
   return NextResponse.json({
