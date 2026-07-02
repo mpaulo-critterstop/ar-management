@@ -107,7 +107,8 @@ async function syncLeads(office: string, key: string, token: string) {
   console.log(`[${office}] Part 1b: Checking INSPECTED leads for sold invoices...`);
   const inspectedLeads = await prisma.lead.findMany({
     where: { office, status: 'INSPECTED', invoiceId: null },
-    select: { id: true, customerId: true, inspectionDate: true },
+    select: { id: true, customerId: true, inspectionDate: true, followUpSent: true, pmName: true, office: true },
+    include: { customer: { select: { name: true, phone: true, email: true } } } as any,
   });
 
   for (const lead of inspectedLeads) {
@@ -132,6 +133,24 @@ async function syncLeads(office: string, key: string, token: string) {
             where: { id: lead.id },
             data: { status: 'SOLD', invoiceId: invoice.id, amount: Number(invoice.amount) },
           });
+          // Notify PestAI if this lead was already sent to the follow-up pipeline
+          if (lead.followUpSent) {
+            const nameParts = (lead.customer?.name || '').trim().split(' ');
+            fetch('https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/aGvw0JWUsOsikqvVKBmn', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fname:       nameParts[0] || '',
+                lname:       nameParts.slice(1).join(' ') || '',
+                phone1:      (lead.customer?.phone || '').replace(/\D/g, ''),
+                email:       lead.customer?.email || '',
+                customerID:  lead.id,
+                salesRep:    lead.pmName || '',
+                officeName:  lead.office || '',
+                status:      'WON',
+              }),
+            }).catch(() => {}); // fire and forget
+          }
           updated++;
         }
       }
