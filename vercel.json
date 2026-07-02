@@ -14,7 +14,6 @@
     "src/app/api/cron/idle-report/route.ts": { "maxDuration": 300 }
   },
   "crons": [
-    { "path": "/api/cron/idle-report", "schedule": "0 22 * * 1-5" },
-    { "path": "/api/cron/pestai-followup?token=critterstop2026", "schedule": "0 14 * * *" }
+    { "path": "/api/cron/idle-report", "schedule": "0 22 * * 1-5" }
   ]
 }
