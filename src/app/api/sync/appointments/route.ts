@@ -107,8 +107,7 @@ async function syncLeads(office: string, key: string, token: string) {
   console.log(`[${office}] Part 1b: Checking INSPECTED leads for sold invoices...`);
   const inspectedLeads = await prisma.lead.findMany({
     where: { office, status: 'INSPECTED', invoiceId: null },
-    select: { id: true, customerId: true, inspectionDate: true, followUpSent: true, pmName: true, office: true },
-    include: { customer: { select: { name: true, phone: true, email: true } } } as any,
+    include: { customer: { select: { name: true, phone: true, email: true } } },
   });
 
   for (const lead of inspectedLeads) {
