@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 const PESTAI_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/fb21a8d2-23eb-4bb4-b904-9a10f3194b93';
-const DAYS_THRESHOLD = 5;
+const DAYS_THRESHOLD = 2;
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
