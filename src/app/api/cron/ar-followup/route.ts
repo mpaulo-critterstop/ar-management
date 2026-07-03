@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
 
   // Filter where paid < amount (still has balance)
   const overdueInvoices = invoices.filter(inv => Number(inv.paid || 0) < Number(inv.amount || 0));
+  console.log(`[ar-followup] invoices=${invoices.length} overdueInvoices=${overdueInvoices.length} sample=${JSON.stringify(invoices.slice(0,2).map(i => ({ id: i.externalId, amount: i.amount, paid: i.paid })))}`);
 
   const results: any[] = [];
   let sent = 0;
