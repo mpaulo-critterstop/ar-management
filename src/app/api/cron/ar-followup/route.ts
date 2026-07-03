@@ -3,7 +3,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { InvoiceStatus } from '@prisma/client';
 
 const AR_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/baa97b63-2a26-4fb7-8f35-5af2dddf5666';
 
@@ -29,7 +28,6 @@ export async function GET(req: NextRequest) {
   // - 2026 invoices only
   const where: any = {
     due: { not: null, lt: now },
-    status: InvoiceStatus.OVERDUE,
     serviceId: { in: WILDLIFE_INVOICE_IDS },
     date: { gte: new Date('2026-01-01T00:00:00.000Z') },
   };
@@ -44,11 +42,9 @@ export async function GET(req: NextRequest) {
     take: limit,
   });
 
-  console.log(`[ar-followup] where=${JSON.stringify(where)} invoices=${invoices.length}`);
 
   // Filter where paid < amount (still has balance)
   const overdueInvoices = invoices.filter(inv => Number(inv.paid || 0) < Number(inv.amount || 0));
-  console.log(`[ar-followup] invoices=${invoices.length} overdueInvoices=${overdueInvoices.length} sample=${JSON.stringify(invoices.slice(0,2).map(i => ({ id: i.externalId, amount: i.amount, paid: i.paid })))}`);
 
   const results: any[] = [];
   let sent = 0;
