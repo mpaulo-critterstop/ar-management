@@ -45,8 +45,23 @@ export async function GET(req: NextRequest) {
   if (office) baseWhere.office = office;
   if (pmName) baseWhere.pmName = pmName;
 
-  // Main leads query — includes status + date filters for the table
-  const where: any = { ...baseWhere, ...dateCond };
+  // Table query date condition:
+  // All filter → inspection date in range
+  // Sold filter → invoice date OR upsell date in range
+  const tableDateCond: any = {};
+  if (fromDate || toDate) {
+    if (dateField === 'sold') {
+      tableDateCond.OR = [
+        { invoice: { date: { ...(fromDate && { gte: fromDate }), ...(toDate && { lte: toDate }) } } },
+        { upsellDate: { ...(fromDate && { gte: fromDate }), ...(toDate && { lte: toDate }) } },
+      ];
+    } else {
+      tableDateCond.inspectionDate = { ...(fromDate && { gte: fromDate }), ...(toDate && { lte: toDate }) };
+    }
+  }
+
+  // Main leads query — includes status + table date filters for the table
+  const where: any = { ...baseWhere, ...tableDateCond };
   if (status) where.status = status;
 
   const leads = await prisma.lead.findMany({
