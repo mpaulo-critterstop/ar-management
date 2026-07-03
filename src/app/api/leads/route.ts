@@ -84,8 +84,10 @@ export async function GET(req: NextRequest) {
     if (l.status !== 'SOLD') return false;
     if (!fromDate && !toDate) return true;
     const invoiceDate = l.invoice?.date ? new Date(l.invoice.date) : null;
-    if (!invoiceDate) return false;
-    return (!fromDate || invoiceDate >= fromDate) && (!toDate || invoiceDate <= toDate);
+    const invoiceInRange = invoiceDate && (!fromDate || invoiceDate >= fromDate) && (!toDate || invoiceDate <= toDate);
+    const upsellDate = l.upsellDate ? new Date(l.upsellDate) : null;
+    const upsellInRange = upsellDate && (!fromDate || upsellDate >= fromDate) && (!toDate || upsellDate <= toDate);
+    return invoiceInRange || upsellInRange;
   }).length;
   const inspected = totalLeads.filter((l: any) => l.status === 'INSPECTED').length;
   const pending = totalLeads.filter((l: any) => l.status === 'PENDING').length;
