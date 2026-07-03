@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   });
 
   // Filter where paid < amount (still has balance)
-  const overdueInvoices = invoices.filter(inv => (inv.paid || 0) < (inv.amount || 0));
+  const overdueInvoices = invoices.filter(inv => Number(inv.paid || 0) < Number(inv.amount || 0));
 
   const results: any[] = [];
   let sent = 0;
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     const nameParts = (inv.customer?.name || '').trim().split(' ');
     const fname = nameParts[0] || '';
     const lname = nameParts.slice(1).join(' ') || '';
-    const amountDue = (inv.amount || 0) - (inv.paid || 0);
+    const amountDue = Number(inv.amount || 0) - Number(inv.paid || 0);
 
     const payload = {
       fname,
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       email:         inv.customer?.email || '',
       address:       inv.customer?.serviceAddr || '',
       invoiceNumber: inv.externalId || inv.id,
-      invoiceAmount: (inv.amount || 0).toFixed(2),
+      invoiceAmount: Number(inv.amount || 0).toFixed(2),
       amountDue:     amountDue.toFixed(2),
       dueDate:       inv.due ? inv.due.toISOString().split('T')[0] : '',
       officeName:    inv.office || '',
