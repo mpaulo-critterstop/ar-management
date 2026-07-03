@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const where: any = {
     amount: { gt: 0 },
     due: { not: null, lt: now },
-    status: { not: 'PAID' },
+    status: 'OVERDUE',
     serviceId: { in: WILDLIFE_INVOICE_IDS },
     date: { gte: new Date('2026-01-01') },
   };
