@@ -330,7 +330,17 @@ export default function LeadsPage() {
                   {loading ? (
                     <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: '#888780' }}>Loading...</td></tr>
                   ) : displayed.flatMap((lead: any) => {
-                    const rows = [(
+                    const rows = [];
+
+                    // Determine if primary row should show based on date filter
+                    const invoiceDate = lead.invoice?.date ? lead.invoice.date.split('T')[0] : null;
+                    const fromDate = from || null;
+                    const toDate = to || null;
+                    const primaryInRange = !statusFilter || statusFilter !== 'SOLD' || !fromDate && !toDate ||
+                      (invoiceDate && (!fromDate || invoiceDate >= fromDate) && (!toDate || invoiceDate <= toDate));
+
+                    if (primaryInRange) {
+                      rows.push(
                       <tr key={lead.id} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
                         <td style={{ padding: '10px 12px', fontWeight: 500 }}>{lead.customer?.name || '—'}</td>
                         <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.inspectionDate ? lead.inspectionDate.split('T')[0] : '—'}</td>
@@ -345,9 +355,14 @@ export default function LeadsPage() {
                         <td style={{ padding: '10px 12px' }}>{lead.amount ? fmt(lead.amount) : '—'}</td>
                         <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.office}</td>
                       </tr>
-                    )];
+                      );
+                    }
                     if (lead.upsellAmount && lead.upsellDate) {
-                      rows.push(
+                      const upsellDateStr = lead.upsellDate.split('T')[0];
+                      const upsellInRange = !statusFilter || statusFilter !== 'SOLD' || !fromDate && !toDate ||
+                        ((!fromDate || upsellDateStr >= fromDate) && (!toDate || upsellDateStr <= toDate));
+                      if (upsellInRange) {
+                        rows.push(
                         <tr key={lead.id + '_upsell'} style={{ borderBottom: '0.5px solid #F1EFE8', background: '#FDFCF8' }}>
                           <td style={{ padding: '10px 12px', fontWeight: 500 }}>{lead.customer?.name || '—'}</td>
                           <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.inspectionDate ? lead.inspectionDate.split('T')[0] : '—'}</td>
@@ -363,6 +378,7 @@ export default function LeadsPage() {
                           <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.office}</td>
                         </tr>
                       );
+                      }
                     }
                     return rows;
                   })}
