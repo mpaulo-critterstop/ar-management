@@ -303,7 +303,7 @@ export default function LeadsPage() {
                 { label: 'Total leads', value: kpis.total, sub: 'All inspections', accent: '#0052cc' },
                 { label: 'Sold', value: kpis.sold, sub: '+' + kpis.inspected + ' inspected', color: '#1D9E75', accent: '#1D9E75' },
                 { label: 'Conversion rate', value: pct(kpis.conversionRate), sub: 'Sold / Total', accent: '#BA7517' },
-                { label: 'Booked revenue', value: fmt(kpis.bookedRevenue), sub: 'Avg ' + fmt(kpis.avgSale), color: '#1D9E75', accent: '#1D9E75' },
+                { label: 'Booked revenue', value: fmt((kpis.bookedRevenue || 0) + (kpis.upsellRevenue || 0)), sub: 'Avg ' + fmt(kpis.avgSale), color: '#1D9E75', accent: '#1D9E75' },
               ].map(card => (
                 <div key={card.label} style={{ background: '#fff', borderRadius: 12, padding: '14px 18px', border: '0.5px solid #E8E7E3', borderLeft: `3px solid ${(card as any).accent}` }}>
                   <div style={{ fontSize: 11, color: '#888780', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{card.label}</div>
