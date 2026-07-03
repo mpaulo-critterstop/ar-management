@@ -236,7 +236,7 @@ async function processTicket(
       created.count++;
       // Auto-attach as upsell if this is a FAR invoice for a customer with an existing SOLD lead
       const FAR_SERVICE_IDS       = new Set(['501', '674', '479', '541', '542', '624']);
-      const EXCLUSION_SERVICE_IDS = new Set(['553', '716']);
+      const EXCLUSION_SERVICE_IDS = new Set(['553', '716', '720']);
       const ALL_UPSELL_IDS        = new Set([...FAR_SERVICE_IDS, ...EXCLUSION_SERVICE_IDS]);
 
       if (ALL_UPSELL_IDS.has(String(serviceId)) && amount > 0) {

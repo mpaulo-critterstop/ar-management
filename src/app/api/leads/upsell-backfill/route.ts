@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 const FAR_SERVICE_IDS    = new Set(['501', '674', '479', '541', '542', '624']);
-const EXCLUSION_SERVICE_IDS = new Set(['553', '716']);
+const EXCLUSION_SERVICE_IDS = new Set(['553', '716', '720']);
 const ALL_UPSELL_IDS     = new Set([...FAR_SERVICE_IDS, ...EXCLUSION_SERVICE_IDS]);
 
 export async function GET(req: NextRequest) {
