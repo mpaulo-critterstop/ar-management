@@ -94,6 +94,7 @@ export async function GET(req: NextRequest) {
     .reduce((sum: number, l: any) => sum + (l.upsellAmount || 0), 0);
 
   const avgSale = soldCount > 0 ? bookedRevenue / soldCount : 0;
+  console.log(`[leads/route] dateField=${dateField} from=${from} to=${to} kpiLeads=${kpiLeads.length} bookedRevenue=${bookedRevenue} upsellRevenue=${upsellRevenue} total=${bookedRevenue+upsellRevenue}`);
 
   // KPIs by PM
   const pmMap: Record<string, any> = {};
