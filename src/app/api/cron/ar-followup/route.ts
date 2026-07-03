@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     due: { not: null, lt: now },
     status: 'OVERDUE',
     serviceId: { in: WILDLIFE_INVOICE_IDS },
-    // date: { gte: new Date('2026-01-01') },
+    date: { gte: new Date('2026-01-01T00:00:00.000Z') },
   };
   if (office) where.office = office;
 
