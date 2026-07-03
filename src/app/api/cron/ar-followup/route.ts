@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { InvoiceStatus } from '@prisma/client';
 
 const AR_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/baa97b63-2a26-4fb7-8f35-5af2dddf5666';
 
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
   // - 2026 invoices only
   const where: any = {
     due: { not: null, lt: now },
-    status: 'OVERDUE',
+    status: InvoiceStatus.OVERDUE,
     serviceId: { in: WILDLIFE_INVOICE_IDS },
     date: { gte: new Date('2026-01-01T00:00:00.000Z') },
   };
