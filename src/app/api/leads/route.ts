@@ -66,10 +66,23 @@ export async function GET(req: NextRequest) {
     include: { invoice: { select: { date: true } } },
   });
 
-  const total = kpiLeads.length;
-  const soldCount = kpiLeads.filter((l: any) => l.status === 'SOLD').length;
-  const inspected = kpiLeads.filter((l: any) => l.status === 'INSPECTED').length;
-  const pending = kpiLeads.filter((l: any) => l.status === 'PENDING').length;
+  // Total/conversion counts — always use inspection date range so INSPECTED leads are included
+  const totalWhere: any = { ...baseWhere };
+  if (fromDate || toDate) {
+    totalWhere.inspectionDate = {
+      ...(fromDate && { gte: fromDate }),
+      ...(toDate && { lte: toDate }),
+    };
+  }
+  const totalLeads = await prisma.lead.findMany({
+    where: totalWhere,
+    select: { status: true },
+  });
+
+  const total = totalLeads.length;
+  const soldCount = totalLeads.filter((l: any) => l.status === 'SOLD').length;
+  const inspected = totalLeads.filter((l: any) => l.status === 'INSPECTED').length;
+  const pending = totalLeads.filter((l: any) => l.status === 'PENDING').length;
   const conversionRate = total > 0 ? (soldCount / total) * 100 : 0;
 
   // bookedRevenue: SOLD leads where invoice date is in range
