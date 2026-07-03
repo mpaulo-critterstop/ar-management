@@ -16,17 +16,22 @@ export async function GET(req: NextRequest) {
   const office = searchParams.get('office') || undefined;
   const limit = parseInt(searchParams.get('limit') || '100');
 
+  const WILDLIFE_INVOICE_IDS = [553, 716, 720, 501, 674, 479, 541, 542, 624, 510];
+
   const now = new Date();
 
   // Find overdue wildlife invoices:
   // - due date is set and has passed
   // - not fully paid (paid < amount)
   // - amount > 0
-  // - active
+  // - wildlife service type only
+  // - 2026 invoices only
   const where: any = {
     amount: { gt: 0 },
     due: { not: null, lt: now },
     status: { not: 'PAID' },
+    serviceId: { in: WILDLIFE_INVOICE_IDS },
+    date: { gte: new Date('2026-01-01') },
   };
   if (office) where.office = office;
 
