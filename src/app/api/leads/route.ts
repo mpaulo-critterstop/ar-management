@@ -26,9 +26,10 @@ export async function GET(req: NextRequest) {
     const fromDate = from ? new Date(from) : undefined;
     const toDate = to ? new Date(to) : undefined;
     if (dateField === 'sold') {
-      where.invoice = { date: {} };
-      if (from) where.invoice.date.gte = fromDate;
-      if (to) where.invoice.date.lte = toDate;
+      where.OR = [
+        { invoice: { date: { ...(fromDate && { gte: fromDate }), ...(toDate && { lte: toDate }) } } },
+        { upsellDate: { ...(fromDate && { gte: fromDate }), ...(toDate && { lte: toDate }) } },
+      ];
     } else if (dateField === 'inspection') {
       where.inspectionDate = {};
       if (from) where.inspectionDate.gte = fromDate;

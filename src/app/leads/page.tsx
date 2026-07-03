@@ -107,7 +107,7 @@ export default function LeadsPage() {
     if (from || to) {
       if (from) params.set('from', from);
       if (to) params.set('to', to);
-      params.set('dateField', statusFilter === 'SOLD' ? 'sold' : 'inspection');
+      params.set('dateField', statusFilter === 'SOLD' ? 'sold' : statusFilter === 'INSPECTED' ? 'inspection' : 'all');
     }
     const res = await fetch('/api/leads?' + params.toString());
     const data = await res.json();
