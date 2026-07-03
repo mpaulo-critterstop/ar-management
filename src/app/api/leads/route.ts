@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
   delete kpiWhere.status;
   const kpiLeads = await prisma.lead.findMany({
     where: kpiWhere,
-    select: { status: true, amount: true, upsellAmount: true, upsellDate: true },
+    include: { invoice: { select: { date: true } } },
   });
 
   const total = kpiLeads.length;
@@ -71,11 +71,27 @@ export async function GET(req: NextRequest) {
   const inspected = kpiLeads.filter(l => l.status === 'INSPECTED').length;
   const pending = kpiLeads.filter(l => l.status === 'PENDING').length;
   const conversionRate = total > 0 ? (sold / total) * 100 : 0;
+
+  const fromDate = from ? new Date(from) : null;
+  const toDate = to ? new Date(to) : null;
+
   const bookedRevenue = kpiLeads
-    .filter(l => l.status === 'SOLD')
+    .filter(l => {
+      if (l.status !== 'SOLD') return false;
+      if (!fromDate && !toDate) return true;
+      const invoiceDate = l.invoice?.date ? new Date(l.invoice.date) : null;
+      if (!invoiceDate) return false;
+      return (!fromDate || invoiceDate >= fromDate) && (!toDate || invoiceDate <= toDate);
+    })
     .reduce((sum, l) => sum + (l.amount || 0), 0);
+
   const upsellRevenue = kpiLeads
-    .filter(l => l.upsellAmount)
+    .filter(l => {
+      if (!l.upsellAmount || !l.upsellDate) return false;
+      if (!fromDate && !toDate) return true;
+      const ud = new Date(l.upsellDate);
+      return (!fromDate || ud >= fromDate) && (!toDate || ud <= toDate);
+    })
     .reduce((sum, l) => sum + (l.upsellAmount || 0), 0);
   const avgSale = sold > 0 ? bookedRevenue / sold : 0;
 
