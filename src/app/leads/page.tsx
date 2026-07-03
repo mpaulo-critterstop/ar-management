@@ -336,7 +336,8 @@ export default function LeadsPage() {
                     const invoiceDate = lead.invoice?.date ? lead.invoice.date.split('T')[0] : null;
                     const fromDate = from || null;
                     const toDate = to || null;
-                    const primaryInRange = !statusFilter || statusFilter !== 'SOLD' || !fromDate && !toDate ||
+                    const isSoldOrAll = !statusFilter || statusFilter === 'SOLD' || statusFilter === 'All';
+                    const primaryInRange = !isSoldOrAll || !fromDate && !toDate ||
                       (invoiceDate && (!fromDate || invoiceDate >= fromDate) && (!toDate || invoiceDate <= toDate));
 
                     if (primaryInRange) {
@@ -359,7 +360,7 @@ export default function LeadsPage() {
                     }
                     if (lead.upsellAmount && lead.upsellDate) {
                       const upsellDateStr = lead.upsellDate.split('T')[0];
-                      const upsellInRange = !statusFilter || statusFilter !== 'SOLD' || !fromDate && !toDate ||
+                      const upsellInRange = !isSoldOrAll || !fromDate && !toDate ||
                         ((!fromDate || upsellDateStr >= fromDate) && (!toDate || upsellDateStr <= toDate));
                       if (upsellInRange) {
                         rows.push(
