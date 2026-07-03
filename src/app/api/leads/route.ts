@@ -80,7 +80,13 @@ export async function GET(req: NextRequest) {
   });
 
   const total = totalLeads.length;
-  const soldCount = totalLeads.filter((l: any) => l.status === 'SOLD').length;
+  const soldCount = kpiLeads.filter((l: any) => {
+    if (l.status !== 'SOLD') return false;
+    if (!fromDate && !toDate) return true;
+    const invoiceDate = l.invoice?.date ? new Date(l.invoice.date) : null;
+    if (!invoiceDate) return false;
+    return (!fromDate || invoiceDate >= fromDate) && (!toDate || invoiceDate <= toDate);
+  }).length;
   const inspected = totalLeads.filter((l: any) => l.status === 'INSPECTED').length;
   const pending = totalLeads.filter((l: any) => l.status === 'PENDING').length;
   const conversionRate = total > 0 ? (soldCount / total) * 100 : 0;
