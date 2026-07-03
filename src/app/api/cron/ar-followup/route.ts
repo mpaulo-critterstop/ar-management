@@ -27,7 +27,6 @@ export async function GET(req: NextRequest) {
   // - wildlife service type only
   // - 2026 invoices only
   const where: any = {
-    amount: { gt: 0 },
     due: { not: null, lt: now },
     status: 'OVERDUE',
     serviceId: { in: WILDLIFE_INVOICE_IDS },
