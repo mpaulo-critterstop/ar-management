@@ -95,15 +95,7 @@ export async function GET(req: NextRequest) {
   });
 
   const total = totalLeads.length;
-  const soldCount = kpiLeads.filter((l: any) => {
-    if (l.status !== 'SOLD') return false;
-    if (!fromDate && !toDate) return true;
-    const invoiceDate = l.invoice?.date ? new Date(l.invoice.date) : null;
-    const invoiceInRange = invoiceDate && (!fromDate || invoiceDate >= fromDate) && (!toDate || invoiceDate <= toDate);
-    const upsellDate = l.upsellDate ? new Date(l.upsellDate) : null;
-    const upsellInRange = upsellDate && (!fromDate || upsellDate >= fromDate) && (!toDate || upsellDate <= toDate);
-    return invoiceInRange || upsellInRange;
-  }).length;
+  const soldCount = totalLeads.filter((l: any) => l.status === 'SOLD').length;
   const inspected = totalLeads.filter((l: any) => l.status === 'INSPECTED').length;
   const pending = totalLeads.filter((l: any) => l.status === 'PENDING').length;
   const conversionRate = total > 0 ? (soldCount / total) * 100 : 0;
