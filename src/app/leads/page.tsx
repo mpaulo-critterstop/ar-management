@@ -339,6 +339,7 @@ export default function LeadsPage() {
                     // For SOLD leads with a date filter, only show if invoice date is in range
                     // For INSPECTED leads, always show the primary row (no invoice date to check)
                     const primaryInRange = noDateFilter ||
+                      statusFilter !== 'SOLD' ||
                       lead.status !== 'SOLD' ||
                       (invoiceDate !== null && (!fromDate || invoiceDate >= fromDate) && (!toDate || invoiceDate <= toDate));
 

@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const dateField = searchParams.get('dateField') || 'all';
 
   const fromDate = from ? new Date(from) : undefined;
-  const toDate = to ? new Date(to) : undefined;
+  const toDate = to ? new Date(to + 'T23:59:59.999Z') : undefined;
 
   // Date condition based on dateField
   const dateCond: any = {};
