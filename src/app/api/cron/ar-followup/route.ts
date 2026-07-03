@@ -44,6 +44,8 @@ export async function GET(req: NextRequest) {
     take: limit,
   });
 
+  console.log(`[ar-followup] where=${JSON.stringify(where)} invoices=${invoices.length}`);
+
   // Filter where paid < amount (still has balance)
   const overdueInvoices = invoices.filter(inv => Number(inv.paid || 0) < Number(inv.amount || 0));
 
