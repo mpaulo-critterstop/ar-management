@@ -58,26 +58,40 @@ export async function GET(req: NextRequest) {
     orderBy: { inspectionDate: 'desc' },
   });
 
-  // KPI query - ignores status filter
-  const kpiWhere = { ...where };
-  delete kpiWhere.status;
-  const kpiLeads = await prisma.lead.findMany({
-    where: kpiWhere,
-    select: { status: true, amount: true, upsellAmount: true, upsellDate: true },
+  // KPI query - ignores status AND date filter for total/conversion counts
+  const totalWhere: any = {};
+  if (office) totalWhere.office = office;
+  if (pmName) totalWhere.pmName = pmName;
+  const allLeadsForKpi = await prisma.lead.findMany({
+    where: totalWhere,
+    select: { status: true },
   });
-
-  const total = kpiLeads.length;
-  const sold = kpiLeads.filter(l => l.status === 'SOLD').length;
-  const inspected = kpiLeads.filter(l => l.status === 'INSPECTED').length;
-  const pending = kpiLeads.filter(l => l.status === 'PENDING').length;
+  const total = allLeadsForKpi.length;
+  const sold = allLeadsForKpi.filter(l => l.status === 'SOLD').length;
+  const inspected = allLeadsForKpi.filter(l => l.status === 'INSPECTED').length;
+  const pending = allLeadsForKpi.filter(l => l.status === 'PENDING').length;
   const conversionRate = total > 0 ? (sold / total) * 100 : 0;
 
   const fromDate = from ? new Date(from) : null;
   const toDate = to ? new Date(to) : null;
 
-  const bookedRevenue = leads
+  // For revenue, use all SOLD leads in date range regardless of status filter
+  const revenueWhere: any = { status: 'SOLD' };
+  if (office) revenueWhere.office = office;
+  if (pmName) revenueWhere.pmName = pmName;
+  if (fromDate || toDate) {
+    revenueWhere.OR = [
+      { invoice: { date: { ...(fromDate && { gte: fromDate }), ...(toDate && { lte: toDate }) } } },
+      { upsellDate: { ...(fromDate && { gte: fromDate }), ...(toDate && { lte: toDate }) } },
+    ];
+  }
+  const revenueLeads = await prisma.lead.findMany({
+    where: revenueWhere,
+    include: { invoice: { select: { date: true } } },
+  });
+
+  const bookedRevenue = revenueLeads
     .filter((l: any) => {
-      if (l.status !== 'SOLD') return false;
       if (!fromDate && !toDate) return true;
       const invoiceDate = l.invoice?.date ? new Date(l.invoice.date) : null;
       if (!invoiceDate) return false;
@@ -85,7 +99,7 @@ export async function GET(req: NextRequest) {
     })
     .reduce((sum: number, l: any) => sum + (l.amount || 0), 0);
 
-  const upsellRevenue = leads
+  const upsellRevenue = revenueLeads
     .filter((l: any) => {
       if (!l.upsellAmount || !l.upsellDate) return false;
       if (!fromDate && !toDate) return true;
