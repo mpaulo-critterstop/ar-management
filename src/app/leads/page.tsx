@@ -279,7 +279,6 @@ export default function LeadsPage() {
               <select value={statusInput} onChange={e => setStatusInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
                 <option value="All">All</option>
                 <option value="SOLD">Sold</option>
-                <option value="INSPECTED">Inspected</option>
               </select>
               <select value={pmInput} onChange={e => setPmInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
                 {pms.map(p => <option key={p}>{p}</option>)}
