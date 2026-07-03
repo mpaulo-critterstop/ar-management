@@ -336,9 +336,11 @@ export default function LeadsPage() {
                     const invoiceDate = lead.invoice?.date ? lead.invoice.date.split('T')[0] : null;
                     const fromDate = from || null;
                     const toDate = to || null;
-                    const isSoldOrAll = !statusFilter || statusFilter === 'SOLD' || statusFilter === 'All';
                     const noDateFilter = !fromDate && !toDate;
-                    const primaryInRange = !isSoldOrAll || noDateFilter ||
+                    // For SOLD leads with a date filter, only show if invoice date is in range
+                    // For INSPECTED leads, always show the primary row (no invoice date to check)
+                    const primaryInRange = noDateFilter ||
+                      lead.status !== 'SOLD' ||
                       (invoiceDate !== null && (!fromDate || invoiceDate >= fromDate) && (!toDate || invoiceDate <= toDate));
 
                     if (primaryInRange) {
@@ -361,7 +363,7 @@ export default function LeadsPage() {
                     }
                     if (lead.upsellAmount && lead.upsellDate) {
                       const upsellDateStr = lead.upsellDate.split('T')[0];
-                      const upsellInRange = !isSoldOrAll || noDateFilter ||
+                      const upsellInRange = noDateFilter ||
                         ((!fromDate || upsellDateStr >= fromDate) && (!toDate || upsellDateStr <= toDate));
                       if (upsellInRange) {
                         rows.push(
