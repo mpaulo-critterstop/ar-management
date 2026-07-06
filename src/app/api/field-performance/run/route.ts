@@ -285,9 +285,8 @@ export async function GET(req: NextRequest) {
         if (revenueEff !== null) updateData.revenueEfficiency = revenueEff;
 
         const completionPct = existing?.completionPct ?? null;
-        if (revenueEff !== null && completionPct !== null &&
-            existing?.drivingScore && existing?.reliabilityScore) {
-          const effectiveDriving = existing?.drivingOverride ? 0 : existing.drivingScore;
+        if (revenueEff !== null && completionPct !== null && existing?.reliabilityScore) {
+          const effectiveDriving = existing?.drivingOverride ? 0 : (existing.drivingScore ?? 1.0);
           const pmpScore = calcPMPScore(revenueEff, effectiveReseviceRate, completionPct, effectiveDriving, existing.reliabilityScore);
           updateData.pmpScore   = pmpScore;
           updateData.totalScore = pmpScore + (existing.manualAdj ?? 0) / 100;
