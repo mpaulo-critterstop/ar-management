@@ -810,7 +810,7 @@ export async function POST(req: NextRequest) {
         const timeZone = 'America/Chicago';
         for (const appt of completed) {
           const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
-          const timeIn = appt.checkIn || appt.timeIn; // prefer checkIn (actual check-in time)
+          const timeIn = appt.timeIn || appt.checkIn; // timeIn is CST local, checkIn is offset
           // FR times are CST local strings — parse with -05:00 offset
           const cstDate = new Date(timeIn.replace(' ', 'T') + '-05:00');
           const localDate = cstDate.toLocaleDateString('en-CA', { timeZone });
@@ -832,8 +832,8 @@ export async function POST(req: NextRequest) {
           for (const [dateStr, appts] of dayMap) {
             // FR times are local CST strings (no timezone suffix) — parse as CST by appending offset
             const parseCST = (s: string) => new Date(s.replace(' ', 'T') + '-05:00').getTime();
-            const timeIns = appts.map((a: any) => { const v = a.checkIn || a.timeIn; return v ? parseCST(v) : 0; }).filter(Boolean);
-            const timeOuts = appts.map((a: any) => { const v = a.checkOut || a.timeOut; return v ? parseCST(v) : 0; }).filter(Boolean);
+            const timeIns = appts.map((a: any) => { const v = a.timeIn || a.checkIn; return v ? parseCST(v) : 0; }).filter(Boolean);
+            const timeOuts = appts.map((a: any) => { const v = a.timeOut || a.checkOut; return v ? parseCST(v) : 0; }).filter(Boolean);
             if (timeIns.length === 0 || timeOuts.length === 0) continue;
 
             const startOfDay = new Date(Math.min(...timeIns));
