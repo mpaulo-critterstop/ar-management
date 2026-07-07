@@ -98,9 +98,8 @@ async function pullReservices(
   // { dateMs, empId } sorted descending by date
   const custRegularMap = new Map<string, Array<{ dateMs: number; empId: number }>>();
 
-  // Step 1: Per-tech 90-day history for denominator (avoids office-wide ID ceiling)
-  // Also build custRegularMap for attribution without extra API calls
-  for (const [empId, techId] of pmpTechs) {
+  // Step 1: Per-tech 90-day history — fetch all techs in parallel
+  await Promise.all(Array.from(pmpTechs.entries()).map(async ([empId, techId]) => {
     let searchData: any;
     try {
       const searchUrl = frUrl('appointment', 'search', {
@@ -110,10 +109,10 @@ async function pullReservices(
         dateEnd:    fmtDate(weekEnd),
       }, cfg.key, cfg.token);
       searchData = await frFetch(searchUrl);
-    } catch { continue; }
+    } catch { return; }
 
     const apptIds: number[] = searchData.appointmentIDs || [];
-    if (apptIds.length === 0) continue;
+    if (apptIds.length === 0) return;
 
     const appts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token, 600);
     const cleanAppts = appts.filter((a: any) => !a.__failed__);
@@ -124,7 +123,6 @@ async function pullReservices(
     });
     regularCountByTech.set(techId, regularAppts.length);
 
-    // Index regular completions by customerID for attribution
     for (const a of regularAppts) {
       const custId = String(a.customerID || '');
       if (!custId || custId === '0') continue;
@@ -133,9 +131,8 @@ async function pullReservices(
       if (!custRegularMap.has(custId)) custRegularMap.set(custId, []);
       custRegularMap.get(custId)!.push({ dateMs, empId: svcEmpId });
     }
-  }
+  }));
 
-  // Sort each customer's history descending by date (most recent first)
   for (const [, arr] of custRegularMap) {
     arr.sort((a, b) => b.dateMs - a.dateMs);
   }
