@@ -146,43 +146,10 @@ async function pullReservices(
       return RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs;
     });
 
-    // Step 3: For each reservice, look up the customer's last regular service for attribution
+    // Step 3: Attribute reservice to the tech who performed it (servicedBy)
     for (const rs of reservicesThisWeek) {
-      const custId   = String(rs.customerID || '');
-      const rsDateMs = rs.date ? new Date(rs.date).getTime() : 0;
-      if (!custId || custId === '0') continue;
-
-      let custSearch: any;
-      try {
-        const custUrl = frUrl('appointment', 'search', {
-          officeIDs:  String(cfg.officeId),
-          customerID: custId,
-          dateStart:  fmtDate(lookbackStart),
-          dateEnd:    fmtDate(weekEnd),
-        }, cfg.key, cfg.token);
-        custSearch = await frFetch(custUrl);
-      } catch { continue; }
-
-      const custApptIds: number[] = custSearch.appointmentIDs || [];
-      if (custApptIds.length === 0) continue;
-
-      const custAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', custApptIds, cfg.key, cfg.token, 600);
-      const cleanCustAppts = custAppts.filter((a: any) => !a.__failed__);
-
-      const regularBefore = cleanCustAppts
-        .filter((a: any) => {
-          const typeStr = String(a.type || a.serviceTypeID || '');
-          const dateMs  = a.date ? new Date(a.date).getTime() : 0;
-          return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs < rsDateMs;
-        })
-        .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-      if (regularBefore.length === 0) continue;
-
-      const lastRegular = regularBefore[0];
-      const responsibleEmpId = parseInt(lastRegular.servicedBy || lastRegular.employeeID || '0');
+      const responsibleEmpId = parseInt(rs.servicedBy || '0');
       if (!responsibleEmpId || !pmpTechs.has(responsibleEmpId)) continue;
-
       const techId = pmpTechs.get(responsibleEmpId)!;
       reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
     }
