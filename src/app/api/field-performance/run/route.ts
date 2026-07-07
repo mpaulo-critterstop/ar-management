@@ -76,7 +76,8 @@ async function pullReservices(
   cfg: { key: string; token: string; officeId: number; reserviceTypeIds: Set<string> },
   weekStart: Date,
   weekEnd: Date,
-  pmpTechs: Map<number, string>
+  pmpTechs: Map<number, string>,
+  preFetchedWeekApptIds: number[]  // fetched before parallel per-tech calls to avoid rate limit
 ): Promise<Map<string, number>> {
 
   const result = new Map<string, number>();
@@ -95,17 +96,7 @@ async function pullReservices(
   const regularCountByTech  = new Map<string, number>();
   const custRegularMap = new Map<string, Array<{ dateMs: number; empId: number }>>();
 
-  // Step 0: Fetch this week's appointments FIRST (before per-tech calls hit rate limits)
-  let weekApptIds: number[] = [];
-  try {
-    const weekSearchUrl = frUrl('appointment', 'search', {
-      officeIDs: String(cfg.officeId),
-      dateStart: fmtDate(weekStart),
-      dateEnd:   fmtDate(weekEnd),
-    }, cfg.key, cfg.token);
-    const weekSearchData = await frFetch(weekSearchUrl);
-    weekApptIds = weekSearchData.appointmentIDs || [];
-  } catch { /* proceed with empty */ }
+  const weekApptIds = preFetchedWeekApptIds;
   result.set('__ids__', weekApptIds.length);
 
   // Step 1: Per-tech 90-day history — fetch all techs in parallel
@@ -255,11 +246,23 @@ export async function GET(req: NextRequest) {
       }
       log.push(`  Routes: ${routeIds.length}`);
 
+      // Fetch week appointment IDs BEFORE per-tech parallel calls to avoid rate limit
+      let weekApptIdsForReservice: number[] = [];
+      try {
+        const weekApptSearchUrl = frUrl('appointment', 'search', {
+          officeIDs: String(cfg.officeId),
+          dateStart: fmtDate(weekStart),
+          dateEnd:   fmtDate(weekEnd),
+        }, cfg.key, cfg.token);
+        const weekApptSearch = await frFetch(weekApptSearchUrl);
+        weekApptIdsForReservice = weekApptSearch.appointmentIDs || [];
+      } catch { /* proceed with empty */ }
+
       // Reservice rate — wait for FR rate limit to reset after route fetch
       await new Promise(r => setTimeout(r, 3000));
       const pmpReserviceMap = new Map<string, number>();
       try {
-        const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);
+        const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs, weekApptIdsForReservice);
         for (const [k, v] of rsMap) {
           if (!k.startsWith('__')) pmpReserviceMap.set(k, v);
         }
