@@ -225,9 +225,22 @@ async function processTicket(
       externalSource: 'fieldroutes',
     };
 
+    // Preserve existing due date — dispatch sync sets due = closeout date
+    // and AR sync must not overwrite it back to null
+    const existingInvoice = await prisma.invoice.findUnique({
+      where: { id: String(t.ticketID) },
+      select: { due: true },
+    });
+    const preservedDue = existingInvoice?.due ?? invoiceData.due;
+    const updateData = {
+      ...invoiceData,
+      due: preservedDue,
+      status: getInvoiceStatus(balance, preservedDue) as any,
+    };
+
     const result = await prisma.invoice.upsert({
       where: { id: String(t.ticketID) },
-      update: invoiceData,
+      update: updateData,
       create: { id: String(t.ticketID), ...invoiceData },
     });
 
