@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   const invoices = await prisma.invoice.findMany({
     where,
     include: {
-      customer: { select: { name: true, phone: true, email: true, serviceAddr: true } },
+      customer: { select: { name: true, phone: true, email: true, serviceAddr: true, externalId: true } },
     },
     orderBy: { due: 'asc' },
     take: limit,
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
       dueDate:       inv.due ? inv.due.toISOString().split('T')[0] : '',
       officeName:    inv.office || '',
       salesRep:      '',
-      customerID:    inv.id,
+      customerID:    inv.customer?.externalId || inv.id,
     };
 
     if (dry) {
