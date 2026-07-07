@@ -31,17 +31,31 @@ function makeRateLimiter() {
 
 async function getRouteCompletionOnly(routeID: string, key: string, token: string, rl: (u: string) => Promise<any>) {
   const auth = `&authenticationKey=${key}&authenticationToken=${token}`;
+
+  // Search for completed/pending appointments
   const searchData = await rl(`${BASE_URL}/appointment/search?routeIDs=${routeID}${auth}`);
   const apptIDs: string[] = searchData.appointmentIDs || [];
-  if (!apptIDs.length) return null;
 
-  const apptData = await rl(`${BASE_URL}/appointment/get?appointmentIDs=${apptIDs.join(',')}${auth}`);
-  const appointments: any[] = apptData.appointments || [];
+  // Search separately for no-shows (status=2) — FR excludes them from default search
+  const noShowSearch = await rl(`${BASE_URL}/appointment/search?routeIDs=${routeID}&status=2${auth}`);
+  const noShowIDs: string[] = noShowSearch.appointmentIDs || [];
+
+  if (!apptIDs.length && !noShowIDs.length) return null;
+
+  let completed = 0;
+  let pending = 0;
+
+  if (apptIDs.length) {
+    const apptData = await rl(`${BASE_URL}/appointment/get?appointmentIDs=${apptIDs.join(',')}${auth}`);
+    const appointments: any[] = apptData.appointments || [];
+    completed = appointments.filter(a => a.status === '1').length;
+    pending   = appointments.filter(a => a.status === '0').length;
+  }
 
   return {
-    completed: appointments.filter(a => a.status === '1').length,
-    pending:   appointments.filter(a => a.status === '0').length,
-    noShow:    appointments.filter(a => a.status === '2').length,
+    completed,
+    pending,
+    noShow: noShowIDs.length,
   };
 }
 
