@@ -94,7 +94,12 @@ async function pullReservices(
   const reseviceCountByTech = new Map<string, number>();
   const regularCountByTech  = new Map<string, number>();
 
+  // customerID → sorted list of regular completions (for attribution lookup)
+  // { dateMs, empId } sorted descending by date
+  const custRegularMap = new Map<string, Array<{ dateMs: number; empId: number }>>();
+
   // Step 1: Per-tech 90-day history for denominator (avoids office-wide ID ceiling)
+  // Also build custRegularMap for attribution without extra API calls
   for (const [empId, techId] of pmpTechs) {
     let searchData: any;
     try {
@@ -118,6 +123,21 @@ async function pullReservices(
       return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
     });
     regularCountByTech.set(techId, regularAppts.length);
+
+    // Index regular completions by customerID for attribution
+    for (const a of regularAppts) {
+      const custId = String(a.customerID || '');
+      if (!custId || custId === '0') continue;
+      const dateMs = a.date ? new Date(a.date).getTime() : 0;
+      const svcEmpId = parseInt(a.servicedBy || String(empId));
+      if (!custRegularMap.has(custId)) custRegularMap.set(custId, []);
+      custRegularMap.get(custId)!.push({ dateMs, empId: svcEmpId });
+    }
+  }
+
+  // Sort each customer's history descending by date (most recent first)
+  for (const [, arr] of custRegularMap) {
+    arr.sort((a, b) => b.dateMs - a.dateMs);
   }
 
   // Step 2: Fetch this week's appointments office-wide (small window = no ceiling issue)
@@ -146,10 +166,22 @@ async function pullReservices(
       return RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs;
     });
 
-    // Step 3: Attribute reservice to the tech who performed it (servicedBy)
+    // Step 3: Attribute each reservice to the tech who did the last regular service
+    // for that customer — using the in-memory map from per-tech 90-day data (no extra API calls)
     for (const rs of reservicesThisWeek) {
-      const responsibleEmpId = parseInt(rs.servicedBy || '0');
+      const custId   = String(rs.customerID || '');
+      const rsDateMs = rs.date ? new Date(rs.date).getTime() : 0;
+      if (!custId || custId === '0') continue;
+
+      const history = custRegularMap.get(custId);
+      if (!history || history.length === 0) continue;
+
+      const lastRegular = history.find(h => h.dateMs < rsDateMs);
+      if (!lastRegular) continue;
+
+      const responsibleEmpId = lastRegular.empId;
       if (!responsibleEmpId || !pmpTechs.has(responsibleEmpId)) continue;
+
       const techId = pmpTechs.get(responsibleEmpId)!;
       reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
     }
