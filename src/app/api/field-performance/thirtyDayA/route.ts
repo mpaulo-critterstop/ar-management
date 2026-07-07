@@ -46,7 +46,7 @@ async function getRouteCompletionOnly(routeID: string, key: string, token: strin
   return {
     completed: appointments.filter(a => a.status === '1').length,
     pending:   appointments.filter(a => a.status === '0').length,
-    noShow:    appointments.filter(a => a.statusText === 'No Show').length,
+    noShow:    appointments.filter(a => a.statusText === 'Not Serviced').length,
   };
 }
 
