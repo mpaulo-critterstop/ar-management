@@ -31,13 +31,8 @@ function makeRateLimiter() {
 
 async function getRouteCompletionOnly(routeID: string, key: string, token: string, rl: (u: string) => Promise<any>) {
   const auth = `&authenticationKey=${key}&authenticationToken=${token}`;
-  const spotSearch = await rl(`${BASE_URL}/spot/search?routeID=${routeID}${auth}`);
-  const spotIDs: string[] = spotSearch.spotIDs || [];
-  if (!spotIDs.length) return null;
-
-  const spotData = await rl(`${BASE_URL}/spot/get?spotIDs=${spotIDs.join(',')}${auth}`);
-  const apptIDs: string[] = [];
-  (spotData.spots || []).forEach((s: any) => { if (s.appointmentIDs?.length) apptIDs.push(...s.appointmentIDs); });
+  const searchData = await rl(`${BASE_URL}/appointment/search?routeIDs=${routeID}${auth}`);
+  const apptIDs: string[] = searchData.appointmentIDs || [];
   if (!apptIDs.length) return null;
 
   const apptData = await rl(`${BASE_URL}/appointment/get?appointmentIDs=${apptIDs.join(',')}${auth}`);
@@ -46,7 +41,7 @@ async function getRouteCompletionOnly(routeID: string, key: string, token: strin
   return {
     completed: appointments.filter(a => a.status === '1').length,
     pending:   appointments.filter(a => a.status === '0').length,
-    noShow:    appointments.filter(a => a.statusText === 'No Show').length,
+    noShow:    appointments.filter(a => a.status === '2').length,
   };
 }
 
