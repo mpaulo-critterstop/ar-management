@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-const AR_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/baa97b63-2a26-4fb7-8f35-5af2dddf5666';
+const AR_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/804c863a-a07d-4e18-804d-ab399061cdf9';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
