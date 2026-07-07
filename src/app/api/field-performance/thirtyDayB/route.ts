@@ -46,7 +46,7 @@ async function getRouteCompletionOnly(routeID: string, key: string, token: strin
   return {
     completed: appointments.filter(a => a.status === '1').length,
     pending:   appointments.filter(a => a.status === '0').length,
-    noShow:    appointments.filter(a => a.statusText === 'Not Serviced').length,
+    noShow:    appointments.filter(a => a.statusText === 'No Show').length,
   };
 }
 
@@ -182,7 +182,7 @@ export async function GET(req: NextRequest) {
       const totalPending   = a.pending   + b.pending;
       const totalNoShow    = a.noShow    + b.noShow;
       const total          = totalCompleted + totalPending + totalNoShow;
-      const completionPct  = (totalCompleted + totalNoShow) > 0 ? totalCompleted / (totalCompleted + totalNoShow) : null;
+      const completionPct  = total > 0 ? totalCompleted / total : null;
 
       results.push({
         techID,
@@ -194,7 +194,7 @@ export async function GET(req: NextRequest) {
         total,
       });
 
-      log.push(`${techName}: ${completionPct !== null ? (completionPct * 100).toFixed(1) + '%' : '—'} (${totalCompleted}/${totalCompleted + totalNoShow})`);
+      log.push(`${techName}: ${completionPct !== null ? (completionPct * 100).toFixed(1) + '%' : '—'} (${totalCompleted}/${total})`);
 
       const dbTech = frIdToTech.get(techID);
       if (dbTech) {
