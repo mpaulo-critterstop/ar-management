@@ -93,10 +93,20 @@ async function pullReservices(
 
   const reseviceCountByTech = new Map<string, number>();
   const regularCountByTech  = new Map<string, number>();
-
-  // customerID → sorted list of regular completions (for attribution lookup)
-  // { dateMs, empId } sorted descending by date
   const custRegularMap = new Map<string, Array<{ dateMs: number; empId: number }>>();
+
+  // Step 0: Fetch this week's appointments FIRST (before per-tech calls hit rate limits)
+  let weekApptIds: number[] = [];
+  try {
+    const weekSearchUrl = frUrl('appointment', 'search', {
+      officeIDs: String(cfg.officeId),
+      dateStart: fmtDate(weekStart),
+      dateEnd:   fmtDate(weekEnd),
+    }, cfg.key, cfg.token);
+    const weekSearchData = await frFetch(weekSearchUrl);
+    weekApptIds = weekSearchData.appointmentIDs || [];
+  } catch { /* proceed with empty */ }
+  result.set('__ids__', weekApptIds.length);
 
   // Step 1: Per-tech 90-day history — fetch all techs in parallel
   await Promise.all(Array.from(pmpTechs.entries()).map(async ([empId, techId]) => {
@@ -137,20 +147,7 @@ async function pullReservices(
     arr.sort((a, b) => b.dateMs - a.dateMs);
   }
 
-  // Step 2: Fetch this week's appointments office-wide (small window = no ceiling issue)
-  let weekSearchData: any;
-  try {
-    const weekSearchUrl = frUrl('appointment', 'search', {
-      officeIDs: String(cfg.officeId),
-      dateStart: fmtDate(weekStart),
-      dateEnd:   fmtDate(weekEnd),
-    }, cfg.key, cfg.token);
-    weekSearchData = await frFetch(weekSearchUrl);
-  } catch { return result; }
-
-  const weekApptIds: number[] = weekSearchData.appointmentIDs || [];
-  result.set('__ids__', weekApptIds.length);
-
+  // Step 2: Process this week's appointments using IDs fetched in Step 0
   if (weekApptIds.length > 0) {
     const weekAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', weekApptIds, cfg.key, cfg.token, 600);
     const cleanWeekAppts = weekAppts.filter((a: any) => !a.__failed__);
