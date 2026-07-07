@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   const dry = searchParams.get('dry') === 'true';
   const office = searchParams.get('office') || undefined;
   const limit = parseInt(searchParams.get('limit') || '100');
+  const singleInvoiceId = searchParams.get('invoiceId') || undefined;
 
   const WILDLIFE_INVOICE_IDS = [553, 716, 720, 501, 674, 479, 541, 542, 624, 510];
 
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
     date: { gte: new Date('2026-01-01T00:00:00.000Z') },
   };
   if (office) where.office = office;
+  if (singleInvoiceId) where.externalId = singleInvoiceId;
 
   const invoices = await prisma.invoice.findMany({
     where,
