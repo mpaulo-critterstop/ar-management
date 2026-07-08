@@ -12,7 +12,7 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number; re
   DFW:   { key: process.env.FIELDROUTES_KEY_DFW!,   token: process.env.FIELDROUTES_TOKEN_DFW!,   officeId: 1, reserviceTypeIds: new Set(['3','1005','1066'])           },
   ATX:   { key: process.env.FIELDROUTES_KEY_ATX!,   token: process.env.FIELDROUTES_TOKEN_ATX!,   officeId: 5, reserviceTypeIds: new Set(['3','1005','1066'])           },
   OKC:   { key: process.env.FIELDROUTES_KEY_OKC!,   token: process.env.FIELDROUTES_TOKEN_OKC!,   officeId: 3, reserviceTypeIds: new Set(['3','1005','1066'])           },
-  CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4, reserviceTypeIds: new Set(['822','821','807','732','809','1005','1066']) },
+  CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4, reserviceTypeIds: new Set(['3','822','821','807','732','809','1005','1066']) },
 };
 
 const PROD_STANDARD_PER_DAY = 5676.92;
@@ -87,50 +87,34 @@ async function pullReservices(
   const lookbackStart = new Date(weekEnd);
   lookbackStart.setDate(lookbackStart.getDate() - LOOKBACK_DAYS);
 
-  // Step 1: Fetch this week's reservices via FR reservice endpoint
-  let rsAppts: any[] = [];
-  try {
-    const rsSearchUrl = frUrl('reservice', 'search', {
-      officeIDs: String(cfg.officeId),
-      dateStart: fmtDate(weekStart),
-      dateEnd:   fmtDate(weekEnd),
-    }, cfg.key, cfg.token);
-    const rsSearchData = await frFetch(rsSearchUrl);
-    const rsIds: number[] = rsSearchData.reserviceIDs || rsSearchData.reServiceIDs || [];
-    result.set('__ids__', rsIds.length);
-    if (rsIds.length > 0) {
-      const rsFetched = await fetchInBatches('reservice', 'get', 'reserviceIDs', rsIds, cfg.key, cfg.token, 300);
-      rsAppts = rsFetched.filter((a: any) => !a.__failed__);
-    }
-  } catch { /* proceed */ }
-
-  // Step 2: Fetch 90-day appointments for attribution (denominator + last service lookup)
-  await new Promise(r => setTimeout(r, 2000));
   let searchData: any;
   try {
     const searchUrl = frUrl('appointment', 'search', {
       officeIDs: String(cfg.officeId),
       dateStart: fmtDate(lookbackStart),
-      dateEnd:   fmtDate(weekEnd),
+      dateEnd: fmtDate(weekEnd),
     }, cfg.key, cfg.token);
     searchData = await frFetch(searchUrl);
   } catch { return result; }
 
-  const allIds: number[] = (searchData.appointmentIDs || []).sort((a: number, b: number) => b - a);
-  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', allIds, cfg.key, cfg.token, 600);
+  const apptIds: number[] = (searchData.appointmentIDs || []).sort((a: number, b: number) => b - a);
+  result.set('__ids__', apptIds.length);
+  if (apptIds.length === 0) { return result; }
+
+  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token, 600);
   const failedEntry = allAppts.find((a: any) => a.__failed__);
   const failedBatches = failedEntry ? failedEntry.__failed__ : 0;
-  let cleanAppts = allAppts.filter((a: any) => !a.__failed__);
+  const cleanAppts = allAppts.filter((a: any) => !a.__failed__);
   result.set('__appts__', cleanAppts.length);
   result.set('__failed__', failedBatches);
 
   const weekStartMs = weekStart.getTime();
   const weekEndMs   = weekEnd.getTime() + 86400000;
 
-  // Use rsAppts from reservice endpoint — filter to completed only
-  const reservicesThisWeek = rsAppts.filter((a: any) => {
-    const status = String(a.status || a.reServiceStatus || '');
-    return status === '1' || status === 'Serviced' || status === 'serviced';
+  const reservicesThisWeek = cleanAppts.filter((a: any) => {
+    const typeStr = String(a.type || a.serviceTypeID || '');
+    const dateMs  = a.date ? new Date(a.date).getTime() : 0;
+    return RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs;
   });
   result.set('__rscount__', reservicesThisWeek.length);
 
