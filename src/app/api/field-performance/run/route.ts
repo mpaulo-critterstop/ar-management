@@ -77,15 +77,14 @@ async function pullReservices(
   cfg: { key: string; token: string; officeId: number; reserviceTypeIds: Set<string> },
   weekStart: Date,
   weekEnd: Date,
-  pmpTechs: Map<number, string>,
-  preFetchedWeekApptIds: number[]  // fetched before parallel per-tech calls to avoid rate limit
+  pmpTechs: Map<number, string>
 ): Promise<Map<string, number>> {
 
   const result = new Map<string, number>();
   const RESERVICE_TYPES = cfg.reserviceTypeIds;
   const LOOKBACK_DAYS = 90;
-  // numberOfTimePeriods = (3 months × 30 days) / 6-day reporting period = 15
-  const NUMBER_OF_TIME_PERIODS = 15;
+  const NUMBER_OF_TIME_PERIODS = 15; // (3 months × 30 days) / 6-day reporting period
+  const MAX_APPTS_TO_FETCH = 3000;   // fetch most recent N to stay within rate limits
 
   const lookbackStart = new Date(weekEnd);
   lookbackStart.setDate(lookbackStart.getDate() - LOOKBACK_DAYS);
@@ -93,92 +92,80 @@ async function pullReservices(
   const weekStartMs = weekStart.getTime();
   const weekEndMs   = weekEnd.getTime() + 86400000;
 
-  const reseviceCountByTech = new Map<string, number>();
-  const regularCountByTech  = new Map<string, number>();
+  // Step 1: Office-wide ID search for 90-day window
+  let allIds: number[] = [];
+  try {
+    const searchUrl = frUrl('appointment', 'search', {
+      officeIDs: String(cfg.officeId),
+      dateStart:  fmtDate(lookbackStart),
+      dateEnd:    fmtDate(weekEnd),
+    }, cfg.key, cfg.token);
+    const searchData = await frFetch(searchUrl);
+    allIds = searchData.appointmentIDs || [];
+  } catch { return result; }
+
+  result.set('__ids__', allIds.length);
+  if (allIds.length === 0) return result;
+
+  // Sort descending (most recent IDs = highest numbers = most recent appointments)
+  allIds.sort((a, b) => b - a);
+  const idsToFetch = allIds.slice(0, MAX_APPTS_TO_FETCH);
+
+  // Step 2: Fetch appointment details for most recent IDs
+  const appts = await fetchInBatches('appointment', 'get', 'appointmentIDs', idsToFetch, cfg.key, cfg.token, 300);
+  const cleanAppts = appts.filter((a: any) => !a.__failed__);
+  result.set('__appts__', cleanAppts.length);
+  result.set('__failed__', appts.filter((a: any) => a.__failed__).length);
+
+  // Build customer → sorted regular service history for attribution
   const custRegularMap = new Map<string, Array<{ dateMs: number; empId: number }>>();
+  const regularCountByTech = new Map<string, number>();
 
-  const weekApptIds = preFetchedWeekApptIds;
-  result.set('__ids__', weekApptIds.length);
+  for (const a of cleanAppts) {
+    const typeStr = String(a.type || a.serviceTypeID || '');
+    if (RESERVICE_TYPES.has(typeStr)) continue; // skip reservices
+    if (String(a.status) !== '1') continue;     // completed only
 
-  // Step 1: Per-tech 90-day history — fetch in batches of 3 to stay under 60 req/min
-  const techEntries = Array.from(pmpTechs.entries());
-  for (let i = 0; i < techEntries.length; i += 3) {
-    const chunk = techEntries.slice(i, i + 3);
-    await Promise.all(chunk.map(async ([empId, techId]) => {
-    let searchData: any;
-    try {
-      const searchUrl = frUrl('appointment', 'search', {
-        officeIDs:  String(cfg.officeId),
-        employeeID: String(empId),
-        dateStart:  fmtDate(lookbackStart),
-        dateEnd:    fmtDate(weekEnd),
-      }, cfg.key, cfg.token);
-      searchData = await frFetch(searchUrl);
-    } catch { return; }
+    const empId = parseInt(a.servicedBy || a.employeeID || '0');
+    if (!empId || !pmpTechs.has(empId)) continue;
+    const techId = pmpTechs.get(empId)!;
 
-    const apptIds: number[] = searchData.appointmentIDs || [];
-    if (apptIds.length === 0) return;
+    regularCountByTech.set(techId, (regularCountByTech.get(techId) ?? 0) + 1);
 
-    const appts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token, 600);
-    const cleanAppts = appts.filter((a: any) => !a.__failed__);
-
-    const regularAppts = cleanAppts.filter((a: any) => {
-      const typeStr = String(a.type || a.serviceTypeID || '');
-      return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
-    });
-    regularCountByTech.set(techId, regularAppts.length);
-
-    for (const a of regularAppts) {
-      const custId = String(a.customerID || '');
-      if (!custId || custId === '0') continue;
-      const dateMs = a.date ? new Date(a.date).getTime() : 0;
-      const svcEmpId = parseInt(a.servicedBy || String(empId));
-      if (!custRegularMap.has(custId)) custRegularMap.set(custId, []);
-      custRegularMap.get(custId)!.push({ dateMs, empId: svcEmpId });
-    }
-  }));
-    // Wait between chunks to stay under 60 req/min
-    if (i + 3 < techEntries.length) await new Promise(r => setTimeout(r, 3000));
+    const custId = String(a.customerID || '');
+    if (!custId || custId === '0') continue;
+    const dateMs = a.date ? new Date(a.date).getTime() : 0;
+    if (!custRegularMap.has(custId)) custRegularMap.set(custId, []);
+    custRegularMap.get(custId)!.push({ dateMs, empId });
   }
 
   for (const [, arr] of custRegularMap) {
     arr.sort((a, b) => b.dateMs - a.dateMs);
   }
 
-  // Step 2: Process this week's appointments using IDs fetched in Step 0
-  // Wait for rate limit to reset after per-tech parallel fetches
-  await new Promise(r => setTimeout(r, 10000));
-  if (weekApptIds.length > 0) {
-    const weekAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', weekApptIds, cfg.key, cfg.token, 600);
-    const cleanWeekAppts = weekAppts.filter((a: any) => !a.__failed__);
-    result.set('__appts__', cleanWeekAppts.length);
-    result.set('__failed__', weekAppts.filter((a: any) => a.__failed__).length);
+  // Step 3: Find this week's reservices and attribute to last-regular-service tech
+  const reseviceCountByTech = new Map<string, number>();
 
-    const reservicesThisWeek = cleanWeekAppts.filter((a: any) => {
-      const typeStr = String(a.type || a.serviceTypeID || '');
-      const dateMs  = a.date ? new Date(a.date).getTime() : 0;
-      return RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs;
-    });
+  const reservicesThisWeek = cleanAppts.filter((a: any) => {
+    const typeStr = String(a.type || a.serviceTypeID || '');
+    const dateMs  = a.date ? new Date(a.date).getTime() : 0;
+    return RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs;
+  });
 
-    // Step 3: Attribute each reservice to the tech who did the last regular service
-    // for that customer — using the in-memory map from per-tech 90-day data (no extra API calls)
-    for (const rs of reservicesThisWeek) {
-      const custId   = String(rs.customerID || '');
-      const rsDateMs = rs.date ? new Date(rs.date).getTime() : 0;
-      if (!custId || custId === '0') continue;
+  for (const rs of reservicesThisWeek) {
+    const custId   = String(rs.customerID || '');
+    const rsDateMs = rs.date ? new Date(rs.date).getTime() : 0;
+    if (!custId || custId === '0') continue;
 
-      const history = custRegularMap.get(custId);
-      if (!history || history.length === 0) continue;
+    const history = custRegularMap.get(custId);
+    if (!history || history.length === 0) continue;
 
-      const lastRegular = history.find(h => h.dateMs < rsDateMs);
-      if (!lastRegular) continue;
+    const lastRegular = history.find(h => h.dateMs < rsDateMs);
+    if (!lastRegular) continue;
 
-      const responsibleEmpId = lastRegular.empId;
-      if (!responsibleEmpId || !pmpTechs.has(responsibleEmpId)) continue;
-
-      const techId = pmpTechs.get(responsibleEmpId)!;
-      reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
-    }
+    if (!pmpTechs.has(lastRegular.empId)) continue;
+    const techId = pmpTechs.get(lastRegular.empId)!;
+    reseviceCountByTech.set(techId, (reseviceCountByTech.get(techId) ?? 0) + 1);
   }
 
   // Calculate rate: rsCount / (regularCount / NUMBER_OF_TIME_PERIODS)
@@ -255,23 +242,11 @@ export async function GET(req: NextRequest) {
       }
       log.push(`  Routes: ${routeIds.length}`);
 
-      // Fetch week appointment IDs BEFORE per-tech parallel calls to avoid rate limit
-      let weekApptIdsForReservice: number[] = [];
-      try {
-        const weekApptSearchUrl = frUrl('appointment', 'search', {
-          officeIDs: String(cfg.officeId),
-          dateStart: fmtDate(weekStart),
-          dateEnd:   fmtDate(weekEnd),
-        }, cfg.key, cfg.token);
-        const weekApptSearch = await frFetch(weekApptSearchUrl);
-        weekApptIdsForReservice = weekApptSearch.appointmentIDs || [];
-      } catch { /* proceed with empty */ }
-
       // Reservice rate — wait for FR rate limit to reset after route fetch
       await new Promise(r => setTimeout(r, 3000));
       const pmpReserviceMap = new Map<string, number>();
       try {
-        const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs, weekApptIdsForReservice);
+        const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);
         for (const [k, v] of rsMap) {
           if (!k.startsWith('__')) pmpReserviceMap.set(k, v);
         }
