@@ -146,6 +146,8 @@ async function pullReservices(
   }
 
   // Step 2: Process this week's appointments using IDs fetched in Step 0
+  // Wait for rate limit to reset after per-tech parallel fetches
+  await new Promise(r => setTimeout(r, 10000));
   if (weekApptIds.length > 0) {
     const weekAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', weekApptIds, cfg.key, cfg.token, 600);
     const cleanWeekAppts = weekAppts.filter((a: any) => !a.__failed__);
