@@ -100,8 +100,11 @@ async function pullReservices(
   const weekApptIds = preFetchedWeekApptIds;
   result.set('__ids__', weekApptIds.length);
 
-  // Step 1: Per-tech 90-day history — fetch all techs in parallel
-  await Promise.all(Array.from(pmpTechs.entries()).map(async ([empId, techId]) => {
+  // Step 1: Per-tech 90-day history — fetch in batches of 3 to stay under 60 req/min
+  const techEntries = Array.from(pmpTechs.entries());
+  for (let i = 0; i < techEntries.length; i += 3) {
+    const chunk = techEntries.slice(i, i + 3);
+    await Promise.all(chunk.map(async ([empId, techId]) => {
     let searchData: any;
     try {
       const searchUrl = frUrl('appointment', 'search', {
@@ -134,6 +137,9 @@ async function pullReservices(
       custRegularMap.get(custId)!.push({ dateMs, empId: svcEmpId });
     }
   }));
+    // Wait between chunks to stay under 60 req/min
+    if (i + 3 < techEntries.length) await new Promise(r => setTimeout(r, 3000));
+  }
 
   for (const [, arr] of custRegularMap) {
     arr.sort((a, b) => b.dateMs - a.dateMs);
