@@ -147,14 +147,17 @@ async function pullReservices(
 
   // Debug: log type distribution of ALL this week's completed appointments
   const weekCompletedTypes = new Map<string, number>();
+  const weekApptDebug: string[] = [];
   for (const a of cleanAppts) {
     const dateMs = a.date ? new Date(a.date).getTime() : 0;
     if (String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs) {
       const typeStr = String(a.type || a.serviceTypeID || '');
       weekCompletedTypes.set(typeStr, (weekCompletedTypes.get(typeStr) ?? 0) + 1);
+      weekApptDebug.push(`id=${a.appointmentID||a.id},type=${typeStr},date=${a.date}`);
     }
   }
   console.log('[pullReservices] week completed appt types:', JSON.stringify(Object.fromEntries(weekCompletedTypes)));
+  console.log('[pullReservices] week completed appts:', weekApptDebug.join(' | '));
 
   const regularAppts = cleanAppts.filter((a: any) => {
     const typeStr = String(a.type || a.serviceTypeID || '');
