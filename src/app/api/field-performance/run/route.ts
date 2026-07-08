@@ -241,6 +241,8 @@ export async function GET(req: NextRequest) {
           if (!empId || !pmpTechs.has(empId)) continue;
           const techId = pmpTechs.get(empId) as string | undefined;
           if (!techId) continue;
+          const completed = parseInt(route.completedServices || route.completed || '0');
+          if (completed === 0) continue; // exclude days with no completed services
           routeCountByTech.set(techId, (routeCountByTech.get(techId) ?? 0) + 1);
         }
       }
