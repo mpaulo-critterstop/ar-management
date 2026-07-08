@@ -43,6 +43,7 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
       const items = Array.isArray(data[propName]) ? data[propName] : Object.values(data[propName] as object);
       results.push(...items);
     } else {
+      console.error('[fetchInBatches] failed batch:', JSON.stringify({ success: data.success, propertyName: data.propertyName, errorMessage: data.errorMessage, keys: Object.keys(data).slice(0,10) }));
       failed++;
     }
     await new Promise(r => setTimeout(r, delayMs));
