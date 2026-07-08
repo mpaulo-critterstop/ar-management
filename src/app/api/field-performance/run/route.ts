@@ -112,7 +112,7 @@ async function pullReservices(
   const idsToFetch = allIds.slice(0, MAX_APPTS_TO_FETCH);
 
   // Step 2: Fetch appointment details for most recent IDs
-  const appts = await fetchInBatches('appointment', 'get', 'appointmentIDs', idsToFetch, cfg.key, cfg.token, 300);
+  const appts = await fetchInBatches('appointment', 'get', 'appointmentIDs', idsToFetch, cfg.key, cfg.token, 1500);
   const cleanAppts = appts.filter((a: any) => !a.__failed__);
   result.set('__appts__', cleanAppts.length);
   result.set('__failed__', appts.filter((a: any) => a.__failed__).length);
@@ -243,7 +243,7 @@ export async function GET(req: NextRequest) {
       log.push(`  Routes: ${routeIds.length}`);
 
       // Reservice rate — wait for FR rate limit to reset after route fetch
-      await new Promise(r => setTimeout(r, 3000));
+      await new Promise(r => setTimeout(r, 8000));
       const pmpReserviceMap = new Map<string, number>();
       try {
         const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);
