@@ -116,6 +116,7 @@ async function pullReservices(
     const dateMs  = a.date ? new Date(a.date).getTime() : 0;
     return RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs;
   });
+  result.set('__rscount__', reservicesThisWeek.length);
 
   const regularAppts = cleanAppts.filter((a: any) => {
     const typeStr = String(a.type || a.serviceTypeID || '');
@@ -253,7 +254,7 @@ export async function GET(req: NextRequest) {
         for (const [k, v] of rsMap) {
           if (!k.startsWith('__')) pmpReserviceMap.set(k, v);
         }
-        log.push(`  Reservice: ids=${rsMap.get('__ids__') ?? 0}, appts=${rsMap.get('__appts__') ?? 0}, failed=${rsMap.get('__failed__') ?? 0}, ${[...rsMap.entries()].filter(([k]) => !k.startsWith('__')).map(([k,v]) => `${k}=${(v*100).toFixed(1)}%`).join(', ') || 'none'}`);
+        log.push(`  Reservice: ids=${rsMap.get('__ids__') ?? 0}, appts=${rsMap.get('__appts__') ?? 0}, failed=${rsMap.get('__failed__') ?? 0}, rsThisWeek=${rsMap.get('__rscount__') ?? 0}, ${[...rsMap.entries()].filter(([k]) => !k.startsWith('__')).map(([k,v]) => `${k}=${(v*100).toFixed(1)}%`).join(', ') || 'none'}`);
       } catch (e: any) {
         log.push(`  Reservice error: ${e.message}`);
       }
