@@ -83,7 +83,6 @@ async function pullReservices(
   const result = new Map<string, number>();
   const RESERVICE_TYPES = cfg.reserviceTypeIds;
   const LOOKBACK_DAYS = 90;
-  const NUMBER_OF_TIME_PERIODS = 15; // (3 months × 30 days) / 6-day reporting period
   const MAX_APPTS_TO_FETCH = 3000;   // fetch most recent N to stay within rate limits
 
   const lookbackStart = new Date(weekEnd);
@@ -116,6 +115,15 @@ async function pullReservices(
   const cleanAppts = appts.filter((a: any) => !a.__failed__);
   result.set('__appts__', cleanAppts.length);
   result.set('__failed__', appts.filter((a: any) => a.__failed__).length);
+
+  // Calculate actual days covered by fetched appointments for accurate denominator
+  let oldestDateMs = weekEnd.getTime();
+  for (const a of cleanAppts) {
+    const d = a.date ? new Date(a.date).getTime() : 0;
+    if (d > 0 && d < oldestDateMs) oldestDateMs = d;
+  }
+  const actualDaysCovered = Math.max(6, (weekEnd.getTime() - oldestDateMs) / 86400000);
+  const NUMBER_OF_TIME_PERIODS = actualDaysCovered / 6; // 6-day service period
 
   // Build customer → sorted regular service history for attribution
   const custRegularMap = new Map<string, Array<{ dateMs: number; empId: number }>>();
