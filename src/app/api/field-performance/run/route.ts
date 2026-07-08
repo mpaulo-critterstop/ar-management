@@ -145,6 +145,17 @@ async function pullReservices(
   });
   result.set('__rscount__', reservicesThisWeek.length);
 
+  // Debug: log type distribution of ALL this week's completed appointments
+  const weekCompletedTypes = new Map<string, number>();
+  for (const a of cleanAppts) {
+    const dateMs = a.date ? new Date(a.date).getTime() : 0;
+    if (String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs) {
+      const typeStr = String(a.type || a.serviceTypeID || '');
+      weekCompletedTypes.set(typeStr, (weekCompletedTypes.get(typeStr) ?? 0) + 1);
+    }
+  }
+  console.log('[pullReservices] week completed appt types:', JSON.stringify(Object.fromEntries(weekCompletedTypes)));
+
   const regularAppts = cleanAppts.filter((a: any) => {
     const typeStr = String(a.type || a.serviceTypeID || '');
     return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
