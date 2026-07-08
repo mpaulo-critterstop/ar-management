@@ -220,7 +220,17 @@ async function syncLeads(office: string, key: string, token: string) {
         const existingByInvoice = await prisma.lead.findFirst({
           where: { invoiceId: invoice.id },
         });
-        if (existingByInvoice) { updated++; continue; }
+        if (existingByInvoice) {
+          // If this inspection is more recent than the existing lead, update pmName to this tech
+          const existingDate = existingByInvoice.inspectionDate ? new Date(existingByInvoice.inspectionDate).getTime() : 0;
+          if (inspectionDate.getTime() > existingDate && pmName) {
+            await prisma.lead.update({
+              where: { id: existingByInvoice.id },
+              data: { pmName, inspectionDate, externalId: String(a.appointmentID) },
+            });
+          }
+          updated++; continue;
+        }
       }
 
       const dayStart = new Date(a.date);
