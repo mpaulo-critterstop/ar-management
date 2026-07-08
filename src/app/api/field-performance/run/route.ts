@@ -87,20 +87,33 @@ async function pullReservices(
   const lookbackStart = new Date(weekEnd);
   lookbackStart.setDate(lookbackStart.getDate() - LOOKBACK_DAYS);
 
-  // Step 1: Fetch THIS WEEK's reservice appointments specifically by service type
-  // This ensures we get all reservices regardless of when they were scheduled
-  let rsIds: number[] = [];
+  // Step 1: Fetch ALL appointments for this week via route-based search
+  // Routes contain every appointment that was on the schedule regardless of when it was created
+  let rsAppts: any[] = [];
   try {
-    const rsSearchUrl = frUrl('appointment', 'search', {
-      officeIDs:      String(cfg.officeId),
-      serviceTypeIDs: [...RESERVICE_TYPES].join(','),
-      dateStart:      fmtDate(weekStart),
-      dateEnd:        fmtDate(weekEnd),
+    const routeSearchUrl = frUrl('route', 'search', {
+      officeIDs: String(cfg.officeId),
+      dateStart: fmtDate(weekStart),
+      dateEnd:   fmtDate(weekEnd),
     }, cfg.key, cfg.token);
-    const rsSearchData = await frFetch(rsSearchUrl);
-    rsIds = rsSearchData.appointmentIDs || [];
+    const routeSearchData = await frFetch(routeSearchUrl);
+    const weekRouteIds: number[] = routeSearchData.routeIDs || [];
+    result.set('__ids__', weekRouteIds.length);
+    if (weekRouteIds.length > 0) {
+      const weekRoutes = await fetchInBatches('route', 'get', 'routeIDs', weekRouteIds, cfg.key, cfg.token, 300);
+      const weekApptIds: number[] = [];
+      for (const r of weekRoutes) {
+        if (r.__failed__) continue;
+        const ids: number[] = r.appointmentIDs || [];
+        weekApptIds.push(...ids);
+      }
+      if (weekApptIds.length > 0) {
+        await new Promise(r => setTimeout(r, 2000));
+        const weekFetched = await fetchInBatches('appointment', 'get', 'appointmentIDs', weekApptIds, cfg.key, cfg.token, 300);
+        rsAppts = weekFetched.filter((a: any) => !a.__failed__);
+      }
+    }
   } catch { /* proceed */ }
-  result.set('__ids__', rsIds.length);
 
   // Step 2: Fetch 90-day regular appointments for attribution (denominator + last service lookup)
   let searchData: any;
@@ -120,14 +133,6 @@ async function pullReservices(
   let cleanAppts = allAppts.filter((a: any) => !a.__failed__);
   result.set('__appts__', cleanAppts.length);
   result.set('__failed__', failedBatches);
-
-  // Step 3: Fetch reservice appointment details
-  let rsAppts: any[] = [];
-  if (rsIds.length > 0) {
-    await new Promise(r => setTimeout(r, 2000));
-    const rsFetched = await fetchInBatches('appointment', 'get', 'appointmentIDs', rsIds, cfg.key, cfg.token, 600);
-    rsAppts = rsFetched.filter((a: any) => !a.__failed__);
-  }
 
   const weekStartMs = weekStart.getTime();
   const weekEndMs   = weekEnd.getTime() + 86400000;
