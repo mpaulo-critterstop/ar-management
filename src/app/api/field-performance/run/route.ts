@@ -274,10 +274,7 @@ export async function GET(req: NextRequest) {
           ? Math.min((productionValue / routeCount / hrDays * 40) / PROD_STANDARD_PER_DAY, 1.1)
           : null;
 
-        // Only overwrite reseviceRate if not already set — prevents FR inconsistency from overwriting correct values
-        const effectiveReseviceRate = (existing?.reseviceRate !== null && existing?.reseviceRate !== undefined)
-          ? existing.reseviceRate
-          : reseviceRate;
+        const effectiveReseviceRate = reseviceRate;
 
         const updateData: any = { reseviceRate: effectiveReseviceRate, updatedAt: new Date() };
         if (revenueEff !== null) updateData.revenueEfficiency = revenueEff;
