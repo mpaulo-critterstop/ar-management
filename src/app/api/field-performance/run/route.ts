@@ -104,12 +104,39 @@ async function pullReservices(
   const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token, 600);
   const failedEntry = allAppts.find((a: any) => a.__failed__);
   const failedBatches = failedEntry ? failedEntry.__failed__ : 0;
-  const cleanAppts = allAppts.filter((a: any) => !a.__failed__);
+  let cleanAppts = allAppts.filter((a: any) => !a.__failed__);
   result.set('__appts__', cleanAppts.length);
   result.set('__failed__', failedBatches);
 
   const weekStartMs = weekStart.getTime();
   const weekEndMs   = weekEnd.getTime() + 86400000;
+
+  // Fetch this week's appointments separately — the 90-day pool may not include all of them
+  // if FR filters by scheduled date and some were rescheduled outside the window
+  let weekOnlyAppts: any[] = [];
+  try {
+    const weekSearchData = await frFetch(frUrl('appointment', 'search', {
+      officeIDs: String(cfg.officeId),
+      dateStart: fmtDate(weekStart),
+      dateEnd:   fmtDate(weekEnd),
+    }, cfg.key, cfg.token));
+    const weekIds: number[] = (weekSearchData.appointmentIDs || []);
+    if (weekIds.length > 0) {
+      await new Promise(r => setTimeout(r, 2000)); // allow rate limit to recover
+      const weekFetched = await fetchInBatches('appointment', 'get', 'appointmentIDs', weekIds, cfg.key, cfg.token, 600);
+      weekOnlyAppts = weekFetched.filter((a: any) => !a.__failed__);
+    }
+  } catch { /* proceed with 90-day pool only */ }
+
+  // Merge week-only appointments into cleanAppts (deduplicate by appointmentID)
+  const seenIds = new Set(cleanAppts.map((a: any) => String(a.appointmentID || a.id || '')));
+  for (const a of weekOnlyAppts) {
+    const id = String(a.appointmentID || a.id || '');
+    if (id && !seenIds.has(id)) {
+      cleanAppts.push(a);
+      seenIds.add(id);
+    }
+  }
 
   const reservicesThisWeek = cleanAppts.filter((a: any) => {
     const typeStr = String(a.type || a.serviceTypeID || '');
