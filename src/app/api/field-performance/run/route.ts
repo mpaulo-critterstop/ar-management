@@ -87,35 +87,25 @@ async function pullReservices(
   const lookbackStart = new Date(weekEnd);
   lookbackStart.setDate(lookbackStart.getDate() - LOOKBACK_DAYS);
 
-  // Step 1: Fetch ALL appointments for this week via route-based search
-  // Routes contain every appointment that was on the schedule regardless of when it was created
+  // Step 1: Fetch this week's reservices via FR reservice endpoint
   let rsAppts: any[] = [];
   try {
-    const routeSearchUrl = frUrl('route', 'search', {
+    const rsSearchUrl = frUrl('reservice', 'search', {
       officeIDs: String(cfg.officeId),
       dateStart: fmtDate(weekStart),
       dateEnd:   fmtDate(weekEnd),
     }, cfg.key, cfg.token);
-    const routeSearchData = await frFetch(routeSearchUrl);
-    const weekRouteIds: number[] = routeSearchData.routeIDs || [];
-    result.set('__ids__', weekRouteIds.length);
-    if (weekRouteIds.length > 0) {
-      const weekRoutes = await fetchInBatches('route', 'get', 'routeIDs', weekRouteIds, cfg.key, cfg.token, 300);
-      const weekApptIds: number[] = [];
-      for (const r of weekRoutes) {
-        if (r.__failed__) continue;
-        const ids: number[] = r.appointmentIDs || [];
-        weekApptIds.push(...ids);
-      }
-      if (weekApptIds.length > 0) {
-        await new Promise(r => setTimeout(r, 2000));
-        const weekFetched = await fetchInBatches('appointment', 'get', 'appointmentIDs', weekApptIds, cfg.key, cfg.token, 300);
-        rsAppts = weekFetched.filter((a: any) => !a.__failed__);
-      }
+    const rsSearchData = await frFetch(rsSearchUrl);
+    const rsIds: number[] = rsSearchData.reserviceIDs || rsSearchData.reServiceIDs || [];
+    result.set('__ids__', rsIds.length);
+    if (rsIds.length > 0) {
+      const rsFetched = await fetchInBatches('reservice', 'get', 'reserviceIDs', rsIds, cfg.key, cfg.token, 300);
+      rsAppts = rsFetched.filter((a: any) => !a.__failed__);
     }
   } catch { /* proceed */ }
 
-  // Step 2: Fetch 90-day regular appointments for attribution (denominator + last service lookup)
+  // Step 2: Fetch 90-day appointments for attribution (denominator + last service lookup)
+  await new Promise(r => setTimeout(r, 2000));
   let searchData: any;
   try {
     const searchUrl = frUrl('appointment', 'search', {
@@ -137,8 +127,11 @@ async function pullReservices(
   const weekStartMs = weekStart.getTime();
   const weekEndMs   = weekEnd.getTime() + 86400000;
 
-  // Use rsAppts (fetched by service type ID) as the definitive reservice list for this week
-  const reservicesThisWeek = rsAppts.filter((a: any) => String(a.status) === '1');
+  // Use rsAppts from reservice endpoint — filter to completed only
+  const reservicesThisWeek = rsAppts.filter((a: any) => {
+    const status = String(a.status || a.reServiceStatus || '');
+    return status === '1' || status === 'Serviced' || status === 'serviced';
+  });
   result.set('__rscount__', reservicesThisWeek.length);
 
   const regularAppts = cleanAppts.filter((a: any) => {
