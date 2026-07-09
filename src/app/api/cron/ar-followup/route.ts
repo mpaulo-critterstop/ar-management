@@ -28,10 +28,10 @@ export async function GET(req: NextRequest) {
   // - wildlife service type only
   // - 2026 invoices only
   const where: any = {
-    due: { not: null, lt: now },
+    status: 'OVERDUE',
     serviceId: { in: WILDLIFE_INVOICE_IDS },
     date: { gte: new Date('2026-01-01T00:00:00.000Z') },
-    arFollowupSent: false, // only send to customers not already in sequence
+    arFollowupSent: false,
   };
   if (office) where.office = office;
   if (singleInvoiceId) where.externalId = singleInvoiceId;
