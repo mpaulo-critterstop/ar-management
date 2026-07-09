@@ -83,6 +83,8 @@ model Invoice {
   externalSource String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  arFollowupSent   Boolean   @default(false)
+  arFollowupSentAt DateTime?
   customer       Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   payments        Payment[]
   lead            Lead?     @relation("LeadInvoice")
