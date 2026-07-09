@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma';
 // AR Follow-up webhooks
 const AR_FOLLOWUP_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/804c863a-a07d-4e18-804d-ab399061cdf9';
 const AR_PARTIAL_WEBHOOK  = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/AM0p0PhEMlKoBozA9FnB';
-const AR_PAID_WEBHOOK     = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/PAID_PLACEHOLDER';
+const AR_PAID_WEBHOOK     = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/rlu6JwusY1H2fUXOrMli';
 
 // ============================================================
 // OFFICE CONFIGURATION
