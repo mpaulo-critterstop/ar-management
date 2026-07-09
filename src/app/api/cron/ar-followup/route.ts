@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
     due: { not: null, lt: now },
     serviceId: { in: WILDLIFE_INVOICE_IDS },
     date: { gte: new Date('2026-01-01T00:00:00.000Z') },
+    arFollowupSent: false, // only send to customers not already in sequence
   };
   if (office) where.office = office;
   if (singleInvoiceId) where.externalId = singleInvoiceId;
@@ -87,6 +88,10 @@ export async function GET(req: NextRequest) {
       const resText = await res.text();
 
       if (res.ok) {
+        await prisma.invoice.update({
+          where: { id: inv.id },
+          data: { arFollowupSent: true, arFollowupSentAt: new Date() },
+        });
         results.push({ invoiceId: inv.externalId, customer: inv.customer?.name, amountDue: amountDue.toFixed(2), status: 'sent', httpStatus: res.status, response: resText });
         sent++;
       } else {

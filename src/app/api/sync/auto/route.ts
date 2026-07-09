@@ -5,6 +5,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// AR Follow-up webhooks
+const AR_PARTIAL_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/PARTIAL_PLACEHOLDER';
+const AR_PAID_WEBHOOK    = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/PAID_PLACEHOLDER';
+
 // ============================================================
 // OFFICE CONFIGURATION
 // ============================================================
@@ -229,7 +233,7 @@ async function processTicket(
     // and AR sync must not overwrite it back to null
     const existingInvoice = await prisma.invoice.findUnique({
       where: { id: String(t.ticketID) },
-      select: { due: true },
+      select: { due: true, paid: true },
     });
     const preservedDue = existingInvoice?.due ?? invoiceData.due;
     const updateData = {
@@ -289,6 +293,50 @@ async function processTicket(
           where: { upsellInvoiceId: result.id },
           data: { upsellAmount: amount },
         });
+      }
+
+      // Fire AR follow-up webhooks only if customer is in the sequence
+      if (result.arFollowupSent) {
+        const prevPaid = existingInvoice ? Number((existingInvoice as any).paid ?? 0) : 0;
+        const newPaid  = paid;
+
+        if (newPaid > prevPaid) {
+          const customer = await prisma.customer.findUnique({
+            where: { id: result.customerId },
+            select: { name: true, phone: true, email: true, serviceAddr: true, externalId: true },
+          });
+          const nameParts = (customer?.name || '').trim().split(' ');
+          const amountDue = Math.max(0, amount - newPaid);
+          const basePayload = {
+            fname:         nameParts[0] || '',
+            lname:         nameParts.slice(1).join(' ') || '',
+            phone1:        (customer?.phone || '').replace(/\D/g, ''),
+            email:         customer?.email || '',
+            address:       customer?.serviceAddr || '',
+            invoiceNumber: result.externalId || result.id,
+            invoiceAmount: amount.toFixed(2),
+            amountDue:     amountDue.toFixed(2),
+            dueDate:       result.due ? result.due.toISOString().split('T')[0] : '',
+            officeName:    result.office || '',
+            customerID:    customer?.externalId || result.customerId,
+          };
+
+          if (amountDue <= 0) {
+            // Paid in full
+            await fetch(AR_PAID_WEBHOOK, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...basePayload, event: 'paid_in_full' }),
+            }).catch(() => {});
+          } else {
+            // Partial payment — restart sequence with new balance
+            await fetch(AR_PARTIAL_WEBHOOK, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...basePayload, event: 'partial_payment' }),
+            }).catch(() => {});
+          }
+        }
       }
     }
   } catch {
