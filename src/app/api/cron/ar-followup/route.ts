@@ -27,34 +27,35 @@ export async function GET(req: NextRequest) {
   // - amount > 0
   // - wildlife service type only
   // - 2026 invoices only
-  const where: any = {
-    status: 'OVERDUE',
-    serviceId: { in: WILDLIFE_INVOICE_IDS },
-    date: { gte: new Date('2026-01-01T00:00:00.000Z') },
-    arFollowupSent: false,
-  };
-  if (office) where.office = office;
-  if (singleInvoiceId) where.externalId = singleInvoiceId;
+  const officeFilter = office ? `AND office = '${office}'` : '';
+  const invoiceIdFilter = singleInvoiceId ? `AND "externalId" = '${singleInvoiceId}'` : '';
 
-  const invoices = await prisma.invoice.findMany({
-    where,
-    include: {
-      customer: { select: { name: true, phone: true, email: true, serviceAddr: true, externalId: true } },
-    },
-    orderBy: { due: 'asc' },
-    take: limit,
-  });
+  const invoices = await prisma.$queryRawUnsafe(`
+    SELECT i.*, 
+      c.name as "customerName", c.phone, c.email, c."serviceAddr", c."externalId" as "customerExternalId"
+    FROM invoices i
+    JOIN customers c ON c.id = i."customerId"
+    WHERE i.status = 'OVERDUE'
+      AND i."serviceId" IN (553, 716, 720, 501, 674, 479, 541, 542, 624, 510)
+      AND i.date >= '2026-01-01'
+      AND i."arFollowupSent" = false
+      AND i.paid < i.amount
+      ${officeFilter}
+      ${invoiceIdFilter}
+    ORDER BY i.due ASC
+    LIMIT ${limit}
+  `) as any[];
 
 
-  // Filter where paid < amount (still has balance)
-  const overdueInvoices = invoices.filter(inv => Number(inv.paid || 0) < Number(inv.amount || 0));
+  // paid < amount already filtered at DB level
+  const overdueInvoices = invoices;
 
   const results: any[] = [];
   let sent = 0;
   let failed = 0;
 
   for (const inv of overdueInvoices) {
-    const nameParts = (inv.customer?.name || '').trim().split(' ');
+    const nameParts = (inv.customerName || '').trim().split(' ');
     const fname = nameParts[0] || '';
     const lname = nameParts.slice(1).join(' ') || '';
     const amountDue = Number(inv.amount || 0) - Number(inv.paid || 0);
@@ -62,20 +63,20 @@ export async function GET(req: NextRequest) {
     const payload = {
       fname,
       lname,
-      phone1:        (inv.customer?.phone || '').replace(/\D/g, ''),
-      email:         inv.customer?.email || '',
-      address:       inv.customer?.serviceAddr || '',
+      phone1:        (inv.phone || '').replace(/\D/g, ''),
+      email:         inv.email || '',
+      address:       inv.serviceAddr || '',
       invoiceNumber: inv.externalId || inv.id,
       invoiceAmount: Number(inv.amount || 0).toFixed(2),
       amountDue:     amountDue.toFixed(2),
-      dueDate:       inv.due ? inv.due.toISOString().split('T')[0] : '',
+      dueDate:       inv.due ? new Date(inv.due).toISOString().split('T')[0] : '',
       officeName:    inv.office || '',
       salesRep:      '',
-      customerID:    inv.customer?.externalId || inv.id,
+      customerID:    inv.customerExternalId || inv.customerId,
     };
 
     if (dry) {
-      results.push({ invoiceId: inv.externalId, customer: inv.customer?.name, amountDue: amountDue.toFixed(2), dueDate: payload.dueDate, status: 'would_send' });
+      results.push({ invoiceId: inv.externalId, customer: inv.customerName, amountDue: amountDue.toFixed(2), dueDate: payload.dueDate, status: 'would_send' });
       continue;
     }
 
@@ -92,14 +93,14 @@ export async function GET(req: NextRequest) {
           where: { id: inv.id },
           data: { arFollowupSent: true, arFollowupSentAt: new Date() },
         });
-        results.push({ invoiceId: inv.externalId, customer: inv.customer?.name, amountDue: amountDue.toFixed(2), status: 'sent', httpStatus: res.status, response: resText });
+        results.push({ invoiceId: inv.externalId, customer: inv.customerName, amountDue: amountDue.toFixed(2), status: 'sent', httpStatus: res.status, response: resText });
         sent++;
       } else {
-        results.push({ invoiceId: inv.externalId, customer: inv.customer?.name, amountDue: amountDue.toFixed(2), status: 'failed', httpStatus: res.status, response: resText });
+        results.push({ invoiceId: inv.externalId, customer: inv.customerName, amountDue: amountDue.toFixed(2), status: 'failed', httpStatus: res.status, response: resText });
         failed++;
       }
     } catch (e: any) {
-      results.push({ invoiceId: inv.externalId, customer: inv.customer?.name, status: 'error', error: e.message });
+      results.push({ invoiceId: inv.externalId, customer: inv.customerName, status: 'error', error: e.message });
       failed++;
     }
 
