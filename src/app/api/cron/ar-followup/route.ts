@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   // - amount > 0
   // - wildlife service type only
   // - 2026 invoices only
-  const officeFilter = office ? `AND office = '${office}'` : '';
+  const officeFilter = office ? `AND i.office = '${office}'` : '';
   const invoiceIdFilter = singleInvoiceId ? `AND "externalId" = '${singleInvoiceId}'` : '';
 
   const invoices = await prisma.$queryRawUnsafe(`
