@@ -6,8 +6,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // AR Follow-up webhooks
-const AR_PARTIAL_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/AM0p0PhEMlKoBozA9FnB';
-const AR_PAID_WEBHOOK    = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/PAID_PLACEHOLDER';
+const AR_FOLLOWUP_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/804c863a-a07d-4e18-804d-ab399061cdf9';
+const AR_PARTIAL_WEBHOOK  = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/AM0p0PhEMlKoBozA9FnB';
+const AR_PAID_WEBHOOK     = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/PAID_PLACEHOLDER';
 
 // ============================================================
 // OFFICE CONFIGURATION
@@ -233,7 +234,7 @@ async function processTicket(
     // and AR sync must not overwrite it back to null
     const existingInvoice = await prisma.invoice.findUnique({
       where: { id: String(t.ticketID) },
-      select: { due: true, paid: true },
+      select: { due: true, paid: true, amount: true },
     });
     const preservedDue = existingInvoice?.due ?? invoiceData.due;
     const updateData = {
@@ -297,32 +298,34 @@ async function processTicket(
 
       // Fire AR follow-up webhooks only if customer is in the sequence
       if (result.arFollowupSent) {
-        const prevPaid = existingInvoice ? Number((existingInvoice as any).paid ?? 0) : 0;
-        const newPaid  = paid;
+        const prevPaid   = Number(existingInvoice?.paid ?? 0);
+        const prevAmount = Number((existingInvoice as any)?.amount ?? 0);
+        const newPaid    = paid;
+        const amountDue  = Math.max(0, amount - newPaid);
+
+        const customer = await prisma.customer.findUnique({
+          where: { id: result.customerId },
+          select: { name: true, phone: true, email: true, serviceAddr: true, externalId: true },
+        });
+        const nameParts = (customer?.name || '').trim().split(' ');
+        const basePayload = {
+          fname:         nameParts[0] || '',
+          lname:         nameParts.slice(1).join(' ') || '',
+          phone1:        (customer?.phone || '').replace(/\D/g, ''),
+          email:         customer?.email || '',
+          address:       customer?.serviceAddr || '',
+          invoiceNumber: result.externalId || result.id,
+          invoiceAmount: amount.toFixed(2),
+          amountDue:     amountDue.toFixed(2),
+          dueDate:       result.due ? result.due.toISOString().split('T')[0] : '',
+          officeName:    result.office || '',
+          customerID:    customer?.externalId || result.customerId,
+        };
 
         if (newPaid > prevPaid) {
-          const customer = await prisma.customer.findUnique({
-            where: { id: result.customerId },
-            select: { name: true, phone: true, email: true, serviceAddr: true, externalId: true },
-          });
-          const nameParts = (customer?.name || '').trim().split(' ');
-          const amountDue = Math.max(0, amount - newPaid);
-          const basePayload = {
-            fname:         nameParts[0] || '',
-            lname:         nameParts.slice(1).join(' ') || '',
-            phone1:        (customer?.phone || '').replace(/\D/g, ''),
-            email:         customer?.email || '',
-            address:       customer?.serviceAddr || '',
-            invoiceNumber: result.externalId || result.id,
-            invoiceAmount: amount.toFixed(2),
-            amountDue:     amountDue.toFixed(2),
-            dueDate:       result.due ? result.due.toISOString().split('T')[0] : '',
-            officeName:    result.office || '',
-            customerID:    customer?.externalId || result.customerId,
-          };
-
+          // Payment received
           if (amountDue <= 0) {
-            // Paid in full
+            // Paid in full — remove from sequence
             await fetch(AR_PAID_WEBHOOK, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -336,6 +339,13 @@ async function processTicket(
               body: JSON.stringify({ ...basePayload, event: 'partial_payment' }),
             }).catch(() => {});
           }
+        } else if (amount < prevAmount && newPaid === prevPaid) {
+          // Discount applied — update contact balance but stay in sequence
+          await fetch(AR_FOLLOWUP_WEBHOOK, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...basePayload, event: 'balance_updated' }),
+          }).catch(() => {});
         }
       }
     }
