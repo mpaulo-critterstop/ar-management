@@ -66,9 +66,7 @@ function safeDate(dateStr: string | null | undefined, fallback: Date | null = nu
 function hasTrappingDoneNote(appts: any[]): boolean {
   return appts.some((a: any) =>
     TRAPPING_DONE_KEYWORDS.some(k =>
-      a.officeNotes?.toLowerCase().includes(k) ||
-      a.appointmentNotes?.toLowerCase().includes(k) ||
-      a.notes?.toLowerCase().includes(k)
+      a.officeNotes?.toLowerCase().includes(k)
     )
   );
 }
