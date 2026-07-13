@@ -91,10 +91,10 @@ async function getRouteStats(routeID: string, key: string, token: string, rl: (u
   return { routeID, completed, pending, noShow, productionValue };
 }
 
-async function getRoutesForDateRange(dateStart: string, dateEnd: string, key: string, token: string, rl: (u: string) => Promise<any>) {
+async function getRoutesForDateRange(dateStart: string, dateEnd: string, key: string, token: string, rl: (u: string) => Promise<any>, officeId?: string) {
   const auth = `&authenticationKey=${key}&authenticationToken=${token}`;
-  // Use date-filtered search to avoid missing routes when rerunnning past weeks
-  const routeSearch = await rl(`${BASE_URL}/route/search?officeIDs=${cfg.officeId}&dateStart=${dateStart}&dateEnd=${dateEnd}${auth}`);
+  const officeParam = officeId ? `officeIDs=${officeId}&` : '';
+  const routeSearch = await rl(`${BASE_URL}/route/search?${officeParam}dateStart=${dateStart}&dateEnd=${dateEnd}${auth}`);
   const allRouteIDs: string[] = routeSearch.routeIDs || [];
   const matching: Array<{ routeID: string; date: string; assignedTech: string }> = [];
 
@@ -142,7 +142,7 @@ export async function GET(req: NextRequest) {
   try {
     // ── Find week routes ──
     log.push('Fetching week routes...');
-    const weekRoutes = await getRoutesForDateRange(weekStartStr, weekEndStr, cfg.key, cfg.token, rl);
+    const weekRoutes = await getRoutesForDateRange(weekStartStr, weekEndStr, cfg.key, cfg.token, rl, cfg.officeId);
     log.push(`Found ${weekRoutes.length} week routes`);
 
     // ── Load PMP techs + filter routes to PMP only ──
