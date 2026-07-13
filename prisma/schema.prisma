@@ -411,6 +411,73 @@ model TechWeek {
   @@map("tech_weeks")
 }
 
+// One row per tech per route day — stores raw FR route data permanently
+// Replaces: AppSetting fp_30da_* blobs, week endpoint re-fetches, run endpoint route count re-fetches
+model TechRoute {
+  id             String   @id @default(cuid())
+  techId         String
+  frRouteId      String                         // FR routeID
+  date           DateTime                       // route date (day)
+  weekEnd        DateTime                       // Friday of the week
+  office         String
+  completed      Int      @default(0)
+  pending        Int      @default(0)
+  noShow         Int      @default(0)
+  productionValue Float   @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([techId, frRouteId])
+  @@index([techId, weekEnd])
+  @@index([weekEnd])
+  @@index([date])
+  @@map("tech_routes")
+}
+
+// One row per scheduled customer per tech per day — stores lat/lng for reliability geofencing
+// Replaces: AppSetting rc_customers_* blobs consumed by reliability cron
+model TechRouteCustomer {
+  id              String   @id @default(cuid())
+  techId          String
+  frAppointmentId String
+  customerId      String
+  date            DateTime
+  weekEnd         DateTime
+  office          String
+  lat             Float
+  lng             Float
+  createdAt       DateTime @default(now())
+
+  @@unique([techId, frAppointmentId])
+  @@index([techId, date])
+  @@index([weekEnd])
+  @@map("tech_route_customers")
+}
+
+// One row per tech per workday — stores reliability raw inputs permanently
+// Replaces: reliability cron only saving week-level aggregates, losing per-day detail
+model TechDayReliability {
+  id          String    @id @default(cuid())
+  techId      String
+  date        DateTime
+  weekEnd     DateTime
+  office      String
+  minutesLate Float?
+  utilization Float?
+  hrsWorked   Float?
+  startOfDay  DateTime?
+  endOfDay    DateTime?
+  scheduledHrs Int?
+  source      String?   @default("bouncie") // 'bouncie' | 'fr_fallback'
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([techId, date])
+  @@index([techId, weekEnd])
+  @@index([weekEnd])
+  @@map("tech_day_reliability")
+}
+
 model TechReview {
   id           String     @id @default(cuid())
   technicianId String

@@ -225,29 +225,21 @@ export async function GET(req: NextRequest) {
     if (pmpTechs.size === 0) { log.push(`  No PMP techs`); continue; }
 
     try {
-      // Fetch routes for routeCount (needed for revEff)
-      const routeSearchUrl = frUrl('route', 'search', {
-        officeIDs: String(cfg.officeId),
-        dateStart: fmtDate(weekStart),
-        dateEnd: fmtDate(weekEnd),
-      }, cfg.key, cfg.token);
-      const routeSearch = await frFetch(routeSearchUrl);
-      const routeIds: number[] = routeSearch.routeIDs || [];
-      const routeCountByTech = new Map<string, number>();
-      if (routeIds.length > 0) {
-        const routes = await fetchInBatches('route', 'get', 'routeIDs', routeIds, cfg.key, cfg.token);
-        for (const route of routes) {
-          const empId = parseInt(route.assignedTech || '0');
-          if (!empId || !pmpTechs.has(empId)) continue;
-          const techId = pmpTechs.get(empId) as string | undefined;
-          if (!techId) continue;
-          routeCountByTech.set(techId, (routeCountByTech.get(techId) ?? 0) + 1);
-        }
-      }
-      log.push(`  Routes: ${routeIds.length}`);
+      // Get route counts from tech_routes DB table (no FR call needed)
+      const techRouteRows = await prisma.$queryRaw<Array<{ techId: string; cnt: bigint }>>`
+        SELECT "techId", COUNT(*) as cnt
+        FROM tech_routes
+        WHERE "weekEnd" = ${weekEnd}
+          AND "office" = ${officeName}
+        GROUP BY "techId"
+      `;
+      const routeCountByTech = new Map<string, number>(
+        techRouteRows.map(r => [r.techId, Number(r.cnt)])
+      );
+      log.push(`  Routes from DB: ${techRouteRows.length} techs`);
 
-      // Reservice rate — wait for FR rate limit to reset after route fetch
-      await new Promise(r => setTimeout(r, 8000));
+      // Reservice rate
+      await new Promise(r => setTimeout(r, 1000));
       const pmpReserviceMap = new Map<string, number>();
       try {
         const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);

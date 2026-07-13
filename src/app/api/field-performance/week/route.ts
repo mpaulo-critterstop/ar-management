@@ -175,6 +175,12 @@ export async function GET(req: NextRequest) {
     const techProduction = new Map<string, number>();
     const techCompletion = new Map<string, { completed: number; pending: number; noShow: number }>();
 
+    // Also collect per-route data for tech_routes table
+    const routeRows: Array<{
+      techId: string; frRouteId: string; date: string;
+      completed: number; pending: number; noShow: number; productionValue: number;
+    }> = [];
+
     // Run all routes concurrently in groups of 10 to avoid rate limiting
     const CONCURRENCY = 10;
     for (let i = 0; i < pmpWeekRoutes.length; i += CONCURRENCY) {
@@ -185,6 +191,7 @@ export async function GET(req: NextRequest) {
         const stats = batchStats[j];
         if (!stats) continue;
         const tech = route.assignedTech;
+        const dbTech = frIdToTech.get(tech);
         const name = techNameMap.get(tech) || tech;
         techProduction.set(tech, (techProduction.get(tech) || 0) + stats.productionValue);
         const prev = techCompletion.get(tech) || { completed: 0, pending: 0, noShow: 0 };
@@ -194,8 +201,38 @@ export async function GET(req: NextRequest) {
           noShow:    prev.noShow    + stats.noShow,
         });
         log.push(`Route ${route.routeID} (${route.date}) ${name} → $${stats.productionValue.toFixed(2)}`);
+        // Save per-route row if tech is in DB
+        if (dbTech) {
+          routeRows.push({
+            techId:         dbTech.techId,
+            frRouteId:      route.routeID,
+            date:           route.date,
+            completed:      stats.completed,
+            pending:        stats.pending,
+            noShow:         stats.noShow,
+            productionValue: stats.productionValue,
+          });
+        }
       }
     }
+
+    // ── Upsert per-route rows into tech_routes ──
+    for (const row of routeRows) {
+      const dateObj = new Date(row.date + 'T12:00:00.000Z');
+      await prisma.$executeRaw`
+        INSERT INTO tech_routes ("id","techId","frRouteId","date","weekEnd","office","completed","pending","noShow","productionValue","createdAt","updatedAt")
+        VALUES (
+          ${crypto.randomUUID()}, ${row.techId}, ${row.frRouteId}, ${dateObj}, ${weekEnd},
+          ${officeFilter}, ${row.completed}, ${row.pending}, ${row.noShow}, ${row.productionValue},
+          NOW(), NOW()
+        )
+        ON CONFLICT ("techId","frRouteId") DO UPDATE SET
+          "completed"=${row.completed}, "pending"=${row.pending}, "noShow"=${row.noShow},
+          "productionValue"=${row.productionValue}, "weekEnd"=${weekEnd}, "updatedAt"=NOW()
+      `;
+    }
+    log.push(`Saved ${routeRows.length} route rows to tech_routes`);
+
     let upserted = 0;
 
     const results: any[] = [];

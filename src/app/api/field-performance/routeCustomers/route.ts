@@ -192,51 +192,33 @@ export async function GET(req: NextRequest) {
     );
     log.push(`Geocoded ${coordMap.size} of ${allCustomerIds.length} customers`);
 
-    // Save one cache key per day: rc_customers_<office>_<date>
+    // Save to tech_route_customers table (permanent, replaces AppSetting blobs)
+    let savedCount = 0;
     for (const [date, dateMap] of techDateAppts) {
-      const cacheKey = `rc_customers_${officeFilter}_${date}`;
+      const dateObj = new Date(date + 'T12:00:00.000Z');
 
-      const techCoordsMap: Record<string, Array<{ lat: number; lng: number; customerId: string; frAppointmentId: string }>> = {};
       for (const [techId, custApptMap] of dateMap) {
-        const entries: Array<{ lat: number; lng: number; customerId: string; frAppointmentId: string }> = [];
         for (const [customerId, frAppointmentId] of custApptMap) {
           const coord = coordMap.get(customerId);
-          if (coord) entries.push({ ...coord, customerId, frAppointmentId });
-        }
-        if (entries.length > 0) techCoordsMap[techId] = entries;
-      }
+          if (!coord) continue;
 
-      // Merge with existing or reset
-      let existingMap: Record<string, Array<{ lat: number; lng: number; customerId: string; frAppointmentId: string }>> = {};
-      if (!reset) {
-        try {
-          const existing = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
-          if (existing?.value) existingMap = JSON.parse(existing.value);
-        } catch {}
-      }
-
-      for (const [techId, entries] of Object.entries(techCoordsMap)) {
-        if (!existingMap[techId]) {
-          existingMap[techId] = entries;
-        } else {
-          const existingApptIds = new Set(existingMap[techId].map(e => e.frAppointmentId));
-          for (const entry of entries) {
-            if (!existingApptIds.has(entry.frAppointmentId)) {
-              existingMap[techId].push(entry);
-              existingApptIds.add(entry.frAppointmentId);
-            }
-          }
+          await prisma.$executeRaw`
+            INSERT INTO tech_route_customers
+              ("id","techId","frAppointmentId","customerId","date","weekEnd","office","lat","lng","createdAt")
+            VALUES (
+              ${crypto.randomUUID()}, ${techId}, ${frAppointmentId}, ${customerId},
+              ${dateObj}, ${weekEnd}, ${officeFilter}, ${coord.lat}, ${coord.lng}, NOW()
+            )
+            ON CONFLICT ("techId","frAppointmentId") DO UPDATE SET
+              "lat"=${coord.lat}, "lng"=${coord.lng}, "weekEnd"=${weekEnd}
+          `;
+          savedCount++;
         }
       }
 
-      await prisma.appSetting.upsert({
-        where:  { key: cacheKey },
-        update: { value: JSON.stringify(existingMap) },
-        create: { key: cacheKey, value: JSON.stringify(existingMap) },
-      });
-
-      log.push(`Saved ${cacheKey}: ${Object.keys(existingMap).length} techs, ${Object.values(existingMap).reduce((s, v) => s + v.length, 0)} customers`);
+      log.push(`Saved ${date}: ${[...dateMap.values()].reduce((s, m) => s + m.size, 0)} customer-tech pairs`);
     }
+    log.push(`Total: ${savedCount} tech_route_customer rows upserted`);
 
     return NextResponse.json({
       status: 'success',

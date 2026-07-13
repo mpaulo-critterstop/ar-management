@@ -368,27 +368,22 @@ export async function POST(req: NextRequest) {
 
     // Load per-tech per-day route customer cache
     const techRouteCoords = new Map<string, Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }>>();
-    for (const officeName of Object.keys(FR_OFFICES)) {
-      // Load each day's cache: rc_customers_<office>_<date>
-      const dayDate = new Date(weekStart);
-      while (dayDate <= weekEnd) {
-        const dateStr = dayDate.toISOString().split('T')[0];
-        const cacheKey = `rc_customers_${officeName}_${dateStr}`;
-        try {
-          const cached = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
-          if (cached?.value) {
-            const map: Record<string, Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }>> = JSON.parse(cached.value);
-            for (const [techId, coords] of Object.entries(map)) {
-              techRouteCoords.set(`${techId}_${dateStr}`, coords);
-            }
-          }
-        } catch (e: any) {
-          log.push(`Route cache load error for ${officeName} ${dateStr}: ${e.message}`);
-        }
-        dayDate.setDate(dayDate.getDate() + 1);
-      }
+
+    // Load customer coords from tech_route_customers table (replaces AppSetting rc_customers_* blobs)
+    const routeCustomers = await prisma.$queryRaw<Array<{
+      techId: string; date: Date; lat: number; lng: number; customerId: string; frAppointmentId: string;
+    }>>`
+      SELECT "techId", "date", "lat", "lng", "customerId", "frAppointmentId"
+      FROM tech_route_customers
+      WHERE "weekEnd" = ${weekEnd}
+    `;
+    for (const rc of routeCustomers) {
+      const dateStr = rc.date.toISOString().split('T')[0];
+      const key = `${rc.techId}_${dateStr}`;
+      if (!techRouteCoords.has(key)) techRouteCoords.set(key, []);
+      techRouteCoords.get(key)!.push({ lat: rc.lat, lng: rc.lng, customerId: rc.customerId, frAppointmentId: rc.frAppointmentId });
     }
-    log.push(`Loaded per-day route customer cache: ${techRouteCoords.size} tech-day entries`);
+    log.push(`Loaded per-day route customer cache: ${techRouteCoords.size} tech-day entries (${routeCustomers.length} total customers)`);
 
     // Process each vehicle
     for (const vehicle of vehicles) {
@@ -672,6 +667,23 @@ export async function POST(req: NextRequest) {
             status: 'WORKED',
           },
         });
+
+        // Also save to tech_day_reliability for permanent per-day record
+        await prisma.$executeRaw`
+          INSERT INTO tech_day_reliability
+            ("id","techId","date","weekEnd","office","minutesLate","utilization","hrsWorked","startOfDay","endOfDay","scheduledHrs","source","createdAt","updatedAt")
+          VALUES (
+            ${crypto.randomUUID()}, ${tech.techId}, ${dateObj}, ${weekEnd}, ${tech.office},
+            ${minutesLate}, ${utilization},
+            ${(endOfDay.getTime() - startOfDay.getTime()) / (1000 * 60 * 60)},
+            ${startOfDay}, ${endOfDay}, ${tech.hrDays}, ${'bouncie'}, NOW(), NOW()
+          )
+          ON CONFLICT ("techId","date") DO UPDATE SET
+            "minutesLate"=${minutesLate}, "utilization"=${utilization},
+            "hrsWorked"=${(endOfDay.getTime() - startOfDay.getTime()) / (1000 * 60 * 60)},
+            "startOfDay"=${startOfDay}, "endOfDay"=${endOfDay},
+            "weekEnd"=${weekEnd}, "updatedAt"=NOW()
+        `;
         }
       }
 
