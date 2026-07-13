@@ -15,7 +15,7 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number; re
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4, reserviceTypeIds: new Set(['3','822','821','807','732','809','1005','1066']) },
 };
 
-const PROD_STANDARD_PER_DAY = 5676.92;
+const PROD_STANDARD_PER_DAY = 1150;
 
 function frUrl(endpoint: string, action: string, params: Record<string, string>, key: string, token: string) {
   const url = new URL(`${BASE_URL}/${endpoint}/${action}`);
@@ -270,8 +270,9 @@ export async function GET(req: NextRequest) {
 
         const productionValue = existing?.productionValue ?? 0;
         const hrDays = tech.hrDays || 8;
-        const revenueEff = productionValue > 0 && routeCount > 0
-          ? Math.min((productionValue / routeCount / hrDays * 40) / PROD_STANDARD_PER_DAY, 1.1)
+        const stdDays = hrDays === 10 ? 4 : 5;
+        const revenueEff = productionValue > 0
+          ? Math.min(productionValue / (stdDays * PROD_STANDARD_PER_DAY), 1.1)
           : null;
 
         const effectiveReseviceRate = reseviceRate;
