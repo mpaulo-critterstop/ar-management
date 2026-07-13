@@ -91,6 +91,12 @@ async function getRouteStats(routeID: string, key: string, token: string, rl: (u
   return { routeID, completed, pending, noShow, productionValue };
 }
 
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
 async function getRoutesForDateRange(dateStart: string, dateEnd: string, key: string, token: string, rl: (u: string) => Promise<any>, officeId?: string) {
   const auth = `&authenticationKey=${key}&authenticationToken=${token}`;
   const officeParam = officeId ? `officeIDs=${officeId}&` : '';
@@ -165,26 +171,112 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // ── Process each PMP week route ──
+    // ── Process all PMP routes — batch all FR calls upfront ──
     const techProduction = new Map<string, number>();
     const techCompletion = new Map<string, { completed: number; pending: number; noShow: number }>();
+    const auth = `&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
 
+    // Batch 1: fetch all spots for all routes at once
+    const allRouteIDs = pmpWeekRoutes.map(r => r.routeID);
+    const spotSearchResults = await Promise.all(
+      chunk(allRouteIDs, 50).map(batch =>
+        rl(`${BASE_URL}/spot/search?routeIDs=${batch.join(',')}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`)
+      )
+    );
+    const allSpotIDs: string[] = [];
+    spotSearchResults.forEach(r => allSpotIDs.push(...(r.spotIDs || [])));
+
+    // Batch 2: fetch all spot details
+    const spotDataResults = await Promise.all(
+      chunk(allSpotIDs, 500).map(batch =>
+        rl(`${BASE_URL}/spot/get?spotIDs=${batch.join(',')}${auth}`)
+      )
+    );
+    const allSpots: any[] = [];
+    spotDataResults.forEach(r => allSpots.push(...(r.spots || [])));
+
+    // Build routeID → appointmentIDs map
+    const routeApptMap = new Map<string, string[]>();
+    allSpots.forEach((s: any) => {
+      if (s.routeID && s.appointmentIDs?.length) {
+        const existing = routeApptMap.get(String(s.routeID)) || [];
+        routeApptMap.set(String(s.routeID), [...existing, ...s.appointmentIDs]);
+      }
+    });
+
+    // Batch 3: fetch all appointments
+    const allApptIDs = [...new Set(allSpots.flatMap((s: any) => s.appointmentIDs || []))];
+    const apptDataResults = await Promise.all(
+      chunk(allApptIDs, 500).map(batch =>
+        rl(`${BASE_URL}/appointment/get?appointmentIDs=${batch.join(',')}${auth}`)
+      )
+    );
+    const apptMap = new Map<string, any>();
+    apptDataResults.forEach(r => (r.appointments || []).forEach((a: any) => apptMap.set(String(a.appointmentID), a)));
+
+    // Batch 4: fetch all subscriptions
+    const allSubIDs = [...new Set([...apptMap.values()].map((a: any) => a.subscriptionID).filter((s: any) => parseInt(s) > 0))];
+    const subDataResults = await Promise.all(
+      chunk(allSubIDs, 500).map(batch =>
+        rl(`${BASE_URL}/subscription/get?subscriptionIDs=${batch.join(',')}${auth}`)
+      )
+    );
+    const subMap = new Map<string, any>();
+    subDataResults.forEach(r => (r.subscriptions || []).forEach((s: any) => subMap.set(String(s.subscriptionID), s)));
+
+    // Batch 5: fetch all tickets
+    const allTicketIDs = [...new Set([...apptMap.values()].map((a: any) => a.ticketID).filter((t: any) => t && t !== '0'))];
+    const ticketDataResults = await Promise.all(
+      chunk(allTicketIDs, 500).map(batch =>
+        rl(`${BASE_URL}/ticket/get?ticketIDs=${batch.join(',')}${auth}`)
+      )
+    );
+    const ticketMap = new Map<string, number>();
+    ticketDataResults.forEach(r => (r.tickets || []).forEach((t: any) => ticketMap.set(String(t.ticketID), parseFloat(t.subTotal || 0))));
+
+    // Now calculate per-route stats from cached data
     for (const route of pmpWeekRoutes) {
-      const stats = await getRouteStats(route.routeID, cfg.key, cfg.token, rl);
-      if (!stats) continue;
+      const apptIDs = routeApptMap.get(route.routeID) || [];
+      const appointments = apptIDs.map(id => apptMap.get(String(id))).filter(Boolean);
+      const completed = appointments.filter((a: any) => a.status === '1').length;
+      const pending   = appointments.filter((a: any) => a.status === '0').length;
+      const noShow    = appointments.filter((a: any) => a.statusText === 'No Show').length;
+      const validAppts = appointments.filter((a: any) => a.status !== '-1');
+
+      let productionValue = 0;
+      for (const a of validAppts) {
+        const isNoShow  = a.statusText === 'No Show';
+        const hasSub    = parseInt(a.subscriptionID) > 0;
+        const subInfo   = subMap.get(String(a.subscriptionID));
+        const hasTicket = a.ticketID && a.ticketID !== '0';
+        const ticketAmt = hasTicket ? (ticketMap.get(String(a.ticketID)) || 0) : null;
+        const recurringTicketPV = subInfo ? parseFloat(subInfo.recurringTicket?.productionValue || 0) : 0;
+        const recurring = subInfo ? parseFloat(subInfo.recurringCharge || 0) : 0;
+        const subValue = recurringTicketPV > 0 ? recurringTicketPV : recurring > 0 ? recurring : parseFloat(subInfo?.initialServiceTotal || 0);
+
+        if (isNoShow) {
+          if (hasSub && recurring > 0) productionValue += recurring;
+          else if (hasTicket && ticketAmt && ticketAmt > 0) productionValue += ticketAmt;
+        } else {
+          if (hasTicket) {
+            if (ticketAmt && ticketAmt > 0) productionValue += ticketAmt;
+            else if (hasSub && recurringTicketPV > 0) productionValue += recurringTicketPV;
+          } else if (hasSub && subInfo) {
+            productionValue += subValue;
+          }
+        }
+      }
+
       const tech = route.assignedTech;
       const name = techNameMap.get(tech) || tech;
-
-      techProduction.set(tech, (techProduction.get(tech) || 0) + stats.productionValue);
-
+      techProduction.set(tech, (techProduction.get(tech) || 0) + productionValue);
       const prev = techCompletion.get(tech) || { completed: 0, pending: 0, noShow: 0 };
       techCompletion.set(tech, {
-        completed: prev.completed + stats.completed,
-        pending:   prev.pending   + stats.pending,
-        noShow:    prev.noShow    + stats.noShow,
+        completed: prev.completed + completed,
+        pending:   prev.pending   + pending,
+        noShow:    prev.noShow    + noShow,
       });
-
-      log.push(`Route ${route.routeID} (${route.date}) ${name} → $${stats.productionValue.toFixed(2)}`);
+      log.push(`Route ${route.routeID} (${route.date}) ${name} → $${productionValue.toFixed(2)}`);
     }
     let upserted = 0;
 
