@@ -558,10 +558,82 @@ async function syncPayments(
   key: string,
   token: string
 ): Promise<{ created: number; updated: number; errors: number }> {
-  // Payment sync is now handled directly by processTicket via FR balance field.
-  // The ticket's balance field is the source of truth — paid = amount - balance.
-  // This handles payments, refunds, voids, discounts, and manual changes automatically.
-  return { created: 0, updated: 0, errors: 0 };
+  let created = 0, updated = 0, errors = 0;
+
+  // Fetch only new payment IDs not yet in our DB
+  const searchData = await frFetch('payment/search', '', key, token);
+  if (!searchData.success) throw new Error('Payment search failed');
+
+  const allIds: number[] = searchData.paymentIDs || [];
+
+  const existing = await prisma.payment.findMany({
+    where: { externalSource: 'fieldroutes', externalId: { not: null }, invoice: { office } },
+    select: { externalId: true },
+  });
+  const syncedIds = new Set(existing.map((p: any) => p.externalId!));
+  const newIds = allIds.filter(id => !syncedIds.has(String(id)));
+
+  if (newIds.length === 0) return { created, updated, errors };
+
+  const payments = await fetchInBatches('payment/get', 'paymentIDs', newIds, key, token);
+
+  for (const p of payments) {
+    try {
+      if (!p.paymentApplications || p.paymentApplications.length === 0) continue;
+
+      const totalApplied = parseFloat(p.appliedAmount || '0');
+
+      for (const application of p.paymentApplications) {
+        const ticketId = String(application.ticketID);
+        const appliedAmount = parseFloat(application.appliedAmount);
+
+        const invoice = await prisma.invoice.findFirst({ where: { externalId: ticketId } });
+        if (!invoice) { errors++; continue; }
+
+        if (totalApplied < 0 || appliedAmount < 0) {
+          // Refund or void — remove the original payment record if it exists
+          const originalPaymentId = p.originalPaymentID ? String(p.originalPaymentID) : null;
+          if (originalPaymentId) {
+            await prisma.payment.deleteMany({
+              where: { externalId: originalPaymentId, invoiceId: invoice.id },
+            });
+          }
+          // Record the refund as a negative payment
+          await prisma.payment.create({
+            data: {
+              invoiceId: invoice.id,
+              date: new Date(p.date),
+              amount: appliedAmount, // negative
+              method: p.cardType ? `${p.cardType}${p.lastFour ? ` ****${p.lastFour}` : ''}`.trim() : 'Refund',
+              reference: p.transactionID || null,
+              note: `Refund/Void - ${p.paymentSource || ''}`,
+              externalId: String(p.paymentID),
+              externalSource: 'fieldroutes',
+            },
+          });
+        } else if (appliedAmount > 0) {
+          // Normal payment
+          await prisma.payment.create({
+            data: {
+              invoiceId: invoice.id,
+              date: new Date(p.date),
+              amount: appliedAmount,
+              method: p.cardType ? `${p.cardType}${p.lastFour ? ` ****${p.lastFour}` : ''}`.trim() : 'FieldRoutes',
+              reference: p.transactionID || null,
+              note: p.paymentSource || null,
+              externalId: String(p.paymentID),
+              externalSource: 'fieldroutes',
+            },
+          });
+        }
+        created++;
+      }
+    } catch {
+      errors++;
+    }
+  }
+
+  return { created, updated, errors };
 }
 
 // ============================================================
