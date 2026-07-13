@@ -232,9 +232,9 @@ async function processTicket(
 
     // Preserve existing due date — dispatch sync sets due = closeout date
     // and AR sync must not overwrite it back to null
-    const existingInvoice = await prisma.invoice.findUnique({
-      where: { id: String(t.ticketID) },
-      select: { due: true, paid: true, amount: true },
+    const existingInvoice = await prisma.invoice.findFirst({
+      where: { externalId: String(t.ticketID) },
+      select: { due: true, paid: true, amount: true, arFollowupSent: true },
     });
     const preservedDue = existingInvoice?.due ?? invoiceData.due;
     const updateData = {
@@ -249,7 +249,7 @@ async function processTicket(
       create: { id: String(t.ticketID), ...invoiceData },
     });
 
-    const isNew = result.createdAt.getTime() === result.updatedAt.getTime();
+    const isNew = !existingInvoice;
     if (isNew) {
       created.count++;
       // Auto-attach as upsell if this is a FAR invoice for a customer with an existing SOLD lead
@@ -297,7 +297,7 @@ async function processTicket(
       }
 
       // Fire AR follow-up webhooks only if customer is in the sequence
-      if (result.arFollowupSent) {
+      if (existingInvoice?.arFollowupSent) {
         const prevPaid   = Number(existingInvoice?.paid ?? 0);
         const prevAmount = Number((existingInvoice as any)?.amount ?? 0);
         const newPaid    = paid;
@@ -517,11 +517,22 @@ async function syncInvoices(
     console.log(`[${office}] Total unique IDs (invoiceDate + dateUpdated): ${allIds.length}`);
 
   } else {
-    // Cron path — dateUpdated only (fast incremental)
-    const data = await frFetch('ticket/search', `dateUpdated=${dateFrom}`, key, token);
-    if (!data.success) throw new Error('Ticket search failed');
-    allIds = data.ticketIDs || [];
-    console.log(`[${office}] Total IDs: ${allIds.length} (incremental, dateUpdated>=${dateFrom})`);
+    // Cron path — dateUpdated range to catch ALL invoices modified since last sync
+    // This catches old invoices that received payments, refunds, voids, or manual changes
+    const idSet = new Set<number>();
+    let current3 = new Date(dateFrom);
+    const end3 = new Date(dateTo);
+    while (current3 <= end3) {
+      const dateStr = current3.toISOString().split('T')[0];
+      const data = await frFetch('ticket/search', `dateUpdated=${dateStr}`, key, token);
+      if (data.success && data.ticketIDs) {
+        data.ticketIDs.forEach((id: number) => idSet.add(id));
+      }
+      current3.setDate(current3.getDate() + 1);
+      await new Promise(r => setTimeout(r, 150));
+    }
+    allIds = Array.from(idSet);
+    console.log(`[${office}] Total IDs: ${allIds.length} (incremental, dateUpdated ${dateFrom} → ${dateTo})`);
   }
 
   if (allIds.length === 0) {
@@ -547,84 +558,10 @@ async function syncPayments(
   key: string,
   token: string
 ): Promise<{ created: number; updated: number; errors: number }> {
-  let created = 0, updated = 0, errors = 0;
-
-  const searchData = await frFetch('payment/search', '', key, token);
-  if (!searchData.success) throw new Error('Payment search failed');
-
-  const allIds: number[] = searchData.paymentIDs || [];
-
-  const existing = await prisma.payment.findMany({
-    where: {
-      externalSource: 'fieldroutes',
-      externalId: { not: null },
-      invoice: { office },
-    },
-    select: { externalId: true },
-  });
-  const syncedIds = new Set(existing.map((p: any) => p.externalId!));
-  const newIds = allIds.filter(id => !syncedIds.has(String(id)));
-
-  if (newIds.length === 0) return { created, updated, errors };
-
-  const payments = await fetchInBatches('payment/get', 'paymentIDs', newIds, key, token);
-
-  for (const p of payments) {
-    try {
-      if (parseFloat(p.appliedAmount) <= 0) continue;
-      if (!p.paymentApplications || p.paymentApplications.length === 0) continue;
-
-      for (const application of p.paymentApplications) {
-        const ticketId = String(application.ticketID);
-        const appliedAmount = parseFloat(application.appliedAmount);
-        if (appliedAmount <= 0) continue;
-
-        const invoice = await prisma.invoice.findFirst({
-          where: { externalId: ticketId },
-        });
-        if (!invoice) {
-          errors++;
-          continue;
-        }
-
-        await prisma.payment.create({
-          data: {
-            invoiceId: invoice.id,
-            date: new Date(p.date),
-            amount: appliedAmount,
-            method: p.cardType
-              ? `${p.cardType}${p.lastFour ? ` ****${p.lastFour}` : ''}`.trim()
-              : 'FieldRoutes',
-            reference: p.transactionID || null,
-            note: p.paymentSource || null,
-            externalId: String(p.paymentID),
-            externalSource: 'fieldroutes',
-          },
-        });
-
-        const allInvPayments = await prisma.payment.findMany({
-          where: { invoiceId: invoice.id },
-          select: { amount: true },
-        });
-        const totalPaid = allInvPayments.reduce(
-          (s, pmt) => s + parseFloat(pmt.amount.toString()), 0
-        );
-        const newStatus = totalPaid >= parseFloat(invoice.amount.toString())
-          ? 'PAID'
-          : invoice.status;
-        await prisma.invoice.update({
-          where: { id: invoice.id },
-          data: { paid: totalPaid, status: newStatus as any },
-        });
-
-        created++;
-      }
-    } catch {
-      errors++;
-    }
-  }
-
-  return { created, updated, errors };
+  // Payment sync is now handled directly by processTicket via FR balance field.
+  // The ticket's balance field is the source of truth — paid = amount - balance.
+  // This handles payments, refunds, voids, discounts, and manual changes automatically.
+  return { created: 0, updated: 0, errors: 0 };
 }
 
 // ============================================================
