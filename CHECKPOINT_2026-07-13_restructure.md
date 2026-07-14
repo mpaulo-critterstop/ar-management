@@ -91,9 +91,14 @@ Nothing has been compared against ground truth (FR UI / original spreadsheet). W
   against what FR (or the old Field_Professional_Effort_Meter spreadsheet) shows for the SAME week.
   If all three match for one tech, the chain is validated.
 
-### 3. Cleanup (low priority, zero-risk)
-- `cron/field-performance` still contains DEAD functions `pullRouteReporting()` and `pullReservices()`
-  (~120 lines, no longer called — PMP path was removed). Safe to delete.
+### 3. Cleanup + hardening — ✅ DONE (2026-07-14, commit 0ca98df)
+- Deleted dead `pullRouteReporting()` + `pullReservices()` from cron/field-performance (~90 lines).
+- Added retry-with-exponential-backoff (2s/4s/8s, 3 retries) for transient FR 502/503/504/429/timeout
+  in BOTH week endpoint's rate limiter AND pmpAppointments' frFetch.
+- Lowered week CONCURRENCY 10→5 (each route = 3-5 FR calls; 10-wide bursts blew past FR 60/min → 502s).
+- Fixed silent batch-skip in pmpAppointments fetchInBatches: now counts + surfaces failedBatches,
+  returns status:'partial' if any batch fails so incomplete backfills are detectable (not silent).
+- VERIFIED DFW pmp_appointments complete: 10,164 fetched, 9,984 stored, 0 failed batches.
 
 ### 4. Retire once DFW backfill confirms
 - `thirtyDayA` / `thirtyDayB` endpoints — superseded by `completion`.
