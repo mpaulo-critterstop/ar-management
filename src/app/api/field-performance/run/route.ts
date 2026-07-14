@@ -77,82 +77,64 @@ async function pullReservices(
   cfg: { key: string; token: string; officeId: number; reserviceTypeIds: Set<string> },
   weekStart: Date,
   weekEnd: Date,
-  pmpTechs: Map<number, string>
+  pmpTechs: Map<number, string>,
+  office: string
 ): Promise<Map<string, number>> {
 
   const result = new Map<string, number>();
-  const RESERVICE_TYPES = cfg.reserviceTypeIds;
   const LOOKBACK_DAYS = 90;
 
   const lookbackStart = new Date(weekEnd);
   lookbackStart.setDate(lookbackStart.getDate() - LOOKBACK_DAYS);
 
-  let searchData: any;
-  try {
-    const searchUrl = frUrl('appointment', 'search', {
-      officeIDs: String(cfg.officeId),
-      dateStart: fmtDate(lookbackStart),
-      dateEnd: fmtDate(weekEnd),
-    }, cfg.key, cfg.token);
-    searchData = await frFetch(searchUrl);
-  } catch { return result; }
-
-  const apptIds: number[] = (searchData.appointmentIDs || []).sort((a: number, b: number) => b - a);
-  result.set('__ids__', apptIds.length);
-  if (apptIds.length === 0) { return result; }
-
-  const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token, 600);
-  const failedEntry = allAppts.find((a: any) => a.__failed__);
-  const failedBatches = failedEntry ? failedEntry.__failed__ : 0;
-  const cleanAppts = allAppts.filter((a: any) => !a.__failed__);
-  result.set('__appts__', cleanAppts.length);
-  result.set('__failed__', failedBatches);
+  // Read the trailing 90-day completed-appointment window from DB (populated by pmpAppointments endpoint)
+  const appts = await prisma.pmpAppointment.findMany({
+    where: {
+      office,
+      status: '1',
+      date: { gte: lookbackStart, lte: new Date(weekEnd.getTime() + 86400000) },
+    },
+    select: { date: true, serviceTypeId: true, isReservice: true, customerId: true, frEmployeeId: true },
+  });
+  result.set('__appts__', appts.length);
+  if (appts.length === 0) { return result; }
 
   const weekStartMs = weekStart.getTime();
   const weekEndMs   = weekEnd.getTime() + 86400000;
 
-  const reservicesThisWeek = cleanAppts.filter((a: any) => {
-    const typeStr = String(a.type || a.serviceTypeID || '');
-    const dateMs  = a.date ? new Date(a.date).getTime() : 0;
-    return RESERVICE_TYPES.has(typeStr) && String(a.status) === '1' && dateMs >= weekStartMs && dateMs <= weekEndMs;
+  // Reservices dated within the current week
+  const reservicesThisWeek = appts.filter(a => {
+    const dateMs = a.date.getTime();
+    return a.isReservice && dateMs >= weekStartMs && dateMs <= weekEndMs;
   });
   result.set('__rscount__', reservicesThisWeek.length);
 
-  const regularAppts = cleanAppts.filter((a: any) => {
-    const typeStr = String(a.type || a.serviceTypeID || '');
-    return !RESERVICE_TYPES.has(typeStr) && String(a.status) === '1';
-  });
+  // Regular (non-reservice) completed appts across the 90-day window
+  const regularAppts = appts.filter(a => !a.isReservice);
 
   // Build customer -> sorted regular appts (descending date) for attribution
-  const customerAppts = new Map<string, any[]>();
+  const customerAppts = new Map<string, typeof regularAppts>();
   for (const appt of regularAppts) {
-    const custId = String(appt.customerID || '');
+    const custId = appt.customerId;
     if (!custId) continue;
     if (!customerAppts.has(custId)) customerAppts.set(custId, []);
     customerAppts.get(custId)!.push(appt);
   }
-  for (const [, appts] of customerAppts) {
-    appts.sort((a: any, b: any) => {
-      const aDate = a.date ? new Date(a.date).getTime() : 0;
-      const bDate = b.date ? new Date(b.date).getTime() : 0;
-      return bDate - aDate;
-    });
+  for (const [, list] of customerAppts) {
+    list.sort((a, b) => b.date.getTime() - a.date.getTime());
   }
 
-  // Attribution: last completed regular service before the reservice
+  // Attribution: last completed regular service before the reservice (within the 90-day window)
   const reseviceCountByTech = new Map<string, number>();
   for (const rs of reservicesThisWeek) {
-    const custId  = String(rs.customerID || '');
+    const custId = rs.customerId;
     if (!custId || custId === '0') continue;
-    const rsDateMs = rs.date ? new Date(rs.date).getTime() : 0;
+    const rsDateMs = rs.date.getTime();
     const history  = customerAppts.get(custId) || [];
     if (history.length === 0) continue;
-    const lastRegular = history.find((a: any) => {
-      const aDate = a.date ? new Date(a.date).getTime() : 0;
-      return aDate < rsDateMs;
-    });
+    const lastRegular = history.find(a => a.date.getTime() < rsDateMs);
     if (!lastRegular) continue;
-    const empId = parseInt(lastRegular.servicedBy || lastRegular.employeeID || '0');
+    const empId = lastRegular.frEmployeeId ?? 0;
     if (!empId || !pmpTechs.has(empId)) continue;
     const techId = pmpTechs.get(empId) as string | undefined;
     if (!techId) continue;
@@ -164,9 +146,8 @@ async function pullReservices(
   const threeMonthsAgoMs = weekEnd.getTime() - (3 * 30 * 24 * 60 * 60 * 1000);
   const regularCountByTech = new Map<string, number>();
   for (const appt of regularAppts) {
-    const dateMs = appt.date ? new Date(appt.date).getTime() : 0;
-    if (dateMs < threeMonthsAgoMs) continue;
-    const empId = parseInt(appt.servicedBy || appt.employeeID || '0');
+    if (appt.date.getTime() < threeMonthsAgoMs) continue;
+    const empId = appt.frEmployeeId ?? 0;
     if (!empId || !pmpTechs.has(empId)) continue;
     const techId = pmpTechs.get(empId)!;
     regularCountByTech.set(techId, (regularCountByTech.get(techId) ?? 0) + 1);
@@ -242,11 +223,11 @@ export async function GET(req: NextRequest) {
       await new Promise(r => setTimeout(r, 1000));
       const pmpReserviceMap = new Map<string, number>();
       try {
-        const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs);
+        const rsMap = await pullReservices(cfg, weekStart, weekEnd, pmpTechs, officeName);
         for (const [k, v] of rsMap) {
           if (!k.startsWith('__')) pmpReserviceMap.set(k, v);
         }
-        log.push(`  Reservice: ids=${rsMap.get('__ids__') ?? 0}, appts=${rsMap.get('__appts__') ?? 0}, failed=${rsMap.get('__failed__') ?? 0}, rsThisWeek=${rsMap.get('__rscount__') ?? 0}, ${[...rsMap.entries()].filter(([k]) => !k.startsWith('__')).map(([k,v]) => `${k}=${(v*100).toFixed(1)}%`).join(', ') || 'none'}`);
+        log.push(`  Reservice (from DB): appts=${rsMap.get('__appts__') ?? 0}, rsThisWeek=${rsMap.get('__rscount__') ?? 0}, ${[...rsMap.entries()].filter(([k]) => !k.startsWith('__')).map(([k,v]) => `${k}=${(v*100).toFixed(1)}%`).join(', ') || 'none'}`);
       } catch (e: any) {
         log.push(`  Reservice error: ${e.message}`);
       }

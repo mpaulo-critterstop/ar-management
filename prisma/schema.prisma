@@ -478,6 +478,27 @@ model TechDayReliability {
   @@map("tech_day_reliability")
 }
 
+// Rolling 90-day window of completed PMP appointments — for reservice rate attribution.
+// Populated weekly by /api/field-performance/pmpAppointments (fetches new week, prunes >90d).
+// Reservice calc reads the trailing 90 days from here instead of re-fetching from FR.
+model PmpAppointment {
+  id              String   @id @default(cuid())
+  frAppointmentId String   @unique   // FR appointment ID
+  office          String
+  date            DateTime
+  serviceTypeId   String              // FR type / serviceTypeID
+  isReservice     Boolean             // type ∈ office reserviceTypeIds
+  status          String              // FR status ('1' = completed)
+  customerId      String
+  frEmployeeId    Int?                // servicedBy / employeeID
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([office, date])
+  @@index([customerId, date])
+  @@map("pmp_appointments")
+}
+
 model TechReview {
   id           String     @id @default(cuid())
   technicianId String
