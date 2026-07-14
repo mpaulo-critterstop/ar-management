@@ -106,6 +106,28 @@ Nothing has been compared against ground truth (FR UI / original spreadsheet). W
 
 ---
 
+### 5. No-show production exclusion — ✅ CODE DONE (commit 0899141), DATA PARTIALLY RE-RUN
+Business decision (confirmed w/ leadership): no-show/not-serviced appts contribute $0 production.
+Old code added recurring charge or ticket amt for no-shows (to match FR booked-revenue); now excluded.
+No-shows still counted in noShow tally (completion rate unaffected). Fix is in week/getRouteStats only.
+VERIFIED: Trevis route 57021 had 4 no-shows worth $335 recurring (now excluded); Jacob Kidd Fri route
+$917.20→$517.20 ($400 no-show excluded).
+IMPACT: Jacob Kidd revEff 77%→59% (prod $1737.40→$1337.40). Earlier "validated 77%" used no-show-inflated
+production; 59% is correct per the rule.
+DATA STATE: 7/10 ✅ re-run BOTH DFW+CStat. Backfill weeks 6/12,6/19,6/26,7/3 ❌ still carry old
+no-show-inflated production — deferred to save FR budget. Re-run later (idempotent, ~1000+ reads for DFW).
+
+### 6. Geocoding gap — ✅ CLEARED
+Found 335 ungeocoded customers (new customers piling up — geocode NOT in weekly pipeline). User cleared
+via app buttons: Addresses (sync-addresses) THEN Geocode. Now 3 left, all dummy accounts — ignore.
+Schema: address = `serviceAddr` (single string), coords lat/lng, geocodedAt, status.
+
+### 7. PIPELINE IS FULLY MANUAL — no weekly cron (discovered 2026-07-14)
+vercel.json crons has ONLY idle-report. Entire field-performance pipeline is triggered MANUALLY.
+USER DECISION: keep manual for now (still debugging, avoid auto-consuming FR limits). Wire crons LATER
+once formulas finalized. When doing so: geocode + sync-addresses BEFORE routeCustomers; reliability LAST;
+pace for FR 5000/day + 60/min.
+
 ## TARGET WEEKLY PIPELINE ORDER (after restructure)
 1. `week` (per office) → tech_routes + production
 2. `pmpAppointments` (per office, new-week mode) → pmp_appointments
