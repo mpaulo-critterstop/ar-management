@@ -100,16 +100,15 @@ async function getRouteStats(routeID: string, key: string, token: string, rl: (u
     const hasTicket = a.ticketID && a.ticketID !== '0';
     const ticketAmt = hasTicket ? (ticketMap.get(String(a.ticketID)) || 0) : null;
 
-    if (isNoShow) {
-      if (hasSub && subInfo && subInfo.recurring > 0) productionValue += subInfo.recurring;
-      else if (hasTicket && ticketAmt && ticketAmt > 0) productionValue += ticketAmt;
-    } else {
-      if (hasTicket) {
-        if (ticketAmt && ticketAmt > 0) productionValue += ticketAmt;
-        else if (hasSub && subInfo && subInfo.recurringTicketPV > 0) productionValue += subInfo.recurringTicketPV;
-      } else if (hasSub && subInfo) {
-        productionValue += subInfo.value;
-      }
+    // No-shows / not-serviced contribute $0 production (service didn't happen).
+    // They are still counted in the noShow tally above for completion-rate purposes.
+    if (isNoShow) continue;
+
+    if (hasTicket) {
+      if (ticketAmt && ticketAmt > 0) productionValue += ticketAmt;
+      else if (hasSub && subInfo && subInfo.recurringTicketPV > 0) productionValue += subInfo.recurringTicketPV;
+    } else if (hasSub && subInfo) {
+      productionValue += subInfo.value;
     }
   }
 
