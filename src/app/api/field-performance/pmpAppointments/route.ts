@@ -46,8 +46,17 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
     const url = frUrl(endpoint, action, { [idParam]: batch.join(',') }, key, token);
     try {
       const data = await frFetch(url);
-      const key2 = Object.keys(data).find(k => Array.isArray(data[k]) && k !== 'appointmentIDs');
-      if (key2) results.push(...data[key2]);
+      // Extract the appointments array specifically (avoid picking up empty ignoredParams etc.)
+      const arr = data.appointments || data[action + 's'] || null;
+      if (Array.isArray(arr)) {
+        results.push(...arr);
+      } else {
+        // fallback: largest non-meta array
+        const candidates = Object.entries(data)
+          .filter(([k, v]) => Array.isArray(v) && !['ignoredParams', 'appointmentIDs'].includes(k))
+          .sort((a: any, b: any) => b[1].length - a[1].length);
+        if (candidates.length) results.push(...(candidates[0][1] as any[]));
+      }
     } catch (e) {
       // skip failed batch
     }
