@@ -15,7 +15,7 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number; re
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4, reserviceTypeIds: new Set(['3','822','821','807','732','809','1005','1066']) },
 };
 
-const PROD_STANDARD_PER_DAY = 1150;
+const INDUSTRY_WEEKLY_PROD_STANDARD = 5676.923077;  // Industry avg weekly production (spreadsheet Col Q)
 
 function frUrl(endpoint: string, action: string, params: Record<string, string>, key: string, token: string) {
   const url = new URL(`${BASE_URL}/${endpoint}/${action}`);
@@ -206,9 +206,12 @@ export async function GET(req: NextRequest) {
     if (pmpTechs.size === 0) { log.push(`  No PMP techs`); continue; }
 
     try {
-      // Get route counts from tech_routes DB table (no FR call needed)
-      const techRouteRows = await prisma.$queryRaw<Array<{ techId: string; cnt: bigint }>>`
-        SELECT "techId", COUNT(*) as cnt
+      // Get route counts from tech_routes DB table (no FR call needed).
+      // cnt = all routes; productiveDays = routes with production > 0 (used for revEff normalization)
+      const techRouteRows = await prisma.$queryRaw<Array<{ techId: string; cnt: bigint; productivedays: bigint }>>`
+        SELECT "techId",
+               COUNT(*) as cnt,
+               COUNT(*) FILTER (WHERE "productionValue" > 0) as productivedays
         FROM tech_routes
         WHERE "weekEnd" = ${weekEnd}
           AND "office" = ${officeName}
@@ -216,6 +219,9 @@ export async function GET(req: NextRequest) {
       `;
       const routeCountByTech = new Map<string, number>(
         techRouteRows.map(r => [r.techId, Number(r.cnt)])
+      );
+      const productiveDaysByTech = new Map<string, number>(
+        techRouteRows.map(r => [r.techId, Number(r.productivedays)])
       );
       log.push(`  Routes from DB: ${techRouteRows.length} techs`);
 
@@ -242,10 +248,19 @@ export async function GET(req: NextRequest) {
         });
 
         const productionValue = existing?.productionValue ?? 0;
-        const hrDays = tech.hrDays || 8;
-        const stdDays = hrDays === 10 ? 4 : 5;
-        const revenueEff = productionValue > 0
-          ? Math.min(productionValue / (stdDays * PROD_STANDARD_PER_DAY), 1.1)
+        const productiveDays  = productiveDaysByTech.get(tech.techId) ?? 0;
+        const hrsPerDay       = tech.hrDays || 8;   // 8 (5-day) or 10 (4-day) schedule
+
+        // Revenue efficiency:
+        //   1. Normalize actual production to a full 40-hr week:
+        //      assumedWeekly = actualProduction / (productiveDays × hrsPerDay) × 40
+        //      (only days WITH production count — days assigned to other work aren't held against the tech)
+        //   2. Divide by the industry-average weekly production standard, cap at 110%.
+        const revenueEff = (productionValue > 0 && productiveDays > 0)
+          ? Math.min(
+              (productionValue / (productiveDays * hrsPerDay) * 40) / INDUSTRY_WEEKLY_PROD_STANDARD,
+              1.1
+            )
           : null;
 
         const effectiveReseviceRate = reseviceRate;
