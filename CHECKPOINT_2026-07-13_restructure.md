@@ -121,6 +121,13 @@ no-show-inflated production — deferred to save FR budget. Re-run later (idempo
 Found 335 ungeocoded customers (new customers piling up — geocode NOT in weekly pipeline). User cleared
 via app buttons: Addresses (sync-addresses) THEN Geocode. Now 3 left, all dummy accounts — ignore.
 Schema: address = `serviceAddr` (single string), coords lat/lng, geocodedAt, status.
+FOLLOW-ON: ungeocoded customers had been SILENTLY DROPPED from reliability geofencing (routeCustomers
+only saves customers WITH coords; reliability's start-of-day = first trip end within 300m of a known
+stop — an ungeocoded stop can't match, understating that tech's day). After clearing geocodes, re-ran
+routeCustomers (ALL offices, now 100% geocoded — e.g. DFW offset60 jumped 71→139 customers) THEN
+reliability for 7/10: loaded 162 tech-day / 975 customers (was 124/722), 49 techs updated. 7/10 reliability
+now correct. CAVEAT: backfill weeks 6/12–7/3 reliability still computed w/ old ungeocoded data — re-run
+routeCustomers→reliability for those weeks later to correct. FR-fallback techs (16 w/o Bouncie) unaffected.
 
 ### 7. PIPELINE IS FULLY MANUAL — no weekly cron (discovered 2026-07-14)
 vercel.json crons has ONLY idle-report. Entire field-performance pipeline is triggered MANUALLY.
