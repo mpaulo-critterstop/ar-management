@@ -23,9 +23,34 @@ function makeRateLimiter() {
       callCount = 0; minuteStart = Date.now();
     }
     callCount++;
-    const res = await fetch(url, { signal: AbortSignal.timeout(25000) });
-    if (!res.ok) throw new Error(`FR HTTP ${res.status}`);
-    return res.json();
+
+    // Retry transient failures (502/503/504 gateway errors, timeouts) with exponential backoff
+    const MAX_RETRIES = 3;
+    let lastErr: any;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(25000) });
+        if (res.ok) return res.json();
+        // Rate-limit (429) or gateway errors → retry; other 4xx → fail fast
+        if (res.status === 429 || res.status >= 500) {
+          lastErr = new Error(`FR HTTP ${res.status}`);
+          if (attempt < MAX_RETRIES) {
+            await new Promise(r => setTimeout(r, 2000 * Math.pow(2, attempt))); // 2s, 4s, 8s
+            continue;
+          }
+        }
+        throw new Error(`FR HTTP ${res.status}`);
+      } catch (e: any) {
+        lastErr = e;
+        // Timeout / network error → retry
+        if (attempt < MAX_RETRIES && (e.name === 'TimeoutError' || e.name === 'AbortError' || String(e.message).includes('FR HTTP 5') || String(e.message).includes('fetch'))) {
+          await new Promise(r => setTimeout(r, 2000 * Math.pow(2, attempt)));
+          continue;
+        }
+        throw e;
+      }
+    }
+    throw lastErr;
   };
 }
 
@@ -181,8 +206,9 @@ export async function GET(req: NextRequest) {
       completed: number; pending: number; noShow: number; productionValue: number;
     }> = [];
 
-    // Run all routes concurrently in groups of 10 to avoid rate limiting
-    const CONCURRENCY = 10;
+    // Run routes concurrently in small groups. Each route = 3-5 FR calls, so keep the group
+    // small enough that a burst (group × 5) stays well under FR's 60/min ceiling. 5×5=25 worst case.
+    const CONCURRENCY = 5;
     for (let i = 0; i < pmpWeekRoutes.length; i += CONCURRENCY) {
       const batch = pmpWeekRoutes.slice(i, i + CONCURRENCY);
       const batchStats = await Promise.all(batch.map(r => getRouteStats(r.routeID, cfg.key, cfg.token, rl)));

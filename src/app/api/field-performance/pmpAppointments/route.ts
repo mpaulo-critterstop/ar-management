@@ -34,13 +34,32 @@ function frUrl(endpoint: string, action: string, params: Record<string, string>,
 }
 
 async function frFetch(url: string): Promise<any> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(25000) });
-  if (!res.ok) throw new Error(`FR HTTP ${res.status}`);
-  return res.json();
+  const MAX_RETRIES = 3;
+  let lastErr: any;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(25000) });
+      if (res.ok) return res.json();
+      if (res.status === 429 || res.status >= 500) {
+        lastErr = new Error(`FR HTTP ${res.status}`);
+        if (attempt < MAX_RETRIES) { await new Promise(r => setTimeout(r, 2000 * Math.pow(2, attempt))); continue; }
+      }
+      throw new Error(`FR HTTP ${res.status}`);
+    } catch (e: any) {
+      lastErr = e;
+      if (attempt < MAX_RETRIES && (e.name === 'TimeoutError' || e.name === 'AbortError' || String(e.message).includes('FR HTTP 5') || String(e.message).includes('fetch'))) {
+        await new Promise(r => setTimeout(r, 2000 * Math.pow(2, attempt)));
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr;
 }
 
-async function fetchInBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string, delayMs = 400): Promise<any[]> {
+async function fetchInBatches(endpoint: string, action: string, idParam: string, ids: any[], key: string, token: string, delayMs = 400): Promise<{ records: any[]; failedBatches: number }> {
   const results: any[] = [];
+  let failedBatches = 0;
   for (let i = 0; i < ids.length; i += 100) {
     const batch = ids.slice(i, i + 100);
     const url = frUrl(endpoint, action, { [idParam]: batch.join(',') }, key, token);
@@ -58,11 +77,12 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
         if (candidates.length) results.push(...(candidates[0][1] as any[]));
       }
     } catch (e) {
-      // skip failed batch
+      // Batch failed even after retries — count it so the caller knows data is incomplete
+      failedBatches++;
     }
     if (i + 100 < ids.length) await new Promise(r => setTimeout(r, delayMs));
   }
-  return results;
+  return { records: results, failedBatches };
 }
 
 function fmtDate(d: Date) { return d.toISOString().split('T')[0]; }
@@ -120,8 +140,8 @@ export async function GET(req: NextRequest) {
       }, { headers: { 'Cache-Control': 'no-store' } });
     }
 
-    const allAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token, 500);
-    log.push(`Fetched ${allAppts.length} appointment records`);
+    const { records: allAppts, failedBatches } = await fetchInBatches('appointment', 'get', 'appointmentIDs', apptIds, cfg.key, cfg.token, 500);
+    log.push(`Fetched ${allAppts.length} appointment records${failedBatches > 0 ? ` (⚠ ${failedBatches} batches FAILED — data incomplete, re-run to fill)` : ''}`);
 
     // Store only completed appointments (status='1') — reservice logic only uses completed
     let upserted = 0;
@@ -160,9 +180,10 @@ export async function GET(req: NextRequest) {
     log.push(`Pruned ${pruned} rows older than ${fmtDate(pruneCutoff)}`);
 
     return NextResponse.json({
-      status: 'success', office: officeFilter, weekEnd: fmtDate(weekEnd),
+      status: failedBatches > 0 ? 'partial' : 'success',
+      office: officeFilter, weekEnd: fmtDate(weekEnd),
       mode: backfill ? 'backfill' : 'weekly',
-      fetched: allAppts.length, upserted, pruned,
+      fetched: allAppts.length, upserted, pruned, failedBatches,
       log: log.join('\n'),
     }, { headers: { 'Cache-Control': 'no-store' } });
 
