@@ -28,14 +28,19 @@ export async function GET(req: NextRequest) {
     SELECT imei, COUNT(*) as cnt FROM bouncie_trip_events GROUP BY imei ORDER BY cnt DESC LIMIT 10
   `;
 
-  // Verify idle events (speed=0) carry valid GPS. Avoid full-table counts (2M+ rows, no speed index).
-  // Sample the most recent speed=0 rows and inspect their coordinates directly.
-  const idleSample = await prisma.bouncieTripEvent.findMany({
-    where: { speed: 0 },
-    orderBy: { timestamp: 'desc' },
-    take: 20,
-    select: { timestamp: true, speed: true, lat: true, lng: true, imei: true },
-  });
+  // Verify idle events (speed=0) carry valid GPS. Must scope by imei+timestamp to hit the
+  // [imei,timestamp] index — a global speed filter scans 2M rows and times out.
+  // Use the newest event's imei and look back 2 days.
+  let idleSample: Array<{ timestamp: Date; speed: number; lat: number; lng: number; imei: string }> = [];
+  if (newest?.imei) {
+    const since = new Date(newest.createdAt.getTime() - 2 * 24 * 60 * 60 * 1000);
+    const recent = await prisma.bouncieTripEvent.findMany({
+      where: { imei: newest.imei, timestamp: { gte: since } },
+      orderBy: { timestamp: 'desc' },
+      select: { timestamp: true, speed: true, lat: true, lng: true, imei: true },
+    });
+    idleSample = recent.filter(r => r.speed === 0).slice(0, 20);
+  }
   const validInSample = idleSample.filter(s => s.lat !== 0 && s.lng !== 0 && s.lat != null && s.lng != null).length;
 
   return NextResponse.json({
@@ -45,7 +50,8 @@ export async function GET(req: NextRequest) {
     oldestEvent: oldest,
     topDevices: devices.map(d => ({ imei: d.imei, events: Number(d.cnt) })),
     idleEventGpsCheck: {
-      sampleSize: idleSample.length,
+      scopedToImei: newest?.imei ?? null,
+      idleSampleSize: idleSample.length,
       withValidGps: validInSample,
       withZeroOrNullGps: idleSample.length - validInSample,
       sample: idleSample.slice(0, 8),
