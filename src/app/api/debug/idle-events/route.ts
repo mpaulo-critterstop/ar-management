@@ -28,17 +28,15 @@ export async function GET(req: NextRequest) {
     SELECT imei, COUNT(*) as cnt FROM bouncie_trip_events GROUP BY imei ORDER BY cnt DESC LIMIT 10
   `;
 
-  // Verify idle events (speed=0) actually carry valid GPS — the whole idle-detection feature depends on this
-  const idleTotal = await prisma.bouncieTripEvent.count({ where: { speed: 0 } });
-  const idleValidGps = await prisma.bouncieTripEvent.count({
-    where: { speed: 0, NOT: { lat: 0, lng: 0 } },
-  });
+  // Verify idle events (speed=0) carry valid GPS. Avoid full-table counts (2M+ rows, no speed index).
+  // Sample the most recent speed=0 rows and inspect their coordinates directly.
   const idleSample = await prisma.bouncieTripEvent.findMany({
     where: { speed: 0 },
     orderBy: { timestamp: 'desc' },
-    take: 5,
+    take: 20,
     select: { timestamp: true, speed: true, lat: true, lng: true, imei: true },
   });
+  const validInSample = idleSample.filter(s => s.lat !== 0 && s.lng !== 0 && s.lat != null && s.lng != null).length;
 
   return NextResponse.json({
     totalEvents: total,
@@ -46,11 +44,11 @@ export async function GET(req: NextRequest) {
     newestEvent: newest,
     oldestEvent: oldest,
     topDevices: devices.map(d => ({ imei: d.imei, events: Number(d.cnt) })),
-    idleEvents: {
-      totalSpeedZero: idleTotal,
-      withValidGps: idleValidGps,
-      withZeroOrNullGps: idleTotal - idleValidGps,
-      sampleRecent: idleSample,
+    idleEventGpsCheck: {
+      sampleSize: idleSample.length,
+      withValidGps: validInSample,
+      withZeroOrNullGps: idleSample.length - validInSample,
+      sample: idleSample.slice(0, 8),
     },
     verdict: total === 0
       ? 'EMPTY — webhook is not receiving data (likely not registered in Bouncie dashboard)'
