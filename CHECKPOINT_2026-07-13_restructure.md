@@ -135,6 +135,19 @@ USER DECISION: keep manual for now (still debugging, avoid auto-consuming FR lim
 once formulas finalized. When doing so: geocode + sync-addresses BEFORE routeCustomers; reliability LAST;
 pace for FR 5000/day + 60/min.
 
+### 8. Idle-event start/end of day — ✅ DONE & VERIFIED (commit d2fe249)
+Problem: techs who don't turn engine off at a stop (grab supplies at office/store, or drop supplies
+at office before home) — Bouncie sees ONE continuous trip, so trip-end/start logic missed the stop,
+marking them late / under-utilized unfairly.
+Fix: reliability reads bouncie_trip_events (per-point GPS from webhook — CONFIRMED ACTIVE, 2M+ events,
+~858k/week, live). Idle event (speed=0 EXACTLY) within a business/customer geofence pulls start-of-day
+EARLIER or pushes end-of-day LATER. Same geofence set; only queries windows that could change the
+answer; workday-bounded (~4AM–10PM CST).
+VERIFIED 7/10: 315 adjustments across 49 techs; earliest pulled-start 5:40AM (no pre-5:30 false matches).
+NOTE: bouncie_trip_events grows ~858k rows/week — add retention/prune policy eventually.
+NOTE: only affects Bouncie techs (16 FR-fallback techs unaffected). Backfill weeks need reliability
+re-run to get this benefit (deferred).
+
 ## TARGET WEEKLY PIPELINE ORDER (after restructure)
 1. `week` (per office) → tech_routes + production
 2. `pmpAppointments` (per office, new-week mode) → pmp_appointments
