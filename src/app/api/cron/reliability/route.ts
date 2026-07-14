@@ -492,30 +492,6 @@ export async function POST(req: NextRequest) {
         let startOfDay: Date | null = null;
         let endOfDay: Date | null = null;
 
-        // ── IDLE AT OFFICE CHECK: tech idles at office without turning engine off ──
-        // Check bouncie_trip_events for speed=0 near a business location before 10AM
-        if (startOfDay === null) {
-          const dayStart = new Date(date + 'T06:00:00.000Z'); // 6AM UTC = midnight CST
-          const dayMorningEnd = new Date(date + 'T15:00:00.000Z'); // 10AM CST
-          const idleAtOffice = await prisma.bouncieTripEvent.findFirst({
-            where: {
-              imei,
-              timestamp: { gte: dayStart, lte: dayMorningEnd },
-              speed: { lte: 1 }, // speed=0 or near-zero = idling
-            },
-            orderBy: { timestamp: 'asc' },
-          });
-
-          if (idleAtOffice) {
-            // Check if this idle event is near a business location
-            const nearBizCheck = isBusinessLocation(idleAtOffice.lat, idleAtOffice.lng);
-            if (nearBizCheck.match) {
-              startOfDay = idleAtOffice.timestamp;
-              log.push(`    ${date} start matched (idle at ${nearBizCheck.name}): ${idleAtOffice.timestamp.toLocaleTimeString('en-US',{timeZone})} (speed=${idleAtOffice.speed.toFixed(1)}mph)`);
-            }
-          }
-        }
-
         for (let tripIdx = 0; tripIdx < dayTrips.length; tripIdx++) {
           const trip = dayTrips[tripIdx];
           const endpoints = extractTripEndpoints(trip);
@@ -561,6 +537,60 @@ export async function POST(req: NextRequest) {
             // Only use trip end if it's after start of day and after current endOfDay
             if (startOfDay && tripEnd > startOfDay && (!endOfDay || tripEnd > endOfDay)) {
               endOfDay = tripEnd;
+            }
+          }
+        }
+
+        // ── IDLE-AT-LOCATION ADJUSTMENT ──────────────────────────────────────
+        // Some techs don't turn the engine off at a stop (e.g. grabbing supplies at
+        // the office/store, or dropping supplies at the office before heading home).
+        // Bouncie sees that as one continuous trip, so the trip-end/start logic above
+        // misses it. But the per-point feed (bouncie_trip_events) shows speed=0 while
+        // parked. We treat an idle event (speed=0) within a known geofence as a valid
+        // business presence: it can push start-of-day EARLIER or end-of-day LATER.
+        //
+        // Efficiency: we only query idle events in the windows that could actually
+        // change the answer — before the current start, and after the current end —
+        // and scan chronologically, stopping at the first geofence match.
+        {
+          // Workday window in UTC. CST = UTC-6 (CDT = UTC-5; using -6 buffer is safe).
+          // Start ~4AM CST, end ~10PM CST of the SAME calendar date — avoids catching
+          // late-night personal trips or the next morning's activity.
+          const dayStartUtc = new Date(date + 'T09:00:00.000Z'); // ~4AM CST
+          const dayEndUtc   = new Date(date + 'T04:00:00.000Z');  // ~10PM CST (next UTC day)
+          dayEndUtc.setDate(dayEndUtc.getDate() + 1);
+
+          const idleMatchesLocation = (lat: number, lng: number): boolean =>
+            isBusinessLocation(lat, lng).match || isCustomerLocation(lat, lng, matchCoords);
+
+          // (a) EARLIER START: idle events before current startOfDay (or all day if none yet)
+          const startWindowEnd = startOfDay ?? dayEndUtc;
+          const earlyIdles = await prisma.bouncieTripEvent.findMany({
+            where: { imei, speed: 0, timestamp: { gte: dayStartUtc, lt: startWindowEnd } },
+            orderBy: { timestamp: 'asc' },
+            select: { timestamp: true, lat: true, lng: true },
+          });
+          for (const ev of earlyIdles) {
+            if (idleMatchesLocation(ev.lat, ev.lng)) {
+              startOfDay = ev.timestamp;
+              log.push(`    ${date} start pulled earlier (idle at business): ${ev.timestamp.toLocaleTimeString('en-US',{timeZone})}`);
+              break; // earliest match wins
+            }
+          }
+
+          // (b) LATER END: idle events after current endOfDay
+          if (endOfDay) {
+            const lateIdles = await prisma.bouncieTripEvent.findMany({
+              where: { imei, speed: 0, timestamp: { gt: endOfDay, lte: dayEndUtc } },
+              orderBy: { timestamp: 'desc' },
+              select: { timestamp: true, lat: true, lng: true },
+            });
+            for (const ev of lateIdles) {
+              if (idleMatchesLocation(ev.lat, ev.lng)) {
+                endOfDay = ev.timestamp;
+                log.push(`    ${date} end pushed later (idle at business): ${ev.timestamp.toLocaleTimeString('en-US',{timeZone})}`);
+                break; // latest match wins
+              }
             }
           }
         }
