@@ -75,18 +75,19 @@ Nothing has been compared against ground truth (FR UI / original spreadsheet). W
 - completion: counting logic is line-for-line identical to old thirtyDay; window math correct. NOT output-compared.
 - reservice: INPUT parity proven (FR returned 2095 IDs for CStat 90-day = 2095 fetched, 2006 completed stored).
   Logic is a direct port. NOT output-compared (old code no longer exists to run side-by-side).
-- **revEff: partially explained, still needs manual ground-truth check.** DFW 7/10 spread:
-  Blake 55%, Jimmy 58%, Trevis 59% (low) … William/David 110% (capped), most 73-93%.
-  FINDING: formula is mechanically correct (single-week TechWeek.productionValue ÷ (stdDays×1150),
-  cap 1.1). Spread does NOT correlate with appointment VOLUME — it tracks dollars-per-job (David does
-  fewer, higher-value jobs → high revEff; Trevis does more, lower-value → low). So wide spread is
-  EXPECTED, reflecting real revenue efficiency, not a bug.
-  STILL OPEN: (a) is stdDays right as fixed 4/5, or should it be ACTUAL productive days worked?
-  A tech who took 2 days off gets understated by dividing by 5 (this is the `productiveDays` refinement).
-  (b) is single-week productionValue complete? (7/3 taught us partial 502 runs undercount — verify no
-  other week is partial). VALIDATION TASK: pick Rickie Rose (93%, full-timer) — check FR for his 7/10
-  week production ($ should ≈ 0.93×5×1150 = $5,348) and days worked (confirms stdDays=5). If both match,
-  formula validated. Note: $0-production routes are REAL (tech had route, logged no production) — not errors.
+- **revEff: ✅ RESOLVED & VALIDATED (2026-07-14, commit 0019e41).** Correct formula confirmed by user
+  against spreadsheet + hand-calc on Jacob Kidd:
+  ```
+  productiveDays = count of tech's routes this week with productionValue > 0  (days assigned to
+                   other work are NOT counted against the tech)
+  hrsPerDay      = tech.hrDays  (8 for 5-day×8hr schedule, 10 for 4-day×10hr schedule)
+  assumedWeekly  = actualProduction / (productiveDays × hrsPerDay) × 40   ← normalize to full 40hr week
+  revEff         = min(assumedWeekly / 5676.923077, 1.1)                  ← ÷ industry avg WEEKLY prod
+  ```
+  Denominator is 5676.92 (industry avg WEEKLY production, spreadsheet Col Q) — NOT the old per-day 1150.
+  Old formula `production/(stdDays×1150)` was WRONG on two counts: wrong constant, and it penalized $0 days.
+  VERIFIED: Jacob Kidd 7/10 = $1737.40 over 2 productive days (8hr) → assumedWeekly $4343.50 → revEff 77%.
+  Live-confirmed both offices. Note: techs with 0 productive days (e.g. Warren) → revEff null (correct).
 - **Validation method:** pick ONE tech, compare their completion% / reservice / revEff from our DB
   against what FR (or the old Field_Professional_Effort_Meter spreadsheet) shows for the SAME week.
   If all three match for one tech, the chain is validated.
