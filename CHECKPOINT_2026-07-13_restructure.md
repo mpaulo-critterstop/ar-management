@@ -61,30 +61,32 @@ reliability FR-fallback still touch FR — each fetches only the current week, n
 
 ## WHAT'S PENDING
 
-### 1. DFW backfill (BLOCKED on FR daily limit — resets midnight CST)
-CStat is FULLY backfilled (5 weeks of routes + 90-day appts). ATX/OKC have NO PMP techs (confirmed).
-DFW is the only remaining PMP backfill. After the primary DFW key resets, run:
-```
-# 4 prior weeks (7/10 already done):
-https://hub.critterstop.com/api/field-performance/week?token=critterstop2026&office=DFW&weekEnd=2026-06-12
-https://hub.critterstop.com/api/field-performance/week?token=critterstop2026&office=DFW&weekEnd=2026-06-19
-https://hub.critterstop.com/api/field-performance/week?token=critterstop2026&office=DFW&weekEnd=2026-06-26
-https://hub.critterstop.com/api/field-performance/week?token=critterstop2026&office=DFW&weekEnd=2026-07-03
-# 90-day appointment window (one call):
-https://hub.critterstop.com/api/field-performance/pmpAppointments?token=critterstop2026&office=DFW&weekEnd=2026-07-10&backfill=true
-```
-Estimated cost: ~950–1,250 FR reads. Fits in a fresh 5,000/day. All steps idempotent (safe to re-run).
-NOTE: run from browser — these exceed the assistant's shell timeout but finish on Vercel (maxDuration 300).
-NOTE: space calls out to avoid the 60/min limit; on a 502/timeout just re-run that URL.
+### 1. DFW backfill — ✅ DONE (completed 2026-07-14, after FR daily reset)
+CStat: fully backfilled. DFW: fully backfilled (all 5 weeks 6/12–7/10 + 90-day pmp_appointments,
+10,773 completed appts in window). ATX/OKC: NO PMP techs (confirmed, nothing to backfill).
+LESSON: week endpoint's concurrent-10 processing can burst past FR's 60-reads/min limit → mid-run
+502 + partial save (7/3 first saved 28/60 routes, then a clean re-run finished it — idempotent by
+frRouteId). Do NOT infer success from FR read-count deltas; a partial 502 still consumes reads.
+Always confirm status:success + full route count. Future improvement: throttle week concurrency or
+add retry-on-502.
 
 ### 2. Validation — NOT YET DONE (user wants to do this after all backfill)
 Nothing has been compared against ground truth (FR UI / original spreadsheet). What's proven so far:
 - completion: counting logic is line-for-line identical to old thirtyDay; window math correct. NOT output-compared.
 - reservice: INPUT parity proven (FR returned 2095 IDs for CStat 90-day = 2095 fetched, 2006 completed stored).
   Logic is a direct port. NOT output-compared (old code no longer exists to run side-by-side).
-- **revEff: OPEN CONCERN.** Numbers came out low for several techs (7/10: Trevis 59%, Blake 55%,
-  Jacob Kidd 30%, Cynthia 27%). Unresolved whether that's correct or whether productionValue in DB
-  mismatches the spreadsheet source. PLAN: recalculate formula later + compare to actual FR numbers manually.
+- **revEff: partially explained, still needs manual ground-truth check.** DFW 7/10 spread:
+  Blake 55%, Jimmy 58%, Trevis 59% (low) … William/David 110% (capped), most 73-93%.
+  FINDING: formula is mechanically correct (single-week TechWeek.productionValue ÷ (stdDays×1150),
+  cap 1.1). Spread does NOT correlate with appointment VOLUME — it tracks dollars-per-job (David does
+  fewer, higher-value jobs → high revEff; Trevis does more, lower-value → low). So wide spread is
+  EXPECTED, reflecting real revenue efficiency, not a bug.
+  STILL OPEN: (a) is stdDays right as fixed 4/5, or should it be ACTUAL productive days worked?
+  A tech who took 2 days off gets understated by dividing by 5 (this is the `productiveDays` refinement).
+  (b) is single-week productionValue complete? (7/3 taught us partial 502 runs undercount — verify no
+  other week is partial). VALIDATION TASK: pick Rickie Rose (93%, full-timer) — check FR for his 7/10
+  week production ($ should ≈ 0.93×5×1150 = $5,348) and days worked (confirms stdDays=5). If both match,
+  formula validated. Note: $0-production routes are REAL (tech had route, logged no production) — not errors.
 - **Validation method:** pick ONE tech, compare their completion% / reservice / revEff from our DB
   against what FR (or the old Field_Professional_Effort_Meter spreadsheet) shows for the SAME week.
   If all three match for one tech, the chain is validated.
