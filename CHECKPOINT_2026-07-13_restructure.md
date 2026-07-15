@@ -148,6 +148,28 @@ NOTE: bouncie_trip_events grows ~858k rows/week — add retention/prune policy e
 NOTE: only affects Bouncie techs (16 FR-fallback techs unaffected). Backfill weeks need reliability
 re-run to get this benefit (deferred).
 
+### 9. Time-at-job (timeAtJobMins) — ✅ FIXED & GAP-FILLED (2026-07-14)
+Problem 1 (found via diagnostic): ~13% of tc_appointments had null timeAtJobMins across ALL history
+(2023–2026), a persistent miss — the old trip-gap dwell method (reliability cron) has structural blind
+spots (engine left running, last stop of day, customer not in tech_route_customers).
+Built /api/field-performance/fillTimeAtJob (Option C) to compute dwell from per-point GPS (bouncie_trip_events).
+CRITICAL BUG + FIX (found via Luke Painter 198941, user caught it): a parked truck with engine OFF emits
+NO Bouncie points. So dwell is NOT a run of speed=0 points — it's the DATA GAP between the arrival point
+and the departure point near the customer. First attempt summed speed=0 points → got 0.6min for a ~115min
+stop. CORRECT logic: timeAtJob = first-inside-geofence → last-inside-geofence timestamp per visit; a NEW
+visit begins only when the truck was seen OUTSIDE the geofence between two inside points (a data gap alone
+= tech parked/working, not a departure). Sum visits. Verified: Luke 198941 = 118 min (matches observed ~115).
+Def confirmed w/ user: "actual minutes from arrival to departure, per appointment, summed across visits."
+DATA STATE: reset all post-2026-06-28 completed timeAtJobMins to null, recomputed with corrected logic —
+297 filled. ~89 unfillable (no Bouncie device / no GPS that day / truck never within 500m). Pre-webhook
+(<2026-06-28) nulls are PERMANENTLY unfillable (no per-point GPS existed then) — left as-is.
+Endpoint batching: ?limit= + ?offset= cursor + ?since= floor (defaults post-webhook) so it advances past
+unfillable records. LESSON: bouncie_trip_events queries must be scoped by imei+timestamp (indexed);
+global speed filters scan 2M rows and time out.
+TODO: fold this GPS-based dwell into the reliability cron to replace the trip-gap method going forward
+(so new weeks populate correctly without manual fill). Also debug endpoints /api/debug/timeatjob and
+/api/debug/idle-events exist for tracing.
+
 ## TARGET WEEKLY PIPELINE ORDER (after restructure)
 1. `week` (per office) → tech_routes + production
 2. `pmpAppointments` (per office, new-week mode) → pmp_appointments
