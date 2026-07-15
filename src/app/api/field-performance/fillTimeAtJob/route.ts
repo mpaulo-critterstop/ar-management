@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
     const points = await prisma.bouncieTripEvent.findMany({
       where: { imei, timestamp: { gte: dayStart, lte: dayEnd } },
       orderBy: { timestamp: 'asc' },
-      select: { timestamp: true, lat: true, lng: true },
+      select: { timestamp: true, lat: true, lng: true, speed: true },
     });
     if (points.length === 0) { noGps++; continue; }
 
