@@ -98,42 +98,55 @@ export async function GET(req: NextRequest) {
     if (points.length === 0) { noGps++; continue; }
 
     // Points within the customer geofence
-    const inside = points.filter(p => haversineDistance(p.lat, p.lng, coord.lat, coord.lng) <= GEOFENCE_RADIUS_M);
+    const insideMask = points.map(p => haversineDistance(p.lat, p.lng, coord.lat, coord.lng) <= GEOFENCE_RADIUS_M);
+    const inside = points.filter((_, i) => insideMask[i]);
     if (inside.length === 0) { noMatch++; continue; }
 
-    // "Time at job" = actual arrival→departure per visit, summed across visits that day.
-    // Anchor on STOPPED points (speed=0) so a truck merely driving through the 500m circle
-    // (drive-by points all have speed>0) doesn't count. Within a stop, measure first→last
-    // stopped point. A gap > 5 min between stopped points = a separate visit.
-    const stopped = inside.filter(p => p.speed === 0);
-    if (stopped.length === 0) { noMatch++; continue; } // was near customer but never parked (drive-by)
-
-    const GAP_BREAK_MS = 5 * 60 * 1000;
+    // "Time at job" = arrival → departure at the customer, summed across genuine visits.
+    // Key insight: a parked truck with the ENGINE OFF emits NO points — so the tech's dwell shows
+    // up as a large time GAP between the arrival point and the departure point, both near the
+    // customer. (An engine-running idle stop shows continuous points instead.) Either way, the
+    // measure is first-inside → last-inside timestamp for a visit.
+    // A NEW visit only begins when, between two in-geofence points, the truck was actually seen
+    // LEAVING (a point outside the geofence in between). A data gap alone (engine off) is NOT a
+    // new visit — it's the tech parked and working.
     let totalMins = 0;
     let visits = 0;
-    let segStart = stopped[0].timestamp.getTime();
-    let prev = segStart;
-    for (let i = 1; i < stopped.length; i++) {
-      const t = stopped[i].timestamp.getTime();
-      if (t - prev > GAP_BREAK_MS) {
-        totalMins += (prev - segStart) / 60000;
-        visits++;
-        segStart = t;
+    let visitStart = inside[0].timestamp.getTime();
+    let visitEnd = visitStart;
+    // Walk the FULL point stream; track whether we left the geofence between inside points.
+    let lastWasInside = false;
+    let leftSinceLastInside = false;
+    for (let i = 0; i < points.length; i++) {
+      if (insideMask[i]) {
+        const t = points[i].timestamp.getTime();
+        if (!lastWasInside && leftSinceLastInside && visitEnd !== visitStart) {
+          // Re-entered after genuinely leaving → close previous visit, start new
+          totalMins += (visitEnd - visitStart) / 60000;
+          visits++;
+          visitStart = t;
+        }
+        visitEnd = t;
+        lastWasInside = true;
+        leftSinceLastInside = false;
+      } else {
+        // outside point → the truck physically left the geofence
+        if (lastWasInside) leftSinceLastInside = true;
+        lastWasInside = false;
       }
-      prev = t;
     }
-    totalMins += (prev - segStart) / 60000;
+    totalMins += (visitEnd - visitStart) / 60000; // final visit
     visits++;
     const mins = totalMins;
 
-    // Sanity bound: 0.5 min to 4 hours total across the day
-    if (mins < 0.5 || mins > 240) { noMatch++; continue; }
+    // Sanity bound: 0.5 min to 5 hours total across the day
+    if (mins < 0.5 || mins > 300) { noMatch++; continue; }
 
     if (!dryRun) {
       await prisma.tcAppointment.update({ where: { id: appt.id }, data: { timeAtJobMins: Math.round(mins * 10) / 10 } });
     }
     filled++;
-    if (samples.length < 12) samples.push({ frAppointmentId: appt.frAppointmentId, date: dayStr, office: appt.office, mins: Math.round(mins * 10) / 10, points: inside.length, stoppedPoints: stopped.length, visits });
+    if (samples.length < 12) samples.push({ frAppointmentId: appt.frAppointmentId, date: dayStr, office: appt.office, mins: Math.round(mins * 10) / 10, points: inside.length, visits });
   }
 
   const remaining = await prisma.tcAppointment.count({
