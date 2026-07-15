@@ -39,9 +39,13 @@ export async function GET(req: NextRequest) {
       firstInside: inside[0]?.timestamp, lastInside: inside[inside.length - 1]?.timestamp,
       firstStopped: stopped[0]?.timestamp, lastStopped: stopped[stopped.length - 1]?.timestamp,
       speedDistribution: { zero: stopped.length, nonzero: inside.length - stopped.length },
-      sampleInside: inside.slice(0, 15).map(p => ({ t: p.timestamp, speed: p.speed, dist: Math.round(haversine(p.lat, p.lng, cust.lat!, cust.lng!)) })),
-      // gaps between consecutive stopped points (to see why segments break)
-      stoppedGaps: stopped.slice(1).map((p, i) => Math.round((p.timestamp.getTime() - stopped[i].timestamp.getTime()) / 1000)).filter(g => g > 60).slice(0, 20),
+      // ALL inside points with gap-to-next, to reveal the engine-off parked gap
+      insideTimeline: inside.map((p, i) => ({
+        t: p.timestamp.toISOString().slice(11, 19),
+        speed: Math.round(p.speed),
+        dist: Math.round(haversine(p.lat, p.lng, cust.lat!, cust.lng!)),
+        gapToNextSec: i < inside.length - 1 ? Math.round((inside[i + 1].timestamp.getTime() - p.timestamp.getTime()) / 1000) : null,
+      })),
     };
   }
   return NextResponse.json(out, { headers: { 'Cache-Control': 'no-store' } });
