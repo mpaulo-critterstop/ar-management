@@ -49,6 +49,25 @@ export async function GET(req: NextRequest) {
     if (vStart >= 0) { totalMins += (vEnd - vStart) / 60000; visits++; }
     out.correctedComputation = { timeAtJobMins: Math.round(totalMins * 10) / 10, visits };
 
+    // Diagnose geocode mismatch: find the closest the truck got, and where it dwelled longest.
+    // Look for the truck's longest stationary cluster anywhere that day and its distance to the geocoded customer.
+    const withDist = pts.map(p => ({ t: p.timestamp, speed: p.speed, lat: p.lat, lng: p.lng, dist: haversine(p.lat, p.lng, cust.lat!, cust.lng!) }));
+    const minDist = Math.min(...withDist.map(p => p.dist));
+    // Find stationary clusters (gaps > 20 min = parked with engine off) and their location vs customer
+    const gaps: any[] = [];
+    for (let i = 1; i < pts.length; i++) {
+      const gapMin = (pts[i].timestamp.getTime() - pts[i-1].timestamp.getTime()) / 60000;
+      if (gapMin > 20) {
+        gaps.push({
+          parkedFrom: pts[i-1].timestamp.toISOString().slice(11,19),
+          parkedUntil: pts[i].timestamp.toISOString().slice(11,19),
+          durationMin: Math.round(gapMin),
+          parkedDistToCustomer: Math.round(haversine(pts[i-1].lat, pts[i-1].lng, cust.lat!, cust.lng!)),
+        });
+      }
+    }
+    out.geocodeDiagnosis = { closestApproachM: Math.round(minDist), geofenceRadiusM: R_M, parkedGaps: gaps };
+
     out.gps = {
       totalDayPoints: pts.length, insideGeofence: inside.length, stoppedInside: stopped.length,
       firstInside: inside[0]?.timestamp, lastInside: inside[inside.length - 1]?.timestamp,
