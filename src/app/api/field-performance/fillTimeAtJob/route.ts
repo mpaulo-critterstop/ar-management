@@ -38,21 +38,31 @@ export async function GET(req: NextRequest) {
 
   const log: string[] = [];
 
-  // Candidate rows: missing timeAtJobMins, completed, has a tech assigned
+  // Only attempt records that CAN fill: post-webhook (per-point GPS exists from ~2026-06-28).
+  // Pre-webhook nulls are permanently unfillable, so excluding them stops the batcher wasting
+  // passes on them. Override with ?since=YYYY-MM-DD if needed.
+  const sinceParam = searchParams.get('since') || '2026-06-28';
+  const sinceDate = new Date(sinceParam + 'T00:00:00.000Z');
+  // Cursor to advance through candidates across calls (avoids re-processing a stuck top batch).
+  const offset = parseInt(searchParams.get('offset') || '0');
+
+  // Candidate rows: missing timeAtJobMins, completed, has a tech assigned, post-webhook
   const candidates = await prisma.tcAppointment.findMany({
     where: {
       timeAtJobMins: null,
       apptStatus: 'completed',
       techId: { not: null },
+      date: { gte: sinceDate },
       ...(office ? { office } : {}),
     },
     orderBy: { date: 'desc' },
+    skip: offset,
     take: limit,
     select: { id: true, frAppointmentId: true, techId: true, customerId: true, date: true, office: true },
   });
 
   if (candidates.length === 0) {
-    return NextResponse.json({ status: 'success', processed: 0, filled: 0, remaining: 0, log: ['No candidates left'].join('\n') });
+    return NextResponse.json({ status: 'success', processed: 0, filled: 0, remaining: 0, log: 'No candidates left in window' });
   }
 
   // Map techId -> imei (via bouncie_devices.deviceId)
@@ -150,19 +160,27 @@ export async function GET(req: NextRequest) {
   }
 
   const remaining = await prisma.tcAppointment.count({
-    where: { timeAtJobMins: null, apptStatus: 'completed', techId: { not: null }, ...(office ? { office } : {}) },
+    where: { timeAtJobMins: null, apptStatus: 'completed', techId: { not: null }, date: { gte: sinceDate }, ...(office ? { office } : {}) },
   });
 
-  log.push(`Candidates this batch: ${candidates.length}`);
+  // If nothing filled this batch, the current window is all-unfillable — caller should advance offset.
+  const stuckAdvanceHint = (filled === 0 && candidates.length === limit)
+    ? `Nothing fillable in this batch — retry with &offset=${offset + limit} to step past unfillable records.`
+    : null;
+
+  log.push(`Window: >= ${sinceParam}, offset ${offset}, batch ${candidates.length}`);
   log.push(`Filled: ${filled}${dryRun ? ' (DRY RUN — not written)' : ''}`);
-  log.push(`Skipped — no imei: ${noImei}, no customer coords: ${noCoords}, no GPS that day: ${noGps}, no in-geofence match: ${noMatch}`);
-  log.push(`Remaining null (completed, has tech): ${remaining}`);
+  log.push(`Skipped — no imei: ${noImei}, no coords: ${noCoords}, no GPS: ${noGps}, no match: ${noMatch}`);
+  log.push(`Remaining null in window: ${remaining}`);
+  if (stuckAdvanceHint) log.push(stuckAdvanceHint);
 
   return NextResponse.json({
     status: 'success',
     processed: candidates.length,
     filled,
     remaining,
+    nextOffset: filled === 0 ? offset + limit : offset,
+    stuckAdvanceHint,
     breakdown: { noImei, noCoords, noGps, noMatch },
     samples,
     dryRun,
