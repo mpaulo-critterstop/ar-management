@@ -74,6 +74,7 @@ export async function GET(req: NextRequest) {
   for (const c of custs) if (c.externalId) custCoords.set(c.externalId, { lat: c.lat!, lng: c.lng! });
 
   let filled = 0;
+  const samples: any[] = [];
   let noImei = 0, noCoords = 0, noGps = 0, noMatch = 0;
 
   for (const appt of candidates) {
@@ -112,6 +113,7 @@ export async function GET(req: NextRequest) {
       await prisma.tcAppointment.update({ where: { id: appt.id }, data: { timeAtJobMins: Math.round(mins * 10) / 10 } });
     }
     filled++;
+    if (samples.length < 12) samples.push({ frAppointmentId: appt.frAppointmentId, date: dayStr, office: appt.office, mins: Math.round(mins * 10) / 10, points: inside.length });
   }
 
   const remaining = await prisma.tcAppointment.count({
@@ -129,6 +131,7 @@ export async function GET(req: NextRequest) {
     filled,
     remaining,
     breakdown: { noImei, noCoords, noGps, noMatch },
+    samples,
     dryRun,
     log: log.join('\n'),
   }, { headers: { 'Cache-Control': 'no-store' } });
