@@ -63,6 +63,27 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
 
 function fmtDate(d: Date) { return d.toISOString().split('T')[0]; }
 
+// Run appointment/search across customer-ID batches (FR limits customerIDs per request via URL length),
+// merging all returned appointmentIDs. Replaces the old silent slice(0,200) truncation.
+async function searchApptsByCustomerBatches(
+  cfg: { key: string; token: string; officeId: number },
+  baseParams: Record<string, string>,
+  customerIds: string[],
+  batchSize = 150
+): Promise<number[]> {
+  const allIds = new Set<number>();
+  for (let i = 0; i < customerIds.length; i += batchSize) {
+    const batch = customerIds.slice(i, i + batchSize);
+    const url = frUrl('appointment', 'search', { ...baseParams, customerIDs: batch.join(',') }, cfg.key, cfg.token);
+    try {
+      const data = await frFetch(url);
+      for (const id of (data.appointmentIDs || [])) allIds.add(id);
+    } catch { /* skip failed batch; caller logs completeness elsewhere */ }
+    await new Promise(r => setTimeout(r, 150));
+  }
+  return [...allIds];
+}
+
 function hasCloseoutNote(appt: any): boolean {
   const text = [appt.officeNotes, appt.techNotes].filter(Boolean).join(' ').toLowerCase();
   return CLOSEOUT_KEYWORDS.some(k => text.includes(k));
@@ -163,18 +184,14 @@ export async function POST(req: NextRequest) {
       // Get all future appointments for customers in this batch to compute forward-looking fields
       const customerIds = [...new Set(relevant.map((a: any) => String(a.customerID)))];
 
-      // Fetch future appointments per customer (scheduled, not completed)
-      const futureSearchUrl = frUrl('appointment', 'search', {
-        officeIDs: String(cfg.officeId),
-        dateStart: fmtDate(new Date(weekEnd.getTime() + 86400000)), // day after weekEnd
-        dateEnd: fmtDate(new Date(weekEnd.getTime() + 90 * 86400000)), // 90 days out
-        customerIDs: customerIds.slice(0, 200).join(','), // batch limit
-      }, cfg.key, cfg.token);
-
+      // Fetch future appointments per customer (scheduled, not completed) — batched across ALL customers
       let futureAppts: any[] = [];
       try {
-        const futureSearch = await frFetch(futureSearchUrl);
-        const futureIds: number[] = futureSearch.appointmentIDs || [];
+        const futureIds = await searchApptsByCustomerBatches(cfg, {
+          officeIDs: String(cfg.officeId),
+          dateStart: fmtDate(new Date(weekEnd.getTime() + 86400000)), // day after weekEnd
+          dateEnd:   fmtDate(new Date(weekEnd.getTime() + 90 * 86400000)), // 90 days out
+        }, customerIds);
         if (futureIds.length > 0) {
           futureAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', futureIds, cfg.key, cfg.token);
         }
@@ -195,19 +212,15 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Also get past appointments within 60 days to check CB flag
-      const pastSearchUrl = frUrl('appointment', 'search', {
-        officeIDs: String(cfg.officeId),
-        dateStart: fmtDate(weekStart),
-        dateEnd: fmtDate(new Date(weekEnd.getTime() + 60 * 86400000)),
-        customerIDs: customerIds.slice(0, 200).join(','),
-        status: '1',
-      }, cfg.key, cfg.token);
-
+      // Also get past appointments within 60 days to check CB flag — batched across ALL customers
       let past60Appts: any[] = [];
       try {
-        const pastSearch = await frFetch(pastSearchUrl);
-        const pastIds: number[] = pastSearch.appointmentIDs || [];
+        const pastIds = await searchApptsByCustomerBatches(cfg, {
+          officeIDs: String(cfg.officeId),
+          dateStart: fmtDate(weekStart),
+          dateEnd:   fmtDate(new Date(weekEnd.getTime() + 60 * 86400000)),
+          status:    '1',
+        }, customerIds);
         if (pastIds.length > 0) {
           past60Appts = await fetchInBatches('appointment', 'get', 'appointmentIDs', pastIds, cfg.key, cfg.token);
         }
@@ -235,10 +248,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Fetch customer names in batch
+      // Fetch customer names in batch (all customers — fetchInBatches chunks by 100 internally)
       const customerMap = new Map<string, string>();
       try {
-        const custData = await fetchInBatches('customer', 'get', 'customerIDs', customerIds.slice(0, 500), cfg.key, cfg.token);
+        const custData = await fetchInBatches('customer', 'get', 'customerIDs', customerIds, cfg.key, cfg.token);
         for (const c of custData) {
           const name = c.companyName?.trim()
             ? c.companyName.trim()

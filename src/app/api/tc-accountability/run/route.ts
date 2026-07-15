@@ -63,6 +63,27 @@ async function fetchInBatches(endpoint: string, action: string, idParam: string,
 
 function fmtDate(d: Date) { return d.toISOString().split('T')[0]; }
 
+// Run appointment/search across customer-ID batches, merging appointmentIDs.
+// Replaces the old silent slice(0,200) truncation (offices with >200 TC customers/week lost data).
+async function searchApptsByCustomerBatches(
+  cfg: { key: string; token: string; officeId: number },
+  baseParams: Record<string, string>,
+  customerIds: string[],
+  batchSize = 150
+): Promise<number[]> {
+  const allIds = new Set<number>();
+  for (let i = 0; i < customerIds.length; i += batchSize) {
+    const batch = customerIds.slice(i, i + batchSize);
+    const url = frUrl('appointment', 'search', { ...baseParams, customerIDs: batch.join(',') }, cfg.key, cfg.token);
+    try {
+      const data = await frFetch(url);
+      for (const id of (data.appointmentIDs || [])) allIds.add(id);
+    } catch { /* skip failed batch */ }
+    await new Promise(r => setTimeout(r, 150));
+  }
+  return [...allIds];
+}
+
 function hasCloseoutNote(appt: any): boolean {
   const text = [appt.officeNotes, appt.notes, appt.appointmentNotes].filter(Boolean).join(' ').toLowerCase();
   return ['ready for insulation', 'ready for far', 'closed out'].some(k => text.includes(k));
@@ -172,18 +193,14 @@ export async function GET(req: NextRequest) {
       // Get all future appointments for customers in this batch to compute forward-looking fields
       const customerIds = [...new Set(relevant.map((a: any) => String(a.customerID)))];
 
-      // Fetch future appointments per customer — 180 days out, all types
-      const futureSearchUrl = frUrl('appointment', 'search', {
-        officeIDs: String(cfg.officeId),
-        dateStart: fmtDate(new Date(weekEnd.getTime() + 86400000)), // day after weekEnd
-        dateEnd: fmtDate(new Date(weekEnd.getTime() + 180 * 86400000)), // 180 days out per Excel
-        customerIDs: customerIds.slice(0, 200).join(','),
-      }, cfg.key, cfg.token);
-
+      // Fetch future appointments per customer — 180 days out, all types — batched across ALL customers
       let futureAppts: any[] = [];
       try {
-        const futureSearch = await frFetch(futureSearchUrl);
-        const futureIds: number[] = futureSearch.appointmentIDs || [];
+        const futureIds = await searchApptsByCustomerBatches(cfg, {
+          officeIDs: String(cfg.officeId),
+          dateStart: fmtDate(new Date(weekEnd.getTime() + 86400000)), // day after weekEnd
+          dateEnd:   fmtDate(new Date(weekEnd.getTime() + 180 * 86400000)), // 180 days out per Excel
+        }, customerIds);
         if (futureIds.length > 0) {
           futureAppts = await fetchInBatches('appointment', 'get', 'appointmentIDs', futureIds, cfg.key, cfg.token);
         }
@@ -208,19 +225,14 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // Fetch future appointments for cb60Day — callbacks within 60 days after each appointment
-      // We need a wider window: weekStart to weekEnd + 60 days
-      const cbSearchUrl = frUrl('appointment', 'search', {
-        officeIDs: String(cfg.officeId),
-        dateStart: fmtDate(weekStart),
-        dateEnd: fmtDate(new Date(weekEnd.getTime() + 60 * 86400000)),
-        customerIDs: customerIds.slice(0, 200).join(','),
-      }, cfg.key, cfg.token);
-
+      // Fetch appointments for cb60Day — callbacks within 60 days — batched across ALL customers
       let cb60Appts: any[] = [];
       try {
-        const cbSearch = await frFetch(cbSearchUrl);
-        const cbIds: number[] = cbSearch.appointmentIDs || [];
+        const cbIds = await searchApptsByCustomerBatches(cfg, {
+          officeIDs: String(cfg.officeId),
+          dateStart: fmtDate(weekStart),
+          dateEnd:   fmtDate(new Date(weekEnd.getTime() + 60 * 86400000)),
+        }, customerIds);
         if (cbIds.length > 0) {
           cb60Appts = await fetchInBatches('appointment', 'get', 'appointmentIDs', cbIds, cfg.key, cfg.token);
         }
