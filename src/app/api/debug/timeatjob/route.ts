@@ -34,18 +34,26 @@ export async function GET(req: NextRequest) {
     const pts = await prisma.bouncieTripEvent.findMany({ where: { imei, timestamp: { gte: dayStart, lte: dayEnd } }, orderBy: { timestamp: 'asc' }, select: { timestamp: true, lat: true, lng: true, speed: true } });
     const inside = pts.filter(p => haversine(p.lat, p.lng, cust.lat!, cust.lng!) <= R_M);
     const stopped = inside.filter(p => p.speed === 0);
+
+    // Corrected computation preview: arrival->departure per visit, new visit only on real leave
+    const mask = pts.map(p => haversine(p.lat, p.lng, cust.lat!, cust.lng!) <= R_M);
+    let totalMins = 0, visits = 0, vStart = -1, vEnd = -1, lastIn = false, leftSince = false;
+    for (let i = 0; i < pts.length; i++) {
+      if (mask[i]) {
+        const t = pts[i].timestamp.getTime();
+        if (vStart < 0) { vStart = t; vEnd = t; }
+        else if (!lastIn && leftSince && vEnd !== vStart) { totalMins += (vEnd - vStart) / 60000; visits++; vStart = t; }
+        vEnd = t; lastIn = true; leftSince = false;
+      } else { if (lastIn) leftSince = true; lastIn = false; }
+    }
+    if (vStart >= 0) { totalMins += (vEnd - vStart) / 60000; visits++; }
+    out.correctedComputation = { timeAtJobMins: Math.round(totalMins * 10) / 10, visits };
+
     out.gps = {
       totalDayPoints: pts.length, insideGeofence: inside.length, stoppedInside: stopped.length,
       firstInside: inside[0]?.timestamp, lastInside: inside[inside.length - 1]?.timestamp,
       firstStopped: stopped[0]?.timestamp, lastStopped: stopped[stopped.length - 1]?.timestamp,
       speedDistribution: { zero: stopped.length, nonzero: inside.length - stopped.length },
-      // ALL inside points with gap-to-next, to reveal the engine-off parked gap
-      insideTimeline: inside.map((p, i) => ({
-        t: p.timestamp.toISOString().slice(11, 19),
-        speed: Math.round(p.speed),
-        dist: Math.round(haversine(p.lat, p.lng, cust.lat!, cust.lng!)),
-        gapToNextSec: i < inside.length - 1 ? Math.round((inside[i + 1].timestamp.getTime() - p.timestamp.getTime()) / 1000) : null,
-      })),
     };
   }
   return NextResponse.json(out, { headers: { 'Cache-Control': 'no-store' } });
