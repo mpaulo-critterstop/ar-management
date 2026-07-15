@@ -101,19 +101,37 @@ export async function GET(req: NextRequest) {
     const inside = points.filter(p => haversineDistance(p.lat, p.lng, coord.lat, coord.lng) <= GEOFENCE_RADIUS_M);
     if (inside.length === 0) { noMatch++; continue; }
 
-    // Dwell = span from first to last in-geofence point (minutes)
-    const first = inside[0].timestamp.getTime();
-    const last  = inside[inside.length - 1].timestamp.getTime();
-    const mins  = (last - first) / 60000;
+    // Sum contiguous visit segments (not first-to-last span, which would merge separate
+    // visits and count the gap between them). A gap > GAP_BREAK_MS between consecutive
+    // in-geofence points means the tech left and came back — a new visit.
+    // Points are ~5s apart while parked; use a 5-min break threshold.
+    const GAP_BREAK_MS = 5 * 60 * 1000;
+    let totalMins = 0;
+    let segStart = inside[0].timestamp.getTime();
+    let prev = segStart;
+    let visits = 0;
+    for (let i = 1; i < inside.length; i++) {
+      const t = inside[i].timestamp.getTime();
+      if (t - prev > GAP_BREAK_MS) {
+        // close current segment
+        totalMins += (prev - segStart) / 60000;
+        if (prev - segStart > 0) visits++;
+        segStart = t;
+      }
+      prev = t;
+    }
+    totalMins += (prev - segStart) / 60000; // final segment
+    if (prev - segStart > 0) visits++;
+    const mins = totalMins;
 
-    // Sanity bound: 0.5 min to 4 hours (same spirit as the trip-based method)
+    // Sanity bound: 0.5 min to 4 hours total across the day
     if (mins < 0.5 || mins > 240) { noMatch++; continue; }
 
     if (!dryRun) {
       await prisma.tcAppointment.update({ where: { id: appt.id }, data: { timeAtJobMins: Math.round(mins * 10) / 10 } });
     }
     filled++;
-    if (samples.length < 12) samples.push({ frAppointmentId: appt.frAppointmentId, date: dayStr, office: appt.office, mins: Math.round(mins * 10) / 10, points: inside.length });
+    if (samples.length < 12) samples.push({ frAppointmentId: appt.frAppointmentId, date: dayStr, office: appt.office, mins: Math.round(mins * 10) / 10, points: inside.length, visits });
   }
 
   const remaining = await prisma.tcAppointment.count({
