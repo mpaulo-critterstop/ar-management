@@ -58,11 +58,14 @@ export async function GET(req: NextRequest) {
     for (let i = 1; i < pts.length; i++) {
       const gapMin = (pts[i].timestamp.getTime() - pts[i-1].timestamp.getTime()) / 60000;
       if (gapMin > 20) {
+        const moved = haversine(pts[i-1].lat, pts[i-1].lng, pts[i].lat, pts[i].lng);
         gaps.push({
           parkedFrom: pts[i-1].timestamp.toISOString().slice(11,19),
           parkedUntil: pts[i].timestamp.toISOString().slice(11,19),
           durationMin: Math.round(gapMin),
           parkedDistToCustomer: Math.round(haversine(pts[i-1].lat, pts[i-1].lng, cust.lat!, cust.lng!)),
+          movedDuringGapM: Math.round(moved),
+          interpretation: moved < 200 ? 'PARKED (engine off, same spot)' : 'MOVED during gap = MISSING trip data',
         });
       }
     }
