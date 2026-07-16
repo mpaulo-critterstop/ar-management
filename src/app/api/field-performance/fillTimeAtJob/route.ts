@@ -149,8 +149,9 @@ export async function GET(req: NextRequest) {
     visits++;
     const mins = totalMins;
 
-    // Sanity bound: 0.5 min to 5 hours total across the day
-    if (mins < 0.5 || mins > 300) { noMatch++; continue; }
+    // Sanity bound: <5 min is treated as unreliable (missing Bouncie trip data, or too brief to be
+    // a real service visit) → leave NULL rather than write a misleadingly-low number. Cap 5 hours.
+    if (mins < 5 || mins > 300) { noMatch++; continue; }
 
     if (!dryRun) {
       await prisma.tcAppointment.update({ where: { id: appt.id }, data: { timeAtJobMins: Math.round(mins * 10) / 10 } });

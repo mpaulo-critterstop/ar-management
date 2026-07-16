@@ -623,8 +623,9 @@ export async function POST(req: NextRequest) {
               const departureTime = new Date(nextTrip.startTime);
               const dwellMins = (departureTime.getTime() - arrivalTime.getTime()) / 60000;
 
-              // Only record reasonable dwell times (1 min to 4 hours)
-              if (dwellMins >= 1 && dwellMins <= 240) {
+              // Only record reliable dwell times (>=5 min to 4 hours). Under 5 min is treated as
+              // unreliable (missing Bouncie trip data or too brief to be a real visit) → leave NULL.
+              if (dwellMins >= 5 && dwellMins <= 240) {
                 dwellUpdates.push({ frAppointmentId: matchedCustomer.frAppointmentId, mins: dwellMins });
               }
             }
