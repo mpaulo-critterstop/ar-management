@@ -35,8 +35,6 @@ export default function FieldPerformancePage() {
   const [activeTab, setActiveTab] = useState<'scoreboard' | 'individuals' | 'teams' | 'roster' | 'attendance' | 'tc-accountability' | 'driving' | 'mom' | 'adjustments'>('scoreboard');
   const [office, setOffice] = useState('All');
   const [weekIdx, setWeekIdx] = useState(0);
-  const [syncing, setSyncing] = useState<string | null>(null);
-  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -59,69 +57,6 @@ export default function FieldPerformancePage() {
 
   const selectedWeek = WEEKS[weekIdx];
 
-  const runSync = async (type: 'fp' | 'bouncie' | 'reliability' | 'geocode' | 'addresses' | 'tc' | 'routes') => {
-    setSyncing(type);
-    setSyncMsg(null);
-    const wk = selectedWeek.toLocaleDateString('en-CA');
-
-    if (type === 'geocode') {
-      let totalGeocoded = 0;
-      let remaining = 1;
-      let consecutiveErrors = 0;
-      while (remaining > 0 && consecutiveErrors < 3) {
-        try {
-          const res = await fetch('/api/geocode/run', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({}),
-          });
-          if (!res.ok) {
-            consecutiveErrors++;
-            await new Promise(r => setTimeout(r, 2000));
-            continue;
-          }
-          const data = await res.json();
-          totalGeocoded += data.geocoded ?? 0;
-          remaining = data.remaining ?? 0;
-          consecutiveErrors = 0;
-          setSyncMsg(`Geocoding... ${totalGeocoded} done, ${remaining} remaining`);
-          if (data.status === 'done' || remaining === 0) break;
-          // Small pause between batches
-          await new Promise(r => setTimeout(r, 300));
-        } catch {
-          consecutiveErrors++;
-          await new Promise(r => setTimeout(r, 2000));
-        }
-      }
-      if (consecutiveErrors >= 3) {
-        setSyncMsg(`Geocoding paused — ${totalGeocoded} done, ${remaining} remaining. Click again to continue.`);
-      } else {
-        setSyncMsg(`Geocoding complete — ${totalGeocoded} customers geocoded`);
-      }
-      setSyncing(null);
-      return;
-    }
-
-    const url = type === 'fp' ? '/api/field-performance/sync-test'
-      : type === 'bouncie' ? '/api/bouncie/sync-test'
-      : type === 'reliability' ? '/api/reliability/sync-test'
-      : type === 'tc' ? '/api/tc-accountability/sync-test'
-      : '/api/addresses/run';
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weekEnd: wk }),
-      });
-      const data = await res.json();
-      const label = type === 'fp' ? 'FR' : type === 'bouncie' ? 'Bouncie' : type === 'reliability' ? 'Reliability' : type === 'tc' ? 'TC' : 'Addresses';
-      const detail = type === 'addresses' ? `${data.totalUpdated ?? 0} addresses updated` : type === 'tc' ? `${data.totalSynced ?? 0} appointments synced` : `${data.techsUpdated ?? 0} techs updated`;
-      setSyncMsg(`${label} sync: ${data.status} — ${detail}`);
-    } catch {
-      setSyncMsg('Sync failed');
-    }
-    setSyncing(null);
-  };
   const officeParam = office === 'All' ? 'ALL' : office;
 
   const navStyle = (active: boolean): React.CSSProperties => ({
@@ -189,58 +124,10 @@ export default function FieldPerformancePage() {
             </div>
           )}
         </div>
-          {role === 'ADMIN' && (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <button onClick={() => runSync('fp')} disabled={!!syncing}
-                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'fp' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
-                {syncing === 'fp' ? 'Syncing...' : '↻ FR Sync'}
-              </button>
-              <button onClick={() => runSync('bouncie')} disabled={!!syncing}
-                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'bouncie' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
-                {syncing === 'bouncie' ? 'Syncing...' : '↻ Bouncie'}
-              </button>
-              <button onClick={() => runSync('reliability')} disabled={!!syncing}
-                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'reliability' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
-                {syncing === 'reliability' ? 'Syncing...' : '↻ Reliability'}
-              </button>
-              <button onClick={() => runSync('tc')} disabled={!!syncing}
-                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'tc' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
-                {syncing === 'tc' ? 'Syncing...' : '↻ TC Sync'}
-              </button>
-              <button onClick={() => runSync('geocode')} disabled={!!syncing}
-                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'geocode' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
-                {syncing === 'geocode' ? 'Geocoding...' : '↻ Geocode'}
-              </button>
-              <button onClick={() => runSync('addresses')} disabled={!!syncing}
-                style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: syncing === 'addresses' ? '#F1EFE8' : '#fff', cursor: syncing ? 'default' : 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
-                {syncing === 'addresses' ? 'Syncing...' : '↻ Addresses'}
-              </button>
-              <label style={{ padding: '5px 11px', fontSize: 11, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780', whiteSpace: 'nowrap' as const }}>
-                ↑ Route CSV
-                <input type="file" accept=".csv" style={{ display: 'none' }} onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setSyncing('routes');
-                  setSyncMsg('');
-                  try {
-                    const wk = selectedWeek.toLocaleDateString('en-CA');
-                    const fd = new FormData();
-                    fd.append('file', file);
-                    fd.append('weekEnd', wk);
-                    const res = await fetch(`/api/field-performance/import-routes?token=critterstop2026`, { method: 'POST', body: fd });
-                    const data = await res.json();
-                    setSyncMsg(`Route import: ${data.updated ?? 0} techs updated${data.notMatched?.length ? ` (unmatched: ${data.notMatched.join(', ')})` : ''}`);
-                  } catch (err) {
-                    setSyncMsg('Route import failed');
-                  }
-                  setSyncing(null);
-                  e.target.value = '';
-                }} />
-              </label>
-            </div>
-          )}
+          {/* Manual sync buttons removed — these operations run via scheduled crons.
+              Endpoints remain live: /api/field-performance/{run,week,routeCustomers,pmpAppointments,completion,import-routes},
+              /api/tc-accountability/run, /api/cron/{bouncie,reliability,geocode,sync-addresses,field-performance}. */}
       </div>
-      {syncMsg && <div style={{ fontSize: 12, color: '#888780', marginBottom: 8, padding: '6px 12px', background: '#F8F7F4', borderRadius: 8, border: '0.5px solid #E8E7E3', fontWeight: 500 }}>{syncMsg}</div>}
 
       {/* Tab content */}
       {activeTab === 'scoreboard' && <ScoreboardTab office={officeParam} weekEnd={selectedWeek} />}
