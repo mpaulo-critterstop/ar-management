@@ -37,13 +37,26 @@ export async function POST(req: NextRequest) {
 
   const { name } = await req.json();
   if (!name || !name.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 });
+  const cleanName = name.trim();
 
+  // Flip any existing IDs for this name to CSR.
   const result = await prisma.csrEmployee.updateMany({
-    where: { name: name.trim() },
+    where: { name: cleanName },
     data: { isCsr: true },
   });
 
-  return NextResponse.json({ updated: result.count, name: name.trim() });
+  // If the person has no rows yet (hasn't booked, so the resolver never created them), create a
+  // placeholder so they appear in the table immediately. The placeholder uses a synthetic
+  // frEmployeeId; when they actually book, the resolver will name-match and their real FR IDs
+  // get added as additional isCsr=true rows.
+  if (result.count === 0) {
+    await prisma.csrEmployee.create({
+      data: { frEmployeeId: `pending_${cleanName.replace(/\s+/g, '_').toLowerCase()}`, name: cleanName, isCsr: true, active: true },
+    });
+    return NextResponse.json({ created: true, name: cleanName });
+  }
+
+  return NextResponse.json({ updated: result.count, name: cleanName });
 }
 
 // PATCH: toggle active/inactive, or remove-from-CSR, for a whole name.

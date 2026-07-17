@@ -54,6 +54,10 @@ async function resolveCsrEmployee(frEmployeeId: string): Promise<{ id: string; n
             create: { frEmployeeId, name, isCsr },
             update: { name },
           });
+          // If a manual "pending_" placeholder existed for this name, remove it now that a real ID exists.
+          if (isCsr) {
+            await prisma.csrEmployee.deleteMany({ where: { name, frEmployeeId: { startsWith: 'pending_' } } });
+          }
           const r = { id: created.id, name: created.name, isCsr: created.isCsr };
           employeeResolveCache.set(frEmployeeId, r);
           return r;
