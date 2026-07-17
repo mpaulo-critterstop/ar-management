@@ -199,6 +199,27 @@ Rhonda Bearden + Lori Cottle set isCsr=false (non-CSRs); Sharon Heymann left as 
 LESSON (user feedback): be concise, pull actual data instead of theorizing, always provide the actual
 SQL/query rather than describing it.
 
+### 11. AR multi-property/commercial exclusion (detection only — NOT wired to automation yet)
+Goal: when non-wildlife AR invoices are eventually turned on for PestAI, exclude commercial + multi-property
+accounts (StyleCraft, Bell Properties) — they have many contacts/PMs/AP depts, so residential-style
+follow-up sequences would be noisy/damaging. Only single-billing RESIDENTIAL accounts get automation.
+Detection (from FR customer record): commercialAccount, masterAccount, billToAccountID.
+Rule: excludeFromAutomation = commercial==1 OR masterAccount set (rolls up to a parent) OR billToAccountID
+≠ own ID (bills elsewhere). Added 4 fields to Customer: commercialAccount, masterAccountId, billToAccountId,
+excludeFromAutomation (migration run manually).
+Detection added to sync/auto (THE real multi-office AR sync — NOT sync/fieldroutes, which was a wrong
+first attempt but harmless). ar-followup feed now has `AND c.excludeFromAutomation=false` so excluded
+accounts never enter the sequence.
+FIX: syncCustomers ignored fullSync (only used dateUpdated incremental) → full sync now passes no fromDate
+so it backfills flags across ALL accounts, not just recently-updated.
+VERIFIED: StyleCraft 39053 (child, master=39295) + 39295 (master, billTo=39053) both excludeFromAutomation=true.
+USER RUNNING full customer sync per office to backfill all accounts (DFW in progress).
+CRITICAL PER USER: do NOT turn on non-wildlife automation, and do NOT wire this into the live PestAI
+webhook. Detection/flagging only, staged for a careful future rollout. Non-wildlife AR is intentionally
+OFF (thousands of due invoices need careful planning first).
+Sync trigger (session-authed, run in browser): POST /api/sync/auto {syncType:'customers', fullSync:true[, office:'DFW']}
+Scope check query: SELECT office, COUNT(*) FILTER (WHERE "excludeFromAutomation") excluded, COUNT(*) total FROM customers GROUP BY office;
+
 ## TARGET WEEKLY PIPELINE ORDER (after restructure)
 1. `week` (per office) → tech_routes + production
 2. `pmpAppointments` (per office, new-week mode) → pmp_appointments
