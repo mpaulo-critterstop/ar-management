@@ -220,6 +220,27 @@ OFF (thousands of due invoices need careful planning first).
 Sync trigger (session-authed, run in browser): POST /api/sync/auto {syncType:'customers', fullSync:true[, office:'DFW']}
 Scope check query: SELECT office, COUNT(*) FILTER (WHERE "excludeFromAutomation") excluded, COUNT(*) total FROM customers GROUP BY office;
 
+### 12. FR checklist / close-out field readability — INVESTIGATED, not API-readable (no code changes)
+Question: can we read the "closed out" field from techs' trap-check checklists (saved in FR customer
+card documents tab) instead of relying on the note-keyword method? Concern: not all techs use the
+close-out keywords in office/tech notes.
+FINDINGS:
+- `document/search?includeData=1` (NOT document/get — that ignores the ID param) returns document
+  METADATA only: uploadID, customerID, addedBy, description, appointmentID, bucket. These are the
+  SmarterLaunch signed PDFs — NOT the checklists.
+- Checklists live in the `form` API. `form/search` (ignores customerIDs, returns all formIDs) +
+  `form/get?formIDs=` returns checklist instances with: formID, contractID, customerID, employeeID,
+  documentState (WIP / completed / signed), formTemplateID, formDescription (e.g. "Annual Inspection
+  Checklist", "One Time Service Checklist"). WIP status confirmed — matches user's note that checklists
+  are saved but in WIP.
+- BUT form/get exposes only METADATA, not the internal field answers. No way to read the actual
+  "closed out: yes/no" checkbox. Dead ends: form/getData = "INVALID REQUEST" (not a real action),
+  contract/get = count 0 for WIP forms, no formField endpoint.
+CONCLUSION: close-out field NOT API-readable. POTENTIAL FUTURE PROXY: `documentState` (WIP vs completed/
+signed) could serve as a close-out signal IF finishing the checklist == closing out the customer — more
+reliable than keyword-scanning notes. Not pursued now. USER DECISION: leave as-is, will give techs
+guidance to use the close-out keywords in notes. No code changed.
+
 ## TARGET WEEKLY PIPELINE ORDER (after restructure)
 1. `week` (per office) → tech_routes + production
 2. `pmpAppointments` (per office, new-week mode) → pmp_appointments
