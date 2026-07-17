@@ -682,7 +682,9 @@ export async function POST(req: NextRequest) {
 
     try {
       if (syncType === 'all' || syncType === 'customers') {
-        results[office].customers = await syncCustomers(office, key, token, fromDate);
+        // On fullSync, pass no fromDate so ALL customers are fetched (needed to backfill
+        // commercial/multi-property exclusion flags across existing accounts, not just recently-updated).
+        results[office].customers = await syncCustomers(office, key, token, fullSync ? undefined : fromDate);
       }
       if (syncType === 'all' || syncType === 'invoices') {
         results[office].invoices = await syncInvoices(office, key, token, fullSync, fromDate, specificIds, toDate);
