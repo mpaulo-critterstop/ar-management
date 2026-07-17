@@ -391,6 +391,15 @@ async function syncCustomers(
         .filter(Boolean)
         .join(', ');
 
+      // Multi-property / commercial detection → exclude these from AR automation (residential only).
+      const custId = String(c.customerID);
+      const commercial = c.commercialAccount === 1 || c.commercialAccount === '1';
+      const masterRaw = String(c.masterAccount ?? '0');
+      const hasMaster = masterRaw !== '0' && masterRaw !== '' && masterRaw !== custId;
+      const billToRaw = String(c.billToAccountID ?? custId);
+      const billsElsewhere = billToRaw !== '0' && billToRaw !== '' && billToRaw !== custId;
+      const excludeFromAutomation = commercial || hasMaster || billsElsewhere;
+
       const customerData = {
         name,
         email: c.email || null,
@@ -400,6 +409,10 @@ async function syncCustomers(
         externalId: String(c.customerID),
         externalSource: 'fieldroutes',
         status: 'ACTIVE' as const,
+        commercialAccount: commercial,
+        masterAccountId: hasMaster ? masterRaw : null,
+        billToAccountId: billsElsewhere ? billToRaw : null,
+        excludeFromAutomation,
       };
 
       const existingId = existingMap.get(String(c.customerID));
