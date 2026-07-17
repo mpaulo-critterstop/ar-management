@@ -48,6 +48,12 @@ model Customer {
   serviceType  String?
   autoReminder Boolean        @default(true)
   externalId   String?
+  // Multi-property / commercial billing detection (from FR). Used to EXCLUDE these accounts from
+  // PestAI AR automation — only single-billing residential accounts get the follow-up sequence.
+  commercialAccount     Boolean @default(false)
+  masterAccountId       String?  // FR masterAccount (parent this rolls up to), if any
+  billToAccountId       String?  // FR billToAccountID (who receives the bill)
+  excludeFromAutomation Boolean @default(false)  // computed: commercial OR any multi-property linkage
   externalSource String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt

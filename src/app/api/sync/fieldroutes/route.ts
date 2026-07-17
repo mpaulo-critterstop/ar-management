@@ -120,6 +120,17 @@ export async function POST(req: NextRequest) {
           try {
             const name = [fc.fname, fc.lname].filter(Boolean).join(" ") || fc.companyName || `Customer ${fc.customerID}`;
             const status = fc.status === 1 || fc.status === "1" ? "ACTIVE" : "SUSPENDED";
+
+            // Multi-property / commercial detection for AR automation exclusion.
+            const custId = String(fc.customerID);
+            const commercial = fc.commercialAccount === 1 || fc.commercialAccount === "1";
+            const masterRaw = String(fc.masterAccount ?? "0");
+            const hasMaster = masterRaw !== "0" && masterRaw !== "" && masterRaw !== custId;
+            const billToRaw = String(fc.billToAccountID ?? custId);
+            const billsElsewhere = billToRaw !== "0" && billToRaw !== "" && billToRaw !== custId;
+            // Exclude residential-automation for: commercial, OR rolls up to a master, OR bills to another account.
+            const excludeFromAutomation = commercial || hasMaster || billsElsewhere;
+
             const existing = await prisma.customer.findFirst({
               where: { externalId: String(fc.customerID), externalSource: "fieldroutes" }
             });
@@ -133,6 +144,10 @@ export async function POST(req: NextRequest) {
                   billingAddr: [fc.address, fc.city, fc.state, fc.zip].filter(Boolean).join(", ") || undefined,
                   serviceAddr: [fc.serviceAddress || fc.address, fc.serviceCity || fc.city, fc.serviceState || fc.state, fc.serviceZip || fc.zip].filter(Boolean).join(", ") || undefined,
                   status,
+                  commercialAccount: commercial,
+                  masterAccountId: hasMaster ? masterRaw : null,
+                  billToAccountId: billsElsewhere ? billToRaw : null,
+                  excludeFromAutomation,
                 }
               });
               customersUpdated++;

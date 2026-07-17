@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
       AND i.date >= '2026-01-01'
       AND i."arFollowupSent" = false
       AND i.paid < i.amount
+      AND c."excludeFromAutomation" = false
       ${officeFilter}
       ${invoiceIdFilter}
     ORDER BY i.due ASC
