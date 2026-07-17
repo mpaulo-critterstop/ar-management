@@ -78,9 +78,7 @@ export default function LeadsPage() {
   });
   const [showManageCSR, setShowManageCSR] = useState(false);
   const [csrEmployees, setCsrEmployees] = useState<any[]>([]);
-  const [editingCSR, setEditingCSR] = useState<any>(null);
   const [newCSRName, setNewCSRName] = useState('');
-  const [newCSRId, setNewCSRId] = useState('');
   const [showAddCSR, setShowAddCSR] = useState(false);
   const [drawerCSR, setDrawerCSR] = useState<any>(null);
   const [drawerData, setDrawerData] = useState<any>(null);
@@ -530,56 +528,41 @@ export default function LeadsPage() {
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 500 }}>CSR employees</h3>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => setShowAddCSR(true)} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer' }}>+ Add CSR</button>
-                <button onClick={() => { setShowManageCSR(false); setEditingCSR(null); setShowAddCSR(false); }} style={{ padding: '6px 10px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer' }}>✕</button>
+                <button onClick={() => { setShowManageCSR(false); setShowAddCSR(false); }} style={{ padding: '6px 10px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer' }}>✕</button>
               </div>
             </div>
             {showAddCSR && (
               <div style={{ background: '#F1EFE8', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 8, color: '#444441' }}>New CSR</div>
-                <input placeholder="Full name" value={newCSRName} onChange={e => setNewCSRName(e.target.value)} style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', marginBottom: 6, boxSizing: 'border-box' }} />
-                <input placeholder="FR Employee ID (e.g. 10169)" value={newCSRId} onChange={e => setNewCSRId(e.target.value)} style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', marginBottom: 8, boxSizing: 'border-box' }} />
+                <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 8, color: '#444441' }}>Add a CSR</div>
+                <div style={{ fontSize: 11, color: '#888780', marginBottom: 8 }}>Enter the CSR's full name exactly as it appears in FieldRoutes. All of their FR IDs are matched automatically — no need to enter IDs.</div>
+                <input placeholder="Full name (e.g. Luis Cajas)" value={newCSRName} onChange={e => setNewCSRName(e.target.value)} style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', marginBottom: 8, boxSizing: 'border-box' }} />
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button onClick={async () => {
-                    if (!newCSRName || !newCSRId) return;
-                    await fetch('/api/leads/csr-employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newCSRName, frEmployeeId: newCSRId }) });
-                    setNewCSRName(''); setNewCSRId(''); setShowAddCSR(false); fetchCSREmployees();
+                    if (!newCSRName.trim()) return;
+                    await fetch('/api/leads/csr-employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newCSRName.trim() }) });
+                    setNewCSRName(''); setShowAddCSR(false); fetchCSREmployees();
                   }} style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', cursor: 'pointer' }}>Save</button>
-                  <button onClick={() => setShowAddCSR(false)} style={{ padding: '6px 10px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780' }}>Cancel</button>
+                  <button onClick={() => { setShowAddCSR(false); setNewCSRName(''); }} style={{ padding: '6px 10px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780' }}>Cancel</button>
                 </div>
               </div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {csrEmployees.map(emp => (
-                <div key={emp.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', border: '0.5px solid #D3D1C7', borderRadius: 10 }}>
-                  {editingCSR?.id === emp.id ? (
-                    <div style={{ flex: 1, marginRight: 8 }}>
-                      <input value={editingCSR.name} onChange={e => setEditingCSR({ ...editingCSR, name: e.target.value })} style={{ width: '100%', padding: '5px 8px', fontSize: 12, borderRadius: 6, border: '0.5px solid #D3D1C7', marginBottom: 4, boxSizing: 'border-box' }} />
-                      <input value={editingCSR.frEmployeeId} onChange={e => setEditingCSR({ ...editingCSR, frEmployeeId: e.target.value })} style={{ width: '100%', padding: '5px 8px', fontSize: 12, borderRadius: 6, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
-                      <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                        <button onClick={async () => {
-                          await fetch('/api/leads/csr-employees', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editingCSR) });
-                          setEditingCSR(null); fetchCSREmployees();
-                        }} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, border: 'none', background: '#0052cc', color: '#fff', cursor: 'pointer' }}>Save</button>
-                        <button onClick={() => setEditingCSR(null)} style={{ padding: '4px 8px', fontSize: 11, borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780' }}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: emp.active ? '#2C2C2A' : '#888780' }}>{emp.name}</div>
-                      <div style={{ fontSize: 11, color: '#888780' }}>FR ID: {emp.frEmployeeId}</div>
-                    </div>
-                  )}
-                  {editingCSR?.id !== emp.id && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <button onClick={async () => {
-                        await fetch('/api/leads/csr-employees', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: emp.id, active: !emp.active }) });
-                        fetchCSREmployees();
-                      }} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: 'none', background: emp.active ? '#EAF3DE' : '#FCEBEB', color: emp.active ? '#3B6D11' : '#A32D2D', cursor: 'pointer' }}>
-                        {emp.active ? 'Active' : 'Inactive'}
-                      </button>
-                      <button onClick={() => setEditingCSR({ ...emp })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888780', fontSize: 15, padding: 2 }}>✎</button>
-                    </div>
-                  )}
+                <div key={emp.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', border: '0.5px solid #D3D1C7', borderRadius: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: emp.active ? '#2C2C2A' : '#888780' }}>{emp.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button onClick={async () => {
+                      await fetch('/api/leads/csr-employees', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: emp.name, active: !emp.active }) });
+                      fetchCSREmployees();
+                    }} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: 'none', background: emp.active ? '#EAF3DE' : '#FCEBEB', color: emp.active ? '#3B6D11' : '#A32D2D', cursor: 'pointer' }}>
+                      {emp.active ? 'Active' : 'Inactive'}
+                    </button>
+                    <button onClick={async () => {
+                      if (!confirm(`Remove ${emp.name} from the CSR list? Their appointments still count in totals, but they won't show as a CSR row.`)) return;
+                      await fetch('/api/leads/csr-employees', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: emp.name, isCsr: false }) });
+                      fetchCSREmployees();
+                    }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#A32D2D', fontSize: 13, padding: 2 }} title="Remove from CSR list">🗑</button>
+                  </div>
                 </div>
               ))}
             </div>
