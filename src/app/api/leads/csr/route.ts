@@ -66,7 +66,9 @@ export async function GET(req: NextRequest) {
     uniqueLeadIds: undefined,
   })).filter((c: any) => !c.name.startsWith('FR Employee')).sort((a: any, b: any) => b.totalPoints - a.totalPoints);
 
-  const completedLeads = filteredLeads.filter(cl => cl.role === 'original' && cl.points === 1.0).length;
+  // Completed = every completed appointment counted once, including rescheduled ones.
+  // (Per-agent point split still tracked separately in csrStats.)
+  const completedLeads = new Set(filteredLeads.map(cl => cl.leadId)).size;
   const totalRescheduledByOthers = filteredLeads.filter(cl => cl.role === 'original' && cl.points === 0.5).length;
   const totalRescheduledFromOthers = filteredLeads.filter(cl => cl.role === 'rescheduler').length;
 
