@@ -8,23 +8,57 @@ const OFFICES: Record<string, { key: string; token: string }> = {
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT! },
 };
 
+// All service type IDs that count as CSR-bookable inspections/leads, across ALL offices.
+// DFW IDs are global; ATX/OKC/CStat have office-specific IDs (being migrated to global, but
+// historical appointments were booked under the office-specific ones, so all are included).
+// Wildlife Inspection is now sourced here from FR appointments (645/1037/722/884) — the old
+// Lead-table wildlife source has been removed to keep everything in one place.
 const CSR_SERVICE_IDS = new Set([
-  '676', '719', '514', '642', '640', '672', '608', '294', '612', '508', '845', '681',
+  // Bed Bug Inspection
+  '676', '833',
+  // Bird Inspection
+  '719',
+  // Commercial Pest Control - Inspection
+  '514',
+  // DAR - Lead
+  '619', '715',
+  // Insulation Inspection
+  '544', '832',
+  // MistAway System Lead
+  '642', '885',
+  // Mosquito Lead
+  '640', '744',
+  // Pest Control - Lead
+  '672', '748',
+  // Pest Control Inspection
+  '608', '1030', '749',
+  // Pest Inspection
+  '294', '133', '839',
+  // Residential Pest Control - Inspection
+  '612',
+  // Termite Inspection
+  '508', '1024', '845',
+  // WDI Inspection
+  '681', '1038',
+  // Wildlife Inspection
+  '645', '1037', '722', '884',
 ]);
 
 const SERVICE_NAMES: Record<string, string> = {
-  '676': 'Bed Bug Inspection',
+  '676': 'Bed Bug Inspection', '833': 'Bed Bug Inspection',
   '719': 'Bird Inspection',
   '514': 'Commercial Pest Control - Inspection',
-  '642': 'MistAway System Lead',
-  '640': 'Mosquito Lead',
-  '672': 'Pest Control - Lead',
-  '608': 'Pest Control Inspection',
-  '294': 'Pest Inspection',
+  '619': 'DAR - Lead', '715': 'DAR - Lead',
+  '544': 'Insulation Inspection', '832': 'Insulation Inspection',
+  '642': 'MistAway System Lead', '885': 'MistAway System Lead',
+  '640': 'Mosquito Lead', '744': 'Mosquito Lead',
+  '672': 'Pest Control - Lead', '748': 'Pest Control - Lead',
+  '608': 'Pest Control Inspection', '1030': 'Pest Control Inspection', '749': 'Pest Control Inspection',
+  '294': 'Pest Inspection', '133': 'Pest Inspection', '839': 'Pest Inspection',
   '612': 'Residential Pest Control - Inspection',
-  '508': 'Termite Inspection',
-  '845': 'Termite Inspection',
-  '681': 'WDI Inspection',
+  '508': 'Termite Inspection', '1024': 'Termite Inspection', '845': 'Termite Inspection',
+  '681': 'WDI Inspection', '1038': 'WDI Inspection',
+  '645': 'Wildlife Inspection', '1037': 'Wildlife Inspection', '722': 'Wildlife Inspection', '884': 'Wildlife Inspection',
 };
 
 const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
@@ -106,28 +140,9 @@ export async function GET(req: NextRequest) {
     log.push(`[${officeKey}] Created: ${created}`);
   }
 
-  // Sync new wildlife leads from Lead table
-  await prisma.$executeRaw`
-    INSERT INTO "csr_appointments" ("id", "externalId", "office", "appointmentDate", "serviceTypeId", "serviceTypeName", "status", "originalAppointmentId", "employeeId", "customerId", "createdAt", "updatedAt")
-    SELECT
-      'wild_' || l."externalId",
-      l."externalId",
-      l.office,
-      l."inspectionDate",
-      'wildlife',
-      'Wildlife Inspection',
-      l.status,
-      COALESCE(l."groupId", l."externalId"),
-      '',
-      l."customerId",
-      NOW(),
-      NOW()
-    FROM "Lead" l
-    WHERE l."externalId" NOT LIKE 'csv_%'
-    ON CONFLICT ("externalId") DO NOTHING
-  `;
-
-  log.push('Wildlife sync from Lead table complete');
+  // NOTE: Wildlife inspections are now sourced directly from FR appointments via their service
+  // type IDs (645/1037/722/884), included in CSR_SERVICE_IDS above. The previous Lead-table
+  // wildlife source was removed to keep everything in one place and avoid double-counting.
 
   return NextResponse.json({ status: 'done', totalCreated, log });
 }
