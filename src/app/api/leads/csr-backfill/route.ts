@@ -40,7 +40,7 @@ async function resolveCsrEmployee(frEmployeeId: string): Promise<{ id: string; n
   // to true later. This keeps non-CSR bookers counted in totals but out of the per-agent table.
   for (const office of FR_OFFICES) {
     try {
-      const data = await frFetch('employee', `employeeIDs=${frEmployeeId}`, office.apiKey, office.token);
+      const data = await frFetch('employee/get', `employeeIDs=${frEmployeeId}`, office.apiKey, office.token);
       const emp = (data.employees || [])[0];
       if (emp) {
         const name = `${(emp.fname || '').trim()} ${(emp.lname || '').trim()}`.trim();
