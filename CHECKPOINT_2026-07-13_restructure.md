@@ -170,6 +170,35 @@ TODO: fold this GPS-based dwell into the reliability cron to replace the trip-ga
 (so new weeks populate correctly without manual fill). Also debug endpoints /api/debug/timeatjob and
 /api/debug/idle-events exist for tracing.
 
+### 10. CSR Leads Tracker overhaul — ✅ DONE (2026-07-14)
+Sync: /api/sync/csr-appointments → csr_appointments. Read: /api/leads/csr. Attribution build: /api/leads/csr-backfill.
+PROBLEM CHAIN (all resolved): app showed 609, Ana 613, FR 624 — none matched.
+- Root cause 1: service-ID list was only 12 IDs, missing 18 (office-specific variants for ATX/OKC/CStat
+  + whole categories: DAR-Lead, Insulation Insp, per-office Wildlife). EXPANDED to all 30 IDs (global +
+  office-specific) so historical appts under office-specific IDs are captured. User is migrating offices
+  to global IDs but kept office-specific in list for history. Full 30-ID list is in sync/csr-appointments.
+- Root cause 2: wildlife was double-sourced (Lead table). REMOVED Lead-table wildlife source; wildlife now
+  comes from FR appointments (645/1037/722/884) — single source.
+- Root cause 3: headline "completed" used attribution points (original+1.0 only), excluding rescheduled
+  appts. CHANGED to count DISTINCT completed appointments once (incl rescheduled) = matches FR raw count.
+  Per-agent point split (original/rescheduler 0.5/0.5) KEPT in the per-agent table. Removed the two
+  "Rescheduled by/from others" KPI tiles from UI.
+- After rebuild (wipe csr_appointments + re-sync 3890 + backfill): June = 630 (FR now 630 too w/ 30 IDs).
+GHOST IDs / self-healing (KEY WIN): CSRs have multiple FR employee IDs across offices; new ones ("ghost
+IDs") kept appearing as NULL csrName. FIX: csr-backfill resolver now auto-looks-up unknown frEmployeeIds
+via FR employee/get (NOTE: endpoint is 'employee/get' NOT 'employee' — the latter 404s), caches in
+csr_employees, name-matches to existing CSRs to inherit isCsr. NO more manual ID inserts.
+isCsr FLAG: added to CsrEmployee (migration run manually: ALTER TABLE add isCsr bool default true).
+Non-CSR bookers (Chisam, Warren, Mark Paulo, techs, etc.) are counted in totals but isCsr=false → hidden
+from per-agent table. Auto-resolved new bookers default isCsr=false unless name matches existing CSR.
+MANAGE CSRs MODAL: rewritten name-based (one row per person, no IDs shown). "Add CSR" takes just a name,
+flips isCsr=true for all their IDs (or creates a pending_ placeholder if they haven't booked yet, which
+the resolver later replaces with their real ID). Active/inactive toggle + remove kept.
+MANUAL DATA FIXES done by user: Luis Cajas 10911 (FR name "Luis Cajas7") set isCsr=true + name normalized;
+Rhonda Bearden + Lori Cottle set isCsr=false (non-CSRs); Sharon Heymann left as isCsr=false (departed).
+LESSON (user feedback): be concise, pull actual data instead of theorizing, always provide the actual
+SQL/query rather than describing it.
+
 ## TARGET WEEKLY PIPELINE ORDER (after restructure)
 1. `week` (per office) → tech_routes + production
 2. `pmpAppointments` (per office, new-week mode) → pmp_appointments
