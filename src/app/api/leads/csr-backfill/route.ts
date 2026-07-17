@@ -18,8 +18,57 @@ async function frFetch(endpoint: string, params: string, key: string, token: str
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
+// In-memory cache for this run to avoid repeat FR calls for the same ID.
+const employeeResolveCache = new Map<string, { id: string; name: string; isCsr: boolean } | null>();
+
+// Resolve an frEmployeeId to a CSR employee record. If not in csr_employees, look it up live
+// in FieldRoutes (across offices), auto-create the mapping, and cache it. Self-healing: new FR
+// employee IDs ("ghost IDs") get mapped automatically without manual inserts.
+async function resolveCsrEmployee(frEmployeeId: string): Promise<{ id: string; name: string; isCsr: boolean } | null> {
+  if (frEmployeeId === '0' || !frEmployeeId) return null;
+  if (employeeResolveCache.has(frEmployeeId)) return employeeResolveCache.get(frEmployeeId)!;
+
+  const existing = await prisma.csrEmployee.findUnique({ where: { frEmployeeId } });
+  if (existing) {
+    const r = { id: existing.id, name: existing.name, isCsr: existing.isCsr };
+    employeeResolveCache.set(frEmployeeId, r);
+    return r;
+  }
+
+  // Not in table — ask FieldRoutes. Employee lives in one office; try each key until found.
+  // Auto-created mappings default to isCsr=false (unknown booker); a human can flip known CSRs
+  // to true later. This keeps non-CSR bookers counted in totals but out of the per-agent table.
+  for (const office of FR_OFFICES) {
+    try {
+      const data = await frFetch('employee', `employeeIDs=${frEmployeeId}`, office.apiKey, office.token);
+      const emp = (data.employees || [])[0];
+      if (emp) {
+        const name = `${(emp.fname || '').trim()} ${(emp.lname || '').trim()}`.trim();
+        if (name) {
+          // If this name already exists as a known CSR (a prior ID for the same person),
+          // inherit isCsr=true. Otherwise default false (unknown/non-CSR booker).
+          const sameName = await prisma.csrEmployee.findFirst({ where: { name, isCsr: true } });
+          const isCsr = !!sameName;
+          const created = await prisma.csrEmployee.upsert({
+            where: { frEmployeeId },
+            create: { frEmployeeId, name, isCsr },
+            update: { name },
+          });
+          const r = { id: created.id, name: created.name, isCsr: created.isCsr };
+          employeeResolveCache.set(frEmployeeId, r);
+          return r;
+        }
+      }
+    } catch { /* try next office */ }
+    await sleep(200);
+  }
+
+  employeeResolveCache.set(frEmployeeId, null);
+  return null;
+}
+
 async function upsertCsrLead(csrApptId: string, groupId: string, frEmployeeId: string, role: string, points: number) {
-  const csrEmployee = await prisma.csrEmployee.findUnique({ where: { frEmployeeId } });
+  const csrEmployee = await resolveCsrEmployee(frEmployeeId);
   await prisma.csrLead.upsert({
     where: { leadId_role: { leadId: csrApptId, role } },
     create: {

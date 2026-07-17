@@ -237,6 +237,7 @@ model CsrEmployee {
   frEmployeeId  String    @unique
   name          String
   active        Boolean   @default(true)
+  isCsr         Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   csrLeads      CsrLead[]

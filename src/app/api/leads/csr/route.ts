@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
       csrMap[key] = {
         name: key,
         active: cl.csrEmployee?.active ?? true,
+        isCsr: cl.csrEmployee?.isCsr ?? false,
         totalPoints: 0,
         completed: 0,        // original + 1.0 (no reschedule)
         rescheduledByOthers: 0, // original + 0.5 (someone else rescheduled)
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
     ...c,
     totalLeads: c.uniqueLeadIds.size,
     uniqueLeadIds: undefined,
-  })).filter((c: any) => !c.name.startsWith('FR Employee')).sort((a: any, b: any) => b.totalPoints - a.totalPoints);
+  })).filter((c: any) => c.isCsr !== false).sort((a: any, b: any) => b.totalPoints - a.totalPoints);
 
   // Completed = every completed appointment counted once, including rescheduled ones.
   // (Per-agent point split still tracked separately in csrStats.)
