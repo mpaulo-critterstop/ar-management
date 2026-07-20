@@ -278,6 +278,21 @@ MoMTab: added "All team leaders" filter + Active/Inactive/All status filter. MoM
 siteLeader + status; FIXED latent bug where crewLeader was read from w.crewLeader (undefined) instead
 of w.technician.crewLeader — was always null before. Commit 8a70188.
 
+### 13c-2. Monthly filter (added to feature #3 scope) — ✅ DONE
+Page-level Week/Month toggle + month/year dropdowns (field-performance/page.tsx). Shared `Period` type
++ `periodParams()` helper in helpers.tsx. Month mode aggregates STORED WEEKLY BUCKETS by the month the
+weekEnd falls in (per user: 7/3 → July). Scores averaged, counts summed, ONE row per tech
+(Scoreboard/Individuals/Driving/Teams collapse per-tech across the month's weeks). Attendance + TC show
+all raw records whose week falls in the month. NOT a raw recompute — weekly TechWeek is the finest
+stored grain for scores. All 6 tabs + their APIs (techweek, scoreboard, attendance, tc-accountability,
+teams) updated. Commits e62039d→05b5d07.
+
+### 13c-3. Team-leader filter refined — crew leaders only, exclude self-assigned
+Dropdown lists crewLeader values only (site leaders removed), and only leaders with ≥1 tech OTHER than
+themselves (excludes Kyle Oktay, service manager assigned as crew leader to himself). Auto-updates from
+Roster tab. All tab filters match crewLeader only. Commit d5039c7. Confirmed 7 leaders: Adrian Valerio,
+Bryan Bovee, Cynthia Barrientos, Jacob Fenton, Mat Hughes, Megan Delph, Warren Loignon.
+
 ### 13d. NEXT: Commissions table (feature #4), then Access control (#5)
 
 ## TARGET WEEKLY PIPELINE ORDER (after restructure)
