@@ -27,11 +27,18 @@ export async function GET(req: NextRequest) {
   if (officeParam && officeParam !== 'ALL') where.office = officeParam;
   if (teamParam) where.team = teamParam;
 
-  const records = await prisma.techDayAttendance.findMany({
+  const recordsRaw = await prisma.techDayAttendance.findMany({
     where,
-    include: { technician: { select: { name: true, status: true } } },
+    include: { technician: { select: { name: true, status: true, team: true, office: true, crewLeader: true, siteLeader: true } } },
     orderBy: [{ date: 'asc' }, { techId: 'asc' }],
   });
+  const records = recordsRaw.map((r: any) => ({
+    ...r,
+    team: r.team ?? r.technician?.team ?? null,
+    office: r.office ?? r.technician?.office ?? null,
+    crewLeader: r.technician?.crewLeader ?? null,
+    siteLeader: r.technician?.siteLeader ?? null,
+  }));
 
   return NextResponse.json(records);
 }

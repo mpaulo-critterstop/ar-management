@@ -35,6 +35,21 @@ export default function FieldPerformancePage() {
   const [activeTab, setActiveTab] = useState<'scoreboard' | 'individuals' | 'teams' | 'roster' | 'attendance' | 'tc-accountability' | 'driving' | 'mom' | 'adjustments'>('scoreboard');
   const [office, setOffice] = useState('All');
   const [weekIdx, setWeekIdx] = useState(0);
+  const [leaderFilter, setLeaderFilter] = useState('');
+  const [leaders, setLeaders] = useState<string[]>([]);
+
+  // Load the roster once to populate the team-leader dropdown (crew + site leaders, deduped).
+  useEffect(() => {
+    fetch('/api/field-performance/roster')
+      .then(r => r.json())
+      .then((techs: any[]) => {
+        if (!Array.isArray(techs)) return;
+        const set = new Set<string>();
+        techs.forEach(t => { if (t.crewLeader) set.add(t.crewLeader); if (t.siteLeader) set.add(t.siteLeader); });
+        setLeaders([...set].sort((a, b) => a.localeCompare(b)));
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -123,6 +138,18 @@ export default function FieldPerformancePage() {
               >›</button>
             </div>
           )}
+          {/* Team-leader filter — applies to score/individuals/driving/attendance/tc tabs */}
+          {!['roster', 'mom', 'teams'].includes(activeTab) && leaders.length > 0 && (
+            <select
+              value={leaderFilter}
+              onChange={e => setLeaderFilter(e.target.value)}
+              style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: leaderFilter ? '#EAF1FC' : '#fff', color: '#444441', cursor: 'pointer' }}
+              title="Filter by team leader"
+            >
+              <option value="">All team leaders</option>
+              {leaders.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+          )}
         </div>
           {/* Manual sync buttons removed — these operations run via scheduled crons.
               Endpoints remain live: /api/field-performance/{run,week,routeCustomers,pmpAppointments,completion,import-routes},
@@ -130,13 +157,13 @@ export default function FieldPerformancePage() {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'scoreboard' && <ScoreboardTab office={officeParam} weekEnd={selectedWeek} />}
-      {activeTab === 'individuals' && <IndividualsTab office={officeParam} weekEnd={selectedWeek} />}
+      {activeTab === 'scoreboard' && <ScoreboardTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} />}
+      {activeTab === 'individuals' && <IndividualsTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} />}
       {activeTab === 'teams' && <TeamsTab office={officeParam} weekEnd={selectedWeek} />}
       {activeTab === 'roster' && <RosterTab office={officeParam} />}
-      {activeTab === 'attendance' && <AttendanceTab office={officeParam} weekEnd={selectedWeek} />}
-      {activeTab === 'tc-accountability' && <TcAccountabilityTab office={officeParam} weekEnd={selectedWeek} />}
-      {activeTab === 'driving' && <DrivingTab office={officeParam} weekEnd={selectedWeek} />}
+      {activeTab === 'attendance' && <AttendanceTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} />}
+      {activeTab === 'tc-accountability' && <TcAccountabilityTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} />}
+      {activeTab === 'driving' && <DrivingTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} />}
       {activeTab === 'mom' && <MoMTab office={officeParam} />}
       {activeTab === 'adjustments' && <ManualAdjTab office={officeParam} weekEnd={selectedWeek} />}
     </div>

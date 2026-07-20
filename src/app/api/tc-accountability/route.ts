@@ -29,5 +29,20 @@ export async function GET(req: NextRequest) {
     take: 1000,
   });
 
-  return NextResponse.json({ records });
+  // Attach team-leader info by mapping techId → Technician (tc_appointments has no relation).
+  const techIds = [...new Set(records.map((r: any) => r.techId).filter(Boolean))];
+  const techs = techIds.length
+    ? await prisma.technician.findMany({
+        where: { techId: { in: techIds as string[] } },
+        select: { techId: true, crewLeader: true, siteLeader: true },
+      })
+    : [];
+  const leaderMap = new Map(techs.map((t: any) => [t.techId, { crewLeader: t.crewLeader, siteLeader: t.siteLeader }]));
+  const recordsWithLeaders = records.map((r: any) => ({
+    ...r,
+    crewLeader: leaderMap.get(r.techId)?.crewLeader ?? null,
+    siteLeader: leaderMap.get(r.techId)?.siteLeader ?? null,
+  }));
+
+  return NextResponse.json({ records: recordsWithLeaders });
 }

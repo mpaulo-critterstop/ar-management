@@ -64,11 +64,17 @@ export async function GET(req: NextRequest) {
   if (officeParam && officeParam !== 'ALL' && officeParam !== 'ADMIN') where.office = officeParam;
 
   // Fetch all TechWeek records for the week
-  const weeks = await prisma.techWeek.findMany({
+  const weeksRaw = await prisma.techWeek.findMany({
     where: { ...where, technician: { status: 'ACTIVE' } },
-    include: { technician: { select: { name: true, status: true, team: true, office: true } } },
+    include: { technician: { select: { name: true, status: true, team: true, office: true, crewLeader: true, siteLeader: true } } },
     orderBy: [{ weekEnd: 'desc' }, { totalScore: 'desc' }],
   });
+  // Surface leader fields at the row top-level for easy client-side filtering.
+  const weeks = weeksRaw.map((w: any) => ({
+    ...w,
+    crewLeader: w.technician?.crewLeader ?? null,
+    siteLeader: w.technician?.siteLeader ?? null,
+  }));
 
   // Fetch all active techs not in TechWeek records
   const techsWithWeek = new Set(weeks.map((w: any) => w.techId));
@@ -77,7 +83,7 @@ export async function GET(req: NextRequest) {
 
   const allActiveTechs = await prisma.technician.findMany({
     where: techWhere,
-    select: { techId: true, name: true, team: true, office: true, status: true },
+    select: { techId: true, name: true, team: true, office: true, status: true, crewLeader: true, siteLeader: true },
   });
 
   // Build stub records for techs without TechWeek entries
@@ -89,6 +95,8 @@ export async function GET(req: NextRequest) {
       weekEnd: weekParam ? new Date(weekParam) : null,
       office: t.office,
       team: t.team,
+      crewLeader: t.crewLeader ?? null,
+      siteLeader: t.siteLeader ?? null,
       totalScore: null,
       pmpScore: null,
       completionPct: null,
@@ -100,7 +108,7 @@ export async function GET(req: NextRequest) {
       closeOutPct: null,
       callbackRate: null,
       manualAdj: 0,
-      technician: { name: t.name, status: t.status, team: t.team, office: t.office },
+      technician: { name: t.name, status: t.status, team: t.team, office: t.office, crewLeader: t.crewLeader, siteLeader: t.siteLeader },
     }));
 
   return NextResponse.json([...weeks, ...stubWeeks]);

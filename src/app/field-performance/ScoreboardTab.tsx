@@ -4,9 +4,9 @@ import { scoreBadge, scoreBar, scoreColors, teamPill, kpiTile, card, cardHead, t
   TEAM_COLORS, BG_TILE, BORDER, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED, ACCENT,
   useSort, sortRows, SortableTh } from './helpers';
 
-interface Props { office: string; weekEnd: Date; }
+interface Props { office: string; weekEnd: Date; leaderFilter?: string; }
 
-export function ScoreboardTab({ office, weekEnd }: Props) {
+export function ScoreboardTab({ office, weekEnd, leaderFilter = '' }: Props) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,11 +16,11 @@ export function ScoreboardTab({ office, weekEnd }: Props) {
     setLoading(true);
     setError(null);
     const wk = weekEnd.toLocaleDateString('en-CA');
-    fetch(`/api/field-performance/scoreboard?week=${wk}&office=${office}`)
+    fetch(`/api/field-performance/scoreboard?week=${wk}&office=${office}&leader=${encodeURIComponent(leaderFilter)}`)
       .then(r => r.json())
       .then(d => { if (d.error) { setError(d.error); } else { setData(d); } setLoading(false); })
       .catch(e => { setError(String(e)); setLoading(false); });
-  }, [office, weekEnd]);
+  }, [office, weekEnd, leaderFilter]);
 
   if (loading) return (
     <div style={{ padding: 48, textAlign: 'center', color: TEXT_MUTED }}>

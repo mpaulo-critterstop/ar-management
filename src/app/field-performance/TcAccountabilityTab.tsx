@@ -20,6 +20,8 @@ interface TcRecord {
   cb60Day: boolean | null;
   futureCbs: number | null;
   timeAtJobMins: number | null;
+  crewLeader?: string | null;
+  siteLeader?: string | null;
 }
 
 const td: React.CSSProperties = {
@@ -57,9 +59,10 @@ function fmtDate(d: string) {
 interface Props {
   weekEnd: Date;
   office: string;
+  leaderFilter?: string;
 }
 
-export function TcAccountabilityTab({ weekEnd, office }: Props) {
+export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '' }: Props) {
   const [records, setRecords] = useState<TcRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -88,7 +91,8 @@ export function TcAccountabilityTab({ weekEnd, office }: Props) {
       r.techName.toLowerCase().includes(q) ||
       r.techId.toLowerCase().includes(q) ||
       r.customerName.toLowerCase().includes(q);
-    return matchesSearch;
+    const leaderMatch = !leaderFilter || r.crewLeader === leaderFilter || r.siteLeader === leaderFilter;
+    return matchesSearch && leaderMatch;
   });
   const filtered = sortRows(filteredUnsorted, sort, {
     date:         r => r.date,

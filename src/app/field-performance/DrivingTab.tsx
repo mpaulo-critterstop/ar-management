@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { teamPill, scoreBadge, scoreBar, card, th, td, useSort, sortRows, SortableTh } from './helpers';
 
-interface Props { office: string; weekEnd: Date; }
+interface Props { office: string; weekEnd: Date; leaderFilter?: string; }
 
 function speedBadge(mph: number | null) {
   if (!mph) return <span style={{ color: '#b0aea6' }}>—</span>;
@@ -25,7 +25,7 @@ function idleBadge(ratio: number | null) {
 
 const inputStyle: React.CSSProperties = { fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff' };
 
-export function DrivingTab({ office, weekEnd }: Props) {
+export function DrivingTab({ office, weekEnd, leaderFilter = '' }: Props) {
   const [weeks, setWeeks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -48,7 +48,8 @@ export function DrivingTab({ office, weekEnd }: Props) {
 
   const filteredUnsorted = weeks
     .filter(w => !search || w.technician?.name?.toLowerCase().includes(search.toLowerCase()))
-    .filter(w => !teamFilter || w.team === teamFilter);
+    .filter(w => !teamFilter || w.team === teamFilter)
+    .filter(w => !leaderFilter || w.crewLeader === leaderFilter || w.siteLeader === leaderFilter);
   const filtered = sortRows(filteredUnsorted, sort, {
     techId: w => w.techId,
     name:   w => w.technician?.name ?? '',

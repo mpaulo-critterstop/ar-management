@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { teamPill, card, th, td, useSort, sortRows, SortableTh } from './helpers';
 
-interface Props { office: string; weekEnd: Date; }
+interface Props { office: string; weekEnd: Date; leaderFilter?: string; }
 
 const DAYS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -29,7 +29,7 @@ function lateBadge(mins: number | null) {
   return <span style={{ color: '#791F1F', fontWeight: 500, fontSize: 12 }}>{mins.toFixed(0)}m late</span>;
 }
 
-export function AttendanceTab({ office, weekEnd }: Props) {
+export function AttendanceTab({ office, weekEnd, leaderFilter = '' }: Props) {
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -66,7 +66,8 @@ export function AttendanceTab({ office, weekEnd }: Props) {
     const nameMatch = r.technician?.name?.toLowerCase().includes(q);
     const idMatch = r.techId?.toLowerCase().includes(q);
     const teamMatch = !teamFilter || r.team === teamFilter;
-    return (!search || nameMatch || idMatch) && teamMatch;
+    const leaderMatch = !leaderFilter || r.crewLeader === leaderFilter || r.siteLeader === leaderFilter;
+    return (!search || nameMatch || idMatch) && teamMatch && leaderMatch;
   });
   const filtered = sortRows(filteredUnsorted, sort, {
     techId:      r => r.techId,

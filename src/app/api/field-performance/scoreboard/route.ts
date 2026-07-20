@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const weekParam = searchParams.get('week');
   const officeParam = searchParams.get('office');
+  const leaderParam = searchParams.get('leader') || '';
 
   const weekEnd = weekParam ? new Date(weekParam + "T00:00:00.000Z") : getWeekEnd(new Date());
 
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
   }
 
   const weeks = await prisma.techWeek.findMany({
-    where: { ...where, technician: { status: 'ACTIVE' } },
+    where: { ...where, technician: { status: 'ACTIVE', ...(leaderParam ? { OR: [{ crewLeader: leaderParam }, { siteLeader: leaderParam }] } : {}) } },
     include: { technician: { select: { name: true, techId: true, status: true } } },
   });
 

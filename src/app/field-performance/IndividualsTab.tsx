@@ -2,9 +2,9 @@
 import { useEffect, useState } from 'react';
 import { scoreBadge, scoreBar, teamPill, card, th, td, initials, useSort, sortRows, SortableTh } from './helpers';
 
-interface Props { office: string; weekEnd: Date; }
+interface Props { office: string; weekEnd: Date; leaderFilter?: string; }
 
-export function IndividualsTab({ office, weekEnd }: Props) {
+export function IndividualsTab({ office, weekEnd, leaderFilter = '' }: Props) {
   const [weeks, setWeeks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -28,7 +28,8 @@ export function IndividualsTab({ office, weekEnd }: Props) {
       const nameMatch = w.technician?.name?.toLowerCase().includes(q);
       const idMatch = w.techId?.toLowerCase().includes(q);
       const teamMatch = !teamFilter || w.team === teamFilter;
-      return (!search || nameMatch || idMatch) && teamMatch;
+      const leaderMatch = !leaderFilter || w.crewLeader === leaderFilter || w.siteLeader === leaderFilter;
+      return (!search || nameMatch || idMatch) && teamMatch && leaderMatch;
     });
   const filtered = sortRows(filteredUnsorted, sort, {
     techId:     w => w.techId,
