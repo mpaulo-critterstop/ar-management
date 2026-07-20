@@ -10,14 +10,15 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
   const crewSort = useSort('avgScore', 'desc');
   const siteSort = useSort('avgScore', 'desc');
 
+  const periodKey = period?.mode === 'month' ? `m${period.year}-${period.month}` : weekEnd.toLocaleDateString('en-CA');
   useEffect(() => {
     setLoading(true);
-    const wk = weekEnd.toLocaleDateString('en-CA');
-    fetch(`/api/field-performance/teams?week=${wk}&office=${office}`)
+    const pp = periodParams(period ?? { mode: 'week', week: weekEnd });
+    fetch(`/api/field-performance/teams?${pp}&office=${office}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [office, weekEnd]);
+  }, [office, periodKey]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#b0aea6' }}>Loading...</div>;
   if (!data) return <div style={{ padding: 40, textAlign: 'center', color: '#b0aea6' }}>No data available.</div>;

@@ -28,13 +28,20 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const weekParam = searchParams.get('week');
+  const monthStart = searchParams.get('monthStart');
+  const monthEnd = searchParams.get('monthEnd');
   const officeParam = searchParams.get('office');
 
   const weekEnd = weekParam ? new Date(weekParam + "T00:00:00.000Z") : getWeekEnd(new Date());
 
-  const dayStart = new Date(weekParam ? weekParam + "T00:00:00.000Z" : getWeekEnd(new Date()).toISOString().split("T")[0] + "T00:00:00.000Z");
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-  const where: any = { weekEnd: { gte: dayStart, lt: dayEnd } };
+  let where: any;
+  if (monthStart && monthEnd) {
+    where = { weekEnd: { gte: new Date(monthStart), lte: new Date(monthEnd) } };
+  } else {
+    const dayStart = new Date(weekParam ? weekParam + "T00:00:00.000Z" : getWeekEnd(new Date()).toISOString().split("T")[0] + "T00:00:00.000Z");
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    where = { weekEnd: { gte: dayStart, lt: dayEnd } };
+  }
   if (officeParam && officeParam !== 'ALL' && officeParam !== 'ADMIN') {
     where.office = officeParam;
   }

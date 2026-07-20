@@ -11,19 +11,24 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const weekParam = searchParams.get('week');
+  const monthStart = searchParams.get('monthStart');
+  const monthEnd = searchParams.get('monthEnd');
   const officeParam = searchParams.get('office');
   const teamParam = searchParams.get('team');
 
-  if (!weekParam) return NextResponse.json({ error: 'week required' }, { status: 400 });
+  let dateFilter: any;
+  if (monthStart && monthEnd) {
+    dateFilter = { gte: new Date(monthStart), lte: new Date(monthEnd) };
+  } else if (weekParam) {
+    const weekEndNoon = new Date(weekParam + 'T12:00:00.000Z');
+    const weekStartNoon = new Date(weekEndNoon);
+    weekStartNoon.setDate(weekStartNoon.getDate() - 6);
+    dateFilter = { gte: weekStartNoon, lte: weekEndNoon };
+  } else {
+    return NextResponse.json({ error: 'week or month required' }, { status: 400 });
+  }
 
-  // Use noon UTC to avoid timezone day-shift issues (records stored as noon UTC)
-  const weekEndNoon = new Date(weekParam + 'T12:00:00.000Z');
-  const weekStartNoon = new Date(weekEndNoon);
-  weekStartNoon.setDate(weekStartNoon.getDate() - 6);
-
-  const where: any = {
-    date: { gte: weekStartNoon, lte: weekEndNoon },
-  };
+  const where: any = { date: dateFilter };
   if (officeParam && officeParam !== 'ALL') where.office = officeParam;
   if (teamParam) where.team = teamParam;
 

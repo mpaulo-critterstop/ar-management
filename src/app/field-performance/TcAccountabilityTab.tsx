@@ -73,16 +73,18 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const wk = weekEnd.toLocaleDateString('en-CA');
       const officeParam = office === 'All' ? 'ALL' : office;
-      const res = await fetch(`/api/tc-accountability?weekEnd=${wk}&office=${officeParam}`);
+      const pp = period?.mode === 'month'
+        ? `monthStart=${encodeURIComponent(period.monthStart)}&monthEnd=${encodeURIComponent(period.monthEnd)}`
+        : `weekEnd=${weekEnd.toLocaleDateString('en-CA')}`;
+      const res = await fetch(`/api/tc-accountability?${pp}&office=${officeParam}`);
       const data = await res.json();
       setRecords(data.records || []);
     } catch {
       setRecords([]);
     }
     setLoading(false);
-  }, [weekEnd, office]);
+  }, [weekEnd, office, period?.mode === 'month' ? `${(period as any).year}-${(period as any).month}` : 'week']);
 
   useEffect(() => { loadData(); }, [loadData]);
 

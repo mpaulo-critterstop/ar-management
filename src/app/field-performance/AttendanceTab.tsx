@@ -45,14 +45,15 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
   const role = (session?.user as any)?.role;
   const canEdit = ['ADMIN', 'LEADERSHIP'].includes(role);
 
+  const periodKey = period?.mode === 'month' ? `m${period.year}-${period.month}` : weekEnd.toLocaleDateString('en-CA');
   useEffect(() => {
     setLoading(true);
-    const wk = weekEnd.toLocaleDateString('en-CA');
-    fetch(`/api/field-performance/attendance?week=${wk}&office=${office}`)
+    const pp = periodParams(period ?? { mode: 'week', week: weekEnd });
+    fetch(`/api/field-performance/attendance?${pp}&office=${office}`)
       .then(r => r.json())
       .then(d => { setRecords(Array.isArray(d) ? d : []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [office, weekEnd]);
+  }, [office, periodKey]);
 
   useEffect(() => {
     fetch(`/api/field-performance/techs?office=${office}`)
@@ -88,8 +89,8 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
   const onTime = worked.filter(r => (r.minutesLate ?? 0) <= 10).length;
 
   const refreshRecords = () => {
-    const wk = weekEnd.toLocaleDateString('en-CA');
-    fetch(`/api/field-performance/attendance?week=${wk}&office=${office}`)
+    const pp = periodParams(period ?? { mode: 'week', week: weekEnd });
+    fetch(`/api/field-performance/attendance?${pp}&office=${office}`)
       .then(r => r.json())
       .then(d => setRecords(Array.isArray(d) ? d : []));
   };

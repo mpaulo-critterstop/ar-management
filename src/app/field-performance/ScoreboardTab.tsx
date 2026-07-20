@@ -12,15 +12,16 @@ export function ScoreboardTab({ office, weekEnd, leaderFilter = '', period }: Pr
   const [error, setError] = useState<string | null>(null);
   const sort = useSort('score', 'desc');
 
+  const periodKey = period?.mode === 'month' ? `m${period.year}-${period.month}` : weekEnd.toLocaleDateString('en-CA');
   useEffect(() => {
     setLoading(true);
     setError(null);
-    const wk = weekEnd.toLocaleDateString('en-CA');
-    fetch(`/api/field-performance/scoreboard?week=${wk}&office=${office}&leader=${encodeURIComponent(leaderFilter)}`)
+    const pp = periodParams(period ?? { mode: 'week', week: weekEnd });
+    fetch(`/api/field-performance/scoreboard?${pp}&office=${office}&leader=${encodeURIComponent(leaderFilter)}`)
       .then(r => r.json())
       .then(d => { if (d.error) { setError(d.error); } else { setData(d); } setLoading(false); })
       .catch(e => { setError(String(e)); setLoading(false); });
-  }, [office, weekEnd, leaderFilter]);
+  }, [office, periodKey, leaderFilter]);
 
   if (loading) return (
     <div style={{ padding: 48, textAlign: 'center', color: TEXT_MUTED }}>

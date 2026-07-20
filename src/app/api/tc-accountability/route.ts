@@ -12,21 +12,26 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const weekEnd = searchParams.get('weekEnd');
+  const monthStart = searchParams.get('monthStart');
+  const monthEnd = searchParams.get('monthEnd');
   const office = searchParams.get('office') || 'ALL';
   const techId = searchParams.get('techId') || '';
 
-  if (!weekEnd) return NextResponse.json({ error: 'weekEnd required' }, { status: 400 });
-
-  const weekEndDate = new Date(weekEnd + 'T00:00:00.000Z');
-
-  const where: any = { weekEnd: weekEndDate };
+  const where: any = {};
+  if (monthStart && monthEnd) {
+    where.weekEnd = { gte: new Date(monthStart), lte: new Date(monthEnd) };
+  } else if (weekEnd) {
+    where.weekEnd = new Date(weekEnd + 'T00:00:00.000Z');
+  } else {
+    return NextResponse.json({ error: 'weekEnd or month required' }, { status: 400 });
+  }
   if (office !== 'ALL') where.office = office;
   if (techId) where.techId = techId;
 
   const records = await prisma.tcAppointment.findMany({
     where,
     orderBy: [{ date: 'asc' }, { techName: 'asc' }],
-    take: 1000,
+    take: 5000,
   });
 
   // Attach team-leader info by mapping techId → Technician (tc_appointments has no relation).

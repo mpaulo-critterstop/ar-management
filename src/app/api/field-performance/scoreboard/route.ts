@@ -24,14 +24,22 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const weekParam = searchParams.get('week');
+  const monthStart = searchParams.get('monthStart');
+  const monthEnd = searchParams.get('monthEnd');
   const officeParam = searchParams.get('office');
   const leaderParam = searchParams.get('leader') || '';
+  const isMonth = !!(monthStart && monthEnd);
 
   const weekEnd = weekParam ? new Date(weekParam + "T00:00:00.000Z") : getWeekEnd(new Date());
 
-  const dayStart = new Date(weekParam ? weekParam + "T00:00:00.000Z" : getWeekEnd(new Date()).toISOString().split("T")[0] + "T00:00:00.000Z");
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-  const where: any = { weekEnd: { gte: dayStart, lt: dayEnd } };
+  let where: any;
+  if (isMonth) {
+    where = { weekEnd: { gte: new Date(monthStart!), lte: new Date(monthEnd!) } };
+  } else {
+    const dayStart = new Date(weekParam ? weekParam + "T00:00:00.000Z" : getWeekEnd(new Date()).toISOString().split("T")[0] + "T00:00:00.000Z");
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    where = { weekEnd: { gte: dayStart, lt: dayEnd } };
+  }
   if (officeParam && officeParam !== 'ALL' && officeParam !== 'ADMIN') {
     where.office = officeParam;
   }
@@ -43,7 +51,29 @@ export async function GET(req: NextRequest) {
 
   const totalActiveTechs = await prisma.technician.count({ where: { status: 'ACTIVE' } });
 
-  const active = weeks.filter((w: any) => w.totalScore !== null && w.technician?.status === 'ACTIVE');
+  let active = weeks.filter((w: any) => w.totalScore !== null && w.technician?.status === 'ACTIVE');
+
+  // MONTH MODE: collapse each tech's multiple weeks into one averaged row so summary stats and
+  // topPerformers count each tech once (not once per week).
+  if (isMonth) {
+    const byTech = new Map<string, any[]>();
+    for (const w of active) {
+      if (!byTech.has(w.techId)) byTech.set(w.techId, []);
+      byTech.get(w.techId)!.push(w);
+    }
+    const mean = (rows: any[], f: string) => {
+      const vals = rows.map(r => r[f]).filter((v: any) => v !== null && v !== undefined);
+      return vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
+    };
+    active = [...byTech.values()].map(rows => ({
+      ...rows[0],
+      totalScore: mean(rows, 'totalScore'),
+      closeOutPct: mean(rows, 'closeOutPct'),
+      callbackRate: mean(rows, 'callbackRate'),
+      drivingScore: mean(rows, 'drivingScore'),
+      reliabilityScore: mean(rows, 'reliabilityScore'),
+    }));
+  }
 
   const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
   const scores = active.map((w: any) => w.totalScore!);
