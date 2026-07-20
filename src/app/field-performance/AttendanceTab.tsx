@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { teamPill, card, th, td } from './helpers';
+import { teamPill, card, th, td, useSort, sortRows, SortableTh } from './helpers';
 
 interface Props { office: string; weekEnd: Date; }
 
@@ -34,6 +34,7 @@ export function AttendanceTab({ office, weekEnd }: Props) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
+  const sort = useSort('date', 'desc');
   const [editing, setEditing] = useState<any>(null);
   const [editForm, setEditForm] = useState({ routeStartTime: '', scheduledHrs: 8, startTime: '', finishTime: '' });
   const [adding, setAdding] = useState(false);
@@ -60,12 +61,22 @@ export function AttendanceTab({ office, weekEnd }: Props) {
       .catch(() => {});
   }, [office]);
 
-  const filtered = records.filter(r => {
+  const filteredUnsorted = records.filter(r => {
     const q = search.toLowerCase();
     const nameMatch = r.technician?.name?.toLowerCase().includes(q);
     const idMatch = r.techId?.toLowerCase().includes(q);
     const teamMatch = !teamFilter || r.team === teamFilter;
     return (!search || nameMatch || idMatch) && teamMatch;
+  });
+  const filtered = sortRows(filteredUnsorted, sort, {
+    techId:      r => r.techId,
+    name:        r => r.technician?.name ?? '',
+    team:        r => r.team ?? '',
+    office:      r => r.office ?? '',
+    date:        r => r.date,
+    punctuality: r => r.minutesLate,
+    hrsWorked:   r => r.hrsWorked,
+    scheduledHrs:r => r.scheduledHrs,
   });
 
   // Summary stats
@@ -205,17 +216,17 @@ export function AttendanceTab({ office, weekEnd }: Props) {
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th style={{ ...th, width: 55 }}>Tech ID</th>
-                <th style={{ ...th, width: 150 }}>Name</th>
-                <th style={{ ...th, width: 46 }}>Team</th>
-                <th style={{ ...th, width: 55 }}>Office</th>
-                <th style={{ ...th, width: 90 }}>Date</th>
+                <SortableTh sortKey="techId" sort={sort} style={{ width: 55 }}>Tech ID</SortableTh>
+                <SortableTh sortKey="name" sort={sort} style={{ width: 150 }}>Name</SortableTh>
+                <SortableTh sortKey="team" sort={sort} style={{ width: 46 }}>Team</SortableTh>
+                <SortableTh sortKey="office" sort={sort} style={{ width: 55 }}>Office</SortableTh>
+                <SortableTh sortKey="date" sort={sort} style={{ width: 90 }}>Date</SortableTh>
                 <th style={{ ...th, width: 70 }}>Sched. start</th>
                 <th style={{ ...th, width: 80 }}>Start time</th>
                 <th style={{ ...th, width: 80 }}>Finish time</th>
-                <th style={{ ...th, width: 90 }}>Punctuality</th>
-                <th style={{ ...th, width: 80 }}>Hrs worked</th>
-                <th style={{ ...th, width: 60 }}>Sched. hrs</th>
+                <SortableTh sortKey="punctuality" sort={sort} style={{ width: 90 }}>Punctuality</SortableTh>
+                <SortableTh sortKey="hrsWorked" sort={sort} style={{ width: 80 }}>Hrs worked</SortableTh>
+                <SortableTh sortKey="scheduledHrs" sort={sort} style={{ width: 60 }}>Sched. hrs</SortableTh>
                 {canEdit && <th style={{ ...th, width: 36 }}></th>}
               </tr>
             </thead>
