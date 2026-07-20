@@ -28,7 +28,7 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '' }: Props) {
       const nameMatch = w.technician?.name?.toLowerCase().includes(q);
       const idMatch = w.techId?.toLowerCase().includes(q);
       const teamMatch = !teamFilter || w.team === teamFilter;
-      const leaderMatch = !leaderFilter || w.crewLeader === leaderFilter || w.siteLeader === leaderFilter;
+      const leaderMatch = !leaderFilter || w.crewLeader === leaderFilter;
       return (!search || nameMatch || idMatch) && teamMatch && leaderMatch;
     });
   const filtered = sortRows(filteredUnsorted, sort, {

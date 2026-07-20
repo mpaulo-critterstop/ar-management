@@ -49,7 +49,7 @@ export function DrivingTab({ office, weekEnd, leaderFilter = '' }: Props) {
   const filteredUnsorted = weeks
     .filter(w => !search || w.technician?.name?.toLowerCase().includes(search.toLowerCase()))
     .filter(w => !teamFilter || w.team === teamFilter)
-    .filter(w => !leaderFilter || w.crewLeader === leaderFilter || w.siteLeader === leaderFilter);
+    .filter(w => !leaderFilter || w.crewLeader === leaderFilter);
   const filtered = sortRows(filteredUnsorted, sort, {
     techId: w => w.techId,
     name:   w => w.technician?.name ?? '',

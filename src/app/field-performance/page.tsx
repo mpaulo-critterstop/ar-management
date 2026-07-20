@@ -38,15 +38,23 @@ export default function FieldPerformancePage() {
   const [leaderFilter, setLeaderFilter] = useState('');
   const [leaders, setLeaders] = useState<string[]>([]);
 
-  // Load the roster once to populate the team-leader dropdown (crew + site leaders, deduped).
+  // Populate the team-leader dropdown from CREW LEADERS only (site leaders are a different tier).
+  // A crew leader appears only if they lead at least one tech OTHER than themselves — this excludes
+  // hybrid/self-assigned leaders (e.g. a service manager listed as crew leader to himself). The list
+  // auto-updates whenever crewLeader assignments change in the Roster tab.
   useEffect(() => {
-    fetch('/api/field-performance/roster')
+    fetch('/api/field-performance/roster?status=ACTIVE')
       .then(r => r.json())
       .then((techs: any[]) => {
         if (!Array.isArray(techs)) return;
-        const set = new Set<string>();
-        techs.forEach(t => { if (t.crewLeader) set.add(t.crewLeader); if (t.siteLeader) set.add(t.siteLeader); });
-        setLeaders([...set].sort((a, b) => a.localeCompare(b)));
+        const counts = new Map<string, number>(); // crew leader -> # of OTHER techs led
+        techs.forEach(t => {
+          if (!t.crewLeader) return;
+          if (t.crewLeader === t.name) return; // self-assignment doesn't count
+          counts.set(t.crewLeader, (counts.get(t.crewLeader) || 0) + 1);
+        });
+        const list = [...counts.entries()].filter(([, n]) => n > 0).map(([leader]) => leader);
+        setLeaders(list.sort((a, b) => a.localeCompare(b)));
       })
       .catch(() => {});
   }, []);

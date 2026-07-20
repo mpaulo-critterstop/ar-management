@@ -24,14 +24,14 @@ export function MoMTab({ office }: Props) {
   }, [year, office]);
 
   const techs = data?.techs || [];
-  // Leaders present in the data, for the dropdown.
-  const leaders = [...new Set(techs.flatMap((t: any) => [t.crewLeader, t.siteLeader]).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b));
+  // Crew leaders present in the data (excluding self-assignments), for the dropdown.
+  const leaders = [...new Set(techs.filter((t: any) => t.crewLeader && t.crewLeader !== t.name).map((t: any) => t.crewLeader) as string[])].sort((a, b) => a.localeCompare(b));
   const filtered = techs.filter((t: any) => {
     const q = search.toLowerCase();
     const nameMatch = t.name?.toLowerCase().includes(q);
     const idMatch = t.techId?.toLowerCase().includes(q);
     const teamMatch = !teamFilter || t.team === teamFilter;
-    const leaderMatch = !leaderFilter || t.crewLeader === leaderFilter || t.siteLeader === leaderFilter;
+    const leaderMatch = !leaderFilter || t.crewLeader === leaderFilter;
     const statusMatch = statusFilter === 'ALL'
       || (statusFilter === 'ACTIVE' && t.status === 'ACTIVE')
       || (statusFilter === 'INACTIVE' && t.status !== 'ACTIVE');

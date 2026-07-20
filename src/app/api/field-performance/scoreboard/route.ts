@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   }
 
   const weeks = await prisma.techWeek.findMany({
-    where: { ...where, technician: { status: 'ACTIVE', ...(leaderParam ? { OR: [{ crewLeader: leaderParam }, { siteLeader: leaderParam }] } : {}) } },
+    where: { ...where, technician: { status: 'ACTIVE', ...(leaderParam ? { crewLeader: leaderParam } : {}) } },
     include: { technician: { select: { name: true, techId: true, status: true } } },
   });
 

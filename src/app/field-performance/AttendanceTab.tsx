@@ -66,7 +66,7 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '' }: Props) {
     const nameMatch = r.technician?.name?.toLowerCase().includes(q);
     const idMatch = r.techId?.toLowerCase().includes(q);
     const teamMatch = !teamFilter || r.team === teamFilter;
-    const leaderMatch = !leaderFilter || r.crewLeader === leaderFilter || r.siteLeader === leaderFilter;
+    const leaderMatch = !leaderFilter || r.crewLeader === leaderFilter;
     return (!search || nameMatch || idMatch) && teamMatch && leaderMatch;
   });
   const filtered = sortRows(filteredUnsorted, sort, {

@@ -91,7 +91,7 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '' }: Prop
       r.techName.toLowerCase().includes(q) ||
       r.techId.toLowerCase().includes(q) ||
       r.customerName.toLowerCase().includes(q);
-    const leaderMatch = !leaderFilter || r.crewLeader === leaderFilter || r.siteLeader === leaderFilter;
+    const leaderMatch = !leaderFilter || r.crewLeader === leaderFilter;
     return matchesSearch && leaderMatch;
   });
   const filtered = sortRows(filteredUnsorted, sort, {
