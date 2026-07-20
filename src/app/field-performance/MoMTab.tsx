@@ -11,6 +11,8 @@ export function MoMTab({ office }: Props) {
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState(2026);
   const [teamFilter, setTeamFilter] = useState('');
+  const [leaderFilter, setLeaderFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ACTIVE' | 'INACTIVE' | 'ALL'>('ACTIVE');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -22,12 +24,18 @@ export function MoMTab({ office }: Props) {
   }, [year, office]);
 
   const techs = data?.techs || [];
+  // Leaders present in the data, for the dropdown.
+  const leaders = [...new Set(techs.flatMap((t: any) => [t.crewLeader, t.siteLeader]).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b));
   const filtered = techs.filter((t: any) => {
     const q = search.toLowerCase();
     const nameMatch = t.name?.toLowerCase().includes(q);
     const idMatch = t.techId?.toLowerCase().includes(q);
     const teamMatch = !teamFilter || t.team === teamFilter;
-    return (!search || nameMatch || idMatch) && teamMatch;
+    const leaderMatch = !leaderFilter || t.crewLeader === leaderFilter || t.siteLeader === leaderFilter;
+    const statusMatch = statusFilter === 'ALL'
+      || (statusFilter === 'ACTIVE' && t.status === 'ACTIVE')
+      || (statusFilter === 'INACTIVE' && t.status !== 'ACTIVE');
+    return (!search || nameMatch || idMatch) && teamMatch && leaderMatch && statusMatch;
   });
 
   function scoreCell(score: number | null) {
@@ -53,6 +61,17 @@ export function MoMTab({ office }: Props) {
           <option value="WP">WP</option>
           <option value="PMP">PMP</option>
           <option value="IP">IP</option>
+        </select>
+        {leaders.length > 0 && (
+          <select value={leaderFilter} onChange={e => setLeaderFilter(e.target.value)} style={{ ...inputStyle, background: leaderFilter ? '#EAF1FC' : '#fff' }}>
+            <option value="">All team leaders</option>
+            {leaders.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+        )}
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)} style={inputStyle}>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
+          <option value="ALL">All</option>
         </select>
         <select value={year} onChange={e => setYear(Number(e.target.value))} style={inputStyle}>
           <option value={2026}>2026</option>

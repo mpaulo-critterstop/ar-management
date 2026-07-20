@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const weeks = await prisma.techWeek.findMany({
     where,
-    include: { technician: { select: { name: true, status: true, crewLeader: true } } },
+    include: { technician: { select: { name: true, status: true, crewLeader: true, siteLeader: true } } },
     orderBy: { weekEnd: 'asc' },
   });
 
@@ -37,6 +37,8 @@ export async function GET(req: NextRequest) {
     office: string;
     team: string;
     crewLeader: string | null;
+    siteLeader: string | null;
+    status: string;
     monthly: Record<number, number[]>;
     ytd: number[];
   }>();
@@ -49,7 +51,9 @@ export async function GET(req: NextRequest) {
         name: w.technician.name,
         office: w.office,
         team: w.team,
-        crewLeader: w.crewLeader,
+        crewLeader: (w.technician as any).crewLeader ?? null,
+        siteLeader: (w.technician as any).siteLeader ?? null,
+        status: (w.technician as any).status ?? 'ACTIVE',
         monthly: {},
         ytd: [],
       });
@@ -68,6 +72,8 @@ export async function GET(req: NextRequest) {
     office: t.office,
     team: t.team,
     crewLeader: t.crewLeader,
+    siteLeader: t.siteLeader,
+    status: t.status,
     ytd: avg(t.ytd),
     monthly: Object.fromEntries(months.map(m => [m, avg(t.monthly[m] || [])])),
   })).sort((a, b) => (b.ytd ?? 0) - (a.ytd ?? 0));

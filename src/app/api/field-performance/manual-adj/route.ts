@@ -12,18 +12,24 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const weekParam = searchParams.get('week');
   const officeParam = searchParams.get('office');
+  const techIdParam = searchParams.get('techId');
+  const allWeeks = searchParams.get('allWeeks') === 'true';
 
   const where: any = {};
-  if (weekParam) {
+  // allWeeks=true (or no week) returns every adjustment across all weeks.
+  if (weekParam && !allWeeks) {
     const dayStart = new Date(weekParam + 'T00:00:00.000Z');
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
     where.weekEnd = { gte: dayStart, lt: dayEnd };
   }
-  if (officeParam && officeParam !== 'ALL') where.technician = { office: officeParam };
+  const techFilter: any = {};
+  if (officeParam && officeParam !== 'ALL') techFilter.office = officeParam;
+  if (techIdParam) where.techId = techIdParam;
+  if (Object.keys(techFilter).length) where.technician = techFilter;
 
   const adjs = await prisma.manualAdj.findMany({
     where,
-    include: { technician: { select: { name: true, office: true, team: true } } },
+    include: { technician: { select: { name: true, office: true, team: true, crewLeader: true, siteLeader: true } } },
     orderBy: { weekEnd: 'desc' },
   });
 
