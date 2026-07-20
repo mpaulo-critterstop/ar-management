@@ -241,6 +241,27 @@ signed) could serve as a close-out signal IF finishing the checklist == closing 
 reliable than keyword-scanning notes. Not pursued now. USER DECISION: leave as-is, will give techs
 guidance to use the close-out keywords in notes. No code changed.
 
+### 13. Chisam's FP feature requests — build sequence (agreed)
+Order (features before the access gates that filter them): 1) Column sorting ✅ DONE, 2) Team-leader
+filter (keystone — builds roster mapping that access-control reuses), 3) Manual-adjustments view + MoM
+filters, 4) Commissions table, 5) Access control LAST.
+PERMISSIONS MODEL SKETCH (for #5, when built): keep role enum for broad tiers; add per-user `modules
+String[]` (allowlist: ar/dispatch/leads/csr/field-performance/dialpad/kpi), `permissions Json?`
+({hidePmKpis, ownDataOnly, isTeamLeader}), `frEmployeeId`/`techId` to link login→FR identity for
+row-level (PM own-commission, tech own-data). Enforce server-side (inject WHERE filters) AND client-side
+(hide nav). Module-level (ar/dispatcher/csr) is light; row-level (pm/tech) reuses team-leader roster
+mapping + auto-match-by-email like the CSR resolver.
+
+### 13a. Column sorting (Chisam feature #1) — ✅ DONE
+Reusable helpers in field-performance/helpers.tsx: useSort(initialKey,dir) returns {key,dir,set}
+(set toggles asc/desc, new col starts desc); sortRows(rows,sort,accessors) (nulls sort last);
+SortableTh clickable header w/ ▲▼ arrow. Applied to ALL 6 tabs: DrivingTab (Max Speed/Safety Alerts/
+Idle Ratio — Chisam's example), IndividualsTab, AttendanceTab (Punctuality=minutesLate — his other
+example), ScoreboardTab, TcAccountabilityTab, TeamsTab (crew+site, independent sorts). Replaced old
+sort dropdowns. Commits 2c9413b→09ff176.
+NOTE: GitHub token expired mid-session; new one embedded in remote: github_pat_11CENWOHY... (if push
+fails, get a fresh token + git remote set-url).
+
 ## TARGET WEEKLY PIPELINE ORDER (after restructure)
 1. `week` (per office) → tech_routes + production
 2. `pmpAppointments` (per office, new-week mode) → pmp_appointments
