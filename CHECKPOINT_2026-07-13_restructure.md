@@ -271,7 +271,14 @@ through techweek/attendance/tc-accountability APIs (top-level on each row); scor
 server-side via ?leader=. This roster mapping is what access-control row-level (feature #5) reuses.
 Commit f5e1b46. NOT applied to Teams/MoM/Roster tabs (Teams already groups by leader; MoM/Roster N/A).
 
-### 13c. NEXT: Manual-adjustments view + MoM filters (feature #3), then Commissions (#4), Access control (#5)
+### 13c. Manual-adjustments view + MoM filters (feature #3) — ✅ DONE
+ManualAdjTab: "All weeks" toggle (shows all adjustments across weeks, adds a Week column) + "All team
+members" dropdown (filters by techId). manual-adj API gained allWeeks + techId params, leader fields.
+MoMTab: added "All team leaders" filter + Active/Inactive/All status filter. MoM API now outputs
+siteLeader + status; FIXED latent bug where crewLeader was read from w.crewLeader (undefined) instead
+of w.technician.crewLeader — was always null before. Commit 8a70188.
+
+### 13d. NEXT: Commissions table (feature #4), then Access control (#5)
 
 ## TARGET WEEKLY PIPELINE ORDER (after restructure)
 1. `week` (per office) → tech_routes + production
