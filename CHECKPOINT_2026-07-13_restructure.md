@@ -262,6 +262,17 @@ sort dropdowns. Commits 2c9413b→09ff176.
 NOTE: GitHub token expired mid-session; new one embedded in remote: github_pat_11CENWOHY... (if push
 fails, get a fresh token + git remote set-url).
 
+### 13b. Team-leader filter (Chisam feature #2) — ✅ DONE
+Page-level "All team leaders" dropdown (field-performance/page.tsx) populated from roster crew+site
+leaders. Filters Scoreboard, Individuals, Driving, Attendance, TcAccountability tabs. A tech matches
+if crewLeader===leader OR siteLeader===leader. Uses EXISTING Technician.crewLeader/siteLeader fields
+(managed in RosterTab) — NO Google Sheet needed (Chisam assumed we would). Surfaced leader fields
+through techweek/attendance/tc-accountability APIs (top-level on each row); scoreboard filters
+server-side via ?leader=. This roster mapping is what access-control row-level (feature #5) reuses.
+Commit f5e1b46. NOT applied to Teams/MoM/Roster tabs (Teams already groups by leader; MoM/Roster N/A).
+
+### 13c. NEXT: Manual-adjustments view + MoM filters (feature #3), then Commissions (#4), Access control (#5)
+
 ## TARGET WEEKLY PIPELINE ORDER (after restructure)
 1. `week` (per office) → tech_routes + production
 2. `pmpAppointments` (per office, new-week mode) → pmp_appointments
