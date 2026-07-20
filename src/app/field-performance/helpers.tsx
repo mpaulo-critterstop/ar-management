@@ -139,6 +139,60 @@ export const td: React.CSSProperties = {
   verticalAlign: 'middle',
 };
 
+// ─── REUSABLE COLUMN SORTING ──────────────────────────────────────────────────
+// Usage in a tab:
+//   const sort = useSort('score', 'desc');
+//   const rows = sortRows(filtered, sort, { score: r => r.drivingScore, name: r => r.technician?.name });
+//   <SortableTh sortKey="score" sort={sort} style={{ width: 110 }}>Driving score</SortableTh>
+export type SortDir = 'asc' | 'desc';
+export interface SortState { key: string; dir: SortDir; set: (key: string) => void; }
+
+export function useSort(initialKey: string, initialDir: SortDir = 'desc'): SortState {
+  const [key, setKey] = useState(initialKey);
+  const [dir, setDir] = useState<SortDir>(initialDir);
+  const set = (k: string) => {
+    if (k === key) { setDir(d => (d === 'asc' ? 'desc' : 'asc')); }
+    else { setKey(k); setDir('desc'); } // new column starts descending (high→low, the common case)
+  };
+  return { key, dir, set };
+}
+
+// accessors maps a sortKey -> function returning the comparable value for a row.
+export function sortRows<T>(rows: T[], sort: SortState, accessors: Record<string, (r: T) => any>): T[] {
+  const acc = accessors[sort.key];
+  if (!acc) return rows;
+  const mult = sort.dir === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const va = acc(a), vb = acc(b);
+    // nulls/undefined always sort to the bottom regardless of direction
+    const na = va === null || va === undefined, nb = vb === null || vb === undefined;
+    if (na && nb) return 0;
+    if (na) return 1;
+    if (nb) return -1;
+    if (typeof va === 'string' || typeof vb === 'string') {
+      return String(va).localeCompare(String(vb)) * mult;
+    }
+    return (va - vb) * mult;
+  });
+}
+
+export function SortableTh({ sortKey, sort, children, style, align = 'left' }: {
+  sortKey: string; sort: SortState; children: React.ReactNode;
+  style?: React.CSSProperties; align?: 'left' | 'right' | 'center';
+}) {
+  const active = sort.key === sortKey;
+  const arrow = !active ? '' : sort.dir === 'asc' ? ' ▲' : ' ▼';
+  return (
+    <th
+      onClick={() => sort.set(sortKey)}
+      title="Click to sort"
+      style={{ ...th, textAlign: align, cursor: 'pointer', userSelect: 'none', color: active ? TEXT_PRIMARY : TEXT_SECONDARY, ...style }}
+    >
+      {children}<span style={{ fontSize: 9, color: ACCENT }}>{arrow}</span>
+    </th>
+  );
+}
+
 export function kpiTile(
   value: React.ReactNode,
   label: string,

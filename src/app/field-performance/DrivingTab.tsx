@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { teamPill, scoreBadge, scoreBar, card, th, td } from './helpers';
+import { teamPill, scoreBadge, scoreBar, card, th, td, useSort, sortRows, SortableTh } from './helpers';
 
 interface Props { office: string; weekEnd: Date; }
 
@@ -30,7 +30,7 @@ export function DrivingTab({ office, weekEnd }: Props) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
-  const [sort, setSort] = useState('score');
+  const sort = useSort('score', 'desc');
 
   // Override modal state
   const [overrideModal, setOverrideModal] = useState<any>(null);
@@ -46,16 +46,19 @@ export function DrivingTab({ office, weekEnd }: Props) {
       .catch(() => setLoading(false));
   }, [office, weekEnd]);
 
-  const filtered = weeks
+  const filteredUnsorted = weeks
     .filter(w => !search || w.technician?.name?.toLowerCase().includes(search.toLowerCase()))
-    .filter(w => !teamFilter || w.team === teamFilter)
-    .sort((a, b) => {
-      if (sort === 'score') return (b.drivingScore ?? -1) - (a.drivingScore ?? -1);
-      if (sort === 'alerts') return (b.safetyAlertsPer1k ?? -1) - (a.safetyAlertsPer1k ?? -1);
-      if (sort === 'speed') return (b.maxSpeed ?? 0) - (a.maxSpeed ?? 0);
-      if (sort === 'idle') return (b.idleRatio ?? 0) - (a.idleRatio ?? 0);
-      return (a.technician?.name ?? '').localeCompare(b.technician?.name ?? '');
-    });
+    .filter(w => !teamFilter || w.team === teamFilter);
+  const filtered = sortRows(filteredUnsorted, sort, {
+    techId: w => w.techId,
+    name:   w => w.technician?.name ?? '',
+    team:   w => w.team ?? '',
+    office: w => w.office ?? '',
+    score:  w => w.drivingScore,
+    speed:  w => w.maxSpeed,
+    alerts: w => w.safetyAlertsPer1k,
+    idle:   w => w.idleRatio,
+  });
 
   const withDriving = weeks.filter(w => w.drivingScore !== null);
   const avgScore = withDriving.length
@@ -127,13 +130,6 @@ export function DrivingTab({ office, weekEnd }: Props) {
           <option value="PMP">PMP</option>
           <option value="IP">IP</option>
         </select>
-        <select value={sort} onChange={e => setSort(e.target.value)} style={inputStyle}>
-          <option value="score">Sort: score</option>
-          <option value="alerts">Sort: alerts</option>
-          <option value="speed">Sort: max speed</option>
-          <option value="idle">Sort: idle</option>
-          <option value="name">Sort: name</option>
-        </select>
       </div>
 
       <div style={card}>
@@ -141,14 +137,14 @@ export function DrivingTab({ office, weekEnd }: Props) {
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th style={{ ...th, width: 55 }}>Tech ID</th>
-                <th style={{ ...th, width: 150 }}>Name</th>
-                <th style={{ ...th, width: 46 }}>Team</th>
-                <th style={{ ...th, width: 55 }}>Office</th>
-                <th style={{ ...th, width: 110 }}>Driving score</th>
-                <th style={{ ...th, width: 85 }}>Max speed</th>
-                <th style={{ ...th, width: 95 }}>Alerts / 1k mi</th>
-                <th style={{ ...th, width: 75 }}>Idle ratio</th>
+                <SortableTh sortKey="techId" sort={sort} style={{ width: 55 }}>Tech ID</SortableTh>
+                <SortableTh sortKey="name" sort={sort} style={{ width: 150 }}>Name</SortableTh>
+                <SortableTh sortKey="team" sort={sort} style={{ width: 46 }}>Team</SortableTh>
+                <SortableTh sortKey="office" sort={sort} style={{ width: 55 }}>Office</SortableTh>
+                <SortableTh sortKey="score" sort={sort} style={{ width: 110 }}>Driving score</SortableTh>
+                <SortableTh sortKey="speed" sort={sort} style={{ width: 85 }}>Max speed</SortableTh>
+                <SortableTh sortKey="alerts" sort={sort} style={{ width: 95 }}>Alerts / 1k mi</SortableTh>
+                <SortableTh sortKey="idle" sort={sort} style={{ width: 75 }}>Idle ratio</SortableTh>
                 <th style={{ ...th, width: 80 }}>Speed penalty</th>
                 <th style={{ ...th, width: 75 }}>Idle bonus</th>
                 <th style={{ ...th, width: 90 }}>Override</th>
