@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { scoreBadge, scoreBar, scoreColors, teamPill, kpiTile, card, cardHead, th, td,
-  TEAM_COLORS, BG_TILE, BORDER, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED, ACCENT } from './helpers';
+  TEAM_COLORS, BG_TILE, BORDER, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED, ACCENT,
+  useSort, sortRows, SortableTh } from './helpers';
 
 interface Props { office: string; weekEnd: Date; }
 
@@ -9,6 +10,7 @@ export function ScoreboardTab({ office, weekEnd }: Props) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const sort = useSort('score', 'desc');
 
   useEffect(() => {
     setLoading(true);
@@ -29,6 +31,16 @@ export function ScoreboardTab({ office, weekEnd }: Props) {
   if (!data) return <div style={{ padding: 40, textAlign: 'center', color: TEXT_MUTED }}>No data for this week yet.</div>;
 
   const { summary, officeBreakdown, teamBreakdown, topPerformers } = data;
+  const sortedPerformers = sortRows(topPerformers as any[], sort, {
+    name:        t => t.name ?? '',
+    team:        t => t.team ?? '',
+    office:      t => t.office ?? '',
+    score:       t => t.score,
+    co:          t => t.closeOutPct,
+    cb:          t => t.callbackRate,
+    driving:     t => t.drivingScore,
+    reliability: t => t.reliabilityScore,
+  });
   const scoreColor = scoreColors(summary.avgScore);
 
   return (
@@ -122,20 +134,20 @@ export function ScoreboardTab({ office, weekEnd }: Props) {
             <thead>
               <tr>
                 <th style={{ ...th, width: 32 }}>#</th>
-                <th style={{ ...th, width: 150 }}>Name</th>
-                <th style={{ ...th, width: 52 }}>Team</th>
-                <th style={{ ...th, width: 55 }}>Office</th>
-                <th style={{ ...th, width: 110 }}>Score</th>
-                <th style={{ ...th, width: 60 }}>CO%</th>
-                <th style={{ ...th, width: 65 }}>CB rate</th>
-                <th style={{ ...th, width: 65 }}>Driving</th>
-                <th style={{ ...th, width: 72 }}>Reliability</th>
+                <SortableTh sortKey="name" sort={sort} style={{ width: 150 }}>Name</SortableTh>
+                <SortableTh sortKey="team" sort={sort} style={{ width: 52 }}>Team</SortableTh>
+                <SortableTh sortKey="office" sort={sort} style={{ width: 55 }}>Office</SortableTh>
+                <SortableTh sortKey="score" sort={sort} style={{ width: 110 }}>Score</SortableTh>
+                <SortableTh sortKey="co" sort={sort} style={{ width: 60 }}>CO%</SortableTh>
+                <SortableTh sortKey="cb" sort={sort} style={{ width: 65 }}>CB rate</SortableTh>
+                <SortableTh sortKey="driving" sort={sort} style={{ width: 65 }}>Driving</SortableTh>
+                <SortableTh sortKey="reliability" sort={sort} style={{ width: 72 }}>Reliability</SortableTh>
               </tr>
             </thead>
             <tbody>
-              {topPerformers.length === 0 ? (
+              {sortedPerformers.length === 0 ? (
                 <tr><td colSpan={9} style={{ ...td, textAlign: 'center', color: TEXT_MUTED, padding: 32 }}>No scores recorded for this week yet.</td></tr>
-              ) : topPerformers.map((t: any, i: number) => (
+              ) : sortedPerformers.map((t: any, i: number) => (
                 <tr key={t.techId}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
