@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { useSort, sortRows, SortableTh } from './helpers';
+import { useSort, sortRows, SortableTh, periodParams, type Period } from './helpers';
 
 interface TcRecord {
   id: string;
@@ -60,9 +60,10 @@ interface Props {
   weekEnd: Date;
   office: string;
   leaderFilter?: string;
+  period?: Period;
 }
 
-export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '' }: Props) {
+export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period }: Props) {
   const [records, setRecords] = useState<TcRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');

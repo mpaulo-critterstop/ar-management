@@ -203,13 +203,13 @@ export default function FieldPerformancePage() {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'scoreboard' && <ScoreboardTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} />}
-      {activeTab === 'individuals' && <IndividualsTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} />}
-      {activeTab === 'teams' && <TeamsTab office={officeParam} weekEnd={selectedWeek} />}
+      {activeTab === 'scoreboard' && <ScoreboardTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} period={period} />}
+      {activeTab === 'individuals' && <IndividualsTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} period={period} />}
+      {activeTab === 'teams' && <TeamsTab office={officeParam} weekEnd={selectedWeek} period={period} />}
       {activeTab === 'roster' && <RosterTab office={officeParam} />}
-      {activeTab === 'attendance' && <AttendanceTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} />}
-      {activeTab === 'tc-accountability' && <TcAccountabilityTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} />}
-      {activeTab === 'driving' && <DrivingTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} />}
+      {activeTab === 'attendance' && <AttendanceTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} period={period} />}
+      {activeTab === 'tc-accountability' && <TcAccountabilityTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} period={period} />}
+      {activeTab === 'driving' && <DrivingTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} period={period} />}
       {activeTab === 'mom' && <MoMTab office={officeParam} />}
       {activeTab === 'adjustments' && <ManualAdjTab office={officeParam} weekEnd={selectedWeek} />}
     </div>

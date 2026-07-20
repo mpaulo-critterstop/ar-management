@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { teamPill, scoreBadge, scoreBar, card, th, td, useSort, sortRows, SortableTh } from './helpers';
+import { teamPill, scoreBadge, scoreBar, card, th, td, useSort, sortRows, SortableTh, periodParams, type Period } from './helpers';
 
-interface Props { office: string; weekEnd: Date; leaderFilter?: string; }
+interface Props { office: string; weekEnd: Date; leaderFilter?: string; period?: Period; }
 
 function speedBadge(mph: number | null) {
   if (!mph) return <span style={{ color: '#b0aea6' }}>—</span>;
@@ -25,7 +25,7 @@ function idleBadge(ratio: number | null) {
 
 const inputStyle: React.CSSProperties = { fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff' };
 
-export function DrivingTab({ office, weekEnd, leaderFilter = '' }: Props) {
+export function DrivingTab({ office, weekEnd, leaderFilter = '', period }: Props) {
   const [weeks, setWeeks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -37,14 +37,15 @@ export function DrivingTab({ office, weekEnd, leaderFilter = '' }: Props) {
   const [overrideNote, setOverrideNote] = useState('');
   const [overrideSaving, setOverrideSaving] = useState(false);
 
+  const periodKey = period?.mode === 'month' ? `m${period.year}-${period.month}` : weekEnd.toLocaleDateString('en-CA');
   useEffect(() => {
     setLoading(true);
-    const wk = weekEnd.toLocaleDateString('en-CA');
-    fetch(`/api/field-performance/techweek?week=${wk}&office=${office !== 'ALL' ? office : ''}`)
+    const pp = periodParams(period ?? { mode: 'week', week: weekEnd });
+    fetch(`/api/field-performance/techweek?${pp}&office=${office !== 'ALL' ? office : ''}`)
       .then(r => r.json())
       .then(d => { setWeeks(Array.isArray(d) ? d : []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [office, weekEnd]);
+  }, [office, periodKey]);
 
   const filteredUnsorted = weeks
     .filter(w => !search || w.technician?.name?.toLowerCase().includes(search.toLowerCase()))

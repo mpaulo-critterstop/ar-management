@@ -1,10 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { scoreBadge, card, cardHead, th, td, useSort, sortRows, SortableTh } from './helpers';
+import { scoreBadge, card, cardHead, th, td, useSort, sortRows, SortableTh , periodParams, type Period } from './helpers';
 
-interface Props { office: string; weekEnd: Date; }
+interface Props { office: string; weekEnd: Date; period?: Period; }
 
-export function TeamsTab({ office, weekEnd }: Props) {
+export function TeamsTab({ office, weekEnd, period }: Props) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const crewSort = useSort('avgScore', 'desc');

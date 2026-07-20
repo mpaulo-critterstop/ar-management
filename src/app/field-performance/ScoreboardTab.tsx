@@ -2,11 +2,11 @@
 import { useEffect, useState } from 'react';
 import { scoreBadge, scoreBar, scoreColors, teamPill, kpiTile, card, cardHead, th, td,
   TEAM_COLORS, BG_TILE, BORDER, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED, ACCENT,
-  useSort, sortRows, SortableTh } from './helpers';
+  useSort, sortRows, SortableTh , periodParams, type Period } from './helpers';
 
-interface Props { office: string; weekEnd: Date; leaderFilter?: string; }
+interface Props { office: string; weekEnd: Date; leaderFilter?: string; period?: Period; }
 
-export function ScoreboardTab({ office, weekEnd, leaderFilter = '' }: Props) {
+export function ScoreboardTab({ office, weekEnd, leaderFilter = '', period }: Props) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

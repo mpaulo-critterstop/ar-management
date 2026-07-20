@@ -1,10 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { scoreBadge, scoreBar, teamPill, card, th, td, initials, useSort, sortRows, SortableTh } from './helpers';
+import { scoreBadge, scoreBar, teamPill, card, th, td, initials, useSort, sortRows, SortableTh, periodParams, type Period } from './helpers';
 
-interface Props { office: string; weekEnd: Date; leaderFilter?: string; }
+interface Props { office: string; weekEnd: Date; leaderFilter?: string; period?: Period; }
 
-export function IndividualsTab({ office, weekEnd, leaderFilter = '' }: Props) {
+export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: Props) {
   const [weeks, setWeeks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -12,15 +12,16 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '' }: Props) {
   const sort = useSort('score', 'desc');
   const [selected, setSelected] = useState<any>(null);
 
+  const periodKey = period?.mode === 'month' ? `m${period.year}-${period.month}` : weekEnd.toLocaleDateString('en-CA');
   useEffect(() => {
     setLoading(true);
     setSelected(null);
-    const wk = weekEnd.toLocaleDateString('en-CA');
-    fetch(`/api/field-performance/techweek?week=${wk}&office=${office === 'ALL' ? '' : office}`)
+    const pp = periodParams(period ?? { mode: 'week', week: weekEnd });
+    fetch(`/api/field-performance/techweek?${pp}&office=${office === 'ALL' ? '' : office}`)
       .then(r => r.json())
       .then(d => { setWeeks(Array.isArray(d) ? d : []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [office, weekEnd]);
+  }, [office, periodKey]);
 
   const filteredUnsorted = weeks
     .filter(w => {

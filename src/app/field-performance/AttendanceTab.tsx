@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { teamPill, card, th, td, useSort, sortRows, SortableTh } from './helpers';
+import { teamPill, card, th, td, useSort, sortRows, SortableTh , periodParams, type Period } from './helpers';
 
-interface Props { office: string; weekEnd: Date; leaderFilter?: string; }
+interface Props { office: string; weekEnd: Date; leaderFilter?: string; period?: Period; }
 
 const DAYS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -29,7 +29,7 @@ function lateBadge(mins: number | null) {
   return <span style={{ color: '#791F1F', fontWeight: 500, fontSize: 12 }}>{mins.toFixed(0)}m late</span>;
 }
 
-export function AttendanceTab({ office, weekEnd, leaderFilter = '' }: Props) {
+export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Props) {
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

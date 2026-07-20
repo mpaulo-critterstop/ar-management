@@ -139,6 +139,19 @@ export const td: React.CSSProperties = {
   verticalAlign: 'middle',
 };
 
+export type Period =
+  | { mode: 'week'; week: Date }
+  | { mode: 'month'; month: number; year: number; monthStart: string; monthEnd: string };
+
+// Build the querystring params for a period (week= OR monthStart=&monthEnd=).
+export function periodParams(period?: Period): string {
+  if (!period || period.mode === 'week') {
+    const wk = period?.mode === 'week' ? period.week : null;
+    return wk ? `week=${wk.toLocaleDateString('en-CA')}` : '';
+  }
+  return `monthStart=${encodeURIComponent(period.monthStart)}&monthEnd=${encodeURIComponent(period.monthEnd)}`;
+}
+
 // ─── REUSABLE COLUMN SORTING ──────────────────────────────────────────────────
 // Usage in a tab:
 //   const sort = useSort('score', 'desc');
