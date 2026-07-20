@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useSort, sortRows, SortableTh } from './helpers';
 
 interface TcRecord {
   id: string;
@@ -29,16 +30,7 @@ const td: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-const th: React.CSSProperties = {
-  padding: '8px 12px',
-  fontSize: 11,
-  fontWeight: 600,
-  color: '#888780',
-  textAlign: 'left',
-  borderBottom: '0.5px solid #E8E7E3',
-  whiteSpace: 'nowrap',
-  background: '#F8F7F4',
-};
+
 
 function BoolBadge({ value, nullLabel = '—' }: { value: boolean | null; nullLabel?: string }) {
   if (value === null || value === undefined) return <span style={{ color: '#B4B2A9' }}>{nullLabel}</span>;
@@ -71,6 +63,7 @@ export function TcAccountabilityTab({ weekEnd, office }: Props) {
   const [records, setRecords] = useState<TcRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const sort = useSort('date', 'desc');
   const [teamFilter, setTeamFilter] = useState('All');
 
   const loadData = useCallback(async () => {
@@ -89,13 +82,29 @@ export function TcAccountabilityTab({ weekEnd, office }: Props) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const filtered = records.filter(r => {
+  const filteredUnsorted = records.filter(r => {
     const q = search.toLowerCase();
     const matchesSearch = !q ||
       r.techName.toLowerCase().includes(q) ||
       r.techId.toLowerCase().includes(q) ||
       r.customerName.toLowerCase().includes(q);
     return matchesSearch;
+  });
+  const filtered = sortRows(filteredUnsorted, sort, {
+    date:         r => r.date,
+    customer:     r => r.customerName ?? '',
+    appointment:  r => r.jobTitle ?? '',
+    techId:       r => r.techId,
+    techName:     r => r.techName ?? '',
+    coJob:        r => r.isCoJob === null ? null : (r.isCoJob ? 1 : 0),
+    futureVisits: r => r.futureNonCbVisits,
+    nextVisitDays:r => r.nextVisitDays,
+    closeOut:     r => r.closedOut === null ? null : (r.closedOut ? 1 : 0),
+    wk1:          r => r.wk1CloseOut === null ? null : (r.wk1CloseOut ? 1 : 0),
+    wk2:          r => r.wk2CloseOut === null ? null : (r.wk2CloseOut ? 1 : 0),
+    cb60:         r => r.cb60Day === null ? null : (r.cb60Day ? 1 : 0),
+    futureCbs:    r => r.futureCbs,
+    timeAtJob:    r => r.timeAtJobMins,
   });
 
   // KPI summary
@@ -145,20 +154,20 @@ export function TcAccountabilityTab({ weekEnd, office }: Props) {
           <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
             <thead>
               <tr>
-                <th style={th}>Date</th>
-                <th style={th}>Customer</th>
-                <th style={th}>Appointment</th>
-                <th style={th}>Tech ID</th>
-                <th style={th}>Tech Name</th>
-                <th style={th}>CO Job?</th>
-                <th style={th}>Future Visits</th>
-                <th style={th}>Next Visit Days</th>
-                <th style={th}>Close Out?</th>
-                <th style={th}>1 Wk C/O</th>
-                <th style={th}>2 Wk C/O</th>
-                <th style={th}>60 Day CB</th>
-                <th style={th}>Future CBs</th>
-                <th style={th}>Time at Job</th>
+                <SortableTh sortKey="date" sort={sort}>Date</SortableTh>
+                <SortableTh sortKey="customer" sort={sort}>Customer</SortableTh>
+                <SortableTh sortKey="appointment" sort={sort}>Appointment</SortableTh>
+                <SortableTh sortKey="techId" sort={sort}>Tech ID</SortableTh>
+                <SortableTh sortKey="techName" sort={sort}>Tech Name</SortableTh>
+                <SortableTh sortKey="coJob" sort={sort}>CO Job?</SortableTh>
+                <SortableTh sortKey="futureVisits" sort={sort}>Future Visits</SortableTh>
+                <SortableTh sortKey="nextVisitDays" sort={sort}>Next Visit Days</SortableTh>
+                <SortableTh sortKey="closeOut" sort={sort}>Close Out?</SortableTh>
+                <SortableTh sortKey="wk1" sort={sort}>1 Wk C/O</SortableTh>
+                <SortableTh sortKey="wk2" sort={sort}>2 Wk C/O</SortableTh>
+                <SortableTh sortKey="cb60" sort={sort}>60 Day CB</SortableTh>
+                <SortableTh sortKey="futureCbs" sort={sort}>Future CBs</SortableTh>
+                <SortableTh sortKey="timeAtJob" sort={sort}>Time at Job</SortableTh>
               </tr>
             </thead>
             <tbody>
