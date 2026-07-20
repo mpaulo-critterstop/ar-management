@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { scoreBadge, scoreBar, teamPill, card, th, td, initials } from './helpers';
+import { scoreBadge, scoreBar, teamPill, card, th, td, initials, useSort, sortRows, SortableTh } from './helpers';
 
 interface Props { office: string; weekEnd: Date; }
 
@@ -9,7 +9,7 @@ export function IndividualsTab({ office, weekEnd }: Props) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
-  const [sort, setSort] = useState('score');
+  const sort = useSort('score', 'desc');
   const [selected, setSelected] = useState<any>(null);
 
   useEffect(() => {
@@ -22,20 +22,28 @@ export function IndividualsTab({ office, weekEnd }: Props) {
       .catch(() => setLoading(false));
   }, [office, weekEnd]);
 
-  const filtered = weeks
+  const filteredUnsorted = weeks
     .filter(w => {
       const q = search.toLowerCase();
       const nameMatch = w.technician?.name?.toLowerCase().includes(q);
       const idMatch = w.techId?.toLowerCase().includes(q);
       const teamMatch = !teamFilter || w.team === teamFilter;
       return (!search || nameMatch || idMatch) && teamMatch;
-    })
-    .sort((a, b) => {
-      if (sort === 'score') return (b.totalScore ?? -1) - (a.totalScore ?? -1);
-      if (sort === 'name') return (a.technician?.name ?? '').localeCompare(b.technician?.name ?? '');
-      if (sort === 'co') return (b.closeOutPct ?? -1) - (a.closeOutPct ?? -1);
-      return 0;
     });
+  const filtered = sortRows(filteredUnsorted, sort, {
+    techId:     w => w.techId,
+    name:       w => w.technician?.name ?? '',
+    team:       w => w.team ?? '',
+    office:     w => w.office ?? '',
+    score:      w => w.totalScore,
+    co:         w => w.closeOutPct,
+    cb:         w => w.callbackRate,
+    revEff:     w => w.revenueEfficiency,
+    reservice:  w => w.reseviceRate,
+    completion: w => w.completionPct,
+    driving:    w => w.drivingScore,
+    reliability:w => w.reliabilityScore,
+  });
 
   const inputStyle: React.CSSProperties = { fontSize: 12, padding: '6px 9px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#2C2C2A' };
 
@@ -56,11 +64,6 @@ export function IndividualsTab({ office, weekEnd }: Props) {
             <option value="PMP">PMP</option>
             <option value="IP">IP</option>
           </select>
-          <select value={sort} onChange={e => setSort(e.target.value)} style={inputStyle}>
-            <option value="score">Sort: score</option>
-            <option value="name">Sort: name</option>
-            <option value="co">Sort: CO%</option>
-          </select>
         </div>
 
         <div style={card}>
@@ -69,18 +72,18 @@ export function IndividualsTab({ office, weekEnd }: Props) {
               <thead>
                 <tr>
                   <th style={{ ...th, width: 30 }}>#</th>
-                  <th style={{ ...th, width: 58 }}>ID</th>
-                  <th style={{ ...th, width: selected ? 120 : 150 }}>Name</th>
-                  <th style={{ ...th, width: 46 }}>Team</th>
-                  <th style={{ ...th, width: 52 }}>Office</th>
-                  <th style={{ ...th, width: 95 }}>Score</th>
-                  {!selected && <th style={{ ...th, width: 52 }}>CO%</th>}
-                  {!selected && <th style={{ ...th, width: 58 }}>CB Rate</th>}
-                  {!selected && <th style={{ ...th, width: 60 }}>Rev Eff</th>}
-                  {!selected && <th style={{ ...th, width: 58 }}>Reservice</th>}
-                  {!selected && <th style={{ ...th, width: 62 }}>Completion</th>}
-                  {!selected && <th style={{ ...th, width: 60 }}>Driving</th>}
-                  {!selected && <th style={{ ...th, width: 68 }}>Reliability</th>}
+                  <SortableTh sortKey="techId" sort={sort} style={{ width: 58 }}>ID</SortableTh>
+                  <SortableTh sortKey="name" sort={sort} style={{ width: selected ? 120 : 150 }}>Name</SortableTh>
+                  <SortableTh sortKey="team" sort={sort} style={{ width: 46 }}>Team</SortableTh>
+                  <SortableTh sortKey="office" sort={sort} style={{ width: 52 }}>Office</SortableTh>
+                  <SortableTh sortKey="score" sort={sort} style={{ width: 95 }}>Score</SortableTh>
+                  {!selected && <SortableTh sortKey="co" sort={sort} style={{ width: 52 }}>CO%</SortableTh>}
+                  {!selected && <SortableTh sortKey="cb" sort={sort} style={{ width: 58 }}>CB Rate</SortableTh>}
+                  {!selected && <SortableTh sortKey="revEff" sort={sort} style={{ width: 60 }}>Rev Eff</SortableTh>}
+                  {!selected && <SortableTh sortKey="reservice" sort={sort} style={{ width: 58 }}>Reservice</SortableTh>}
+                  {!selected && <SortableTh sortKey="completion" sort={sort} style={{ width: 62 }}>Completion</SortableTh>}
+                  {!selected && <SortableTh sortKey="driving" sort={sort} style={{ width: 60 }}>Driving</SortableTh>}
+                  {!selected && <SortableTh sortKey="reliability" sort={sort} style={{ width: 68 }}>Reliability</SortableTh>}
                 </tr>
               </thead>
               <tbody>
