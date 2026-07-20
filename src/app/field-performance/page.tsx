@@ -35,6 +35,10 @@ export default function FieldPerformancePage() {
   const [activeTab, setActiveTab] = useState<'scoreboard' | 'individuals' | 'teams' | 'roster' | 'attendance' | 'tc-accountability' | 'driving' | 'mom' | 'adjustments'>('scoreboard');
   const [office, setOffice] = useState('All');
   const [weekIdx, setWeekIdx] = useState(0);
+  const [periodMode, setPeriodMode] = useState<'week' | 'month'>('week');
+  const now = new Date();
+  const [selMonth, setSelMonth] = useState(now.getUTCMonth() + 1); // 1-12
+  const [selYear, setSelYear] = useState(now.getUTCFullYear());
   const [leaderFilter, setLeaderFilter] = useState('');
   const [leaders, setLeaders] = useState<string[]>([]);
 
@@ -79,6 +83,18 @@ export default function FieldPerformancePage() {
   );
 
   const selectedWeek = WEEKS[weekIdx];
+
+  // The period passed to tabs: either a single week, or a month range (by weekEnd month).
+  const period = periodMode === 'month'
+    ? {
+        mode: 'month' as const,
+        month: selMonth,
+        year: selYear,
+        // month range in UTC: first day 00:00 to last day 23:59:59
+        monthStart: new Date(Date.UTC(selYear, selMonth - 1, 1)).toISOString(),
+        monthEnd: new Date(Date.UTC(selYear, selMonth, 0, 23, 59, 59)).toISOString(),
+      }
+    : { mode: 'week' as const, week: selectedWeek };
 
   const officeParam = office === 'All' ? 'ALL' : office;
 
@@ -134,16 +150,38 @@ export default function FieldPerformancePage() {
           </div>
           {activeTab !== 'roster' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <button
-                onClick={() => setWeekIdx(i => Math.min(i + 1, WEEKS.length - 1))}
-                style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888780' }}
-              >‹</button>
-              <span style={{ fontSize: 12, color: '#888780', minWidth: 90, textAlign: 'center', fontWeight: 500 }}>Wk of {fmtWeek(selectedWeek)}</span>
-              <button
-                onClick={() => setWeekIdx(i => Math.max(i - 1, 0))}
-                disabled={weekIdx === 0}
-                style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #D3D1C7', background: weekIdx === 0 ? '#F1EFE8' : '#fff', cursor: weekIdx === 0 ? 'default' : 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888780', opacity: weekIdx === 0 ? 0.4 : 1 }}
-              >›</button>
+              {/* Week / Month mode toggle */}
+              <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 9, background: '#F1EFE8', border: '0.5px solid #E8E7E3', marginRight: 4 }}>
+                <button onClick={() => setPeriodMode('week')} style={offBtnStyle(periodMode === 'week')}>Week</button>
+                <button onClick={() => setPeriodMode('month')} style={offBtnStyle(periodMode === 'month')}>Month</button>
+              </div>
+              {periodMode === 'week' ? (
+                <>
+                  <button
+                    onClick={() => setWeekIdx(i => Math.min(i + 1, WEEKS.length - 1))}
+                    style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888780' }}
+                  >‹</button>
+                  <span style={{ fontSize: 12, color: '#888780', minWidth: 90, textAlign: 'center', fontWeight: 500 }}>Wk of {fmtWeek(selectedWeek)}</span>
+                  <button
+                    onClick={() => setWeekIdx(i => Math.max(i - 1, 0))}
+                    disabled={weekIdx === 0}
+                    style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #D3D1C7', background: weekIdx === 0 ? '#F1EFE8' : '#fff', cursor: weekIdx === 0 ? 'default' : 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888780', opacity: weekIdx === 0 ? 0.4 : 1 }}
+                  >›</button>
+                </>
+              ) : (
+                <>
+                  <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
+                    style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#444441', cursor: 'pointer' }}>
+                    {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
+                      <option key={m} value={i + 1}>{m}</option>
+                    ))}
+                  </select>
+                  <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
+                    style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#444441', cursor: 'pointer' }}>
+                    {[2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </>
+              )}
             </div>
           )}
           {/* Team-leader filter — applies to score/individuals/driving/attendance/tc tabs */}

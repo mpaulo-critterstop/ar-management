@@ -55,13 +55,21 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const weekParam = searchParams.get('week');
+  const monthStart = searchParams.get('monthStart');
+  const monthEnd = searchParams.get('monthEnd');
   const techId = searchParams.get('techId');
   const officeParam = searchParams.get('office');
 
   const where: any = {};
-  if (weekParam) where.weekEnd = new Date(weekParam);
+  if (monthStart && monthEnd) {
+    where.weekEnd = { gte: new Date(monthStart), lte: new Date(monthEnd) };
+  } else if (weekParam) {
+    where.weekEnd = new Date(weekParam);
+  }
   if (techId) where.techId = techId;
   if (officeParam && officeParam !== 'ALL' && officeParam !== 'ADMIN') where.office = officeParam;
+
+  const isMonth = !!(monthStart && monthEnd);
 
   // Fetch all TechWeek records for the week
   const weeksRaw = await prisma.techWeek.findMany({
@@ -111,7 +119,48 @@ export async function GET(req: NextRequest) {
       technician: { name: t.name, status: t.status, team: t.team, office: t.office, crewLeader: t.crewLeader, siteLeader: t.siteLeader },
     }));
 
-  return NextResponse.json([...weeks, ...stubWeeks]);
+  if (!isMonth) {
+    return NextResponse.json([...weeks, ...stubWeeks]);
+  }
+
+  // MONTH MODE: collapse multiple weekly rows per tech into one aggregated row.
+  // Scores/rates → average of non-null weekly values; counts/production → sum.
+  const avgFields = ['totalScore','wpScore','pmpScore','ipScore','closeOutPct','callbackRate',
+    'revenueEfficiency','reseviceRate','completionPct','drivingScore','reliabilityScore',
+    'maxSpeed','safetyAlertsPer1k','idleRatio'];
+  const sumFields = ['coJobs','callbackJobs','productionValue','manualAdj','reviewCount'];
+
+  const byTech = new Map<string, any[]>();
+  for (const w of weeks) {
+    if (!byTech.has(w.techId)) byTech.set(w.techId, []);
+    byTech.get(w.techId)!.push(w);
+  }
+
+  const aggregated = [...byTech.values()].map(rows => {
+    const first = rows[0];
+    const out: any = {
+      id: `month_${first.techId}`,
+      techId: first.techId,
+      weekEnd: null,
+      weeksInMonth: rows.length,
+      office: first.office,
+      team: first.team,
+      crewLeader: first.crewLeader ?? null,
+      siteLeader: first.siteLeader ?? null,
+      technician: first.technician,
+    };
+    for (const f of avgFields) {
+      const vals = rows.map(r => r[f]).filter((v: any) => v !== null && v !== undefined);
+      out[f] = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
+    }
+    for (const f of sumFields) {
+      const vals = rows.map(r => r[f]).filter((v: any) => v !== null && v !== undefined);
+      out[f] = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) : (f === 'manualAdj' ? 0 : null);
+    }
+    return out;
+  }).sort((a, b) => (b.totalScore ?? -1) - (a.totalScore ?? -1));
+
+  return NextResponse.json(aggregated);
 }
 
 export async function POST(req: NextRequest) {
