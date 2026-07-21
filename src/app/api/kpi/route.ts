@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { canAccessModule } from "@/lib/access";
 
 // ─── BENCHMARK SERVICE ID CLASSIFICATION (KPI only — does NOT affect AR sync) ─
 // These are used solely to calculate the AR benchmark formula
@@ -53,6 +54,8 @@ const ALL_COEFF        = 0.9 / 91;      // 0.9/91
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!canAccessModule(session.user as any, 'kpi')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     const office = (session?.user as any)?.office;
     const { searchParams } = new URL(req.url);
     const officeParam = searchParams.get('office');
