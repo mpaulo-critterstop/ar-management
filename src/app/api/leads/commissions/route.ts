@@ -4,8 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { computeCommission, monthStart } from '@/lib/commissions';
 
-// GET /api/leads/commissions?year=2026&month=6[&pm=Jordan Price]
-// Returns computed commission breakdown for all PMs with a plan (or one PM) for the month.
+// GET /api/leads/commissions?year=2026 → returns all 12 months for that year, per PM.
+// Past months (<= Jun 2026) come from frozen CommissionHistory; Jul 2026+ computed live.
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -13,23 +13,54 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const now = new Date();
   const year = Number(searchParams.get('year')) || now.getUTCFullYear();
-  const month = Number(searchParams.get('month')) || (now.getUTCMonth() + 1);
   const pmParam = searchParams.get('pm') || undefined;
 
-  // PM set = everyone who has a commission plan (optionally filtered to one).
+  // Live cutover: anything strictly after June 2026 is computed; June 2026 and earlier = frozen history.
+  const LIVE_FROM = new Date(Date.UTC(2026, 6, 1)); // Jul 1 2026
+
   const plans = await prisma.commissionPlan.findMany({
     where: { active: true, ...(pmParam ? { pmName: pmParam } : {}) },
     select: { pmName: true },
   });
   const pmNames = [...new Set(plans.map(p => p.pmName))];
 
+  // Pull this year's frozen history for the relevant PMs in one query.
+  const yearStart = new Date(Date.UTC(year, 0, 1));
+  const yearEnd = new Date(Date.UTC(year, 11, 31, 23, 59, 59));
+  const history = await prisma.commissionHistory.findMany({
+    where: { month: { gte: yearStart, lte: yearEnd }, ...(pmParam ? { pmName: pmParam } : {}) },
+  });
+  const histKey = (pm: string, m: number) => `${pm}|${m}`;
+  const histMap = new Map(history.map(h => [histKey(h.pmName, h.month.getUTCMonth() + 1), h]));
+
   const rows = [];
   for (const pmName of pmNames) {
-    rows.push(await computeCommission(pmName, year, month));
+    const months = [];
+    for (let m = 1; m <= 12; m++) {
+      const monthDate = new Date(Date.UTC(year, m - 1, 1));
+      if (monthDate < LIVE_FROM) {
+        // Frozen history month
+        const h = histMap.get(histKey(pmName, m));
+        months.push(h ? {
+          month: m, source: 'history',
+          bookedRevenue: h.bookedRevenue, prePeriodDelta: h.prePeriodDelta,
+          otherAdjustment: h.otherAdjustments, adjustedRevenue: h.adjustedBookedRevenue,
+          leadCount: h.numLeads, wildlifeCommission: h.wildlifeCommission,
+          pestControlComm: h.pestControlCommission, totalCommission: h.totalCommission,
+          finalized: true,
+        } : { month: m, source: 'history', empty: true });
+      } else if (monthDate <= new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))) {
+        // Live computed month (current or a past live month)
+        const c = await computeCommission(pmName, year, m);
+        months.push({ ...c, month: m, source: 'live' });
+      } else {
+        months.push({ month: m, source: 'future', empty: true });
+      }
+    }
+    rows.push({ pmName, months });
   }
-  rows.sort((a, b) => b.totalCommission - a.totalCommission);
 
-  return NextResponse.json({ year, month, rows });
+  return NextResponse.json({ year, rows });
 }
 
 // PATCH /api/leads/commissions  { pmName, year, month, pestControlComm?, otherAdjustment?, otherAdjNote? }

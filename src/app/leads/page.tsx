@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { CommissionsTab } from './CommissionsTab';
 
 const ACCENT = '#0052cc';
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
@@ -58,7 +59,7 @@ export default function LeadsPage() {
   const [pageSize, setPageSize] = useState(100);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'leads' | 'csr'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'csr' | 'commissions'>('leads');
 
   // CSR tab state
   const [csrStats, setCsrStats] = useState<any[]>([]);
@@ -225,6 +226,9 @@ export default function LeadsPage() {
             <div style={{ width: '0.5px', background: '#D3D1C7', height: 20, margin: '0 2px' }} />
             <button onClick={() => setActiveTab('csr')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: activeTab === 'csr' ? '#0052cc' : '#888780', background: activeTab === 'csr' ? '#e6f0ff' : 'transparent', border: activeTab === 'csr' ? '0.5px solid #b3d0ff' : '0.5px solid transparent', cursor: 'pointer' }}>
               CSR leads tracker
+            </button>
+            <button onClick={() => setActiveTab('commissions')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: activeTab === 'commissions' ? '#0052cc' : '#888780', background: activeTab === 'commissions' ? '#e6f0ff' : 'transparent', border: activeTab === 'commissions' ? '0.5px solid #b3d0ff' : '0.5px solid transparent', cursor: 'pointer' }}>
+              Commissions
             </button>
           </div>
         </div>
@@ -732,6 +736,13 @@ export default function LeadsPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* COMMISSIONS TAB */}
+      {activeTab === 'commissions' && (
+        <div style={{ marginTop: 16 }}>
+          <CommissionsTab />
+        </div>
       )}
     </div>
   );
