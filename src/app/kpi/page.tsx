@@ -85,6 +85,15 @@ export default function KPIPage() {
     fetchKPIs();
   }
 
+  async function changePMMethod(id: string, commissionMethod: string) {
+    await fetch('/api/pm', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, commissionMethod }),
+    });
+    fetchPMs();
+  }
+
   if (status === 'loading') return null;
 
   const labels = data?.labels || [];
@@ -196,7 +205,7 @@ export default function KPIPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#F8F7F4' }}>
-                  {['Name', 'Office', 'Active', ''].map(h => (
+                  {['Name', 'Office', 'Commission', 'Active', ''].map(h => (
                     <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>{h}</th>
                   ))}
                 </tr>
@@ -206,6 +215,19 @@ export default function KPIPage() {
                   <tr key={pm.id} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
                     <td style={{ padding: '8px 12px', color: '#2C2C2A' }}>{pm.name}</td>
                     <td style={{ padding: '8px 12px', color: '#888780' }}>{pm.office}</td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <select
+                        value={pm.commissionMethod || ''}
+                        onChange={e => changePMMethod(pm.id, e.target.value)}
+                        style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '0.5px solid #D3D1C7', color: '#2C2C2A', background: pm.commissionMethod ? '#fff' : '#FAF8F2' }}
+                        title="Change commission structure (takes effect from the current month; past months keep their old plan)"
+                      >
+                        <option value="">None</option>
+                        <option value="abr_tiered">Method 1 (8/10/12%)</option>
+                        <option value="abr_adrian">Adrian (5/7%)</option>
+                        <option value="lead_bucket">Method 2 (buckets)</option>
+                      </select>
+                    </td>
                     <td style={{ padding: '8px 12px' }}>
                       <span style={{ color: pm.active ? '#1D9E75' : '#A32D2D', fontWeight: 500 }}>{pm.active ? 'Active' : 'Inactive'}</span>
                     </td>
