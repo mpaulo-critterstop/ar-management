@@ -194,9 +194,9 @@ export default function KPIPage() {
               <select value={newPMMethod} onChange={e => setNewPMMethod(e.target.value)}
                 style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', color: '#2C2C2A', flex: 1 }}>
                 <option value="">No commission plan</option>
-                <option value="abr_tiered">Method 1 — Booked Rev tiers (8/10/12%, $80k floor)</option>
-                <option value="abr_adrian">Adrian's model (5% / 7%)</option>
-                <option value="lead_bucket">Method 2 — Lead buckets (8/10/12/14% by rev/lead)</option>
+                <option value="abr_tiered">Structure 1 — Booked Revenue Tier (8/10/12%, $80k floor)</option>
+                <option value="abr_adrian">Structure 2 — Booked Revenue Tier (5/7%)</option>
+                <option value="lead_bucket">Structure 3 — Lead buckets (8/10/12/14% by rev/lead)</option>
               </select>
               <button onClick={addPM} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500 }}>
                 Add
@@ -223,9 +223,9 @@ export default function KPIPage() {
                         title="Change commission structure (takes effect from the current month; past months keep their old plan)"
                       >
                         <option value="">None</option>
-                        <option value="abr_tiered">Method 1 (8/10/12%)</option>
-                        <option value="abr_adrian">Adrian (5/7%)</option>
-                        <option value="lead_bucket">Method 2 (buckets)</option>
+                        <option value="abr_tiered">Structure 1 (8/10/12%)</option>
+                        <option value="abr_adrian">Structure 2 (5/7%)</option>
+                        <option value="lead_bucket">Structure 3 (buckets)</option>
                       </select>
                     </td>
                     <td style={{ padding: '8px 12px' }}>
