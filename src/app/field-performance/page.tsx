@@ -68,7 +68,7 @@ export default function FieldPerformancePage() {
   }, [status, router]);
 
   const role = (session?.user as any)?.role;
-  const canView = ['ADMIN', 'MANAGER', 'LEADERSHIP'].includes(role);
+  const canView = ['Admin', 'Manager'].includes(role);
 
   if (status === 'loading') return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#64748b' }}>

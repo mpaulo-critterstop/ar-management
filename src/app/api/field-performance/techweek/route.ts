@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 function canAccess(role: string) {
-  return ['ADMIN', 'MANAGER', 'LEADERSHIP'].includes(role);
+  return ['Admin', 'Manager'].includes(role);
 }
 
 // Standards from spreadsheet
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const role = (session.user as any).role;
-  if (!canAccess(role) && role !== 'TECHNICIAN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!canAccess(role) && role !== 'Technician') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const weekParam = searchParams.get('week');

@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { ALL_MODULES } from '@/lib/access';
 
-const ROLES = ['ADMIN', 'LEADERSHIP', 'MANAGER', 'ACCOUNTING', 'COLLECTIONS', 'TECHNICIAN'];
+const ROLES = ['Admin', 'Manager', 'Accounts Receivable', 'Dispatch', 'CSR', 'Technician', 'Project Manager'];
 const PERM_FLAGS = [
   { key: 'hidePmKpis', label: 'Hide PM KPIs table' },
   { key: 'ownDataOnly', label: 'Own data only (row-level restrict)' },
@@ -11,13 +11,13 @@ const PERM_FLAGS = [
 ];
 
 const blankForm = () => ({
-  id: '', email: '', name: '', password: '', role: 'COLLECTIONS', office: '',
+  id: '', email: '', name: '', password: '', role: 'Accounts Receivable', office: '',
   modules: [] as string[], permissions: {} as any, pmName: '', techId: '',
 });
 
 export default function UsersAdminPage() {
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === 'ADMIN';
+  const isAdmin = (session?.user as any)?.role === 'Admin';
   const [users, setUsers] = useState<any[]>([]);
   const [pms, setPms] = useState<any[]>([]);
   const [techs, setTechs] = useState<any[]>([]);

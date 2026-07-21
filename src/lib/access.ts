@@ -4,8 +4,8 @@
 export const ALL_MODULES = ['ar', 'dispatch', 'leads', 'csr', 'field-performance', 'dialpad', 'kpi'] as const;
 export type ModuleKey = typeof ALL_MODULES[number];
 
-// Roles that see everything regardless of the module allowlist.
-const FULL_ACCESS_ROLES = ['ADMIN', 'LEADERSHIP'];
+// Roles that see everything regardless of the module allowlist (bypass). Admin only.
+const FULL_ACCESS_ROLES = ['Admin'];
 
 export interface AccessUser {
   role?: string;
@@ -24,16 +24,18 @@ export function canAccessModule(user: AccessUser | null | undefined, moduleKey: 
   return user.modules.includes(moduleKey);
 }
 
-// Legacy fallback: users created before feature #5 have no `modules` — keep their prior access by role.
+// Legacy/default fallback: users with no `modules` set get default access by role label.
 function legacyRoleAccess(role: string | undefined, moduleKey: ModuleKey): boolean {
   if (!role) return false;
   if (FULL_ACCESS_ROLES.includes(role)) return true;
-  // MANAGER historically saw operational modules; COLLECTIONS/ACCOUNTING saw AR; TECHNICIAN saw FP.
+  // Default module access per role when no explicit allowlist is set.
   const map: Record<string, ModuleKey[]> = {
-    MANAGER: ['ar', 'dispatch', 'leads', 'csr', 'field-performance', 'dialpad', 'kpi'],
-    COLLECTIONS: ['ar'],
-    ACCOUNTING: ['ar', 'kpi'],
-    TECHNICIAN: ['field-performance'],
+    Manager: ['ar', 'dispatch', 'leads', 'csr', 'field-performance', 'dialpad', 'kpi'],
+    'Accounts Receivable': ['ar', 'kpi'],
+    Dispatch: ['dispatch'],
+    CSR: ['csr', 'dialpad'],
+    'Project Manager': ['leads'],
+    Technician: ['field-performance'],
   };
   return (map[role] || []).includes(moduleKey);
 }

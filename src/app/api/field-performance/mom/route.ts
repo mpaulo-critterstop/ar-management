@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const role = (session.user as any)?.role;
-  if (!['ADMIN', 'MANAGER', 'LEADERSHIP'].includes(role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!['Admin', 'Manager'].includes(role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const year = parseInt(searchParams.get('year') || '2026');

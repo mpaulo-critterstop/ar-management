@@ -97,7 +97,7 @@ export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const role = (session.user as any).role;
-  if (!['ADMIN', 'LEADERSHIP'].includes(role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!['Admin', 'Manager'].includes(role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json();
   const { pmName, year, month, pestControlComm, otherAdjustment, otherAdjNote } = body;

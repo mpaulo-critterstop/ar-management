@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const user = await prisma.user.create({
     data: {
       email: email.toLowerCase(), name, password: hashed,
-      role: role || 'COLLECTIONS',
+      role: role || 'Accounts Receivable',
       office: office || null,
       modules: Array.isArray(modules) ? modules : [],
       permissions: permissions ?? undefined,

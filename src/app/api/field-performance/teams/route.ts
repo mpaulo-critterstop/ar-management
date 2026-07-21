@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 function canAccess(role: string) {
-  return ['ADMIN', 'MANAGER', 'LEADERSHIP'].includes(role);
+  return ['Admin', 'Manager'].includes(role);
 }
 
 function avg(arr: number[]): number | null {

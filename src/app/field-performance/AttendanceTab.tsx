@@ -43,7 +43,7 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
   const [saving, setSaving] = useState(false);
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
-  const canEdit = ['ADMIN', 'LEADERSHIP'].includes(role);
+  const canEdit = ['Admin', 'Manager'].includes(role);
 
   const periodKey = period?.mode === 'month' ? `m${period.year}-${period.month}` : weekEnd.toLocaleDateString('en-CA');
   useEffect(() => {

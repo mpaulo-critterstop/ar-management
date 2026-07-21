@@ -12,7 +12,7 @@ model User {
   email     String   @unique
   name      String
   password  String
-  role      Role     @default(COLLECTIONS)
+  role      String   @default("Manager")
   office    String?
   // Access control (feature #5). role stays for broad tiers (ADMIN/LEADERSHIP see all).
   modules     String[] @default([])  // module allowlist: ar/dispatch/leads/csr/field-performance/dialpad/kpi
@@ -23,15 +23,6 @@ model User {
   updatedAt DateTime @updatedAt
   notes     CollectionNote[]
   @@map("users")
-}
-
-enum Role {
-  ADMIN
-  COLLECTIONS
-  MANAGER
-  ACCOUNTING
-  LEADERSHIP
-  TECHNICIAN
 }
 
 model Customer {

@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const role = (session.user as any)?.role;
-  if (role !== 'TECHNICIAN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (role !== 'Technician') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const email = (session.user as any)?.email;
 

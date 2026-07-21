@@ -22,7 +22,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
   const [memberFilter, setMemberFilter] = useState('');
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
-  const canEdit = ['ADMIN', 'LEADERSHIP'].includes(role);
+  const canEdit = ['Admin', 'Manager'].includes(role);
 
   const load = () => {
     setLoading(true);

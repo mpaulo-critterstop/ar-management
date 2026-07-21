@@ -9,7 +9,7 @@ export function TopNav() {
   if (!session || pathname === '/login') return null;
 
   const role = (session.user as any)?.role;
-  if (role === 'TECHNICIAN') return null;
+  if (role === 'Technician') return null;
 
   const isHome = pathname === '/';
 

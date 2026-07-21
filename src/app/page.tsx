@@ -36,7 +36,7 @@ export default function HomePage() {
   if (!session) return null;
   const role = (session?.user as any)?.role;
   if (role === 'TECHNICIAN') return null;
-  const fpRoles = ['ADMIN', 'MANAGER', 'LEADERSHIP'];
+  const fpRoles = ['Admin', 'Manager', 'Technician'];
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';

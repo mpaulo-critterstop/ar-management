@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // Extra safety — only ADMIN role can reset
-  if (session.user.role !== 'ADMIN') {
+  if (session.user.role !== 'Admin') {
     return NextResponse.json({ error: 'Forbidden — Admin only' }, { status: 403 });
   }
 
