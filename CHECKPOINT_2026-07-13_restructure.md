@@ -451,6 +451,27 @@ Module-level tier (ar@/dispatcher@/csr@ logins) UNBLOCKED, can build anytime. Ro
 own-commission, tech own-data) depends on commission table + reuses team-leader roster mapping.
 Permissions model sketch earlier in this file (section 13/13d region).
 
+#### #5 ACCESS CONTROL — IN PROGRESS (foundation + client gating done; ENFORCEMENT pending)
+Commits c098d52, abc5d2b. Migration RUN (users + modules[]/permissions/pmName/techId).
+DONE: User schema fields; auth JWT+session carry them; lib/access.ts (canAccessModule w/ legacy role
+fallback so existing users keep access, perm(), isOwnDataOnly()); home page tiles filtered by
+canAccessModule (client nav gating only).
+MODULES: ar, dispatch, leads, csr, field-performance, dialpad, kpi.
+PERMISSIONS flags: hidePmKpis, ownDataOnly, isTeamLeader. Identity links: pmName (→ own commission),
+techId (→ own FP data).
+STILL TO BUILD (enforcement is the SECURITY layer — client gating alone is NOT security):
+  1. SERVER-SIDE gating — each module API route checks canAccessModule, rejects unauthorized. CRITICAL,
+     not done yet. A restricted user is currently only stopped by hidden tiles, APIs still open.
+  2. ROW-LEVEL — commissions API filter by pmName when ownDataOnly (PM sees only own); FP by techId
+     (tech sees only own). Hooks exist (isOwnDataOnly), not wired.
+  3. ROUTE guards — direct nav to /leads etc. redirects unauthorized (not just hidden tiles).
+  4. USER-MGMT UI — set modules/permissions/pmName/techId per user; create ar@/dispatcher@/csr@/
+     pmname@/techname@ logins.
+  5. hidePmKpis flag — hide PM KPIs table for ar@.
+TARGET LOGINS: ar@ (ar+dispatch+leads, hidePmKpis), dispatcher@ (dispatch), csr@ (csr+dialpad),
+pmname@ (leads + own commission via pmName+ownDataOnly), techname@ (field-performance, own data via
+techId; team leaders get isTeamLeader upgrade).
+
 ## TARGET WEEKLY PIPELINE ORDER (after restructure)
 1. `week` (per office) → tech_routes + production
 2. `pmpAppointments` (per office, new-week mode) → pmp_appointments
