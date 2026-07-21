@@ -379,6 +379,12 @@ PMs or retired plans — historical only).
 
 USER DECISIONS SO FAR:
   - Points-style entry N/A here; commissions are $.
+  - SNAPSHOT TRIGGER: display always recalcs live (booked rev live + delta vs snapshots), so cron-vs-manual
+    only affects WHEN the as-paid snapshot freezes — decided later, does NOT block build. (Options: monthly
+    cron 12am 1st US-Central snapshotting the just-ended month, OR manual "Close Month" button. Recommend
+    manual to start while validating vs old spreadsheet, automate later.)
+  - PEST CONTROL COMMISSION + OTHER ADJUSTMENTS: both EDITABLE per PM per month (hand-entered inputs).
+    Pest comm = manual until future Pest Control Sales module. Other adjustments = final-dollar one-offs.
   - PEST CONTROL COMMISSION: leave BLANK/manual for now — user calculates separately by hand until a
     future "Pest Control Sales module" is built. Hub computes WILDLIFE + backbone only; pest comm is an
     editable input defaulting blank/0.
