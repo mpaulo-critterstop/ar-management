@@ -378,6 +378,17 @@ effective-dated plans. Empty/inactive blocks: Jared-Old, Kenny, Jacob, Roderick,
 PMs or retired plans — historical only).
 
 USER DECISIONS SO FAR:
+  - PLACEMENT: new Commissions tab in the LEADS TRACKER module (src/app/leads), next to KPIs + CSR Leads
+    Tracker tabs. Same module because booked-revenue source is the leads data / PM-KPIs table.
+  - SYNC = PIGGYBACK on the existing Leads Tracker sync button. That sync already refreshes the KPIs
+    running booked revenue (the exact commission source), so it also recomputes commissions → PMs see
+    LIVE running numbers ("where I currently stand"). No separate refresh action.
+  - FINALIZE TRIGGER: automatic cron, 1st of month 12:00am US CENTRAL, snapshots the JUST-ENDED month's
+    booked revenue per PM as the as-paid figure (baseline for future pre-period deltas). Add a safety-net
+    fallback: if a sync detects a prior month closed with no snapshot, finalize it then (missed-cron guard,
+    since this is pay).
+  - FINALIZED INDICATOR: small marker on the month COLUMN showing it's finalized/locked, so PMs can tell
+    locked history from the live in-progress current month.
   - Points-style entry N/A here; commissions are $.
   - SNAPSHOT TRIGGER: display always recalcs live (booked rev live + delta vs snapshots), so cron-vs-manual
     only affects WHEN the as-paid snapshot freezes — decided later, does NOT block build. (Options: monthly
