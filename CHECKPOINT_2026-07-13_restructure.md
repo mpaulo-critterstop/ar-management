@@ -348,6 +348,11 @@ Travis (wild 16994.44/tot 16009.90 incl -4000 advance), Blake, Cynthia. Full cen
 9 PMs seeded: Jordan Price/Jared Brown/Brant Hauser/Warren Loignon/Travis Doyle (abr_tiered),
 Adrian Valerio (abr_adrian), Blake Creswell/Han Bien/Cynthia Barrientos (lead_bucket).
 POLISH (non-blocking): finalize cron wired but crons still manual-posture — confirm auto-fire when ready.
+CUMULATIVE ROW ADDED (Option B): CommissionHistory.cumulativeBookedRevenue (migration: ALTER TABLE add
+column). Imported 111 frozen cumulative pts via import-cumulative endpoint (2 "missing" were cumulative
+points with no base history row — harmless). History shows frozen cumulative; live months continue the
+running sum (prior cumulative + month totalRevenue). VERIFIED: Jordan Jan-Jun frozen (3,788,414.62 →
+4,316,325.83), Jul live = 4,316,325.83 + 35,688.64 = 4,352,014.47 ✓. Full commissions feature COMPLETE.
 
 #### #4-OLD-ANALYSIS COMMISSIONS TABLE — (analysis notes, superseded by BUILT above)
 Source analyzed: user's sales-commission Excel (FULL history file `Untitled_spreadsheet__1_.xlsx`,
