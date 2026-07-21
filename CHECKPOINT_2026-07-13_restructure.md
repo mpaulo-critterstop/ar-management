@@ -328,7 +328,28 @@ consistent end-to-end: entry → manual_adjs → tech_weeks.manualAdj → score 
 ### 13d. REMAINING: Commissions table (feature #4) + Access control (feature #5)
 Features 1-3 (+ monthly filter, 8 MoM metrics, adjustments-all, units fix) DONE. Two features left.
 
-#### #4 COMMISSIONS TABLE — ANALYZED, ready to design (nothing built yet)
+#### #4 COMMISSIONS TABLE — ✅ BUILT & DEPLOYED (commits b9465d9→97ee73c)
+Location: Commissions tab in Leads Tracker (src/app/leads, next to Leads + CSR). Models: CommissionPlan
+(per-PM method+tiers+effective dates), CommissionMonth (per-PM/month as-paid snapshot + editable
+pestControlComm + otherAdjustment), CommissionHistory (frozen 2023-2026 spreadsheet import, 113 records).
+3 migrations run manually.
+CALC (lib/commissions.ts): revenue = sold lead.amount by invoice.date + upsellAmount by upsellDate
+(= KPIs totalRevenue). Wildlife: abr_tiered (80k floor 8/10/12), abr_adrian (5/7), lead_bucket
+(8/10/12/14 by rev/lead). Delta = prev-month-live − prev-month-baseline (baseline: CommissionMonth
+snapshot if finalized else CommissionHistory frozen). Total = wildlife + pestComm + otherAdj.
+HANDOFF: <=Jun2026 frozen history (as-is); Jul2026+ live. June history = July's delta baseline.
+ENDPOINTS: GET ?year= (12-mo grid per PM, history+live merged); PATCH (edit pestComm/otherAdj);
+POST/GET /finalize (token/bearer/session; snapshots just-ended month; cron 0 6 1 * * = 12am CST);
+seed-plans + import-history (one-time, DONE).
+PM MODAL (kpi page): add PM w/ commission method (auto-creates plan); inline dropdown to CHANGE method
+(effective-dated supersede — Cynthia→Method1 later like Jared). GET /api/pm returns active method.
+VERIFIED to the penny vs spreadsheet: Jordan Jun (125672.44/-859.61/124812.83/wild 3585.03/tot 4408.89),
+Travis (wild 16994.44/tot 16009.90 incl -4000 advance), Blake, Cynthia. Full cents shown.
+9 PMs seeded: Jordan Price/Jared Brown/Brant Hauser/Warren Loignon/Travis Doyle (abr_tiered),
+Adrian Valerio (abr_adrian), Blake Creswell/Han Bien/Cynthia Barrientos (lead_bucket).
+POLISH (non-blocking): finalize cron wired but crons still manual-posture — confirm auto-fire when ready.
+
+#### #4-OLD-ANALYSIS COMMISSIONS TABLE — (analysis notes, superseded by BUILT above)
 Source analyzed: user's sales-commission Excel (FULL history file `Untitled_spreadsheet__1_.xlsx`,
 Nov 2023–Jun 2026, 32 month-cols J–AO; the first smaller file was last-3-months w/ formulas stripped —
 use the FULL one). One sheet "Sales Commission", 14 stacked per-PM blocks (~20-40 rows each, cols =
