@@ -460,14 +460,22 @@ MODULES: ar, dispatch, leads, csr, field-performance, dialpad, kpi.
 PERMISSIONS flags: hidePmKpis, ownDataOnly, isTeamLeader. Identity links: pmName (→ own commission),
 techId (→ own FP data).
 STILL TO BUILD (enforcement is the SECURITY layer — client gating alone is NOT security):
-  1. SERVER-SIDE gating — each module API route checks canAccessModule, rejects unauthorized. CRITICAL,
-     not done yet. A restricted user is currently only stopped by hidden tiles, APIs still open.
-  2. ROW-LEVEL — commissions API filter by pmName when ownDataOnly (PM sees only own); FP by techId
-     (tech sees only own). Hooks exist (isOwnDataOnly), not wired.
-  3. ROUTE guards — direct nav to /leads etc. redirects unauthorized (not just hidden tiles).
-  4. USER-MGMT UI — set modules/permissions/pmName/techId per user; create ar@/dispatcher@/csr@/
-     pmname@/techname@ logins.
-  5. hidePmKpis flag — hide PM KPIs table for ar@.
+  DONE SO FAR (commits 4994a48, 7db6f98, 99c9bc7): server-side module gates on PRIMARY endpoints —
+  commissions, dispatch, leads, kpi, field-performance/scoreboard, leads/csr, dialpad/calls. USER-MGMT
+  UI + API done (/admin/users, /api/admin/users, ADMIN-only): create/edit/delete logins with modules,
+  permissions (hidePmKpis/ownDataOnly/isTeamLeader), pmName + techId identity links. commissions API
+  has module gate + row-level own-PM.
+  REMAINING:
+  1. SUB-ENDPOINT SWEEP — field-performance has many sub-routes (mom, attendance, roster, driving-
+     override, completion, etc.) + dialpad (config, sync, import) still ungated. A restricted user could
+     hit these directly. Systematic sweep needed for full lockdown.
+  2. ROW-LEVEL for field-performance — tech sees only own data via techId (isTeamLeader → own crew).
+     Not yet wired (commissions row-level IS done).
+  3. ROUTE guards — direct nav to /leads etc. should redirect unauthorized (client tiles hidden but
+     pages not guarded).
+  4. hidePmKpis flag — hide PM KPIs table for ar@ (flag exists, not consumed in UI yet).
+  5. Add a nav link to /admin/users (currently must type the URL).
+  6. TEST: create the target logins (ar@/dispatcher@/csr@/pmname@/techname@) and verify enforcement.
 TARGET LOGINS: ar@ (ar+dispatch+leads, hidePmKpis), dispatcher@ (dispatch), csr@ (csr+dialpad),
 pmname@ (leads + own commission via pmName+ownDataOnly), techname@ (field-performance, own data via
 techId; team leaders get isTeamLeader upgrade).
