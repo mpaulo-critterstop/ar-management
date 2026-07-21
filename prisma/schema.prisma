@@ -629,3 +629,38 @@ model BouncieTripEvent {
   @@index([transactionId])
   @@map("bouncie_trip_events")
 }
+
+// ─── PM SALES COMMISSIONS ─────────────────────────────────────────────────────
+// Per-PM commission plan. Effective-dated so plan changes are preserved (e.g. Jared New→Old).
+model CommissionPlan {
+  id            String    @id @default(cuid())
+  pmName        String    // matches Lead.pmName (join key)
+  method        String    // 'abr_tiered' | 'abr_adrian' | 'lead_bucket'
+  tiers         Json      // method params (breakpoints + rates); shape depends on method
+  effectiveFrom DateTime  // plan applies from this month (first of month, UTC)
+  effectiveTo   DateTime? // null = current; set when superseded
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@index([pmName, effectiveFrom])
+  @@map("commission_plans")
+}
+
+// Per-PM per-month record: frozen as-paid snapshot + editable manual inputs.
+// Everything else (live revenue, delta, wildlife comm, total) is computed on the fly, never stored.
+model CommissionMonth {
+  id                  String    @id @default(cuid())
+  pmName              String
+  month               DateTime  // first day of the month (UTC anchor)
+  asPaidTotalRevenue  Float?    // FROZEN at finalize = the revenue commission was paid on; null = not finalized
+  finalized           Boolean   @default(false)
+  finalizedAt         DateTime?
+  pestControlComm     Float     @default(0) // editable manual input (until Pest Control Sales module)
+  otherAdjustment     Float     @default(0) // editable final-$ one-off (applied to commission total)
+  otherAdjNote        String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  @@unique([pmName, month])
+  @@index([pmName])
+  @@map("commission_months")
+}
