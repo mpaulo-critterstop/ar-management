@@ -4,13 +4,20 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { pmRevenueForMonth, monthStart, monthEnd } from '@/lib/commissions';
 
+// Vercel cron hits GET. Delegates to the same finalize logic (defaults to just-ended month).
+export async function GET(req: NextRequest) {
+  return POST(req);
+}
+
 // POST /api/leads/commissions/finalize
 // Body (optional): { year, month }  — defaults to the JUST-ENDED month (relative to now).
 // Auth: session (ADMIN/LEADERSHIP) OR token (?token= / x-cron-secret) for the cron + sync fallback.
 // Freezes asPaidTotalRevenue per PM for that month = the live totalRevenue at finalize time.
 export async function POST(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const token = searchParams.get('token') || req.headers.get('x-cron-secret');
+  const authHeader = req.headers.get('authorization') || '';
+  const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  const token = searchParams.get('token') || req.headers.get('x-cron-secret') || bearer;
   const validToken = token === process.env.CRON_SECRET || token === 'critterstop2026';
 
   if (!validToken) {

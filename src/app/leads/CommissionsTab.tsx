@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const fmt = (v: number | null | undefined) =>
-  v === null || v === undefined ? '—' : v.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  v === null || v === undefined ? '—' : v.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const ROW_DEFS: { key: string; label: string; kind?: 'delta' }[] = [
   { key: 'bookedRevenue', label: 'Booked Revenue' },

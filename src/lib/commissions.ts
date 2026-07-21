@@ -104,21 +104,36 @@ export async function computeCommission(pmName: string, year: number, month1to12
   const rev = await pmRevenueForMonth(pmName, start, end);
   const plan = await planFor(pmName, start);
 
-  // Pre-period delta: for each FINALIZED prior month, (live revenue now − as-paid snapshot).
-  const priorFinalized = await prisma.commissionMonth.findMany({
-    where: { pmName, finalized: true, month: { lt: start } },
+  // Pre-period delta: reconcile ONLY the immediately-preceding month against its as-paid baseline.
+  // (The spreadsheet reconciled month-to-month, not against all history — and old months' live
+  //  revenue isn't a meaningful baseline. Baseline source: CommissionMonth snapshot if finalized,
+  //  else CommissionHistory frozen figure — e.g. June 2026 is July's baseline via history.)
+  const prevMonthDate = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() - 1, 1));
+  const prevKey = prevMonthDate.toISOString().slice(0, 7);
+
+  let prevBaseline: number | null = null;
+  const snap = await prisma.commissionMonth.findUnique({
+    where: { pmName_month: { pmName, month: prevMonthDate } },
   });
+  if (snap?.finalized && snap.asPaidTotalRevenue != null) {
+    prevBaseline = snap.asPaidTotalRevenue;
+  } else {
+    const hist = await prisma.commissionHistory.findUnique({
+      where: { pmName_month: { pmName, month: prevMonthDate } },
+    });
+    if (hist?.bookedRevenue != null) prevBaseline = hist.bookedRevenue;
+  }
+
   let prePeriodDelta = 0;
   const deltaDetail: { month: string; asPaid: number; liveNow: number; delta: number }[] = [];
-  for (const pm of priorFinalized) {
-    const ps = new Date(Date.UTC(pm.month.getUTCFullYear(), pm.month.getUTCMonth(), 1, 0, 0, 0));
-    const pe = new Date(Date.UTC(pm.month.getUTCFullYear(), pm.month.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+  if (prevBaseline !== null) {
+    const ps = new Date(Date.UTC(prevMonthDate.getUTCFullYear(), prevMonthDate.getUTCMonth(), 1, 0, 0, 0));
+    const pe = new Date(Date.UTC(prevMonthDate.getUTCFullYear(), prevMonthDate.getUTCMonth() + 1, 0, 23, 59, 59, 999));
     const liveNow = (await pmRevenueForMonth(pmName, ps, pe)).totalRevenue;
-    const asPaid = pm.asPaidTotalRevenue ?? 0;
-    const d = liveNow - asPaid;
+    const d = liveNow - prevBaseline;
     if (Math.abs(d) > 0.005) {
-      prePeriodDelta += d;
-      deltaDetail.push({ month: ps.toISOString().slice(0, 7), asPaid, liveNow, delta: d });
+      prePeriodDelta = d;
+      deltaDetail.push({ month: prevKey, asPaid: prevBaseline, liveNow, delta: d });
     }
   }
 
