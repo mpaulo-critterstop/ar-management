@@ -664,3 +664,24 @@ model CommissionMonth {
   @@index([pmName])
   @@map("commission_months")
 }
+
+// Frozen historical commission data imported from the FPEM sales-commission spreadsheet
+// (Nov 2023 – Jun 2026). Immutable source-of-truth for past months; displayed as-is, never recomputed.
+// Live computation (engine) takes over from Jul 2026 forward.
+model CommissionHistory {
+  id                    String   @id @default(cuid())
+  pmName                String
+  month                 DateTime // first of month, UTC
+  bookedRevenue         Float?
+  prePeriodDelta        Float?
+  otherAdjustments      Float?
+  adjustedBookedRevenue Float?
+  numLeads              Float?
+  wildlifeCommission    Float?
+  pestControlCommission Float?
+  totalCommission       Float?
+  createdAt             DateTime @default(now())
+  @@unique([pmName, month])
+  @@index([pmName])
+  @@map("commission_history")
+}
