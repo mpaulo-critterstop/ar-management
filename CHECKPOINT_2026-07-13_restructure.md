@@ -351,11 +351,28 @@ TWO WILDLIFE-COMMISSION METHODS + variants:
     buckets ×#leads: $700-1000/lead=8%, $1000-1200=10%, $1200-1400=12%, >$1400=14%.
     Per bucket: =max(0,(min(revPerLead,CAP)-FLOOR)*#leads*RATE); wildlife = sum of 4 buckets.
     (Adrian's inactive bucket block uses 6/8/10/12% — lower rates — but Adrian is ACTIVE on Method-1-variant.)
-PER-PM MODIFIERS: Blake total has a "+336" fragment (=AO331+AO335+336) — VERIFY w/ user if intentional.
-Adrian total wrapped in iferror. NOTE: Travis's "-$4,000" is NOT a plan modifier — it was a one-time
-salary-advance repayment applied to that month's payout. Belongs in the backbone's "Other Adjustments"
-line (per-PM per-month manual field), NOT special-cased in the plan. Method 1 is uniform across Jordan/
-Jared-New/Brant/Warren/Travis.
+PER-PM MODIFIERS: NOTE both "one-off" cases are OTHER ADJUSTMENTS, not plan modifiers: Travis -$4,000
+(salary-advance repayment), Blake +336 (a pest-control commission owed that wasn't paid separately).
+
+CALCULATION FLOW (Hub — DIFFERS from spreadsheet on where Other Adjustments applies):
+  Booked Revenue (LIVE from Leads Tracker PM-KPIs, keyed by invoice date — NOT a manual paste)
+    + Pre-Period Delta            [revenue-level reconciliation, applied to REVENUE]
+    = Adjusted Booked Revenue
+    → Wildlife Commission          [per-PM method on ABR: abr_tiered / abr_adrian / lead_bucket]
+    + Pest Control Commission      [MANUAL input for now, blank/0 default]
+    = Calculated Commission
+    + Other Adjustments            [final-DOLLAR one-offs: Travis -4000, Blake pest fix — applied to
+                                    the COMMISSION TOTAL, dollar-for-dollar, NOT to revenue]
+    = Total Commission Paid
+  IMPORTANT: On the SPREADSHEET, Other Adjustments fed into Adjusted Booked Revenue (pre-commission, so
+  it got multiplied by the comm rate). In the HUB, per user: Other Adjustments applies to the FINAL
+  commission dollar amount (post-calculation). Pre-Period Delta STILL applies to revenue (it genuinely
+  restates booked revenue the commission should be computed on).
+  DELTA DIRECTION (confirmed): negative delta = prior-month revenue dropped (cancellation/discount after
+  pay) = reduce this month to claw back overpayment; positive = prior revenue grew = pay the shortfall.
+  AS-PAID SNAPSHOT: Hub must store, per PM per month, the booked-revenue figure commission was actually
+  PAID on. Each month, compare live booked rev for prior months vs their as-paid snapshot → difference
+  = pre-period delta for current month. This automates what the spreadsheet did by hardcoding month-end.
 TIME-VERSIONED PLANS: Jared (New/Old), Han Bien (two blocks) = plans changed over time → model needs
 effective-dated plans. Empty/inactive blocks: Jared-Old, Kenny, Jacob, Roderick, Han Bien-A (departed
 PMs or retired plans — historical only).
