@@ -295,6 +295,46 @@ Bryan Bovee, Cynthia Barrientos, Jacob Fenton, Mat Hughes, Megan Delph, Warren L
 
 ### 13d. NEXT: Commissions table (feature #4), then Access control (#5)
 
+### 13c-4. MoM — all 8 per-metric tables (matches FPEM MoM sheet) — ✅ DONE
+The FPEM MoM sheet has 8 stacked per-metric tables; Hub previously showed only Total score. Added a
+metric selector to MoMTab with all 8: Total Effort (0.90 std), +1 Wk CO% (0.85), 60 Day CB Rate (0.15,
+LOWER better), Pest Revenue Eff (0.90), Reservice Rate (0.10, LOWER better), Completion % (0.95),
+Driving Effort (0.90), Reliability Score (0.90). Each shows metric month-by-month per tech (YTD + Jan-Dec),
+sorted best-first (direction respects higher/lower-is-better), with a Total Team avg row + the standard.
+MoM API aggregates all 8 from TechWeek + pooled team averages. VERIFIED vs Excel: YTD = avg of WEEKLY
+values (NOT avg-of-months — confirmed Adrian 1.0233 ≠ 1.0098 month-avg). CB/reservice color-flip.
+Commit a95b5ad. Also hid the page-level Week/Month period selector on the MoM tab (it's inherently
+monthly w/ its own year dropdown — the selector was disconnected, looked broken). Commit e33cc1a.
+
+### 13c-5. Adjustments tab — always show all in one page — ✅ DONE (per Chisam)
+Removed the This-week/All-weeks toggle; Adjustments now always lists every adjustment across all weeks,
+Week column always visible, team-member filter retained. Page-level period selector hidden on this tab
+too. Add-adjustment form still attaches to current week, labeled "Week of X". Commit f5d524f.
+
+### 13c-6. Manual adjustment UNITS BUG — ✅ FIXED (important)
+Adjustments are entered in POINTS (1 pt = 1% = 0.01 of the 0-1.1 decimal score). USER CONFIRMED: type
+"10" for +10%, "-20" for -20%. Two problems found+fixed:
+(1) CODE: 8 of 10 code paths added manualAdj RAW to the decimal totalScore (so 10 pts → +1000%). Fixed
+manual-adj POST/DELETE, techweek recompute, driving-override, reliability cron (5 spots), bouncie cron
+(3 spots) — all now divide by 100. run + field-performance crons were already correct. Commit 3868ec1.
+(2) DATA: mixed units in DB. `manual_adjs` table: 12 "spreadsheet" rows were points (-20..+8), 7 "admin@"
+rows were decimals (-0.1..+0.05). `tech_weeks.manualAdj` column had ALL rows as decimals but totalScore
+was CORRECT (decimal manualAdj added to decimal base gave right total). Fix ran via Supabase SQL:
+  - `UPDATE manual_adjs SET totalPoints=*100, leadershipPts=*100, frPts=*100, reviewsPts=*100 WHERE ABS(totalPoints)<1 AND totalPoints!=0;` (converted 7 decimal rows to points)
+  - `UPDATE tech_weeks SET manualAdj=manualAdj*100 WHERE manualAdj IS NOT NULL AND manualAdj!=0;` (aligned column to points; totalScore UNCHANGED so scores stayed correct AND future cron recompute base+points/100 reproduces same total)
+VERIFIED: tech_weeks.manualAdj == manual_adjs.totalPoints on every row; scores unchanged. Units now
+consistent end-to-end: entry → manual_adjs → tech_weeks.manualAdj → score calc, all points, /100 at final step.
+
+### 13d. REMAINING: Commissions table (feature #4) + Access control (feature #5)
+Features 1-3 (+ monthly filter, 8 MoM metrics, adjustments-all, units fix) DONE. Two features left:
+- **#4 Commissions table — BLOCKED on user.** Net-new. Needs commission calc RULES (rates/tiers, trigger
+  = sold job vs paid invoice, how it reconciles when invoice amt/sold-status change after the fact =
+  "pre-period delta"). Logic is in a SEPARATE sales-commissions spreadsheet (NOT the FPEM file). User to
+  upload that sheet OR describe rules.
+- **#5 Access control — LAST.** Module-level tier (ar@/dispatcher@/csr@ logins) is UNBLOCKED, can build
+  anytime. Row-level tier (PM own-commission, tech own-data) depends on commission table + reuses
+  team-leader roster mapping. Permissions model sketch is at section further below / earlier in this file.
+
 ## TARGET WEEKLY PIPELINE ORDER (after restructure)
 1. `week` (per office) → tech_routes + production
 2. `pmpAppointments` (per office, new-week mode) → pmp_appointments
