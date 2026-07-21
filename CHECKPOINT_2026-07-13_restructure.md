@@ -351,8 +351,11 @@ TWO WILDLIFE-COMMISSION METHODS + variants:
     buckets ×#leads: $700-1000/lead=8%, $1000-1200=10%, $1200-1400=12%, >$1400=14%.
     Per bucket: =max(0,(min(revPerLead,CAP)-FLOOR)*#leads*RATE); wildlife = sum of 4 buckets.
     (Adrian's inactive bucket block uses 6/8/10/12% — lower rates — but Adrian is ACTIVE on Method-1-variant.)
-PER-PM MODIFIERS: Travis total = comm − $4,000 (draw/advance). Blake total has a "+336" fragment
-(=AO331+AO335+336) — VERIFY w/ user if intentional. Adrian total wrapped in iferror.
+PER-PM MODIFIERS: Blake total has a "+336" fragment (=AO331+AO335+336) — VERIFY w/ user if intentional.
+Adrian total wrapped in iferror. NOTE: Travis's "-$4,000" is NOT a plan modifier — it was a one-time
+salary-advance repayment applied to that month's payout. Belongs in the backbone's "Other Adjustments"
+line (per-PM per-month manual field), NOT special-cased in the plan. Method 1 is uniform across Jordan/
+Jared-New/Brant/Warren/Travis.
 TIME-VERSIONED PLANS: Jared (New/Old), Han Bien (two blocks) = plans changed over time → model needs
 effective-dated plans. Empty/inactive blocks: Jared-Old, Kenny, Jacob, Roderick, Han Bien-A (departed
 PMs or retired plans — historical only).
