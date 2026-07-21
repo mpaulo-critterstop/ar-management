@@ -148,7 +148,7 @@ export default function FieldPerformancePage() {
               <button key={o} onClick={() => setOffice(o)} style={offBtnStyle(office === o)}>{o}</button>
             ))}
           </div>
-          {activeTab !== 'roster' && (
+          {activeTab !== 'roster' && activeTab !== 'mom' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               {/* Week / Month mode toggle */}
               <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 9, background: '#F1EFE8', border: '0.5px solid #E8E7E3', marginRight: 4 }}>
