@@ -3,17 +3,27 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { computeCommission, monthStart } from '@/lib/commissions';
+import { canAccessModule, isOwnDataOnly } from '@/lib/access';
 
 // GET /api/leads/commissions?year=2026 → returns all 12 months for that year, per PM.
 // Past months (<= Jun 2026) come from frozen CommissionHistory; Jul 2026+ computed live.
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const sUser = session.user as any;
+  // Module gate: must have access to the leads module.
+  if (!canAccessModule(sUser, 'leads')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const now = new Date();
   const year = Number(searchParams.get('year')) || now.getUTCFullYear();
-  const pmParam = searchParams.get('pm') || undefined;
+  let pmParam = searchParams.get('pm') || undefined;
+
+  // ROW-LEVEL: a PM restricted to own data can only ever see their own pmName, regardless of ?pm=.
+  if (isOwnDataOnly(sUser)) {
+    if (!sUser.pmName) return NextResponse.json({ year, rows: [] }); // no identity → nothing
+    pmParam = sUser.pmName;
+  }
 
   // Live cutover: anything strictly after June 2026 is computed; June 2026 and earlier = frozen history.
   const LIVE_FROM = new Date(Date.UTC(2026, 6, 1)); // Jul 1 2026
