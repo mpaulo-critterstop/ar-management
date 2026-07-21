@@ -326,14 +326,52 @@ VERIFIED: tech_weeks.manualAdj == manual_adjs.totalPoints on every row; scores u
 consistent end-to-end: entry → manual_adjs → tech_weeks.manualAdj → score calc, all points, /100 at final step.
 
 ### 13d. REMAINING: Commissions table (feature #4) + Access control (feature #5)
-Features 1-3 (+ monthly filter, 8 MoM metrics, adjustments-all, units fix) DONE. Two features left:
-- **#4 Commissions table — BLOCKED on user.** Net-new. Needs commission calc RULES (rates/tiers, trigger
-  = sold job vs paid invoice, how it reconciles when invoice amt/sold-status change after the fact =
-  "pre-period delta"). Logic is in a SEPARATE sales-commissions spreadsheet (NOT the FPEM file). User to
-  upload that sheet OR describe rules.
-- **#5 Access control — LAST.** Module-level tier (ar@/dispatcher@/csr@ logins) is UNBLOCKED, can build
-  anytime. Row-level tier (PM own-commission, tech own-data) depends on commission table + reuses
-  team-leader roster mapping. Permissions model sketch is at section further below / earlier in this file.
+Features 1-3 (+ monthly filter, 8 MoM metrics, adjustments-all, units fix) DONE. Two features left.
+
+#### #4 COMMISSIONS TABLE — ANALYZED, ready to design (nothing built yet)
+Source analyzed: user's sales-commission Excel (FULL history file `Untitled_spreadsheet__1_.xlsx`,
+Nov 2023–Jun 2026, 32 month-cols J–AO; the first smaller file was last-3-months w/ formulas stripped —
+use the FULL one). One sheet "Sales Commission", 14 stacked per-PM blocks (~20-40 rows each, cols =
+months). WARNING: block boundaries shift as PMs are added — MUST re-scan title rows ('X Commission
+Tracker'), don't assume row offsets (Claude mis-mapped Travis by ~100 rows on first pass; user caught it).
+
+SHARED BACKBONE (all PMs): Booked Revenue (pasted from upstream) → Cumulative Pre-Period Delta →
+Other Adjustments → Total Adjustments → Adjusted Booked Revenue (ABR) → Wildlife Comm + Pest Control
+Comm = Total Monthly Commission.
+  - Cumulative Pre-Period = ThisCumulativeBooked − ThisMonthBooked; Pre-Period Delta = ThisCumPrePeriod
+    − LastMonthCumBooked. Captures prior-month restatements (this IS Chisam's "dynamic reconciliation").
+
+TWO WILDLIFE-COMMISSION METHODS + variants:
+  - METHOD 1 "ABR-tiered" (Jordan, Jared-New, Brant, Warren, Travis): marginal tiers on ABR w/ $80k floor:
+    $0-80k=0%, $80-140k=8%, $140-180k=10%, >$180k=12%.
+    Formula: =max((min(ABR,140000)-80000)*0.08,0)+max((min(ABR,180000)-140000)*0.1,0)+if(ABR>180000,(ABR-180000)*0.12,0)
+  - METHOD 1 VARIANT (Adrian): =min(10000,base)*0.05+max(0,(base-10000)*0.07). (Roderick's sheet calls
+    this "Alternative Method (Adrian)".)
+  - METHOD 2 "lead-bucket" (Blake, Han Bien-B, Cynthia active): needs #ofLeads + BookedRev/Lead; marginal
+    buckets ×#leads: $700-1000/lead=8%, $1000-1200=10%, $1200-1400=12%, >$1400=14%.
+    Per bucket: =max(0,(min(revPerLead,CAP)-FLOOR)*#leads*RATE); wildlife = sum of 4 buckets.
+    (Adrian's inactive bucket block uses 6/8/10/12% — lower rates — but Adrian is ACTIVE on Method-1-variant.)
+PER-PM MODIFIERS: Travis total = comm − $4,000 (draw/advance). Blake total has a "+336" fragment
+(=AO331+AO335+336) — VERIFY w/ user if intentional. Adrian total wrapped in iferror.
+TIME-VERSIONED PLANS: Jared (New/Old), Han Bien (two blocks) = plans changed over time → model needs
+effective-dated plans. Empty/inactive blocks: Jared-Old, Kenny, Jacob, Roderick, Han Bien-A (departed
+PMs or retired plans — historical only).
+
+USER DECISIONS SO FAR:
+  - Points-style entry N/A here; commissions are $.
+  - PEST CONTROL COMMISSION: leave BLANK/manual for now — user calculates separately by hand until a
+    future "Pest Control Sales module" is built. Hub computes WILDLIFE + backbone only; pest comm is an
+    editable input defaulting blank/0.
+  - Per-PM privacy: each PM sees ONLY their own commission (confirmed earlier w/ Chisam).
+STILL TO CONFIRM before/during build: Blake's +336; whether Booked Revenue is a monthly INPUT (hybrid,
+matches current process — RECOMMENDED) or pulled from FR (full-auto, harder). Recommended model:
+CommissionPlan per PM {method: abr_tiered|abr_adrian|lead_bucket, tier params, flatModifier, effective
+dates}; shared backbone computed for all; booked rev + pest comm as inputs.
+
+#### #5 Access control — LAST
+Module-level tier (ar@/dispatcher@/csr@ logins) UNBLOCKED, can build anytime. Row-level tier (PM
+own-commission, tech own-data) depends on commission table + reuses team-leader roster mapping.
+Permissions model sketch earlier in this file (section 13/13d region).
 
 ## TARGET WEEKLY PIPELINE ORDER (after restructure)
 1. `week` (per office) → tech_routes + production
