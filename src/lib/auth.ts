@@ -21,7 +21,10 @@ export const authOptions: NextAuthOptions = {
         if (!user) return null;
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) return null;
-        return { id: user.id, email: user.email, name: user.name, role: user.role, office: user.office };
+        return {
+          id: user.id, email: user.email, name: user.name, role: user.role, office: user.office,
+          modules: user.modules, permissions: user.permissions, pmName: user.pmName, techId: user.techId,
+        } as any;
       },
     }),
   ],
@@ -31,6 +34,10 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = (user as any).role;
         token.office = (user as any).office;
+        token.modules = (user as any).modules;
+        token.permissions = (user as any).permissions;
+        token.pmName = (user as any).pmName;
+        token.techId = (user as any).techId;
       }
       return token;
     },
@@ -39,6 +46,10 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         (session.user as any).role = token.role;
         (session.user as any).office = token.office;
+        (session.user as any).modules = token.modules;
+        (session.user as any).permissions = token.permissions;
+        (session.user as any).pmName = token.pmName;
+        (session.user as any).techId = token.techId;
       }
       return session;
     },

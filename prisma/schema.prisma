@@ -14,6 +14,11 @@ model User {
   password  String
   role      Role     @default(COLLECTIONS)
   office    String?
+  // Access control (feature #5). role stays for broad tiers (ADMIN/LEADERSHIP see all).
+  modules     String[] @default([])  // module allowlist: ar/dispatch/leads/csr/field-performance/dialpad/kpi
+  permissions Json?                  // sub-flags: { hidePmKpis, ownDataOnly, isTeamLeader }
+  pmName      String?                // links login → PM identity (own-commission row-level)
+  techId      String?                // links login → Technician (own field-performance data)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   notes     CollectionNote[]
