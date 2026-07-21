@@ -7,6 +7,7 @@ const fmt = (v: number | null | undefined) =>
 
 const ROW_DEFS: { key: string; label: string; kind?: 'delta' }[] = [
   { key: 'bookedRevenue', label: 'Booked Revenue' },
+  { key: 'cumulativeBookedRevenue', label: 'Total Cumulative Booked Rev.' },
   { key: 'prePeriodDelta', label: 'Pre-Period Delta', kind: 'delta' },
   { key: 'adjustedRevenue', label: 'Adjusted Booked Revenue' },
   { key: 'wildlifeCommission', label: 'Wildlife Commission' },

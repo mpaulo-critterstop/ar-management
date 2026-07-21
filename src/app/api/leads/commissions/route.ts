@@ -43,7 +43,8 @@ export async function GET(req: NextRequest) {
         const h = histMap.get(histKey(pmName, m));
         months.push(h ? {
           month: m, source: 'history',
-          bookedRevenue: h.bookedRevenue, prePeriodDelta: h.prePeriodDelta,
+          bookedRevenue: h.bookedRevenue, cumulativeBookedRevenue: h.cumulativeBookedRevenue,
+          prePeriodDelta: h.prePeriodDelta,
           otherAdjustment: h.otherAdjustments, adjustedRevenue: h.adjustedBookedRevenue,
           leadCount: h.numLeads, wildlifeCommission: h.wildlifeCommission,
           pestControlComm: h.pestControlCommission, totalCommission: h.totalCommission,
@@ -57,6 +58,23 @@ export async function GET(req: NextRequest) {
         months.push({ month: m, source: 'future', empty: true });
       }
     }
+    // Forward-fill cumulative booked revenue for LIVE months: continue from the most recent
+    // known cumulative (history) + each subsequent month's booked revenue.
+    let runningCum: number | null = null;
+    for (const mo of months as any[]) {
+      if (mo.empty) continue;
+      if (mo.source === 'history') {
+        if (mo.cumulativeBookedRevenue != null) runningCum = mo.cumulativeBookedRevenue;
+      } else if (mo.source === 'live') {
+        if (runningCum != null && mo.totalRevenue != null) {
+          runningCum = runningCum + mo.totalRevenue;
+          mo.cumulativeBookedRevenue = runningCum;
+        } else if (mo.totalRevenue != null) {
+          mo.cumulativeBookedRevenue = mo.totalRevenue; // no prior baseline
+        }
+      }
+    }
+
     rows.push({ pmName, months });
   }
 

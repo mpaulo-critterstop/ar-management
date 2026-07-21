@@ -673,6 +673,7 @@ model CommissionHistory {
   pmName                String
   month                 DateTime // first of month, UTC
   bookedRevenue         Float?
+  cumulativeBookedRevenue Float?
   prePeriodDelta        Float?
   otherAdjustments      Float?
   adjustedBookedRevenue Float?
