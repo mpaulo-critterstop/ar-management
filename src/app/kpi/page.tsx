@@ -33,6 +33,7 @@ export default function KPIPage() {
   const [pms, setPms] = useState<any[]>([]);
   const [newPMName, setNewPMName] = useState('');
   const [newPMOffice, setNewPMOffice] = useState('DFW');
+  const [newPMMethod, setNewPMMethod] = useState('');
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -66,9 +67,10 @@ export default function KPIPage() {
     await fetch('/api/pm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newPMName.trim(), office: newPMOffice }),
+      body: JSON.stringify({ name: newPMName.trim(), office: newPMOffice, commissionMethod: newPMMethod || undefined }),
     });
     setNewPMName('');
+    setNewPMMethod('');
     fetchPMs();
     fetchKPIs();
   }
@@ -171,12 +173,21 @@ export default function KPIPage() {
               <div style={{ fontWeight: 500, fontSize: 15, color: '#2C2C2A' }}>Manage PMs</div>
               <button onClick={() => setShowPMManager(false)} style={{ border: 'none', background: 'none', fontSize: 18, cursor: 'pointer', color: '#888780' }}>×</button>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
               <input type="text" placeholder="PM name" value={newPMName} onChange={e => setNewPMName(e.target.value)}
                 style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', flex: 1, color: '#2C2C2A' }} />
               <select value={newPMOffice} onChange={e => setNewPMOffice(e.target.value)}
                 style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', color: '#2C2C2A' }}>
                 {['DFW', 'ATX', 'OKC', 'CStat'].map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+              <select value={newPMMethod} onChange={e => setNewPMMethod(e.target.value)}
+                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', color: '#2C2C2A', flex: 1 }}>
+                <option value="">No commission plan</option>
+                <option value="abr_tiered">Method 1 — Booked Rev tiers (8/10/12%, $80k floor)</option>
+                <option value="abr_adrian">Adrian's model (5% / 7%)</option>
+                <option value="lead_bucket">Method 2 — Lead buckets (8/10/12/14% by rev/lead)</option>
               </select>
               <button onClick={addPM} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500 }}>
                 Add
