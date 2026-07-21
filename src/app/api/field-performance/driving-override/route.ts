@@ -61,19 +61,20 @@ export async function POST(req: NextRequest) {
   };
 
   const rel = existing.reliabilityScore ?? 0;
+  const adjDec = (existing.manualAdj ?? 0) / 100; // manualAdj stored in points (1 pt = 1%)
 
   if (existing.team === 'WP' && existing.closeOutPct !== null && rel !== null) {
     const s = calcWPScore(existing.closeOutPct, existing.callbackRate ?? null, effectiveDriving, rel);
     updateData.wpScore = s;
-    updateData.totalScore = s + (existing.manualAdj ?? 0);
+    updateData.totalScore = s + adjDec;
   } else if (existing.team === 'PMP' && existing.revenueEfficiency !== null && existing.reseviceRate !== null && existing.completionPct !== null) {
     const s = calcPMPScore(existing.revenueEfficiency, existing.reseviceRate, existing.completionPct, effectiveDriving, rel);
     updateData.pmpScore = s;
-    updateData.totalScore = s + (existing.manualAdj ?? 0);
+    updateData.totalScore = s + adjDec;
   } else if (existing.team === 'IP') {
     const s = calcIPScore(effectiveDriving, rel);
     updateData.ipScore = s;
-    updateData.totalScore = s + (existing.manualAdj ?? 0);
+    updateData.totalScore = s + adjDec;
   }
 
   const updated = await prisma.techWeek.update({

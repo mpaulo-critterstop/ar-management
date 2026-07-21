@@ -81,8 +81,9 @@ export async function POST(req: NextRequest) {
     await prisma.techWeek.update({
       where: { id: techWeek.id },
       data: {
+        // manualAdj is stored in POINTS (1 point = 1% = 0.01 of the decimal score).
         manualAdj: (techWeek.manualAdj || 0) + totalPoints,
-        totalScore: (techWeek.totalScore || 0) + totalPoints,
+        totalScore: (techWeek.totalScore || 0) + totalPoints / 100,
       },
     });
   }
@@ -116,7 +117,7 @@ export async function DELETE(req: NextRequest) {
       where: { id: techWeek.id },
       data: {
         manualAdj: (techWeek.manualAdj || 0) - adj.totalPoints,
-        totalScore: (techWeek.totalScore || 0) - adj.totalPoints,
+        totalScore: (techWeek.totalScore || 0) - adj.totalPoints / 100,
       },
     });
   }

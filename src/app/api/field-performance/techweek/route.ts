@@ -189,17 +189,18 @@ export async function POST(req: NextRequest) {
     reliabilityScore = calcReliability(metrics.minutesLate, metrics.utilization);
   }
 
-  // Calculate team score
+  // Calculate team score. manualAdj is in POINTS (1 pt = 1% = 0.01 decimal).
   let wpScore = null, pmpScore = null, ipScore = null, totalScore = null;
+  const adjDec = (metrics.manualAdj ?? 0) / 100;
   if (tech.team === 'WP' && metrics.closeOutPct !== undefined && drivingScore !== undefined && reliabilityScore !== undefined) {
     wpScore = calcWPScore(metrics.closeOutPct, metrics.callbackRate ?? null, drivingScore, reliabilityScore);
-    totalScore = wpScore + (metrics.manualAdj ?? 0);
+    totalScore = wpScore + adjDec;
   } else if (tech.team === 'PMP' && metrics.revenueEfficiency !== undefined && metrics.reseviceRate !== undefined && metrics.completionPct !== undefined && drivingScore !== undefined && reliabilityScore !== undefined) {
     pmpScore = calcPMPScore(metrics.revenueEfficiency, metrics.reseviceRate, metrics.completionPct, drivingScore, reliabilityScore);
-    totalScore = pmpScore + (metrics.manualAdj ?? 0);
+    totalScore = pmpScore + adjDec;
   } else if (tech.team === 'IP' && drivingScore !== undefined && reliabilityScore !== undefined) {
     ipScore = calcIPScore(drivingScore, reliabilityScore);
-    totalScore = ipScore + (metrics.manualAdj ?? 0);
+    totalScore = ipScore + adjDec;
   }
 
   const weekEndDate = new Date(weekEnd + "T00:00:00.000Z");

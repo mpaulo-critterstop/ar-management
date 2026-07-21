@@ -306,15 +306,15 @@ export async function POST(req: NextRequest) {
         if (tech.team === 'WP' && existing.closeOutPct !== null) {
           const wpScore = calcWPScore(existing.closeOutPct, existing.callbackRate ?? null, effectiveDriving, rel);
           updateData.wpScore    = wpScore;
-          updateData.totalScore = wpScore + (existing.manualAdj ?? 0);
+          updateData.totalScore = wpScore + (existing.manualAdj ?? 0) / 100;
         } else if (tech.team === 'PMP' && existing.revenueEfficiency !== null && existing.reseviceRate !== null && existing.completionPct !== null) {
           const pmpScore = calcPMPScore(existing.revenueEfficiency, existing.reseviceRate, existing.completionPct, effectiveDriving, rel);
           updateData.pmpScore   = pmpScore;
-          updateData.totalScore = pmpScore + (existing.manualAdj ?? 0);
+          updateData.totalScore = pmpScore + (existing.manualAdj ?? 0) / 100;
         } else if (tech.team === 'IP') {
           const ipScore = calcIPScore(effectiveDriving, rel);
           updateData.ipScore    = ipScore;
-          updateData.totalScore = ipScore + (existing.manualAdj ?? 0);
+          updateData.totalScore = ipScore + (existing.manualAdj ?? 0) / 100;
         }
       }
 

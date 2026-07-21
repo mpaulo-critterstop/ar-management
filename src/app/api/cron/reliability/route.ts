@@ -746,13 +746,13 @@ export async function POST(req: NextRequest) {
         const drv = existing.drivingOverride ? 0 : existing.drivingScore;
         if (tech.team === 'WP' && existing.closeOutPct !== null) {
           const s = calcWPScore(existing.closeOutPct, existing.callbackRate ?? null, drv, reliabilityScore);
-          updateData.wpScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0);
+          updateData.wpScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0) / 100;
         } else if (tech.team === 'PMP' && existing.revenueEfficiency !== null && existing.reseviceRate !== null && existing.completionPct !== null) {
           const s = calcPMPScore(existing.revenueEfficiency, existing.reseviceRate, existing.completionPct, drv, reliabilityScore);
-          updateData.pmpScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0);
+          updateData.pmpScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0) / 100;
         } else if (tech.team === 'IP') {
           const s = calcIPScore(drv, reliabilityScore);
-          updateData.ipScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0);
+          updateData.ipScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0) / 100;
         }
       }
 
@@ -952,7 +952,7 @@ export async function POST(req: NextRequest) {
             const drv = existing.drivingScore;
             if (tech.team === 'PMP' && existing.revenueEfficiency !== null && existing.reseviceRate !== null && existing.completionPct !== null) {
               const s = calcPMPScore(existing.revenueEfficiency, existing.reseviceRate, existing.completionPct, drv, reliabilityScore);
-              updateData.pmpScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0);
+              updateData.pmpScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0) / 100;
             }
           }
 
@@ -1050,7 +1050,7 @@ export async function POST(req: NextRequest) {
           const drv = existing.drivingScore;
           if (tech.team === 'PMP' && existing.revenueEfficiency !== null && existing.reseviceRate !== null && existing.completionPct !== null) {
             const s = calcPMPScore(existing.revenueEfficiency, existing.reseviceRate, existing.completionPct, drv, reliabilityScore);
-            updateData.pmpScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0);
+            updateData.pmpScore = s; updateData.totalScore = s + (existing.manualAdj ?? 0) / 100;
           }
         }
 
