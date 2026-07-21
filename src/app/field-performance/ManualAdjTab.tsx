@@ -19,7 +19,6 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
   const [techs, setTechs] = useState<any[]>([]);
-  const [allWeeks, setAllWeeks] = useState(false);
   const [memberFilter, setMemberFilter] = useState('');
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
@@ -27,10 +26,9 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
 
   const load = () => {
     setLoading(true);
-    const wk = weekEnd.toLocaleDateString('en-CA');
+    // Adjustments always show ALL weeks in one page (no week/month scoping).
     const params = new URLSearchParams();
-    if (allWeeks) params.set('allWeeks', 'true');
-    else params.set('week', wk);
+    params.set('allWeeks', 'true');
     params.set('office', office);
     if (memberFilter) params.set('techId', memberFilter);
     fetch(`/api/field-performance/manual-adj?${params}`)
@@ -39,7 +37,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
       .catch(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, [office, weekEnd, allWeeks, memberFilter]);
+  useEffect(() => { load(); }, [office, memberFilter]);
 
   useEffect(() => {
     fetch(`/api/field-performance/roster?status=ACTIVE`)
@@ -98,12 +96,6 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
-        <button
-          onClick={() => setAllWeeks(v => !v)}
-          style={{ padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '0.5px solid #D3D1C7', background: allWeeks ? '#EAF1FC' : '#fff', color: allWeeks ? '#0052cc' : '#888780', cursor: 'pointer' }}
-        >
-          {allWeeks ? '✓ All weeks' : 'This week only'}
-        </button>
         <select
           value={memberFilter}
           onChange={e => setMemberFilter(e.target.value)}
@@ -114,11 +106,9 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
             <option key={t.techId} value={t.techId}>{t.name}</option>
           ))}
         </select>
-        {(allWeeks || memberFilter) && (
-          <span style={{ fontSize: 11, color: '#888780' }}>
-            Showing {adjs.length} adjustment{adjs.length !== 1 ? 's' : ''}{allWeeks ? ' across all weeks' : ''}
-          </span>
-        )}
+        <span style={{ fontSize: 11, color: '#888780' }}>
+          Showing {adjs.length} adjustment{adjs.length !== 1 ? 's' : ''}{memberFilter ? '' : ' across all weeks'}
+        </span>
       </div>
 
       {/* Add button */}
@@ -137,7 +127,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                {allWeeks && <th style={{ ...th, width: 80 }}>Week</th>}
+                <th style={{ ...th, width: 80 }}>Week</th>
                 <th style={{ ...th, width: 55 }}>Tech ID</th>
                 <th style={{ ...th, width: 140 }}>Name</th>
                 <th style={{ ...th, width: 46 }}>Team</th>
@@ -154,15 +144,15 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={allWeeks ? 13 : 12} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>Loading...</td></tr>
+                <tr><td colSpan={13} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>Loading...</td></tr>
               ) : adjs.length === 0 ? (
-                <tr><td colSpan={allWeeks ? 13 : 12} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>No adjustments {allWeeks ? 'recorded' : 'for this week'}.</td></tr>
+                <tr><td colSpan={13} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>No adjustments recorded.</td></tr>
               ) : adjs.map(a => (
                 <tr key={a.id}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f8fafc'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                 >
-                  {allWeeks && <td style={{ ...td, fontSize: 11, color: '#64748b' }}>{a.weekEnd ? new Date(a.weekEnd).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' }) : '—'}</td>}
+                  <td style={{ ...td, fontSize: 11, color: '#64748b' }}>{a.weekEnd ? new Date(a.weekEnd).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' }) : '—'}</td>
                   <td style={{ ...td, fontSize: 11, color: '#64748b' }}>{a.techId}</td>
                   <td style={{ ...td, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.technician?.name}</td>
                   <td style={td}>{teamPill(a.technician?.team || '')}</td>
