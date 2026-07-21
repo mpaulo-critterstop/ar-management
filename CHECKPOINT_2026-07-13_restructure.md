@@ -378,6 +378,14 @@ effective-dated plans. Empty/inactive blocks: Jared-Old, Kenny, Jacob, Roderick,
 PMs or retired plans — historical only).
 
 USER DECISIONS SO FAR:
+  - REVENUE FIGURE: commission uses the KPIs **totalRevenue** (= bookedRevenue + upsellRevenue), NOT the
+    narrower bookedRevenue field. VERIFIED via invoice 242568: upsells are stored in Lead upsell fields
+    (upsellAmount/upsellDate/upsellInvoiceId), NOT as separate booked-revenue leads. Travis's 6/3 upsell
+    ($6,027.48, primary was 5/21 inv 239583 $2,469.96) shows in his JUNE revenue only because KPIs
+    totalRevenue counts booked (by invoice.date) + upsell (by upsellDate) each in its own month. So the
+    commission calc must sum BOTH: sold lead.amount by invoice.date-in-month + upsellAmount by
+    upsellDate-in-month = the month's revenue. Prior-month changes to either flow through pre-period delta.
+    Match the exact per-PM totalRevenue the KPIs table already computes (leads API pmKpis).
   - PLACEMENT: new Commissions tab in the LEADS TRACKER module (src/app/leads), next to KPIs + CSR Leads
     Tracker tabs. Same module because booked-revenue source is the leads data / PM-KPIs table.
   - SYNC = PIGGYBACK on the existing Leads Tracker sync button. That sync already refreshes the KPIs
