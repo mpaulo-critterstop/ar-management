@@ -386,6 +386,13 @@ USER DECISIONS SO FAR:
     commission calc must sum BOTH: sold lead.amount by invoice.date-in-month + upsellAmount by
     upsellDate-in-month = the month's revenue. Prior-month changes to either flow through pre-period delta.
     Match the exact per-PM totalRevenue the KPIs table already computes (leads API pmKpis).
+  - REVENUE TIMING RULE (confirmed): every $ counts in the month of the date attached to it.
+    (a) Upsell dated in CURRENT live month → counts now (booked + upsell). (b) ANY change to a PRIOR
+    finalized month (edited invoice date/amount, discount, cancellation, back-dated upsell) → flows
+    through pre-period delta, because prior month's live total now differs from its frozen as-paid
+    snapshot. Delta doesn't care about the CAUSE — it just compares prior-month-live-now vs as-paid.
+    EDGE: if an upsell/change lands in a month NOT yet finalized, it just counts as live revenue (no
+    snapshot to diff against) — delta only applies to finalized months that later drift.
   - PLACEMENT: new Commissions tab in the LEADS TRACKER module (src/app/leads), next to KPIs + CSR Leads
     Tracker tabs. Same module because booked-revenue source is the leads data / PM-KPIs table.
   - SYNC = PIGGYBACK on the existing Leads Tracker sync button. That sync already refreshes the KPIs
