@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { canAccessModule, type ModuleKey } from '@/lib/access';
 
 function fmt(n: number) {
   return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -40,8 +41,11 @@ export default function HomePage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const cards = [
+  const user = session?.user as any;
+
+  const allCards = [
     {
+      module: 'leads' as ModuleKey,
       icon: '🎯',
       title: 'Leads Tracker',
       desc: 'Track wildlife inspection leads, PM performance, and conversion rates.',
@@ -56,6 +60,7 @@ export default function HomePage() {
       ] : null,
     },
     {
+      module: 'dispatch' as ModuleKey,
       icon: '🚛',
       title: 'Dispatcher',
       desc: 'Manage active exclusion jobs, trap checks, FAR progress, and close-outs.',
@@ -70,6 +75,7 @@ export default function HomePage() {
       ] : null,
     },
     {
+      module: 'ar' as ModuleKey,
       icon: '📋',
       title: 'Accounts Receivable',
       desc: 'Monitor AR aging, open invoices, and collections across all offices.',
@@ -84,6 +90,7 @@ export default function HomePage() {
       ] : null,
     },
     {
+      module: 'dialpad' as ModuleKey,
       icon: '📞',
       title: 'Dialpad Call Analytics',
       desc: 'Analyze inbound call volume, answer rates, agent performance, and first-time callers.',
@@ -93,7 +100,8 @@ export default function HomePage() {
       mainLabel: 'Total inbound',
       stats: null,
     },
-    ...(fpRoles.includes(role) ? [{
+    {
+      module: 'field-performance' as ModuleKey,
       icon: '📊',
       title: 'Field Professional Effort Meter',
       desc: 'Track field technician performance scores, driving, reliability, and close-out rates.',
@@ -102,8 +110,11 @@ export default function HomePage() {
       main: '—',
       mainLabel: 'Active techs',
       stats: null,
-    }] : []),
+    },
   ];
+
+  // Show only modules this user can access.
+  const cards = allCards.filter(c => canAccessModule(user, c.module));
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto' }}>
