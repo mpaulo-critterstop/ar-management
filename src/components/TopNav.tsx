@@ -39,6 +39,17 @@ export function TopNav() {
 
         {/* User + sign out */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#888780' }}>
+          {role === 'Admin' && (
+            <Link href="/admin/users" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+              color: pathname === '/admin/users' ? '#0052cc' : '#888780',
+              background: pathname === '/admin/users' ? '#EAF1FC' : '#F8F7F4',
+              border: '0.5px solid #D3D1C7', textDecoration: 'none',
+            }}>
+              ⚙ Users
+            </Link>
+          )}
           <span>{(session.user as any)?.email}</span>
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
