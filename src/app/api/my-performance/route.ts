@@ -6,15 +6,20 @@ import { prisma } from '@/lib/prisma';
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const role = (session.user as any)?.role;
-  if (role !== 'Technician') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const sUser = session.user as any;
+  const role = sUser?.role;
+  // Allow anyone whose account is linked to a technician (techId) OR a Technician-role user.
+  const linkedTechId = sUser?.techId || null;
+  if (role !== 'Technician' && !linkedTechId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
-  const email = (session.user as any)?.email;
+  const email = sUser?.email;
 
-  // Find technician by linked email
-  const technician = await prisma.technician.findFirst({
-    where: { email },
-  });
+  // Find technician by the linked techId first (set in user management), else fall back to email.
+  const technician = linkedTechId
+    ? await prisma.technician.findFirst({ where: { techId: linkedTechId } })
+    : await prisma.technician.findFirst({ where: { email } });
 
   if (!technician) return NextResponse.json({ error: 'No technician linked to this account. Contact your administrator.' }, { status: 404 });
 

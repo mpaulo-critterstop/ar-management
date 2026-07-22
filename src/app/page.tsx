@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { canAccessModule, type ModuleKey } from '@/lib/access';
+import { canAccessModule, isOwnDataOnly, type ModuleKey } from '@/lib/access';
 
 function fmt(n: number) {
   return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -105,7 +105,7 @@ export default function HomePage() {
       icon: '📊',
       title: 'Field Professional Effort Meter',
       desc: 'Track field technician performance scores, driving, reliability, and close-out rates.',
-      href: '/field-performance',
+      href: isOwnDataOnly(user) ? '/my-performance' : '/field-performance',
       accentColor: '#0F6E56',
       main: '—',
       mainLabel: 'Active techs',

@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { isOwnDataOnly } from '@/lib/access';
 import { ScoreboardTab } from './ScoreboardTab';
 import { IndividualsTab } from './IndividualsTab';
 import { TeamsTab } from './TeamsTab';
@@ -65,7 +66,11 @@ export default function FieldPerformancePage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
-  }, [status, router]);
+    // Own-data techs belong on their personal view, not the management dashboard.
+    if (status === 'authenticated' && isOwnDataOnly(session?.user as any)) {
+      router.replace('/my-performance');
+    }
+  }, [status, router, session]);
 
   const role = (session?.user as any)?.role;
   const canView = ['Admin', 'Manager'].includes(role);
