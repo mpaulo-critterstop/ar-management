@@ -11,7 +11,7 @@ const PERM_FLAGS = [
 ];
 
 const blankForm = () => ({
-  id: '', email: '', name: '', password: '', role: 'Accounts Receivable', office: '',
+  id: '', username: '', email: '', name: '', password: '', role: 'Accounts Receivable', office: '',
   modules: [] as string[], permissions: {} as any, pmName: '', techId: '',
 });
 
@@ -49,7 +49,7 @@ export default function UsersAdminPage() {
   function editUser(u: any) {
     setEditing(true);
     setForm({
-      id: u.id, email: u.email, name: u.name, password: '', role: u.role, office: u.office || '',
+      id: u.id, username: u.username || '', email: u.email || '', name: u.name, password: '', role: u.role, office: u.office || '',
       modules: u.modules || [], permissions: u.permissions || {}, pmName: u.pmName || '', techId: u.techId || '',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -94,7 +94,8 @@ export default function UsersAdminPage() {
         <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14, color: '#2C2C2A' }}>{editing ? 'Edit user' : 'New user'}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div><label style={label}>Name</label><input style={input} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-          <div><label style={label}>Email</label><input style={input} value={form.email} disabled={editing} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+          <div><label style={label}>Username</label><input style={input} value={form.username} disabled={editing} autoCapitalize="none" autoCorrect="off" placeholder="e.g. mpaulo" onChange={e => setForm({ ...form, username: e.target.value })} /></div>
+          <div><label style={label}>Email (optional)</label><input style={input} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="optional" /></div>
           <div><label style={label}>{editing ? 'New password (blank = keep)' : 'Password'}</label><input style={input} type="text" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></div>
           <div><label style={label}>Role</label>
             <select style={input} value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
@@ -168,7 +169,7 @@ export default function UsersAdminPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: '#F8F7F4' }}>
-              {['Name', 'Email', 'Role', 'Modules', 'Identity', ''].map(h => (
+              {['Name', 'Username', 'Role', 'Modules', 'Identity', ''].map(h => (
                 <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 500, color: '#888780' }}>{h}</th>
               ))}
             </tr>
@@ -179,7 +180,7 @@ export default function UsersAdminPage() {
             ) : users.map(u => (
               <tr key={u.id} style={{ borderTop: '0.5px solid #F1EFE8' }}>
                 <td style={{ padding: '8px 12px', color: '#2C2C2A' }}>{u.name}</td>
-                <td style={{ padding: '8px 12px', color: '#64748b' }}>{u.email}</td>
+                <td style={{ padding: '8px 12px', color: '#64748b' }}>{u.username}</td>
                 <td style={{ padding: '8px 12px', color: '#64748b' }}>{u.role}</td>
                 <td style={{ padding: '8px 12px', color: '#64748b', fontSize: 11 }}>{(u.modules || []).join(', ') || <span style={{ color: '#B8B6AE' }}>role default</span>}</td>
                 <td style={{ padding: '8px 12px', color: '#64748b', fontSize: 11 }}>{u.pmName || u.techId || '—'}</td>

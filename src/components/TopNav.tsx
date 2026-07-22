@@ -50,7 +50,7 @@ export function TopNav() {
               ⚙ Users
             </Link>
           )}
-          <span>{(session.user as any)?.email}</span>
+          <span>{(session.user as any)?.username || (session.user as any)?.email}</span>
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
             style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#F8F7F4', cursor: 'pointer', color: '#888780' }}

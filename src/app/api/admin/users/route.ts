@@ -19,7 +19,7 @@ export async function GET() {
   const users = await prisma.user.findMany({
     orderBy: [{ role: 'asc' }, { name: 'asc' }],
     select: {
-      id: true, email: true, name: true, role: true, office: true,
+      id: true, username: true, email: true, name: true, role: true, office: true,
       modules: true, permissions: true, pmName: true, techId: true, createdAt: true,
     },
   });
@@ -31,16 +31,19 @@ export async function POST(req: NextRequest) {
   const gate = await requireAdmin();
   if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
   const b = await req.json();
-  const { email, name, password, role, office, modules, permissions, pmName, techId } = b;
-  if (!email || !name || !password) return NextResponse.json({ error: 'email, name, password required' }, { status: 400 });
+  const { username, email, name, password, role, office, modules, permissions, pmName, techId } = b;
+  if (!username || !name || !password) return NextResponse.json({ error: 'username, name, password required' }, { status: 400 });
 
-  const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-  if (existing) return NextResponse.json({ error: 'A user with that email already exists' }, { status: 409 });
+  const uname = String(username).toLowerCase().trim();
+  const existing = await prisma.user.findUnique({ where: { username: uname } });
+  if (existing) return NextResponse.json({ error: 'A user with that username already exists' }, { status: 409 });
 
   const hashed = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
     data: {
-      email: email.toLowerCase(), name, password: hashed,
+      username: uname,
+      email: email ? String(email).toLowerCase().trim() : null,
+      name, password: hashed,
       role: role || 'Accounts Receivable',
       office: office || null,
       modules: Array.isArray(modules) ? modules : [],
@@ -48,7 +51,7 @@ export async function POST(req: NextRequest) {
       pmName: pmName || null,
       techId: techId || null,
     },
-    select: { id: true, email: true, name: true, role: true, modules: true },
+    select: { id: true, username: true, name: true, role: true, modules: true },
   });
   return NextResponse.json({ success: true, user });
 }
@@ -73,7 +76,7 @@ export async function PATCH(req: NextRequest) {
 
   const user = await prisma.user.update({
     where: { id }, data,
-    select: { id: true, email: true, name: true, role: true, modules: true, permissions: true, pmName: true, techId: true },
+    select: { id: true, username: true, email: true, name: true, role: true, modules: true, permissions: true, pmName: true, techId: true },
   });
   return NextResponse.json({ success: true, user });
 }

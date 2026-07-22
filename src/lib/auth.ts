@@ -10,19 +10,19 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.username || !credentials?.password) return null;
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { username: credentials.username.toLowerCase().trim() },
         });
         if (!user) return null;
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) return null;
         return {
-          id: user.id, email: user.email, name: user.name, role: user.role, office: user.office,
+          id: user.id, username: user.username, email: user.email, name: user.name, role: user.role, office: user.office,
           modules: user.modules, permissions: user.permissions, pmName: user.pmName, techId: user.techId,
         } as any;
       },
@@ -32,6 +32,7 @@ export const authOptions: NextAuthOptions = {
     jwt: async ({ token, user }) => {
       if (user) {
         token.id = user.id;
+        token.username = (user as any).username;
         token.role = (user as any).role;
         token.office = (user as any).office;
         token.modules = (user as any).modules;
@@ -44,6 +45,7 @@ export const authOptions: NextAuthOptions = {
     session: async ({ session, token }) => {
       if (token && session.user) {
         session.user.id = token.id as string;
+        (session.user as any).username = token.username;
         (session.user as any).role = token.role;
         (session.user as any).office = token.office;
         (session.user as any).modules = token.modules;

@@ -10,41 +10,43 @@ async function main() {
 
   // Admin account — sees all offices
   await prisma.user.upsert({
-    where: { email: "admin@critterstop.com" },
+    where: { username: "mpaulo" },
     update: {},
     create: {
-      email: "admin@critterstop.com",
-      name: "Admin",
+      username: "mpaulo",
+      email: "mpaulo@critterstop.com",
+      name: "Mark Paulo",
       password: pw,
-      role: "ADMIN",
+      role: "Admin",
       office: "ALL",
     },
   });
 
   // Office accounts
   const offices = [
-    { email: "dfw@critterstoppest.com", name: "DFW Office", office: "DFW" },
-    { email: "atx@critterstoppest.com", name: "ATX Office", office: "ATX" },
-    { email: "cstat@critterstoppest.com", name: "CStat Office", office: "CSTAT" },
-    { email: "okc@critterstoppest.com", name: "OKC Office", office: "OKC" },
+    { username: "dfw", email: "dfw@critterstoppest.com", name: "DFW Office", office: "DFW" },
+    { username: "atx", email: "atx@critterstoppest.com", name: "ATX Office", office: "ATX" },
+    { username: "cstat", email: "cstat@critterstoppest.com", name: "CStat Office", office: "CSTAT" },
+    { username: "okc", email: "okc@critterstoppest.com", name: "OKC Office", office: "OKC" },
   ];
 
   for (const o of offices) {
     await prisma.user.upsert({
-      where: { email: o.email },
+      where: { username: o.username },
       update: {},
       create: {
+        username: o.username,
         email: o.email,
         name: o.name,
         password: pw,
-        role: "MANAGER",
+        role: "Manager",
         office: o.office,
       },
     });
-    console.log(`✓ ${o.name} created — ${o.email}`);
+    console.log(`✓ ${o.name} created — ${o.username}`);
   }
 
-  console.log("✓ Admin created — admin@critterstop.com");
+  console.log("✓ Admin created — mpaulo");
   console.log("All accounts password: CritterStop2026!");
   console.log("Seed complete!");
 }

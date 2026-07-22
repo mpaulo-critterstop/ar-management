@@ -4,7 +4,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -13,9 +13,9 @@ export default function LoginPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setError("");
-    const res = await signIn("credentials", { email, password, redirect: false });
+    const res = await signIn("credentials", { username, password, redirect: false });
     if (res?.ok) router.push('/');
-    else { setError("Invalid email or password"); setLoading(false); }
+    else { setError("Invalid username or password"); setLoading(false); }
   };
 
   return (
@@ -27,8 +27,8 @@ export default function LoginPage() {
         </div>
         <form onSubmit={submit}>
           <div style={{ marginBottom:12 }}>
-            <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#888780", marginBottom:4 }}>Email</label>
-            <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required placeholder="you@company.com" />
+            <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#888780", marginBottom:4 }}>Username</label>
+            <input type="text" autoCapitalize="none" autoCorrect="off" value={username} onChange={e=>setUsername(e.target.value)} required placeholder="e.g. mpaulo" />
           </div>
           <div style={{ marginBottom:16 }}>
             <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#888780", marginBottom:4 }}>Password</label>
