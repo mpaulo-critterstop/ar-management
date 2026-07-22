@@ -72,7 +72,7 @@ export default function LeadsPage() {
   const sUser = session?.user as any;
   const canLeads = canAccessModule(sUser, 'leads');
   const canKpis = canLeads && !perm(sUser, 'hidePmKpis');
-  const canCommissions = canLeads;
+  const canCommissions = canLeads && !perm(sUser, 'hideCommissions');
 
   // If the user can't see the current tab, move them to one they can.
   useEffect(() => {

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { computeCommission, monthStart } from '@/lib/commissions';
-import { canAccessModule, isOwnDataOnly } from '@/lib/access';
+import { canAccessModule, isOwnDataOnly, perm } from '@/lib/access';
 
 // GET /api/leads/commissions?year=2026 → returns all 12 months for that year, per PM.
 // Past months (<= Jun 2026) come from frozen CommissionHistory; Jul 2026+ computed live.
@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
   const sUser = session.user as any;
   // Module gate: must have access to the leads module.
   if (!canAccessModule(sUser, 'leads')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (perm(sUser, 'hideCommissions')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const now = new Date();

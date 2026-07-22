@@ -6,6 +6,7 @@ import { ALL_MODULES } from '@/lib/access';
 const ROLES = ['Admin', 'Manager', 'Accounts Receivable', 'Dispatch', 'CSR', 'Technician', 'Project Manager'];
 const PERM_FLAGS = [
   { key: 'hidePmKpis', label: 'Hide PM KPIs table' },
+  { key: 'hideCommissions', label: 'Hide Commissions table' },
   { key: 'ownDataOnly', label: 'Own data only (row-level restrict)' },
   { key: 'isTeamLeader', label: 'Team leader (sees own crew)' },
 ];
