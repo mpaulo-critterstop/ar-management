@@ -444,7 +444,7 @@ export default function MyPerformancePage() {
                                     const md = dt.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' });
                                     const off = d.status && d.status !== 'WORKED';
                                     const late = (d.minutesLate ?? 0) > 0;
-                                    const t = (v: any) => v ? new Date(v).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }) : '—';
+                                    const t = (v: any) => v ? new Date(v).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }) : '—';
                                     return (
                                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, paddingBottom: 6, borderBottom: i < m.days.length - 1 ? `1px solid ${T.line}` : 'none' }}>
                                         <div style={{ width: 58, flexShrink: 0, color: T.muted }}><span style={{ fontWeight: 600, color: T.ink }}>{dow}</span> {md}</div>
