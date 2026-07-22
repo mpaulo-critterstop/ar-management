@@ -540,3 +540,21 @@ Endpoints exist (attendance, driving via scoreboard/driving-override, TC via com
 already reference crewLeader. Build a crew-scoped mobile endpoint (companion to /api/my-performance).
 EFFORT: moderate, a few focused sessions; bounded, mostly assembling existing pieces. Biggest care item:
 making 3 data tables genuinely usable on a phone.
+
+## TEAM LEADER MOBILE VIEW — COMPLETE (built, deployed)
+Commits 3f22fdc, 20cd004, d010658. Gated by isTeamLeader permission. On /my-performance a "My Team" tab
+appears for team leaders alongside overview/history/trend.
+- Endpoint /api/my-team: crew = active techs where crewLeader = leader's name (leader included). Returns
+  per-member latest TechWeek + YTD + daily attendance rows (TechDayAttendance, latest week); team weekly
+  + YTD averages. isTeamLeader-gated, view-only.
+- Sub-views: Team (member cards, tap→breakdown) | TC Acct (2 inner tabs Close Out %/Callback Rate, ranked
+  best→worst) | Driving (3 inner tabs Max Speed/Alerts per 1k/Idle Ratio from raw maxSpeed/safetyAlertsPer1k/
+  idleRatio, ranked best→worst, lower=better) | Attendance (tap member→daily raw: start-finish/hrs/late or
+  Off/Called out).
+- TIMEZONE: attendance times format America/Chicago (NOT UTC — was 5hr off); dates stay UTC. Matches
+  desktop AttendanceTab convention.
+- Test case: Bryan Bovee (bbovee, W-010) crew of 12. NOTE user changed bbovee's pw during testing + may
+  recreate; needs isTeamLeader flag on to see the tab.
+
+## MILESTONE: all 5 Chisam features COMPLETE (AR, Dispatch, Leads/KPI/Commissions, Field Performance,
+## Access Control) + full org provisioned (Admin + 9 PMs + 57 techs on username logins) + team-leader view.
