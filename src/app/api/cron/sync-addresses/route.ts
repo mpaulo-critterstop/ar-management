@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const isVercelCron = req.headers.get('x-vercel-cron') === '1';
   if (!isVercelCron && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'MANAGER'].includes((session.user as any)?.role)) {
+    if (!session || !['Admin', 'Manager'].includes((session.user as any)?.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }

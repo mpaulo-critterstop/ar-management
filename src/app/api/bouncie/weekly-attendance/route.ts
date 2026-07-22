@@ -38,7 +38,7 @@ function fmtTime(dt: string) {
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session || !['ADMIN', 'MANAGER'].includes((session.user as any)?.role)) {
+  if (!session || !['Admin', 'Manager'].includes((session.user as any)?.role)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

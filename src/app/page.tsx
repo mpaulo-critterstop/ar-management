@@ -36,7 +36,8 @@ export default function HomePage() {
 
   if (!session) return null;
   const role = (session?.user as any)?.role;
-  if (role === 'TECHNICIAN') return null;
+  // Render nothing while techs / own-data users are being redirected to their mobile dashboard.
+  if (role === 'Technician' || isOwnDataOnly(session?.user as any)) return null;
   const fpRoles = ['Admin', 'Manager', 'Technician'];
 
   const hour = new Date().getHours();
