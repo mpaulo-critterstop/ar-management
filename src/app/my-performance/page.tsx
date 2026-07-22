@@ -80,10 +80,10 @@ export default function MyPerformancePage() {
   const score = latest?.totalScore ?? null;
 
   return (
-    <div style={{ background: T.bg, minHeight: '100svh', color: T.ink, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', maxWidth: 480, margin: '0 auto' }}>
+    <div style={{ background: T.bg, minHeight: '100svh', color: T.ink, colorScheme: 'light', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', maxWidth: 480, margin: '0 auto' }}>
       
       {/* Status bar spacer */}
-      <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+      <div style={{ height: 'env(safe-area-inset-top, 0px)', background: T.bg }} />
 
       {/* Header — light, brown accents */}
       <div style={{ padding: '16px 20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -270,7 +270,7 @@ export default function MyPerformancePage() {
       </div>
 
       {/* Bottom safe area */}
-      <div style={{ height: 'env(safe-area-inset-bottom, 20px)' }} />
+      <div style={{ height: 'env(safe-area-inset-bottom, 20px)', background: T.bg }} />
     </div>
   );
 }
