@@ -55,7 +55,10 @@ export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!canAccessModule(session.user as any, 'kpi')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // kpi endpoint returns AR financial totals — allow either kpi or ar module access.
+    if (!canAccessModule(session.user as any, 'kpi') && !canAccessModule(session.user as any, 'ar')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const office = (session?.user as any)?.office;
     const { searchParams } = new URL(req.url);
     const officeParam = searchParams.get('office');
