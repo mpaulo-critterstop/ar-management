@@ -41,7 +41,7 @@ function legacyRoleAccess(role: string | undefined, moduleKey: ModuleKey): boole
 }
 
 // Sub-flag helpers
-export function perm(user: AccessUser | null | undefined, flag: 'hidePmKpis' | 'ownDataOnly' | 'isTeamLeader'): boolean {
+export function perm(user: AccessUser | null | undefined, flag: 'hidePmKpis' | 'hideCommissions' | 'ownDataOnly' | 'isTeamLeader'): boolean {
   return !!(user?.permissions && user.permissions[flag]);
 }
 
