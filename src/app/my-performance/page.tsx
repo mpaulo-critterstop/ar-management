@@ -5,18 +5,18 @@ import { useRouter } from 'next/navigation';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-// Theme: baby blue main surface, brown headers/accents. Score colors stay green/amber/red.
+// Theme (Option 1): light baby-blue surface, brown accents (no heavy brown header). Scores stay green/amber/red.
 const T = {
-  bg: '#CADEEF',          // baby blue page
-  card: '#FFFFFF',        // white cards on blue
-  cardSoft: '#DCEBF7',    // slightly deeper blue for nested/empty
-  brown: '#6B4E2E',       // brown header/buttons
-  brownDark: '#5A4025',   // brown pressed/border
-  brownText: '#633806',   // brown label text
-  cream: '#F5E6D0',       // text on brown
-  creamDim: '#E8D2B0',    // dim text on brown
-  ink: '#2C2C2A',         // primary text on light
-  muted: '#7C7A73',       // muted text on light
+  bg: '#EAF2FA',          // light baby blue page (softer for mobile)
+  card: '#FFFFFF',        // white cards
+  cardSoft: '#DCEBF7',    // deeper blue tint for nested/empty
+  brown: '#6B4E2E',       // brown accent (avatar, active tab)
+  brownDark: '#5A4025',
+  brownText: '#7A5A34',   // brown label text (a touch lighter for on-white)
+  cream: '#FFFFFF',       // text on brown accent
+  creamDim: '#EFE3D2',
+  ink: '#2C2C2A',         // primary text
+  muted: '#7C7A73',       // muted text
   faint: '#A9A79E',       // faint text
   line: 'rgba(107,78,46,0.12)', // hairline (brown tint)
 };
@@ -82,37 +82,37 @@ export default function MyPerformancePage() {
   return (
     <div style={{ background: T.bg, minHeight: '100svh', color: T.ink, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', maxWidth: 480, margin: '0 auto' }}>
       
-      {/* Status bar spacer (brown, blends into header) */}
-      <div style={{ height: 'env(safe-area-inset-top, 0px)', background: T.brown }} />
+      {/* Status bar spacer */}
+      <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
 
-      {/* Header — brown bar */}
-      <div style={{ background: T.brown, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Header — light, brown accents */}
+      <div style={{ padding: '16px 20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 38, height: 38, borderRadius: '50%', background: T.cream, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: T.brown }}>
+          <div style={{ width: 38, height: 38, borderRadius: '50%', background: T.brown, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>
             {technician.name.split(' ').map((n: string) => n[0]).slice(0,2).join('')}
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: T.cream }}>{technician.name}</div>
-            <div style={{ fontSize: 11, color: T.creamDim, display: 'flex', gap: 6, alignItems: 'center', marginTop: 1 }}>
-              <span style={{ fontWeight: 500 }}>{technician.team}</span>
+            <div style={{ fontSize: 15, fontWeight: 600, color: T.ink }}>{technician.name}</div>
+            <div style={{ fontSize: 11, color: T.muted, display: 'flex', gap: 6, alignItems: 'center', marginTop: 1 }}>
+              <span style={{ color: T.brownText, fontWeight: 500 }}>{technician.team}</span>
               <span>·</span><span>{technician.office}</span>
               {technician.crewLeader && technician.crewLeader !== technician.name && <><span>·</span><span>{technician.crewLeader}</span></>}
             </div>
           </div>
         </div>
         <button onClick={() => signOut({ callbackUrl: '/login' })}
-          style={{ fontSize: 12, color: T.creamDim, background: T.brownDark, border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer' }}>
+          style={{ fontSize: 12, color: T.brownText, background: 'rgba(107,78,46,0.08)', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer' }}>
           Sign out
         </button>
       </div>
 
       {/* Tab nav */}
-      <div style={{ display: 'flex', padding: '14px 20px 0', gap: 4 }}>
+      <div style={{ display: 'flex', padding: '16px 20px 0', gap: 4 }}>
         {(['overview', 'history', 'trend'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ flex: 1, padding: '9px 0', fontSize: 13, fontWeight: 500, borderRadius: 10, border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-              background: activeTab === tab ? T.brown : 'rgba(107,78,46,0.10)',
-              color: activeTab === tab ? T.cream : T.brownText }}>
+              background: activeTab === tab ? T.brown : 'rgba(107,78,46,0.08)',
+              color: activeTab === tab ? '#fff' : T.brownText }}>
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
