@@ -44,6 +44,22 @@ function fmtWeek(d: string) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
+// Team sub-view metric definitions. lowerIsBetter controls both sort direction and the good/bad color.
+const TC_METRICS = [
+  { key: 'closeOutPct', label: 'Close Out %', fmt: (v: number) => (v * 100).toFixed(1) + '%', lowerIsBetter: false, good: (v: number) => v >= 0.85 },
+  { key: 'callbackRate', label: 'Callback Rate', fmt: (v: number) => (v * 100).toFixed(1) + '%', lowerIsBetter: true, good: (v: number) => v <= 0.15 },
+] as const;
+const DRIVING_METRICS = [
+  { key: 'maxSpeed', label: 'Max Speed', fmt: (v: number) => Math.round(v) + ' mph', lowerIsBetter: true, good: (v: number) => v <= 80 },
+  { key: 'safetyAlertsPer1k', label: 'Alerts / 1k mi', fmt: (v: number) => v.toFixed(1), lowerIsBetter: true, good: (v: number) => v <= 5 },
+  { key: 'idleRatio', label: 'Idle Ratio', fmt: (v: number) => (v * 100).toFixed(1) + '%', lowerIsBetter: true, good: (v: number) => v <= 0.15 },
+] as const;
+
+function sortByMetric(members: any[], key: string, lowerIsBetter: boolean) {
+  return [...members].filter(m => m.latest && m.latest[key] !== null && m.latest[key] !== undefined)
+    .sort((a, b) => lowerIsBetter ? a.latest[key] - b.latest[key] : b.latest[key] - a.latest[key]);
+}
+
 export default function MyPerformancePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -55,6 +71,8 @@ export default function MyPerformancePage() {
   const [teamData, setTeamData] = useState<any>(null);
   const [teamView, setTeamView] = useState<'roster' | 'tc' | 'driving' | 'attendance'>('roster');
   const [openMember, setOpenMember] = useState<string | null>(null);
+  const [tcMetric, setTcMetric] = useState(0);       // index into TC_METRICS
+  const [drivingMetric, setDrivingMetric] = useState(0); // index into DRIVING_METRICS
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -306,63 +324,152 @@ export default function MyPerformancePage() {
                   ))}
                 </div>
 
-                {/* Member list */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {teamData.members.map((m: any) => {
-                    const l = m.latest;
-                    // Which metric this sub-view highlights on the right of each card.
-                    const metric = teamView === 'roster' ? l?.totalScore
-                      : teamView === 'driving' ? l?.drivingScore
-                      : teamView === 'attendance' ? l?.reliabilityScore
-                      : l?.completionPct; // tc
-                    const metricLabel = teamView === 'roster' ? 'Weekly' : teamView === 'driving' ? 'Driving' : teamView === 'attendance' ? 'Attendance' : 'Completion';
-                    const isOpen = openMember === m.techId;
-                    return (
-                      <div key={m.techId} style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.line}`, overflow: 'hidden' }}>
-                        <button onClick={() => setOpenMember(isOpen ? null : m.techId)}
-                          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                          <div style={{ width: 34, height: 34, borderRadius: '50%', background: m.isLeader ? T.brown : 'rgba(138,106,68,0.14)', color: m.isLeader ? '#fff' : T.brownText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                            {m.name.split(' ').map((n: string) => n[0]).slice(0,2).join('')}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 14, fontWeight: 500, color: T.ink }}>{m.name}{m.isLeader && <span style={{ fontSize: 10, color: T.brownText, marginLeft: 6, fontWeight: 600 }}>YOU</span>}</div>
-                            <div style={{ fontSize: 11, color: T.faint }}>{m.team} · {m.office}</div>
-                          </div>
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontSize: 17, fontWeight: 700, color: scoreColor(metric ?? null) }}>{pct(metric ?? null)}</div>
-                            <div style={{ fontSize: 10, color: T.faint }}>{metricLabel}</div>
-                          </div>
-                        </button>
-                        {isOpen && (
-                          <div style={{ padding: '0 14px 14px', borderTop: `1px solid ${T.line}` }}>
-                            {!l ? (
-                              <div style={{ fontSize: 12, color: T.muted, paddingTop: 12 }}>No scored week yet this period.</div>
-                            ) : (
-                              <div style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                {[
-                                  { label: 'Weekly score', value: pct(l.totalScore), good: (l.totalScore ?? 0) >= 0.90 },
-                                  { label: 'Close-out %', value: pct(l.closeOutPct), good: (l.closeOutPct ?? 0) >= 0.85 },
-                                  { label: 'Callback rate', value: pct(l.callbackRate), good: (l.callbackRate ?? 1) <= 0.15 },
-                                  { label: 'Completion %', value: pct(l.completionPct), good: (l.completionPct ?? 0) >= 0.95 },
-                                  { label: 'Driving', value: pct(l.drivingScore), good: (l.drivingScore ?? 0) >= 0.90 },
-                                  { label: 'Attendance', value: pct(l.reliabilityScore), good: (l.reliabilityScore ?? 0) >= 0.90 },
-                                  { label: 'YTD avg', value: pct(m.ytd), good: (m.ytd ?? 0) >= 0.90 },
-                                ].map((row, i, arr) => (
-                                  <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, paddingBottom: i < arr.length - 1 ? 8 : 0, borderBottom: i < arr.length - 1 ? `1px solid ${T.line}` : 'none' }}>
-                                    <span style={{ color: T.muted }}>{row.label}</span>
-                                    <span style={{ fontWeight: 600, color: row.good ? '#16a34a' : '#d97706' }}>{row.value}</span>
-                                  </div>
-                                ))}
-                                {l.drivingOverride && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 2 }}>⚠ Driving incident flagged this week</div>}
-                              </div>
-                            )}
-                          </div>
-                        )}
+                {/* ROSTER — member cards, tap for breakdown */}
+                {teamView === 'roster' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {teamData.members.map((m: any) => {
+                      const l = m.latest;
+                      const isOpen = openMember === m.techId;
+                      return (
+                        <div key={m.techId} style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.line}`, overflow: 'hidden' }}>
+                          <button onClick={() => setOpenMember(isOpen ? null : m.techId)}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                            <div style={{ width: 34, height: 34, borderRadius: '50%', background: m.isLeader ? T.brown : 'rgba(138,106,68,0.14)', color: m.isLeader ? '#fff' : T.brownText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                              {m.name.split(' ').map((n: string) => n[0]).slice(0,2).join('')}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 14, fontWeight: 500, color: T.ink }}>{m.name}{m.isLeader && <span style={{ fontSize: 10, color: T.brownText, marginLeft: 6, fontWeight: 600 }}>YOU</span>}</div>
+                              <div style={{ fontSize: 11, color: T.faint }}>{m.team} · {m.office}</div>
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                              <div style={{ fontSize: 17, fontWeight: 700, color: scoreColor(l?.totalScore ?? null) }}>{pct(l?.totalScore ?? null)}</div>
+                              <div style={{ fontSize: 10, color: T.faint }}>Weekly</div>
+                            </div>
+                          </button>
+                          {isOpen && (
+                            <div style={{ padding: '0 14px 14px', borderTop: `1px solid ${T.line}` }}>
+                              {!l ? (
+                                <div style={{ fontSize: 12, color: T.muted, paddingTop: 12 }}>No scored week yet this period.</div>
+                              ) : (
+                                <div style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                  {[
+                                    { label: 'Weekly score', value: pct(l.totalScore), good: (l.totalScore ?? 0) >= 0.90 },
+                                    { label: 'Close-out %', value: pct(l.closeOutPct), good: (l.closeOutPct ?? 0) >= 0.85 },
+                                    { label: 'Callback rate', value: pct(l.callbackRate), good: (l.callbackRate ?? 1) <= 0.15 },
+                                    { label: 'Driving', value: pct(l.drivingScore), good: (l.drivingScore ?? 0) >= 0.90 },
+                                    { label: 'Attendance', value: pct(l.reliabilityScore), good: (l.reliabilityScore ?? 0) >= 0.90 },
+                                    { label: 'YTD avg', value: pct(m.ytd), good: (m.ytd ?? 0) >= 0.90 },
+                                  ].map((row, i, arr) => (
+                                    <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, paddingBottom: i < arr.length - 1 ? 8 : 0, borderBottom: i < arr.length - 1 ? `1px solid ${T.line}` : 'none' }}>
+                                      <span style={{ color: T.muted }}>{row.label}</span>
+                                      <span style={{ fontWeight: 600, color: row.good ? '#16a34a' : '#d97706' }}>{row.value}</span>
+                                    </div>
+                                  ))}
+                                  {l.drivingOverride && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 2 }}>⚠ Driving incident flagged this week</div>}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* TC ACCT — pick Close Out % or Callback Rate, ranked best→worst */}
+                {teamView === 'tc' && (() => {
+                  const met = TC_METRICS[tcMetric];
+                  const ranked = sortByMetric(teamData.members, met.key, met.lowerIsBetter);
+                  return (
+                    <>
+                      <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                        {TC_METRICS.map((mm, i) => (
+                          <button key={mm.key} onClick={() => setTcMetric(i)}
+                            style={{ flex: 1, padding: '6px 0', fontSize: 12, fontWeight: 500, borderRadius: 8, border: `1px solid ${tcMetric === i ? T.brown : T.line}`, cursor: 'pointer', background: tcMetric === i ? 'rgba(138,106,68,0.12)' : '#fff', color: T.brownText }}>
+                            {mm.label}
+                          </button>
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
-                <div style={{ fontSize: 11, color: T.faint, textAlign: 'center', marginTop: 14 }}>View only · tap a member for their breakdown</div>
+                      <RankedList ranked={ranked} met={met} T={T} />
+                    </>
+                  );
+                })()}
+
+                {/* DRIVING — Max Speed / Alerts per 1k / Idle Ratio, ranked best→worst */}
+                {teamView === 'driving' && (() => {
+                  const met = DRIVING_METRICS[drivingMetric];
+                  const ranked = sortByMetric(teamData.members, met.key, met.lowerIsBetter);
+                  return (
+                    <>
+                      <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                        {DRIVING_METRICS.map((mm, i) => (
+                          <button key={mm.key} onClick={() => setDrivingMetric(i)}
+                            style={{ flex: 1, padding: '6px 0', fontSize: 11, fontWeight: 500, borderRadius: 8, border: `1px solid ${drivingMetric === i ? T.brown : T.line}`, cursor: 'pointer', background: drivingMetric === i ? 'rgba(138,106,68,0.12)' : '#fff', color: T.brownText }}>
+                            {mm.label}
+                          </button>
+                        ))}
+                      </div>
+                      <RankedList ranked={ranked} met={met} T={T} />
+                    </>
+                  );
+                })()}
+
+                {/* ATTENDANCE — tap a member for their daily raw data */}
+                {teamView === 'attendance' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {teamData.members.map((m: any) => {
+                      const isOpen = openMember === m.techId;
+                      return (
+                        <div key={m.techId} style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.line}`, overflow: 'hidden' }}>
+                          <button onClick={() => setOpenMember(isOpen ? null : m.techId)}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                            <div style={{ width: 34, height: 34, borderRadius: '50%', background: m.isLeader ? T.brown : 'rgba(138,106,68,0.14)', color: m.isLeader ? '#fff' : T.brownText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                              {m.name.split(' ').map((n: string) => n[0]).slice(0,2).join('')}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 14, fontWeight: 500, color: T.ink }}>{m.name}{m.isLeader && <span style={{ fontSize: 10, color: T.brownText, marginLeft: 6, fontWeight: 600 }}>YOU</span>}</div>
+                              <div style={{ fontSize: 11, color: T.faint }}>Attendance · {pct(m.latest?.reliabilityScore ?? null)}</div>
+                            </div>
+                            <div style={{ fontSize: 12, color: T.faint }}>{isOpen ? '▲' : '▼'}</div>
+                          </button>
+                          {isOpen && (
+                            <div style={{ padding: '0 14px 14px', borderTop: `1px solid ${T.line}` }}>
+                              {(!m.days || m.days.length === 0) ? (
+                                <div style={{ fontSize: 12, color: T.muted, paddingTop: 12 }}>No daily attendance recorded for this week.</div>
+                              ) : (
+                                <div style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                  {m.days.map((d: any, i: number) => {
+                                    const dt = new Date(d.date);
+                                    const dow = dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+                                    const md = dt.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' });
+                                    const off = d.status && d.status !== 'WORKED';
+                                    const late = (d.minutesLate ?? 0) > 0;
+                                    const t = (v: any) => v ? new Date(v).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }) : '—';
+                                    return (
+                                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, paddingBottom: 6, borderBottom: i < m.days.length - 1 ? `1px solid ${T.line}` : 'none' }}>
+                                        <div style={{ width: 58, flexShrink: 0, color: T.muted }}><span style={{ fontWeight: 600, color: T.ink }}>{dow}</span> {md}</div>
+                                        {off ? (
+                                          <div style={{ flex: 1, color: '#854F0B', fontWeight: 500 }}>{d.status === 'CALL_OUT' ? 'Called out' : 'Off'}</div>
+                                        ) : (
+                                          <>
+                                            <div style={{ flex: 1, color: T.muted }}>{t(d.startTime)}–{t(d.finishTime)}{d.hrsWorked != null ? ` · ${d.hrsWorked.toFixed(1)}h` : ''}</div>
+                                            <div style={{ flexShrink: 0, fontWeight: 600, color: late ? '#d97706' : '#16a34a' }}>{late ? `${Math.round(d.minutesLate)}m late` : 'On time'}</div>
+                                          </>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div style={{ fontSize: 11, color: T.faint, textAlign: 'center', marginTop: 14 }}>View only{teamData.latestWeekEnd ? ` · Week of ${fmtWeek(teamData.latestWeekEnd)}` : ''}</div>
               </>
             )}
           </div>
@@ -371,6 +478,31 @@ export default function MyPerformancePage() {
 
       {/* Bottom safe area */}
       <div style={{ height: 'env(safe-area-inset-bottom, 20px)', background: T.bg }} />
+    </div>
+  );
+}
+
+// Ranked list for TC / Driving sub-views: members sorted best→worst on the chosen metric.
+function RankedList({ ranked, met, T }: { ranked: any[]; met: any; T: any }) {
+  if (ranked.length === 0) {
+    return <div style={{ textAlign: 'center', padding: 24, color: T.muted, fontSize: 12 }}>No data for this metric this week.</div>;
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {ranked.map((m, i) => {
+        const v = m.latest[met.key];
+        const good = met.good(v);
+        return (
+          <div key={m.techId} style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.line}`, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+            <div style={{ width: 22, textAlign: 'center', fontSize: 13, fontWeight: 700, color: T.faint, flexShrink: 0 }}>{i + 1}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: T.ink }}>{m.name}{m.isLeader && <span style={{ fontSize: 10, color: T.brownText, marginLeft: 6, fontWeight: 600 }}>YOU</span>}</div>
+              <div style={{ fontSize: 11, color: T.faint }}>{m.team} · {m.office}</div>
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: good ? '#16a34a' : '#d97706', flexShrink: 0 }}>{met.fmt(v)}</div>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -38,6 +38,17 @@ export async function GET() {
     orderBy: { weekEnd: 'desc' },
   });
 
+  // Most recent week-end present, to scope the daily attendance drill-down.
+  const latestWeekEnd = allWeeks[0]?.weekEnd || null;
+
+  // Daily attendance rows for the crew for the latest week (for the per-member day breakdown).
+  const dayRows = latestWeekEnd
+    ? await prisma.techDayAttendance.findMany({
+        where: { techId: { in: crewIds }, weekEnd: latestWeekEnd },
+        orderBy: { date: 'asc' },
+      })
+    : [];
+
   const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
 
   // Build per-member summary.
@@ -45,15 +56,20 @@ export async function GET() {
     const weeks = allWeeks.filter(w => w.techId === c.techId);
     const latest = weeks[0] || null;
     const ytd = avg(weeks.filter(w => w.totalScore !== null).map(w => w.totalScore!));
+    const days = dayRows.filter(d => d.techId === c.techId).map(d => ({
+      date: d.date, status: d.status, scheduledHrs: d.scheduledHrs,
+      startTime: d.startTime, finishTime: d.finishTime, minutesLate: d.minutesLate, hrsWorked: d.hrsWorked,
+    }));
     return {
       techId: c.techId,
       name: c.name,
       team: c.team,
       office: c.office,
       isLeader: c.techId === leader.techId,
-      latest,          // full latest TechWeek row (has driving, reliability, closeOut, completion, etc.)
+      latest,          // full latest TechWeek row (driving raw incl. maxSpeed/safetyAlertsPer1k/idleRatio)
       ytd,
       weekCount: weeks.length,
+      days,            // daily attendance rows for the latest week
     };
   });
 
@@ -68,6 +84,6 @@ export async function GET() {
     teamAvgWeekly,
     teamAvgYtd,
     memberCount: members.length,
-    latestWeekEnd: allWeeks[0]?.weekEnd || null,
+    latestWeekEnd,
   });
 }
