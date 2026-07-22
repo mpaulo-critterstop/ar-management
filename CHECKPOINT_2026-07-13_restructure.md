@@ -518,3 +518,25 @@ to be added to those endpoints (discussed, NOT yet built).
 
 ## RELATED DOCS
 - `FIELD_PERFORMANCE_ARCHITECTURE.md` — full endpoint-by-endpoint review (metric→source→storage map).
+
+## NEXT BUILD (spec ready): TEAM LEADER MOBILE VIEW
+Trigger: user has isTeamLeader permission (flag exists, currently UNUSED). Gated to those users on the
+/my-performance mobile experience. Crew = active technicians where crewLeader = the leader's own name
+(VERIFIED field; siteLeader is a separate finer grouping, ignore). Bryan Bovee (W-010) test case: crew of
+12 incl. himself (his own record has crewLeader=Bryan Bovee).
+SCOPE (agreed with user, keep it bounded — NOT the full 9-tab desktop FP module):
+  1. Their own dashboard (already exists)
+  2. Team members list — each crew member's weekly score (tap → their breakdown), INCLUDE the leader's own
+     row in the list
+  3. Team average — avg across the whole crew
+  4. TC Accountability — crew-scoped
+  5. Driving — crew-scoped
+  6. Attendance — crew-scoped
+DECISION PENDING: view-only vs editing. Claude STRONGLY recommends VIEW-ONLY (no attendance-update /
+driving-override from mobile — editing stays admin/desktop). Confirm before building.
+COMPONENTS EXIST: TcAccountabilityTab (218), DrivingTab (242), AttendanceTab (399) — desktop tables;
+work is crew-scoping + mobile layout (READ frontend-design skill, don't cram desktop tables onto phone).
+Endpoints exist (attendance, driving via scoreboard/driving-override, TC via completion/scoreboard); several
+already reference crewLeader. Build a crew-scoped mobile endpoint (companion to /api/my-performance).
+EFFORT: moderate, a few focused sessions; bounded, mostly assembling existing pieces. Biggest care item:
+making 3 data tables genuinely usable on a phone.
