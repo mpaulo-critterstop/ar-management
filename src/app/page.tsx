@@ -120,7 +120,7 @@ export default function HomePage() {
       icon: '📇',
       title: 'CSR Leads Tracker',
       desc: 'Track customer service rep lead handling and conversions.',
-      href: '/leads?tab=csr',
+      href: '/csr',
       accentColor: '#534AB7',
       main: '—',
       mainLabel: 'CSR leads',

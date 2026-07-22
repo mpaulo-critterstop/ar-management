@@ -60,52 +60,26 @@ export default function LeadsPage() {
   const [pageSize, setPageSize] = useState(100);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'leads' | 'csr' | 'commissions'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'commissions'>('leads');
 
-  // Honor ?tab= for deep links (e.g. the CSR home tile → /leads?tab=csr).
+  // Honor ?tab= for deep links.
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'csr' || t === 'commissions' || t === 'leads') setActiveTab(t as any);
+    if (t === 'commissions' || t === 'leads') setActiveTab(t as any);
   }, []);
 
-  // Access: full leads module unlocks Leads/KPIs/Commissions; csr-only users see only the CSR tab.
+  // Access: full leads module unlocks Leads/KPIs/Commissions.
   const sUser = session?.user as any;
   const canLeads = canAccessModule(sUser, 'leads');
-  const canCsr = canAccessModule(sUser, 'csr');
   const canKpis = canLeads && !perm(sUser, 'hidePmKpis');
   const canCommissions = canLeads;
 
   // If the user can't see the current tab, move them to one they can.
   useEffect(() => {
     if (status !== 'authenticated') return;
-    if (activeTab === 'leads' && !canLeads) setActiveTab(canCsr ? 'csr' : 'commissions');
-    if (activeTab === 'commissions' && !canCommissions) setActiveTab(canLeads ? 'leads' : 'csr');
-    if (activeTab === 'csr' && !canCsr) setActiveTab(canLeads ? 'leads' : 'commissions');
-  }, [status, activeTab, canLeads, canCsr, canCommissions]);
-
-  // CSR tab state
-  const [csrStats, setCsrStats] = useState<any[]>([]);
-  const [csrKpis, setCsrKpis] = useState<any>(null);
-  const [csrLoading, setCsrLoading] = useState(false);
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth(); // 0-indexed
-  const [csrSelectedYear, setCsrSelectedYear] = useState(currentYear);
-  const [csrSelectedMonth, setCsrSelectedMonth] = useState(currentMonth);
-  const [csrFrom, setCsrFrom] = useState(() => {
-    const d = new Date(currentYear, currentMonth, 1);
-    return d.toISOString().split('T')[0];
-  });
-  const [csrTo, setCsrTo] = useState(() => {
-    const d = new Date(currentYear, currentMonth + 1, 0);
-    return d.toISOString().split('T')[0];
-  });
-  const [showManageCSR, setShowManageCSR] = useState(false);
-  const [csrEmployees, setCsrEmployees] = useState<any[]>([]);
-  const [newCSRName, setNewCSRName] = useState('');
-  const [showAddCSR, setShowAddCSR] = useState(false);
-  const [drawerCSR, setDrawerCSR] = useState<any>(null);
-  const [drawerData, setDrawerData] = useState<any>(null);
-  const [drawerLoading, setDrawerLoading] = useState(false);
+    if (activeTab === 'leads' && !canLeads) setActiveTab('commissions');
+    if (activeTab === 'commissions' && !canCommissions) setActiveTab('leads');
+  }, [status, activeTab, canLeads, canCommissions]);
 
   // Import state
   const [showImport, setShowImport] = useState(false);
@@ -117,7 +91,11 @@ export default function LeadsPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
-  }, [status, router]);
+    if (status === 'authenticated' && !canLeads) {
+      // No leads access — send CSR-only users to their page, others home.
+      router.replace(canAccessModule(sUser, 'csr') ? '/csr' : '/');
+    }
+  }, [status, router, canLeads, sUser]);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -140,28 +118,6 @@ export default function LeadsPage() {
   }, [office, statusFilter, pmFilter, from, to]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
-
-  const fetchCSR = useCallback(async () => {
-    setCsrLoading(true);
-    const params = new URLSearchParams();
-    if (csrFrom) params.set('from', csrFrom);
-    if (csrTo) params.set('to', csrTo);
-    const res = await fetch('/api/leads/csr?' + params.toString());
-    const data = await res.json();
-    setCsrStats(data.csrStats || []);
-    setCsrKpis(data.kpis || null);
-    setCsrLoading(false);
-  }, [csrFrom, csrTo]);
-
-  useEffect(() => { if (activeTab === 'csr') fetchCSR(); }, [activeTab, fetchCSR]);
-
-  const fetchCSREmployees = useCallback(async () => {
-    const res = await fetch('/api/leads/csr-employees');
-    const data = await res.json();
-    setCsrEmployees(data.employees || []);
-  }, []);
-
-  useEffect(() => { if (showManageCSR) fetchCSREmployees(); }, [showManageCSR, fetchCSREmployees]);
 
   useEffect(() => {
     fetch('/api/pm')
@@ -245,12 +201,6 @@ export default function LeadsPage() {
               <div style={{ width: '0.5px', background: '#D3D1C7', height: 20, margin: '0 2px' }} />
               <button onClick={() => router.push('/kpi')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: '#888780', background: 'transparent', border: '0.5px solid transparent', cursor: 'pointer' }}>
                 KPIs
-              </button>
-            </>}
-            {canCsr && <>
-              <div style={{ width: '0.5px', background: '#D3D1C7', height: 20, margin: '0 2px' }} />
-              <button onClick={() => setActiveTab('csr')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: activeTab === 'csr' ? '#0052cc' : '#888780', background: activeTab === 'csr' ? '#e6f0ff' : 'transparent', border: activeTab === 'csr' ? '0.5px solid #b3d0ff' : '0.5px solid transparent', cursor: 'pointer' }}>
-                CSR leads tracker
               </button>
             </>}
             {canCommissions && (
@@ -444,164 +394,6 @@ export default function LeadsPage() {
         </>
       )}
 
-      {/* CSR LEADS TRACKER TAB */}
-      {activeTab === 'csr' && canCsr && (
-        <div style={{ marginTop: 16 }}>
-          {/* Year + Month selector */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {[currentYear - 1, currentYear].filter(y => y >= 2026).concat(currentYear < new Date().getFullYear() ? [currentYear + 1] : []).map(y => (
-                  <button key={y} onClick={() => {
-                    setCsrSelectedYear(y);
-                    const m = csrSelectedMonth;
-                    const from = new Date(y, m, 1).toISOString().split('T')[0];
-                    const to = new Date(y, m + 1, 0).toISOString().split('T')[0];
-                    setCsrFrom(from); setCsrTo(to);
-                  }} style={{ padding: '5px 16px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', cursor: 'pointer', fontWeight: 500, background: csrSelectedYear === y ? '#0052cc' : '#fff', color: csrSelectedYear === y ? '#fff' : '#444441' }}>
-                    {y}
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => setShowManageCSR(true)} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: '#444441' }}>
-                👥 Manage CSRs
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((month, idx) => {
-                const isSelected = csrSelectedMonth === idx;
-                const isFuture = csrSelectedYear === currentYear && idx > currentMonth;
-                return (
-                  <button key={month} disabled={isFuture} onClick={() => {
-                    setCsrSelectedMonth(idx);
-                    const from = new Date(csrSelectedYear, idx, 1).toISOString().split('T')[0];
-                    const to = new Date(csrSelectedYear, idx + 1, 0).toISOString().split('T')[0];
-                    setCsrFrom(from); setCsrTo(to);
-                  }} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', cursor: isFuture ? 'not-allowed' : 'pointer', fontWeight: isSelected ? 500 : 400, background: isSelected ? '#0052cc' : isFuture ? '#F1EFE8' : '#fff', color: isSelected ? '#fff' : isFuture ? '#C4C2B8' : '#444441' }}>
-                    {month}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {csrKpis && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
-              {[
-                { label: 'Completed leads', value: csrKpis.completedLeads },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ background: '#F1EFE8', borderRadius: 10, padding: '12px 16px' }}>
-                  <div style={{ fontSize: 12, color: '#888780', marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 500, color: '#2C2C2A' }}>{value}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {csrLoading ? (
-            <div style={{ textAlign: 'center', padding: 40, color: '#888780' }}>Loading...</div>
-          ) : (
-            <div style={{ background: '#fff', border: '0.5px solid #D3D1C7', borderRadius: 12, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ borderBottom: '0.5px solid #D3D1C7', background: '#F9F8F5' }}>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#888780', width: 40 }}>#</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#888780' }}>CSR name</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 100 }}>Completed</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 140 }}>Rescheduled by others</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 150 }}>Rescheduled from others</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 90 }}>Total leads</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#888780', width: 80 }}>Points</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 500, color: '#888780', width: 80 }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {csrStats.length === 0 ? (
-                    <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#888780' }}>No CSR data yet — run the backfill first.</td></tr>
-                  ) : csrStats.map((csr, i) => (
-                    <tr key={csr.name} onClick={async () => {
-                      setDrawerCSR(csr);
-                      setDrawerData(null);
-                      setDrawerLoading(true);
-                      const params = new URLSearchParams({ csrName: csr.name });
-                      if (csrFrom) params.set('from', csrFrom);
-                      if (csrTo) params.set('to', csrTo);
-                      const res = await fetch('/api/leads/csr-detail?' + params.toString());
-                      const data = await res.json();
-                      setDrawerData(data);
-                      setDrawerLoading(false);
-                    }} style={{ borderBottom: '0.5px solid #E8E7E3', background: i % 2 === 0 ? '#fff' : '#FAFAF8', cursor: 'pointer' }}>
-                      <td style={{ padding: '10px 14px', color: '#888780', fontSize: 12 }}>{i + 1}</td>
-                      <td style={{ padding: '10px 14px', fontWeight: 500, color: '#2C2C2A' }}>{csr.name}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', color: '#444441' }}>{csr.completed}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', color: '#444441' }}>{csr.rescheduledByOthers}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', color: '#444441' }}>{csr.rescheduledFromOthers}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', color: '#444441' }}>{csr.totalLeads}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#0052cc' }}>{csr.totalPoints.toFixed(1)}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                        <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: csr.active ? '#EAF3DE' : '#FCEBEB', color: csr.active ? '#3B6D11' : '#A32D2D' }}>
-                          {csr.active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Manage CSRs Modal */}
-      {showManageCSR && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 24, width: 460, maxHeight: '80vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 500 }}>CSR employees</h3>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setShowAddCSR(true)} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer' }}>+ Add CSR</button>
-                <button onClick={() => { setShowManageCSR(false); setShowAddCSR(false); }} style={{ padding: '6px 10px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer' }}>✕</button>
-              </div>
-            </div>
-            {showAddCSR && (
-              <div style={{ background: '#F1EFE8', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 8, color: '#444441' }}>Add a CSR</div>
-                <div style={{ fontSize: 11, color: '#888780', marginBottom: 8 }}>Enter the CSR's full name exactly as it appears in FieldRoutes. All of their FR IDs are matched automatically — no need to enter IDs.</div>
-                <input placeholder="Full name (e.g. Luis Cajas)" value={newCSRName} onChange={e => setNewCSRName(e.target.value)} style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', marginBottom: 8, boxSizing: 'border-box' }} />
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={async () => {
-                    if (!newCSRName.trim()) return;
-                    await fetch('/api/leads/csr-employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newCSRName.trim() }) });
-                    setNewCSRName(''); setShowAddCSR(false); fetchCSREmployees();
-                  }} style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', cursor: 'pointer' }}>Save</button>
-                  <button onClick={() => { setShowAddCSR(false); setNewCSRName(''); }} style={{ padding: '6px 10px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780' }}>Cancel</button>
-                </div>
-              </div>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {csrEmployees.map(emp => (
-                <div key={emp.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', border: '0.5px solid #D3D1C7', borderRadius: 10 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: emp.active ? '#2C2C2A' : '#888780' }}>{emp.name}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button onClick={async () => {
-                      await fetch('/api/leads/csr-employees', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: emp.name, active: !emp.active }) });
-                      fetchCSREmployees();
-                    }} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: 'none', background: emp.active ? '#EAF3DE' : '#FCEBEB', color: emp.active ? '#3B6D11' : '#A32D2D', cursor: 'pointer' }}>
-                      {emp.active ? 'Active' : 'Inactive'}
-                    </button>
-                    <button onClick={async () => {
-                      if (!confirm(`Remove ${emp.name} from the CSR list? Their appointments still count in totals, but they won't show as a CSR row.`)) return;
-                      await fetch('/api/leads/csr-employees', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: emp.name, isCsr: false }) });
-                      fetchCSREmployees();
-                    }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#A32D2D', fontSize: 13, padding: 2 }} title="Remove from CSR list">🗑</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Import Modal */}
       {showImport && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
@@ -637,133 +429,6 @@ export default function LeadsPage() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* CSR Detail Drawer */}
-      {drawerCSR && (
-        <>
-          {/* Backdrop */}
-          <div onClick={() => { setDrawerCSR(null); setDrawerData(null); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 1000 }} />
-          {/* Drawer */}
-          <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 680, background: '#fff', zIndex: 1001, boxShadow: '-4px 0 24px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column' }}>
-            {/* Header */}
-            <div style={{ padding: '20px 24px', borderBottom: '0.5px solid #E8E7E3', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 500, color: '#2C2C2A' }}>{drawerCSR.name}</div>
-                <div style={{ fontSize: 12, color: '#888780', marginTop: 2 }}>{drawerCSR.totalPoints.toFixed(1)} points · {drawerCSR.totalLeads} total leads</div>
-              </div>
-              <button onClick={() => { setDrawerCSR(null); setDrawerData(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#888780', padding: 4 }}>✕</button>
-            </div>
-            {/* Body */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-              {drawerLoading ? (
-                <div style={{ textAlign: 'center', padding: 40, color: '#888780' }}>Loading...</div>
-              ) : drawerData && (
-                <>
-                  {/* Completed */}
-                  <div style={{ marginBottom: 28 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#2C2C2A', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ background: '#EAF3DE', color: '#3B6D11', padding: '2px 8px', borderRadius: 6, fontSize: 12 }}>Completed</span>
-                      <span style={{ color: '#888780', fontSize: 12 }}>{drawerData.completed.length} leads</span>
-                    </div>
-                    {drawerData.completed.length === 0 ? (
-                      <div style={{ fontSize: 12, color: '#888780' }}>None</div>
-                    ) : (
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                        <thead>
-                          <tr style={{ background: '#F8F7F4' }}>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Date</th>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Customer</th>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Office</th>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Service type</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {drawerData.completed.map((r: any, i: number) => (
-                            <tr key={i} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.date}</td>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.customer}</td>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.office}</td>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.serviceType}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-
-                  {/* Rescheduled by others */}
-                  <div style={{ marginBottom: 28 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#2C2C2A', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ background: '#FEF3E2', color: '#854F0B', padding: '2px 8px', borderRadius: 6, fontSize: 12 }}>Rescheduled by others</span>
-                      <span style={{ color: '#888780', fontSize: 12 }}>{drawerData.rescheduledByOthers.length} leads</span>
-                    </div>
-                    {drawerData.rescheduledByOthers.length === 0 ? (
-                      <div style={{ fontSize: 12, color: '#888780' }}>None</div>
-                    ) : (
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                        <thead>
-                          <tr style={{ background: '#F8F7F4' }}>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Date</th>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Customer</th>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Office</th>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Service type</th>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Rescheduled by</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {drawerData.rescheduledByOthers.map((r: any, i: number) => (
-                            <tr key={i} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.date}</td>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.customer}</td>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.office}</td>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.serviceType}</td>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.rescheduledBy}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-
-                  {/* Rescheduled from others */}
-                  <div style={{ marginBottom: 28 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#2C2C2A', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ background: '#E6F1FB', color: '#185FA5', padding: '2px 8px', borderRadius: 6, fontSize: 12 }}>Rescheduled from others</span>
-                      <span style={{ color: '#888780', fontSize: 12 }}>{drawerData.rescheduledFromOthers.length} leads</span>
-                    </div>
-                    {drawerData.rescheduledFromOthers.length === 0 ? (
-                      <div style={{ fontSize: 12, color: '#888780' }}>None</div>
-                    ) : (
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                        <thead>
-                          <tr style={{ background: '#F8F7F4' }}>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Date</th>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Customer</th>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Office</th>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Service type</th>
-                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>Originally booked by</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {drawerData.rescheduledFromOthers.map((r: any, i: number) => (
-                            <tr key={i} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.date}</td>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.customer}</td>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.office}</td>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.serviceType}</td>
-                              <td style={{ padding: '7px 10px', color: '#444441' }}>{r.originallyBookedBy}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </>
       )}
 
       {/* COMMISSIONS TAB */}
