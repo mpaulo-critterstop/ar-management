@@ -18,6 +18,7 @@ export default function HomePage() {
   const [leadsKpis, setLeadsKpis] = useState<any>(null);
   const [dispatchKpis, setDispatchKpis] = useState<any>(null);
   const [dialpadKpis, setDialpadKpis] = useState<any>(null);
+  const [csrKpis, setCsrKpis] = useState<any>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -36,6 +37,7 @@ export default function HomePage() {
     fetch('/api/leads').then(r => r.json()).then(setLeadsKpis).catch(() => {});
     fetch('/api/dispatch').then(r => r.json()).then(setDispatchKpis).catch(() => {});
     fetch('/api/dialpad/calls?range=today').then(r => r.ok ? r.json() : null).then(setDialpadKpis).catch(() => {});
+    fetch('/api/leads/csr').then(r => r.ok ? r.json() : null).then(setCsrKpis).catch(() => {});
   }, [status]);
 
   if (!session) return null;
@@ -128,9 +130,13 @@ export default function HomePage() {
       desc: 'Track customer service rep lead handling and conversions.',
       href: '/csr',
       accentColor: '#534AB7',
-      main: '—',
-      mainLabel: 'CSR leads',
-      stats: null,
+      main: csrKpis ? (csrKpis.csrStats || []).reduce((s: number, c: any) => s + (c.totalLeads || 0), 0) : '—',
+      mainLabel: 'Leads booked this month',
+      stats: csrKpis ? [
+        { label: 'Leads booked this month', value: (csrKpis.csrStats || []).reduce((s: number, c: any) => s + (c.totalLeads || 0), 0) },
+        { label: 'Completed', value: csrKpis.kpis?.completedLeads ?? 0, color: '#1D9E75' },
+        { label: 'Active CSRs', value: (csrKpis.csrStats || []).filter((c: any) => c.active).length },
+      ] : null,
     },
   ];
 
