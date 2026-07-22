@@ -451,7 +451,7 @@ Module-level tier (ar@/dispatcher@/csr@ logins) UNBLOCKED, can build anytime. Ro
 own-commission, tech own-data) depends on commission table + reuses team-leader roster mapping.
 Permissions model sketch earlier in this file (section 13/13d region).
 
-#### #5 ACCESS CONTROL — IN PROGRESS (foundation + client gating done; ENFORCEMENT pending)
+#### #5 ACCESS CONTROL — COMPLETE (built, deployed, tested across all roles)
 Commits c098d52, abc5d2b. Migration RUN (users + modules[]/permissions/pmName/techId).
 DONE: User schema fields; auth JWT+session carry them; lib/access.ts (canAccessModule w/ legacy role
 fallback so existing users keep access, perm(), isOwnDataOnly()); home page tiles filtered by
@@ -465,17 +465,24 @@ STILL TO BUILD (enforcement is the SECURITY layer — client gating alone is NOT
   UI + API done (/admin/users, /api/admin/users, ADMIN-only): create/edit/delete logins with modules,
   permissions (hidePmKpis/ownDataOnly/isTeamLeader), pmName + techId identity links. commissions API
   has module gate + row-level own-PM.
-  REMAINING:
-  1. SUB-ENDPOINT SWEEP — field-performance has many sub-routes (mom, attendance, roster, driving-
-     override, completion, etc.) + dialpad (config, sync, import) still ungated. A restricted user could
-     hit these directly. Systematic sweep needed for full lockdown.
-  2. ROW-LEVEL for field-performance — tech sees only own data via techId (isTeamLeader → own crew).
-     Not yet wired (commissions row-level IS done).
-  3. ROUTE guards — direct nav to /leads etc. should redirect unauthorized (client tiles hidden but
-     pages not guarded).
-  4. hidePmKpis flag — hide PM KPIs table for ar@ (flag exists, not consumed in UI yet).
-  5. Add a nav link to /admin/users (currently must type the URL).
-  6. TEST: create the target logins (ar@/dispatcher@/csr@/pmname@/techname@) and verify enforcement.
+  ESSENTIALLY COMPLETE + tested end-to-end across all roles (Admin, CSR, Technician, AR, PM):
+    - Sub-endpoint gate sweep DONE (all session-authed FP/dialpad/leads sub-routes gated; token cron
+      endpoints + external dialpad webhook deliberately left alone). Commits ca6a41d.
+    - Route guards on every module page DONE (ar server-side; dispatch/kpi/calls/leads/csr/field-performance
+      client-side redirect unauthorized). kpi page also respects hidePmKpis.
+    - Role rename enum->String (Admin/Manager/Accounts Receivable/Dispatch/CSR/Technician/Project Manager);
+      Admin = sole full-access + user-mgmt. Username login (was email) + temp-password + forced-change flow.
+    - Permission flags: hidePmKpis, hideCommissions (both hide tab + content + reject at API), ownDataOnly,
+      isTeamLeader (still UNUSED - only needed if team leads should see whole crew's FP data).
+    - Row-level: PM sees own commission (pmName+ownDataOnly); tech sees own FP (techId) via /my-performance.
+      IMPORTANT: ownDataOnly means different things by identity link - techId => tech mobile dashboard;
+      pmName (no techId) => stays on normal home, commission row-filtered. Home redirect to /my-performance
+      is techId/Technician-only (NOT all ownDataOnly, else a PM hits the tech page's Forbidden).
+    - Home TILE data fixes: AR tile reads /api/kpi (now allows ar OR kpi module); dialpad tile shows
+      today inbound/answered/missed; CSR tile shows completed-this-month (MUST pass from/to or csr endpoint
+      returns ALL-TIME). Lesson: tiles sometimes fetch a different endpoint than the module page.
+    STILL OPTIONAL: isTeamLeader consumption; broader testing as more real users added.
+
 TARGET LOGINS: ar@ (ar+dispatch+leads, hidePmKpis), dispatcher@ (dispatch), csr@ (csr+dialpad),
 pmname@ (leads + own commission via pmName+ownDataOnly), techname@ (field-performance, own data via
 techId; team leaders get isTeamLeader upgrade).
