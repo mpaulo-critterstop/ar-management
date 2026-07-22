@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs';
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
   if (!session) return { ok: false as const, status: 401, error: 'Unauthorized' };
-  if ((session.user as any).role !== 'ADMIN') return { ok: false as const, status: 403, error: 'Forbidden — Admin only' };
+  if ((session.user as any).role !== 'Admin') return { ok: false as const, status: 403, error: 'Forbidden — Admin only' };
   return { ok: true as const };
 }
 
