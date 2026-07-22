@@ -17,6 +17,7 @@ export default function HomePage() {
   const [kpis, setKpis] = useState<any>(null);
   const [leadsKpis, setLeadsKpis] = useState<any>(null);
   const [dispatchKpis, setDispatchKpis] = useState<any>(null);
+  const [dialpadKpis, setDialpadKpis] = useState<any>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -34,6 +35,7 @@ export default function HomePage() {
     fetch('/api/kpi').then(r => r.json()).then(setKpis).catch(() => {});
     fetch('/api/leads').then(r => r.json()).then(setLeadsKpis).catch(() => {});
     fetch('/api/dispatch').then(r => r.json()).then(setDispatchKpis).catch(() => {});
+    fetch('/api/dialpad/calls?range=today').then(r => r.ok ? r.json() : null).then(setDialpadKpis).catch(() => {});
   }, [status]);
 
   if (!session) return null;
@@ -100,9 +102,13 @@ export default function HomePage() {
       desc: 'Analyze inbound call volume, answer rates, agent performance, and first-time callers.',
       href: '/calls',
       accentColor: '#534AB7',
-      main: '—',
-      mainLabel: 'Total inbound',
-      stats: null,
+      main: dialpadKpis ? (dialpadKpis.total ?? 0) : '—',
+      mainLabel: 'Inbound today',
+      stats: dialpadKpis ? [
+        { label: 'Inbound today', value: dialpadKpis.total ?? 0 },
+        { label: 'Answered', value: dialpadKpis.answered ?? 0, color: '#1D9E75' },
+        { label: 'Missed', value: (dialpadKpis.agent_missed ?? 0) + (dialpadKpis.missed_opportunity ?? 0), color: '#A32D2D' },
+      ] : null,
     },
     {
       module: 'field-performance' as ModuleKey,
