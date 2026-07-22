@@ -21,8 +21,9 @@ export default function HomePage() {
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
     if (status === 'authenticated') {
-      const role = (session?.user as any)?.role;
-      if (role === 'TECHNICIAN') { router.replace('/my-performance'); return; }
+      // Techs / own-data users land straight on their personal mobile dashboard.
+      const u = session?.user as any;
+      if (u?.role === 'Technician' || isOwnDataOnly(u)) { router.replace('/my-performance'); return; }
     }
   }, [status, router, session]);
 
