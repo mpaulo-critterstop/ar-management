@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { canAccessModule, isOwnDataOnly, type ModuleKey } from '@/lib/access';
+import { canAccessModule, type ModuleKey } from '@/lib/access';
 
 function fmt(n: number) {
   return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -26,8 +26,9 @@ export default function HomePage() {
       const u = session?.user as any;
       // Force a password change before anything else.
       if (u?.mustChangePassword) { router.replace('/change-password'); return; }
-      // Techs / own-data users land straight on their personal mobile dashboard.
-      if (u?.role === 'Technician' || isOwnDataOnly(u)) { router.replace('/my-performance'); return; }
+      // Only technicians (role or linked techId) go to the personal mobile dashboard.
+      // Other own-data users (e.g. a PM restricted to their own commission) stay on the normal home.
+      if (u?.role === 'Technician' || u?.techId) { router.replace('/my-performance'); return; }
     }
   }, [status, router, session]);
 
@@ -47,8 +48,8 @@ export default function HomePage() {
 
   if (!session) return null;
   const role = (session?.user as any)?.role;
-  // Render nothing while techs / own-data users are being redirected to their mobile dashboard.
-  if (role === 'Technician' || isOwnDataOnly(session?.user as any)) return null;
+  // Render nothing while technicians are being redirected to their mobile dashboard.
+  if (role === 'Technician' || (session?.user as any)?.techId) return null;
   const fpRoles = ['Admin', 'Manager', 'Technician'];
 
   const hour = new Date().getHours();
@@ -122,7 +123,7 @@ export default function HomePage() {
       icon: '📊',
       title: 'Field Professional Effort Meter',
       desc: 'Track field technician performance scores, driving, reliability, and close-out rates.',
-      href: isOwnDataOnly(user) ? '/my-performance' : '/field-performance',
+      href: (user?.role === 'Technician' || user?.techId) ? '/my-performance' : '/field-performance',
       accentColor: '#0F6E56',
       main: '—',
       mainLabel: 'Active techs',
