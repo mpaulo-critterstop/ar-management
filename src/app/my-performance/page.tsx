@@ -49,12 +49,22 @@ export default function MyPerformancePage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'trend'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'trend' | 'team'>('overview');
+
+  const isTeamLeader = !!(session?.user as any)?.permissions?.isTeamLeader;
+  const [teamData, setTeamData] = useState<any>(null);
+  const [teamView, setTeamView] = useState<'roster' | 'tc' | 'driving' | 'attendance'>('roster');
+  const [openMember, setOpenMember] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
     if (status === 'authenticated' && (session?.user as any)?.mustChangePassword) router.replace('/change-password');
   }, [status, router, session]);
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !isTeamLeader) return;
+    fetch('/api/my-team').then(r => r.ok ? r.json() : null).then(setTeamData).catch(() => {});
+  }, [status, isTeamLeader]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -109,12 +119,12 @@ export default function MyPerformancePage() {
 
       {/* Tab nav */}
       <div style={{ display: 'flex', padding: '16px 20px 0', gap: 4 }}>
-        {(['overview', 'history', 'trend'] as const).map(tab => (
+        {(['overview', 'history', 'trend', 'team'] as const).filter(t => t !== 'team' || isTeamLeader).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ flex: 1, padding: '9px 0', fontSize: 13, fontWeight: 500, borderRadius: 10, border: 'none', cursor: 'pointer', transition: 'all 0.15s',
               background: activeTab === tab ? T.brown : 'rgba(138,106,68,0.10)',
               color: activeTab === tab ? '#fff' : T.brownText }}>
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab === 'team' ? 'My Team' : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
       </div>
@@ -266,6 +276,95 @@ export default function MyPerformancePage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* MY TEAM (team leaders only) */}
+        {activeTab === 'team' && isTeamLeader && (
+          <div>
+            {!teamData ? (
+              <div style={{ textAlign: 'center', padding: 40, color: T.muted, fontSize: 13 }}>Loading team…</div>
+            ) : (teamData.members || []).length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 40, color: T.muted, fontSize: 13 }}>No crew members found under your name.</div>
+            ) : (
+              <>
+                {/* Team average */}
+                <div style={{ background: T.card, borderRadius: 20, padding: '20px', textAlign: 'center', border: `1px solid ${teamData.teamAvgWeekly ? scoreColor(teamData.teamAvgWeekly) + '33' : T.line}`, marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, color: T.muted, marginBottom: 6 }}>Team average · {teamData.memberCount} members{teamData.latestWeekEnd ? ` · Week of ${fmtWeek(teamData.latestWeekEnd)}` : ''}</div>
+                  <div style={{ fontSize: 48, fontWeight: 800, color: scoreColor(teamData.teamAvgWeekly), lineHeight: 1, letterSpacing: '-1.5px' }}>{pct(teamData.teamAvgWeekly)}</div>
+                  {teamData.teamAvgYtd !== null && <div style={{ fontSize: 12, color: T.faint, marginTop: 6 }}>YTD {pct(teamData.teamAvgYtd)}</div>}
+                </div>
+
+                {/* Sub-view switch */}
+                <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+                  {([['roster','Team'],['tc','TC Acct'],['driving','Driving'],['attendance','Attendance']] as const).map(([v, lbl]) => (
+                    <button key={v} onClick={() => { setTeamView(v); setOpenMember(null); }}
+                      style={{ flex: 1, padding: '7px 0', fontSize: 12, fontWeight: 500, borderRadius: 9, border: 'none', cursor: 'pointer',
+                        background: teamView === v ? T.brown : 'rgba(138,106,68,0.10)', color: teamView === v ? '#fff' : T.brownText }}>
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Member list */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {teamData.members.map((m: any) => {
+                    const l = m.latest;
+                    // Which metric this sub-view highlights on the right of each card.
+                    const metric = teamView === 'roster' ? l?.totalScore
+                      : teamView === 'driving' ? l?.drivingScore
+                      : teamView === 'attendance' ? l?.reliabilityScore
+                      : l?.completionPct; // tc
+                    const metricLabel = teamView === 'roster' ? 'Weekly' : teamView === 'driving' ? 'Driving' : teamView === 'attendance' ? 'Attendance' : 'Completion';
+                    const isOpen = openMember === m.techId;
+                    return (
+                      <div key={m.techId} style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.line}`, overflow: 'hidden' }}>
+                        <button onClick={() => setOpenMember(isOpen ? null : m.techId)}
+                          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                          <div style={{ width: 34, height: 34, borderRadius: '50%', background: m.isLeader ? T.brown : 'rgba(138,106,68,0.14)', color: m.isLeader ? '#fff' : T.brownText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                            {m.name.split(' ').map((n: string) => n[0]).slice(0,2).join('')}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 14, fontWeight: 500, color: T.ink }}>{m.name}{m.isLeader && <span style={{ fontSize: 10, color: T.brownText, marginLeft: 6, fontWeight: 600 }}>YOU</span>}</div>
+                            <div style={{ fontSize: 11, color: T.faint }}>{m.team} · {m.office}</div>
+                          </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontSize: 17, fontWeight: 700, color: scoreColor(metric ?? null) }}>{pct(metric ?? null)}</div>
+                            <div style={{ fontSize: 10, color: T.faint }}>{metricLabel}</div>
+                          </div>
+                        </button>
+                        {isOpen && (
+                          <div style={{ padding: '0 14px 14px', borderTop: `1px solid ${T.line}` }}>
+                            {!l ? (
+                              <div style={{ fontSize: 12, color: T.muted, paddingTop: 12 }}>No scored week yet this period.</div>
+                            ) : (
+                              <div style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {[
+                                  { label: 'Weekly score', value: pct(l.totalScore), good: (l.totalScore ?? 0) >= 0.90 },
+                                  { label: 'Close-out %', value: pct(l.closeOutPct), good: (l.closeOutPct ?? 0) >= 0.85 },
+                                  { label: 'Callback rate', value: pct(l.callbackRate), good: (l.callbackRate ?? 1) <= 0.15 },
+                                  { label: 'Completion %', value: pct(l.completionPct), good: (l.completionPct ?? 0) >= 0.95 },
+                                  { label: 'Driving', value: pct(l.drivingScore), good: (l.drivingScore ?? 0) >= 0.90 },
+                                  { label: 'Attendance', value: pct(l.reliabilityScore), good: (l.reliabilityScore ?? 0) >= 0.90 },
+                                  { label: 'YTD avg', value: pct(m.ytd), good: (m.ytd ?? 0) >= 0.90 },
+                                ].map((row, i, arr) => (
+                                  <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, paddingBottom: i < arr.length - 1 ? 8 : 0, borderBottom: i < arr.length - 1 ? `1px solid ${T.line}` : 'none' }}>
+                                    <span style={{ color: T.muted }}>{row.label}</span>
+                                    <span style={{ fontWeight: 600, color: row.good ? '#16a34a' : '#d97706' }}>{row.value}</span>
+                                  </div>
+                                ))}
+                                {l.drivingOverride && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 2 }}>⚠ Driving incident flagged this week</div>}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: 11, color: T.faint, textAlign: 'center', marginTop: 14 }}>View only · tap a member for their breakdown</div>
+              </>
+            )}
           </div>
         )}
       </div>
