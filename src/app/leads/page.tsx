@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { CommissionsTab } from './CommissionsTab';
+import { canAccessModule, perm } from '@/lib/access';
 
 const ACCENT = '#0052cc';
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
@@ -60,6 +61,27 @@ export default function LeadsPage() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'leads' | 'csr' | 'commissions'>('leads');
+
+  // Honor ?tab= for deep links (e.g. the CSR home tile → /leads?tab=csr).
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    if (t === 'csr' || t === 'commissions' || t === 'leads') setActiveTab(t as any);
+  }, []);
+
+  // Access: full leads module unlocks Leads/KPIs/Commissions; csr-only users see only the CSR tab.
+  const sUser = session?.user as any;
+  const canLeads = canAccessModule(sUser, 'leads');
+  const canCsr = canAccessModule(sUser, 'csr');
+  const canKpis = canLeads && !perm(sUser, 'hidePmKpis');
+  const canCommissions = canLeads;
+
+  // If the user can't see the current tab, move them to one they can.
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    if (activeTab === 'leads' && !canLeads) setActiveTab(canCsr ? 'csr' : 'commissions');
+    if (activeTab === 'commissions' && !canCommissions) setActiveTab(canLeads ? 'leads' : 'csr');
+    if (activeTab === 'csr' && !canCsr) setActiveTab(canLeads ? 'leads' : 'commissions');
+  }, [status, activeTab, canLeads, canCsr, canCommissions]);
 
   // CSR tab state
   const [csrStats, setCsrStats] = useState<any[]>([]);
@@ -214,22 +236,28 @@ export default function LeadsPage() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', paddingTop: 20 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
-            {OFFICES.map(o => (
+            {canLeads && OFFICES.map(o => (
               <button key={o} onClick={() => { setOffice(o); setActiveTab('leads'); }} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: activeTab === 'leads' && office === o ? '#2C2C2A' : '#888780', background: activeTab === 'leads' && office === o ? '#ffffff' : 'transparent', border: activeTab === 'leads' && office === o ? '0.5px solid #D3D1C7' : '0.5px solid transparent', cursor: 'pointer' }}>
                 {o}
               </button>
             ))}
-            <div style={{ width: '0.5px', background: '#D3D1C7', height: 20, margin: '0 2px' }} />
-            <button onClick={() => router.push('/kpi')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: '#888780', background: 'transparent', border: '0.5px solid transparent', cursor: 'pointer' }}>
-              KPIs
-            </button>
-            <div style={{ width: '0.5px', background: '#D3D1C7', height: 20, margin: '0 2px' }} />
-            <button onClick={() => setActiveTab('csr')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: activeTab === 'csr' ? '#0052cc' : '#888780', background: activeTab === 'csr' ? '#e6f0ff' : 'transparent', border: activeTab === 'csr' ? '0.5px solid #b3d0ff' : '0.5px solid transparent', cursor: 'pointer' }}>
-              CSR leads tracker
-            </button>
-            <button onClick={() => setActiveTab('commissions')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: activeTab === 'commissions' ? '#0052cc' : '#888780', background: activeTab === 'commissions' ? '#e6f0ff' : 'transparent', border: activeTab === 'commissions' ? '0.5px solid #b3d0ff' : '0.5px solid transparent', cursor: 'pointer' }}>
-              Commissions
-            </button>
+            {canKpis && <>
+              <div style={{ width: '0.5px', background: '#D3D1C7', height: 20, margin: '0 2px' }} />
+              <button onClick={() => router.push('/kpi')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: '#888780', background: 'transparent', border: '0.5px solid transparent', cursor: 'pointer' }}>
+                KPIs
+              </button>
+            </>}
+            {canCsr && <>
+              <div style={{ width: '0.5px', background: '#D3D1C7', height: 20, margin: '0 2px' }} />
+              <button onClick={() => setActiveTab('csr')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: activeTab === 'csr' ? '#0052cc' : '#888780', background: activeTab === 'csr' ? '#e6f0ff' : 'transparent', border: activeTab === 'csr' ? '0.5px solid #b3d0ff' : '0.5px solid transparent', cursor: 'pointer' }}>
+                CSR leads tracker
+              </button>
+            </>}
+            {canCommissions && (
+              <button onClick={() => setActiveTab('commissions')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: activeTab === 'commissions' ? '#0052cc' : '#888780', background: activeTab === 'commissions' ? '#e6f0ff' : 'transparent', border: activeTab === 'commissions' ? '0.5px solid #b3d0ff' : '0.5px solid transparent', cursor: 'pointer' }}>
+                Commissions
+              </button>
+            )}
           </div>
         </div>
         <button
@@ -271,7 +299,7 @@ export default function LeadsPage() {
       </div>
 
       {/* LEADS TAB */}
-      {activeTab === 'leads' && (
+      {activeTab === 'leads' && canLeads && (
         <>
           {/* Filters */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
@@ -417,7 +445,7 @@ export default function LeadsPage() {
       )}
 
       {/* CSR LEADS TRACKER TAB */}
-      {activeTab === 'csr' && (
+      {activeTab === 'csr' && canCsr && (
         <div style={{ marginTop: 16 }}>
           {/* Year + Month selector */}
           <div style={{ marginBottom: 16 }}>
@@ -739,7 +767,7 @@ export default function LeadsPage() {
       )}
 
       {/* COMMISSIONS TAB */}
-      {activeTab === 'commissions' && (
+      {activeTab === 'commissions' && canCommissions && (
         <div style={{ marginTop: 16 }}>
           <CommissionsTab />
         </div>
