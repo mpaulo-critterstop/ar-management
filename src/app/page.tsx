@@ -21,8 +21,10 @@ export default function HomePage() {
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
     if (status === 'authenticated') {
-      // Techs / own-data users land straight on their personal mobile dashboard.
       const u = session?.user as any;
+      // Force a password change before anything else.
+      if (u?.mustChangePassword) { router.replace('/change-password'); return; }
+      // Techs / own-data users land straight on their personal mobile dashboard.
       if (u?.role === 'Technician' || isOwnDataOnly(u)) { router.replace('/my-performance'); return; }
     }
   }, [status, router, session]);

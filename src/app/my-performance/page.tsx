@@ -53,7 +53,8 @@ export default function MyPerformancePage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
-  }, [status, router]);
+    if (status === 'authenticated' && (session?.user as any)?.mustChangePassword) router.replace('/change-password');
+  }, [status, router, session]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;

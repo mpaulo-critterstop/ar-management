@@ -15,6 +15,7 @@ model User {
   password  String
   role      String   @default("Manager")
   office    String?
+  mustChangePassword Boolean @default(false)
   // Access control (feature #5). role stays for broad tiers (ADMIN/LEADERSHIP see all).
   modules     String[] @default([])  // module allowlist: ar/dispatch/leads/csr/field-performance/dialpad/kpi
   permissions Json?                  // sub-flags: { hidePmKpis, ownDataOnly, isTeamLeader }

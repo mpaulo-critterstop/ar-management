@@ -24,12 +24,13 @@ export const authOptions: NextAuthOptions = {
         return {
           id: user.id, username: user.username, email: user.email, name: user.name, role: user.role, office: user.office,
           modules: user.modules, permissions: user.permissions, pmName: user.pmName, techId: user.techId,
+          mustChangePassword: user.mustChangePassword,
         } as any;
       },
     }),
   ],
   callbacks: {
-    jwt: async ({ token, user }) => {
+    jwt: async ({ token, user, trigger, session }) => {
       if (user) {
         token.id = user.id;
         token.username = (user as any).username;
@@ -39,6 +40,11 @@ export const authOptions: NextAuthOptions = {
         token.permissions = (user as any).permissions;
         token.pmName = (user as any).pmName;
         token.techId = (user as any).techId;
+        token.mustChangePassword = (user as any).mustChangePassword;
+      }
+      // When the client calls update() after a password change, clear the flag in the token.
+      if (trigger === 'update' && session?.mustChangePassword === false) {
+        token.mustChangePassword = false;
       }
       return token;
     },
@@ -52,6 +58,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).permissions = token.permissions;
         (session.user as any).pmName = token.pmName;
         (session.user as any).techId = token.techId;
+        (session.user as any).mustChangePassword = token.mustChangePassword;
       }
       return session;
     },

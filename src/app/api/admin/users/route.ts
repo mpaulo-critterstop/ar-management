@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
       name, password: hashed,
       role: role || 'Accounts Receivable',
       office: office || null,
+      mustChangePassword: true,
       modules: Array.isArray(modules) ? modules : [],
       permissions: permissions ?? undefined,
       pmName: pmName || null,
@@ -72,7 +73,7 @@ export async function PATCH(req: NextRequest) {
   if (permissions !== undefined) data.permissions = permissions ?? undefined;
   if (pmName !== undefined) data.pmName = pmName || null;
   if (techId !== undefined) data.techId = techId || null;
-  if (password) data.password = await bcrypt.hash(password, 10);
+  if (password) { data.password = await bcrypt.hash(password, 10); data.mustChangePassword = true; }
 
   const user = await prisma.user.update({
     where: { id }, data,
