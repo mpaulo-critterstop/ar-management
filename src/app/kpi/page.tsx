@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { canAccessModule, perm } from '@/lib/access';
 
 const ACCENT = '#0052cc';
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
@@ -37,6 +38,7 @@ export default function KPIPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
+    if (status === 'authenticated' && (!canAccessModule(session?.user as any, 'kpi') || perm(session?.user as any, 'hidePmKpis'))) router.replace('/');
   }, [status, router]);
 
   useEffect(() => {

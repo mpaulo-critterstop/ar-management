@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { canAccessModule } from '@/lib/access';
 
 const RANGES = [
   { label: 'Today', value: 'today' },
@@ -44,6 +45,7 @@ export default function CallsPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
+    if (status === 'authenticated' && !canAccessModule(session?.user as any, 'dialpad')) router.replace('/');
   }, [status, router]);
 
   const loadData = useCallback(async () => {

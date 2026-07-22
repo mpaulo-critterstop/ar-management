@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { canAccessModule } from '@/lib/access';
 import { prisma } from '@/lib/prisma';
 
 function canAccess(role: string) {
@@ -50,6 +51,7 @@ function calcDriving(alertsPer1k: number, maxSpeed: number, idleRatio: number): 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!canAccessModule(session.user as any, 'field-performance')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const role = (session.user as any).role;
   if (!canAccess(role) && role !== 'Technician') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -166,6 +168,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!canAccessModule(session.user as any, 'field-performance')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const role = (session.user as any).role;
   if (!canAccess(role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 

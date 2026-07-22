@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { canAccessModule } from '@/lib/access';
 
 const ACCENT = '#0052cc';
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
@@ -72,6 +73,7 @@ export default function DispatchPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
+    if (status === 'authenticated' && !canAccessModule(session?.user as any, 'dispatch')) router.replace('/');
   }, [status, router]);
 
   const fetchJobs = useCallback(async () => {

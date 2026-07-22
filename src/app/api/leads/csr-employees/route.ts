@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { canAccessModule } from '@/lib/access';
 import { prisma } from '@/lib/prisma';
 
 // Name-based CSR management. A single CSR may have multiple FR employee IDs (multiple office
@@ -11,6 +12,7 @@ import { prisma } from '@/lib/prisma';
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!canAccessModule(session.user as any, 'csr')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const rows = await prisma.csrEmployee.findMany({
     where: { isCsr: true },
@@ -34,6 +36,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!canAccessModule(session.user as any, 'csr')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { name } = await req.json();
   if (!name || !name.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 });
@@ -63,6 +66,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!canAccessModule(session.user as any, 'csr')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { name, active, isCsr } = await req.json();
   if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 });
