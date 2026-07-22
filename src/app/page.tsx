@@ -37,7 +37,12 @@ export default function HomePage() {
     fetch('/api/leads').then(r => r.json()).then(setLeadsKpis).catch(() => {});
     fetch('/api/dispatch').then(r => r.json()).then(setDispatchKpis).catch(() => {});
     fetch('/api/dialpad/calls?range=today').then(r => r.ok ? r.json() : null).then(setDialpadKpis).catch(() => {});
-    fetch('/api/leads/csr').then(r => r.ok ? r.json() : null).then(setCsrKpis).catch(() => {});
+    {
+      const now = new Date();
+      const mFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const mTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+      fetch(`/api/leads/csr?from=${mFrom}&to=${mTo}`).then(r => r.ok ? r.json() : null).then(setCsrKpis).catch(() => {});
+    }
   }, [status]);
 
   if (!session) return null;
