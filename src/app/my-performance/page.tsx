@@ -5,20 +5,20 @@ import { useRouter } from 'next/navigation';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-// Theme (Option 1): light baby-blue surface, brown accents (no heavy brown header). Scores stay green/amber/red.
+// Theme (Option 1): baby-blue surface, lighter warm-brown accents. Scores stay green/amber/red.
 const T = {
-  bg: '#EAF2FA',          // light baby blue page (softer for mobile)
+  bg: '#CFE2F3',          // baby blue page (more saturated / bluer)
   card: '#FFFFFF',        // white cards
-  cardSoft: '#DCEBF7',    // deeper blue tint for nested/empty
-  brown: '#6B4E2E',       // brown accent (avatar, active tab)
-  brownDark: '#5A4025',
-  brownText: '#7A5A34',   // brown label text (a touch lighter for on-white)
+  cardSoft: '#DDEBF8',    // deeper blue tint for nested/empty
+  brown: '#8A6A44',       // lighter, warmer brown accent
+  brownDark: '#75593A',
+  brownText: '#8A6A44',   // lighter brown label text
   cream: '#FFFFFF',       // text on brown accent
   creamDim: '#EFE3D2',
   ink: '#2C2C2A',         // primary text
-  muted: '#7C7A73',       // muted text
-  faint: '#A9A79E',       // faint text
-  line: 'rgba(107,78,46,0.12)', // hairline (brown tint)
+  muted: '#6E6C66',       // muted text (a touch darker for contrast on bluer bg)
+  faint: '#9C9A92',       // faint text
+  line: 'rgba(138,106,68,0.14)', // hairline (warm-brown tint)
 };
 
 function pct(v: number | null) {
@@ -101,7 +101,7 @@ export default function MyPerformancePage() {
           </div>
         </div>
         <button onClick={() => signOut({ callbackUrl: '/login' })}
-          style={{ fontSize: 12, color: T.brownText, background: 'rgba(107,78,46,0.08)', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer' }}>
+          style={{ fontSize: 12, color: T.brownText, background: 'rgba(138,106,68,0.10)', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer' }}>
           Sign out
         </button>
       </div>
@@ -111,7 +111,7 @@ export default function MyPerformancePage() {
         {(['overview', 'history', 'trend'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ flex: 1, padding: '9px 0', fontSize: 13, fontWeight: 500, borderRadius: 10, border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-              background: activeTab === tab ? T.brown : 'rgba(107,78,46,0.08)',
+              background: activeTab === tab ? T.brown : 'rgba(138,106,68,0.10)',
               color: activeTab === tab ? '#fff' : T.brownText }}>
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -194,12 +194,12 @@ export default function MyPerformancePage() {
             {weeks.length === 0 ? (
               <div style={{ textAlign: 'center', color: '#7C7A73', padding: 48, fontSize: 14 }}>No history yet.</div>
             ) : weeks.map((w: any) => (
-              <div key={w.id} style={{ background: '#FFFFFF', borderRadius: 16, padding: 16, border: '1px solid rgba(107,78,46,0.12)' }}>
+              <div key={w.id} style={{ background: '#FFFFFF', borderRadius: 16, padding: 16, border: '1px solid rgba(138,106,68,0.14)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <div style={{ fontSize: 14, fontWeight: 500, color: '#2C2C2A' }}>Week of {fmtWeek(w.weekEnd)}</div>
                   <div style={{ fontSize: 18, fontWeight: 800, color: scoreColor(w.totalScore) }}>{pct(w.totalScore)}</div>
                 </div>
-                <div style={{ height: 3, background: 'rgba(107,78,46,0.12)', borderRadius: 2, marginBottom: 12, overflow: 'hidden' }}>
+                <div style={{ height: 3, background: 'rgba(138,106,68,0.14)', borderRadius: 2, marginBottom: 12, overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${Math.min((w.totalScore || 0) / 1.1 * 100, 100)}%`, background: scoreColor(w.totalScore), borderRadius: 2 }} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
@@ -231,7 +231,7 @@ export default function MyPerformancePage() {
         {activeTab === 'trend' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* Bar chart */}
-            <div style={{ background: '#FFFFFF', borderRadius: 20, padding: '16px 20px', border: '1px solid rgba(107,78,46,0.12)' }}>
+            <div style={{ background: '#FFFFFF', borderRadius: 20, padding: '16px 20px', border: '1px solid rgba(138,106,68,0.14)' }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#633806', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>Monthly Average</div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 100 }}>
                 {MONTHS.map((m, i) => {
@@ -240,7 +240,7 @@ export default function MyPerformancePage() {
                   return (
                     <div key={m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
                       {s && <div style={{ fontSize: 8, color: scoreColor(s), fontWeight: 700 }}>{(s*100).toFixed(0)}</div>}
-                      <div style={{ width: '100%', height: `${h}%`, background: s ? scoreColor(s) : 'rgba(107,78,46,0.10)', borderRadius: '4px 4px 0 0', minHeight: 2 }} />
+                      <div style={{ width: '100%', height: `${h}%`, background: s ? scoreColor(s) : 'rgba(138,106,68,0.12)', borderRadius: '4px 4px 0 0', minHeight: 2 }} />
                       <div style={{ fontSize: 8, color: '#A9A79E' }}>{m}</div>
                     </div>
                   );
@@ -253,12 +253,12 @@ export default function MyPerformancePage() {
             </div>
 
             {/* Weekly trend */}
-            <div style={{ background: '#FFFFFF', borderRadius: 20, padding: '16px 20px', border: '1px solid rgba(107,78,46,0.12)' }}>
+            <div style={{ background: '#FFFFFF', borderRadius: 20, padding: '16px 20px', border: '1px solid rgba(138,106,68,0.14)' }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#633806', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>Last 8 Weeks</div>
               {weeks.slice(0, 8).reverse().map((w: any) => (
                 <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                   <div style={{ fontSize: 11, color: '#7C7A73', width: 46, flexShrink: 0 }}>{fmtWeek(w.weekEnd)}</div>
-                  <div style={{ flex: 1, height: 5, background: 'rgba(107,78,46,0.12)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ flex: 1, height: 5, background: 'rgba(138,106,68,0.14)', borderRadius: 3, overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${Math.min((w.totalScore || 0) / 1.1 * 100, 100)}%`, background: scoreColor(w.totalScore), borderRadius: 3 }} />
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: scoreColor(w.totalScore), width: 46, textAlign: 'right', flexShrink: 0 }}>{pct(w.totalScore)}</div>
