@@ -26,6 +26,7 @@ interface TechRoutes {
   totalNoShow: number;
   completionPct: number | null;
   revEff: number | null;
+  weekProduction: number | null;
 }
 
 const td: React.CSSProperties = { padding: '8px 12px', borderBottom: '0.5px solid #F1EFE8', fontSize: 12, color: '#2C2C2A', whiteSpace: 'nowrap' };
@@ -72,7 +73,7 @@ export function RoutesTab({ weekEnd, office, leaderFilter = '' }: Props) {
     name: r => r.name,
     team: r => r.team,
     routeCount: r => r.routeCount,
-    totalProduction: r => r.totalProduction,
+    totalProduction: r => r.weekProduction ?? r.totalProduction,
     completionPct: r => r.completionPct ?? -1,
     revEff: r => r.revEff ?? -1,
   });
@@ -88,7 +89,7 @@ export function RoutesTab({ weekEnd, office, leaderFilter = '' }: Props) {
   }
 
   // Totals row
-  const totalProd = data.reduce((s, t) => s + t.totalProduction, 0);
+  const totalProd = data.reduce((s, t) => s + (t.weekProduction ?? t.totalProduction), 0);
   const totalRoutes = data.reduce((s, t) => s + t.routeCount, 0);
 
   return (
@@ -121,7 +122,7 @@ export function RoutesTab({ weekEnd, office, leaderFilter = '' }: Props) {
                     </td>
                     <td style={td}>{t.team}</td>
                     <td style={{ ...td, textAlign: 'right' }}>{t.routeCount}</td>
-                    <td style={{ ...td, textAlign: 'right', fontWeight: 500 }}>{money(t.totalProduction)}</td>
+                    <td style={{ ...td, textAlign: 'right', fontWeight: 500 }}>{money(t.weekProduction ?? t.totalProduction)}</td>
                     <td style={{ ...td, textAlign: 'right', color: pctColor(t.completionPct, 0.95), fontWeight: 500 }}>{pct(t.completionPct)}</td>
                     <td style={{ ...td, textAlign: 'right', color: pctColor(t.revEff, 0.90), fontWeight: 500 }}>{pct(t.revEff)}</td>
                   </tr>

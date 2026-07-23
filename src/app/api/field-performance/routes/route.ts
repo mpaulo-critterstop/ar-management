@@ -28,23 +28,25 @@ export async function GET(req: NextRequest) {
   if (!weekEndParam) return NextResponse.json({ error: 'weekEnd required' }, { status: 400 });
   const weekEnd = new Date(weekEndParam + 'T00:00:00.000Z');
 
-  // Per-route rows for the week (+ optional office), joined to tech name/team/leaders.
+  // Per-route rows for the week (+ optional office), joined to tech + their computed TechWeek values.
   const rows = await prisma.$queryRaw<Array<{
     techId: string; name: string; team: string; office: string; frRouteId: string;
     date: Date; completed: number; pending: number; noShow: number; productionValue: number;
     hrDays: number | null; crewLeader: string | null; siteLeader: string | null;
+    twRevEff: number | null; twCompletion: number | null; twProduction: number | null;
   }>>`
     SELECT r."techId", t.name, t.team::text as team, r.office, r."frRouteId", r.date,
            r.completed, r.pending, r."noShow", r."productionValue",
-           t."hrDays", t."crewLeader", t."siteLeader"
+           t."hrDays", t."crewLeader", t."siteLeader",
+           tw."revenueEfficiency" as "twRevEff", tw."completionPct" as "twCompletion",
+           tw."productionValue" as "twProduction"
     FROM tech_routes r
     JOIN technicians t ON t."techId" = r."techId"
+    LEFT JOIN tech_weeks tw ON tw."techId" = r."techId" AND tw."weekEnd" = r."weekEnd"
     WHERE r."weekEnd" = ${weekEnd}
       ${office ? Prisma.sql`AND r.office = ${office}` : Prisma.empty}
     ORDER BY t.name, r.date
   `;
-
-  const INDUSTRY_WEEKLY_PROD_STANDARD = 5676.923077;
 
   // Group by tech.
   const byTech = new Map<string, any>();
@@ -56,6 +58,10 @@ export async function GET(req: NextRequest) {
         hrDays: r.hrDays, crewLeader: r.crewLeader, siteLeader: r.siteLeader,
         routes: [], totalProduction: 0, productiveDays: 0,
         totalCompleted: 0, totalPending: 0, totalNoShow: 0,
+        // Authoritative computed values from TechWeek (same source as the Individuals tab).
+        completionPct: r.twCompletion,
+        revEff: r.twRevEff,
+        weekProduction: r.twProduction,
       });
     }
     const g = byTech.get(r.techId);
@@ -72,21 +78,12 @@ export async function GET(req: NextRequest) {
     if (r.productionValue > 0) g.productiveDays++;
   }
 
-  const techs = [...byTech.values()].map(g => {
-    const hrsPerDay = g.hrDays && g.hrDays > 0 ? g.hrDays : 8;
-    const scheduled = g.totalCompleted + g.totalPending + g.totalNoShow;
-    const completionPct = scheduled > 0 ? g.totalCompleted / scheduled : null;
-    const revEff = (g.totalProduction > 0 && g.productiveDays > 0)
-      ? (g.totalProduction / (g.productiveDays * hrsPerDay) * 40) / INDUSTRY_WEEKLY_PROD_STANDARD
-      : null;
-    return {
-      ...g,
-      totalProduction: Math.round(g.totalProduction * 100) / 100,
-      routeCount: g.routes.length,
-      completionPct,
-      revEff,
-    };
-  });
+  const techs = [...byTech.values()].map(g => ({
+    ...g,
+    totalProduction: Math.round(g.totalProduction * 100) / 100,
+    routeCount: g.routes.length,
+    // completionPct + revEff already set from TechWeek (authoritative).
+  }));
 
   return NextResponse.json({
     weekEnd: weekEnd.toISOString().split('T')[0],
