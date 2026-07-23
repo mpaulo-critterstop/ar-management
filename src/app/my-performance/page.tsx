@@ -83,6 +83,7 @@ export default function MyPerformancePage() {
   const [tcMetric, setTcMetric] = useState(0);       // index into TC_METRICS
   const [drivingMetric, setDrivingMetric] = useState(0); // index into DRIVING_METRICS
   const [routesMetric, setRoutesMetric] = useState(0);   // index into ROUTES_METRICS
+  const [teamWeek, setTeamWeek] = useState<string>('');   // selected week for team view (blank = latest)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -91,8 +92,9 @@ export default function MyPerformancePage() {
 
   useEffect(() => {
     if (status !== 'authenticated' || !isTeamLeader) return;
-    fetch('/api/my-team').then(r => r.ok ? r.json() : null).then(setTeamData).catch(() => {});
-  }, [status, isTeamLeader]);
+    const url = teamWeek ? `/api/my-team?weekEnd=${teamWeek}` : '/api/my-team';
+    fetch(url).then(r => r.ok ? r.json() : null).then(setTeamData).catch(() => {});
+  }, [status, isTeamLeader, teamWeek]);
 
   // When team data (re)loads, default the sub-view to roster (valid for every team).
   useEffect(() => { setTeamView('roster'); }, [teamData?.leader?.team]);
@@ -319,6 +321,19 @@ export default function MyPerformancePage() {
               <div style={{ textAlign: 'center', padding: 40, color: T.muted, fontSize: 13 }}>No crew members found under your name.</div>
             ) : (
               <>
+                {/* Week selector — leader can review any scored week */}
+                {(teamData.availableWeeks || []).length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 12, color: T.muted }}>Week</span>
+                    <select value={teamData.selectedWeek || ''} onChange={e => setTeamWeek(e.target.value)}
+                      style={{ flex: 1, fontSize: 13, padding: '8px 10px', borderRadius: 10, border: `1px solid ${T.line}`, background: T.card, color: T.ink }}>
+                      {teamData.availableWeeks.map((w: string) => (
+                        <option key={w} value={w}>Week of {fmtWeek(w)}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 {/* Team average */}
                 <div style={{ background: T.card, borderRadius: 20, padding: '20px', textAlign: 'center', border: `1px solid ${teamData.teamAvgWeekly ? scoreColor(teamData.teamAvgWeekly) + '33' : T.line}`, marginBottom: 12 }}>
                   <div style={{ fontSize: 12, color: T.muted, marginBottom: 6 }}>Team average · {teamData.memberCount} members{teamData.latestWeekEnd ? ` · Week of ${fmtWeek(teamData.latestWeekEnd)}` : ''}</div>

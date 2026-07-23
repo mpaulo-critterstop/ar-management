@@ -8,7 +8,7 @@ import { perm } from '@/lib/access';
 // Crew = active technicians whose crewLeader = the leader's own name (leader included).
 // View-only: returns each member's latest week + YTD + the metrics needed for the
 // team / driving / attendance / TC-accountability views. No editing.
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const sUser = session.user as any;
@@ -38,12 +38,21 @@ export async function GET() {
     orderBy: { weekEnd: 'desc' },
   });
 
-  // Most recent week-end present, to scope the daily attendance drill-down.
-  // Crew-wide reference week = the most recent week that has ANY scored row across the crew
-  // (skip empty skeleton rows for a week that hasn't been run yet).
-  const latestWeekEnd = allWeeks.find(w => w.totalScore !== null)?.weekEnd || allWeeks[0]?.weekEnd || null;
+  // Distinct week-ends that actually have scored data (for the leader's week picker).
+  const scoredWeekSet = new Set<string>();
+  for (const w of allWeeks) {
+    if (w.totalScore !== null) scoredWeekSet.add(new Date(w.weekEnd).toISOString().split('T')[0]);
+  }
+  const availableWeeks = [...scoredWeekSet].sort().reverse(); // newest first
 
-  // Daily attendance rows for the crew for the latest week (for the per-member day breakdown).
+  // Which week to show: requested (?weekEnd=) if valid, else most recent scored week.
+  const { searchParams } = new URL(req.url);
+  const requestedWeek = searchParams.get('weekEnd');
+  const defaultWeek = availableWeeks[0] || (allWeeks[0] ? new Date(allWeeks[0].weekEnd).toISOString().split('T')[0] : null);
+  const targetWeek = (requestedWeek && scoredWeekSet.has(requestedWeek)) ? requestedWeek : defaultWeek;
+  const latestWeekEnd = targetWeek ? new Date(targetWeek + 'T00:00:00.000Z') : null;
+
+  // Daily attendance rows for the crew for the target week (for the per-member day breakdown).
   const dayRows = latestWeekEnd
     ? await prisma.techDayAttendance.findMany({
         where: { techId: { in: crewIds }, weekEnd: latestWeekEnd },
@@ -91,5 +100,7 @@ export async function GET() {
     teamAvgYtd,
     memberCount: members.length,
     latestWeekEnd,
+    selectedWeek: targetWeek,
+    availableWeeks,
   });
 }
