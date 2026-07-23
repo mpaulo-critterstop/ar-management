@@ -45,6 +45,10 @@ export async function GET(req: NextRequest) {
   const monthly = Object.fromEntries([...monthlyMap.entries()].map(([m, s]) => [m, avg(s)]));
   const ytd = avg(weeks.filter(w => w.totalScore !== null).map(w => w.totalScore!));
 
+  // Show the most recent week that actually has a score — skip empty/skeleton rows
+  // (e.g. a week that was set up but hasn't been run yet).
+  const latestScored = weeks.find(w => w.totalScore !== null) || null;
+
   return NextResponse.json({
     technician: {
       techId: technician.techId,
@@ -53,7 +57,7 @@ export async function GET(req: NextRequest) {
       office: technician.office,
       crewLeader: technician.crewLeader,
     },
-    latest: weeks[0] || null,
+    latest: latestScored,
     weeks: weeks.slice(0, 52),
     monthly,
     ytd,

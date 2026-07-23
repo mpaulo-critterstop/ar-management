@@ -39,7 +39,9 @@ export async function GET() {
   });
 
   // Most recent week-end present, to scope the daily attendance drill-down.
-  const latestWeekEnd = allWeeks[0]?.weekEnd || null;
+  // Crew-wide reference week = the most recent week that has ANY scored row across the crew
+  // (skip empty skeleton rows for a week that hasn't been run yet).
+  const latestWeekEnd = allWeeks.find(w => w.totalScore !== null)?.weekEnd || allWeeks[0]?.weekEnd || null;
 
   // Daily attendance rows for the crew for the latest week (for the per-member day breakdown).
   const dayRows = latestWeekEnd
@@ -54,7 +56,11 @@ export async function GET() {
   // Build per-member summary.
   const members = crew.map(c => {
     const weeks = allWeeks.filter(w => w.techId === c.techId);
-    const latest = weeks[0] || null;
+    // Use each member's row for the crew reference week, so everyone shows the same week.
+    // Fall back to their own latest scored week if they have no row for the reference week.
+    const latest = (latestWeekEnd && weeks.find(w => +new Date(w.weekEnd) === +new Date(latestWeekEnd)))
+      || weeks.find(w => w.totalScore !== null)
+      || weeks[0] || null;
     const ytd = avg(weeks.filter(w => w.totalScore !== null).map(w => w.totalScore!));
     const days = dayRows.filter(d => d.techId === c.techId).map(d => ({
       date: d.date, status: d.status, scheduledHrs: d.scheduledHrs,
