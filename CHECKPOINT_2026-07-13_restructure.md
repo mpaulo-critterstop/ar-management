@@ -558,3 +558,37 @@ appears for team leaders alongside overview/history/trend.
 
 ## MILESTONE: all 5 Chisam features COMPLETE (AR, Dispatch, Leads/KPI/Commissions, Field Performance,
 ## Access Control) + full org provisioned (Admin + 9 PMs + 57 techs on username logins) + team-leader view.
+
+## SESSION (2026-07-23 cont.): PC ROUTES TAB + TEAM-LEADER VIEW REFINEMENTS
+Commits 3a49a97, d0a4ca5, 2dae19a, 6dee980, d203759.
+
+### PC ROUTES TAB (desktop FP module) — DONE
+- New "PC Routes" tab (10th tab, after Driving). Endpoint /api/field-performance/routes (session+module
+  gated, adapts routeDetail diagnostic). RoutesTab.tsx: sortable per-tech table (routes/production/
+  completion/revEff) expandable to per-route detail (date, Route ID, production, completed/pending/noShow).
+- CRITICAL: headline revEff/completion/production read from AUTHORITATIVE TechWeek (LEFT JOIN tech_weeks),
+  NOT recomputed — must match Individuals tab. Per-route detail shows raw tech_routes values.
+- Production source verified bug-free: tech_routes.productionValue written by `week` endpoint WITH the
+  no-show fix (no-show reservice/wildlife → $0, other no-shows → subscription value). Tab is view-only over
+  corrected data, can't reintroduce the FR reporting bug.
+- PENDING: tech/team-leader MOBILE view of PC Routes (only desktop so far).
+
+### TEAM-LEADER MOBILE VIEW — team-specific sub-tabs (was uniform, WRONG)
+Scoring differs by team, so sub-tabs now depend on crew leader's team (teamData.leader.team):
+- WP → Team, TC Acct (closeOut/callback), Driving, Attendance
+- PMP → Team, PC Routes (revEff/completion/production), Reservice (reseviceRate), Driving, Attendance
+- IP → Team, Driving, Attendance
+ROUTES_METRICS + RESERVICE_METRICS added (from TechWeek). Thresholds: revEff≥90, completion≥95,
+reservice≤10 (adjust if PMP targets differ).
+
+### WEEK-SELECTION FIXES
+- Mobile dashboards (my-performance + my-team) now pick latest SCORED week (totalScore != null), not
+  latest existing row — fixes empty un-run week showing (e.g. Warren had skeleton 7/17 row).
+- my-team pins all crew to same reference week (was per-member, mixed weeks).
+- TEAM VIEW now has a WEEK SELECTOR (leader picks any scored week; ?weekEnd= param, availableWeeks list).
+  Personal dashboard intentionally has NO selector (auto-latest + Trend only).
+
+### STILL PENDING
+- 7/17 FPEM not yet run (routes file upload still needed). Once run, 7/17 appears in team week picker.
+- PC Routes mobile view for techs/team leaders.
+- isTeamLeader testing: WP (Bryan bbovee) verified; PMP (Warren) verified. IP crew leader not yet tested.
