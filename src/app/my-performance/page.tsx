@@ -54,6 +54,15 @@ const DRIVING_METRICS = [
   { key: 'safetyAlertsPer1k', label: 'Alerts / 1k mi', fmt: (v: number) => v.toFixed(1), lowerIsBetter: true, good: (v: number) => v <= 5 },
   { key: 'idleRatio', label: 'Idle Ratio', fmt: (v: number) => (v * 100).toFixed(1) + '%', lowerIsBetter: true, good: (v: number) => v <= 0.15 },
 ] as const;
+// PMP-specific: PC Routes production/completion/revEff, and reservice rate.
+const ROUTES_METRICS = [
+  { key: 'revenueEfficiency', label: 'Rev Eff', fmt: (v: number) => (v * 100).toFixed(0) + '%', lowerIsBetter: false, good: (v: number) => v >= 0.90 },
+  { key: 'completionPct', label: 'Completion', fmt: (v: number) => (v * 100).toFixed(0) + '%', lowerIsBetter: false, good: (v: number) => v >= 0.95 },
+  { key: 'productionValue', label: 'Production', fmt: (v: number) => '$' + Math.round(v).toLocaleString(), lowerIsBetter: false, good: () => true },
+] as const;
+const RESERVICE_METRICS = [
+  { key: 'reseviceRate', label: 'Reservice Rate', fmt: (v: number) => (v * 100).toFixed(1) + '%', lowerIsBetter: true, good: (v: number) => v <= 0.10 },
+] as const;
 
 function sortByMetric(members: any[], key: string, lowerIsBetter: boolean) {
   return [...members].filter(m => m.latest && m.latest[key] !== null && m.latest[key] !== undefined)
@@ -69,10 +78,11 @@ export default function MyPerformancePage() {
 
   const isTeamLeader = !!(session?.user as any)?.permissions?.isTeamLeader;
   const [teamData, setTeamData] = useState<any>(null);
-  const [teamView, setTeamView] = useState<'roster' | 'tc' | 'driving' | 'attendance'>('roster');
+  const [teamView, setTeamView] = useState<'roster' | 'tc' | 'routes' | 'reservice' | 'driving' | 'attendance'>('roster');
   const [openMember, setOpenMember] = useState<string | null>(null);
   const [tcMetric, setTcMetric] = useState(0);       // index into TC_METRICS
   const [drivingMetric, setDrivingMetric] = useState(0); // index into DRIVING_METRICS
+  const [routesMetric, setRoutesMetric] = useState(0);   // index into ROUTES_METRICS
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -83,6 +93,9 @@ export default function MyPerformancePage() {
     if (status !== 'authenticated' || !isTeamLeader) return;
     fetch('/api/my-team').then(r => r.ok ? r.json() : null).then(setTeamData).catch(() => {});
   }, [status, isTeamLeader]);
+
+  // When team data (re)loads, default the sub-view to roster (valid for every team).
+  useEffect(() => { setTeamView('roster'); }, [teamData?.leader?.team]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -313,16 +326,26 @@ export default function MyPerformancePage() {
                   {teamData.teamAvgYtd !== null && <div style={{ fontSize: 12, color: T.faint, marginTop: 6 }}>YTD {pct(teamData.teamAvgYtd)}</div>}
                 </div>
 
-                {/* Sub-view switch */}
-                <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
-                  {([['roster','Team'],['tc','TC Acct'],['driving','Driving'],['attendance','Attendance']] as const).map(([v, lbl]) => (
-                    <button key={v} onClick={() => { setTeamView(v); setOpenMember(null); }}
-                      style={{ flex: 1, padding: '7px 0', fontSize: 12, fontWeight: 500, borderRadius: 9, border: 'none', cursor: 'pointer',
-                        background: teamView === v ? T.brown : 'rgba(138,106,68,0.10)', color: teamView === v ? '#fff' : T.brownText }}>
-                      {lbl}
-                    </button>
-                  ))}
-                </div>
+                {/* Sub-view switch — team-specific: WP=TC Acct, PMP=PC Routes+Reservice, IP=none extra. All get Driving+Attendance. */}
+                {(() => {
+                  const lt = teamData.leader?.team;
+                  const tabs: [string, string][] = [['roster', 'Team']];
+                  if (lt === 'WP') tabs.push(['tc', 'TC Acct']);
+                  if (lt === 'PMP') { tabs.push(['routes', 'PC Routes']); tabs.push(['reservice', 'Reservice']); }
+                  tabs.push(['driving', 'Driving']);
+                  tabs.push(['attendance', 'Attendance']);
+                  return (
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
+                      {tabs.map(([v, lbl]) => (
+                        <button key={v} onClick={() => { setTeamView(v as any); setOpenMember(null); }}
+                          style={{ flex: '1 0 auto', minWidth: 64, padding: '7px 8px', fontSize: 12, fontWeight: 500, borderRadius: 9, border: 'none', cursor: 'pointer',
+                            background: teamView === v ? T.brown : 'rgba(138,106,68,0.10)', color: teamView === v ? '#fff' : T.brownText }}>
+                          {lbl}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 {/* ROSTER — member cards, tap for breakdown */}
                 {teamView === 'roster' && (
@@ -412,6 +435,32 @@ export default function MyPerformancePage() {
                       <RankedList ranked={ranked} met={met} T={T} />
                     </>
                   );
+                })()}
+
+                {/* PC ROUTES (PMP) — Rev Eff / Completion / Production, ranked best→worst */}
+                {teamView === 'routes' && (() => {
+                  const met = ROUTES_METRICS[routesMetric];
+                  const ranked = sortByMetric(teamData.members, met.key, met.lowerIsBetter);
+                  return (
+                    <>
+                      <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                        {ROUTES_METRICS.map((mm, i) => (
+                          <button key={mm.key} onClick={() => setRoutesMetric(i)}
+                            style={{ flex: 1, padding: '6px 0', fontSize: 11, fontWeight: 500, borderRadius: 8, border: `1px solid ${routesMetric === i ? T.brown : T.line}`, cursor: 'pointer', background: routesMetric === i ? 'rgba(138,106,68,0.12)' : '#fff', color: T.brownText }}>
+                            {mm.label}
+                          </button>
+                        ))}
+                      </div>
+                      <RankedList ranked={ranked} met={met} T={T} />
+                    </>
+                  );
+                })()}
+
+                {/* RESERVICE (PMP) — reservice rate, ranked best→worst (lower better) */}
+                {teamView === 'reservice' && (() => {
+                  const met = RESERVICE_METRICS[0];
+                  const ranked = sortByMetric(teamData.members, met.key, met.lowerIsBetter);
+                  return <RankedList ranked={ranked} met={met} T={T} />;
                 })()}
 
                 {/* ATTENDANCE — tap a member for their daily raw data */}
