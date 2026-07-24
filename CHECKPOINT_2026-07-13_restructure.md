@@ -592,3 +592,36 @@ reservice≤10 (adjust if PMP targets differ).
 - 7/17 FPEM not yet run (routes file upload still needed). Once run, 7/17 appears in team week picker.
 - PC Routes mobile view for techs/team leaders.
 - isTeamLeader testing: WP (Bryan bbovee) verified; PMP (Warren) verified. IP crew leader not yet tested.
+
+## SESSION (2026-07-24 cont.): 6/26 rerun + FR data-coverage findings
+
+### FP DATA COVERAGE IN DB (verified 2026-07-24)
+- tech_weeks: weeks exist 5/01 → 7/17. Many pre-existing empty rows (IP/WP unscored on various weeks).
+- tech_routes (PMP production/completion source): ONLY 6/12 → 7/10 (5 weeks). Nothing before 6/12.
+- pmp_appointments (reservice): 4/11 → 7/10, rolling ~100-day prune window.
+- tech_day_attendance: back to 1/02. tc_appointments: back to 2022.
+- IMPLICATION: PMP scoring only rerunnable for weeks with tech_routes (6/12,6/19,6/26,7/03,7/10).
+  Older weeks need a fresh FR `week` pull first (may or may not still be retrievable from FR).
+
+### 6/26 RERUN — DONE (was PMP-only scored; now all teams)
+Ran (via curl, token auth): cron/field-performance (WP) + cron/reliability (IP+reliability) for
+weekEnd=2026-06-26. Result: PMP 19/19, WP 21/27, IP 4/5. Remaining unscored are legitimate no-data techs.
+CRON AUTH: cron/field-performance already accepted ?token=critterstop2026; added same token path to
+cron/reliability (commit 64a09bc) so both fire with the token like the rest of the pipeline.
+
+### LESSON 1 — PIPELINE ORDER (WP scoring must run AFTER reliability)
+cron/field-performance WP scoring gates on existing.reliabilityScore. If WP runs before reliability in a
+cycle, techs whose reliability is freshly created that cycle get wpScore but NOT totalScore on first pass.
+Fix: run reliability first, WP last (matches PIPELINE.md order). If run out of order, just re-run WP last.
+
+### LESSON 2 — RERUN SCOPE vs ROSTER CHANGES (important for all backfills)
+cron/field-performance iterates CURRENTLY-ACTIVE techs to fetch FR data. A tech who changed team/ID after
+a week (e.g. Bryan… no — Jonathon Buchner W-020: was WP on 6/26, later transferred to PMP, old WP id
+DEACTIVATED + new PMP id created) gets SKIPPED on rerun because their old id isn't active. Symptom: stale
+wpScore present but totalScore null. Fix used: temporarily reactivate old id (W-020), re-run WP for that
+week, then deactivate again. FUTURE HARDENING: rerun should scope to techs active DURING that week, not
+active now. Will recur on any historical backfill involving a since-transferred tech.
+
+### STILL PENDING
+- 7/17: still empty, no tech_routes — needs full FR pull chain to populate before it can score.
+- Other June/July weeks rerunnable from DB if desired (6/12,6/19,7/03,7/10 have routes).
