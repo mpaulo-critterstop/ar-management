@@ -70,28 +70,36 @@ export function wildlifeCommission(method: CommissionMethod, tiers: any, adjuste
     const t = tiers as BucketTiers;
     if (!leadCount || leadCount <= 0) return 0;
     const revPerLead = adjustedRevenue / leadCount;
-    let comm = 0;
-    for (const b of t.buckets) {
+    // Excel formula: find the SINGLE bucket the rev-per-lead falls into, then commission =
+    // (revPerLead − floorOfFirstBucket) × leadCount × thatBucket'sRate.
+    // (NOT cumulative tier-stacking.) Floor for the "amount above" is the lowest bucket floor (700).
+    const baseFloor = t.buckets[0]?.floor ?? 0;
+    if (revPerLead < baseFloor) return 0;
+    const bucket = t.buckets.find(b => {
       const cap = b.cap === null ? Infinity : b.cap;
-      const perLeadInBucket = Math.max(0, Math.min(revPerLead, cap) - b.floor);
-      comm += perLeadInBucket * leadCount * b.rate;
-    }
-    return comm;
+      return revPerLead >= b.floor && revPerLead < cap;
+    }) ?? t.buckets[t.buckets.length - 1];
+    return (revPerLead - baseFloor) * leadCount * bucket.rate;
   }
   return 0;
 }
 
-// Per-bucket commission breakdown for lead_bucket plans (for display in the commissions table).
-// Returns one entry per bucket: its label, rate, and the commission amount from that bucket.
+// Per-bucket breakdown for display: the commission lands entirely in the ONE bucket the rev-per-lead
+// falls into (matching the Excel). Other buckets show 0.
 export function bucketBreakdown(tiers: any, adjustedRevenue: number, leadCount: number): { label: string; rate: number; amount: number }[] {
   const t = tiers as BucketTiers;
-  if (!leadCount || leadCount <= 0) return (t?.buckets ?? []).map(b => ({ label: bucketLabel(b), rate: b.rate, amount: 0 }));
+  const base = (t?.buckets ?? []).map(b => ({ label: bucketLabel(b), rate: b.rate, amount: 0 }));
+  if (!leadCount || leadCount <= 0) return base;
   const revPerLead = adjustedRevenue / leadCount;
-  return t.buckets.map(b => {
+  const baseFloor = t.buckets[0]?.floor ?? 0;
+  if (revPerLead < baseFloor) return base;
+  const idx = t.buckets.findIndex(b => {
     const cap = b.cap === null ? Infinity : b.cap;
-    const perLeadInBucket = Math.max(0, Math.min(revPerLead, cap) - b.floor);
-    return { label: bucketLabel(b), rate: b.rate, amount: perLeadInBucket * leadCount * b.rate };
+    return revPerLead >= b.floor && revPerLead < cap;
   });
+  const useIdx = idx === -1 ? t.buckets.length - 1 : idx;
+  base[useIdx].amount = (revPerLead - baseFloor) * leadCount * t.buckets[useIdx].rate;
+  return base;
 }
 
 function bucketLabel(b: { floor: number; cap: number | null; rate: number }): string {

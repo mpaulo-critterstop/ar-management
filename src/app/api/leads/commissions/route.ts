@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { computeCommission, monthStart } from '@/lib/commissions';
+import { computeCommission, monthStart, planFor, bucketBreakdown } from '@/lib/commissions';
 import { canAccessModule, isOwnDataOnly, perm } from '@/lib/access';
 
 // GET /api/leads/commissions?year=2026 → returns all 12 months for that year, per PM.
@@ -53,15 +53,29 @@ export async function GET(req: NextRequest) {
       if (monthDate < LIVE_FROM) {
         // Frozen history month
         const h = histMap.get(histKey(pmName, m));
-        months.push(h ? {
-          month: m, source: 'history',
-          bookedRevenue: h.bookedRevenue, cumulativeBookedRevenue: h.cumulativeBookedRevenue,
-          prePeriodDelta: h.prePeriodDelta,
-          otherAdjustment: h.otherAdjustments, adjustedRevenue: h.adjustedBookedRevenue,
-          leadCount: h.numLeads, wildlifeCommission: h.wildlifeCommission,
-          pestControlComm: h.pestControlCommission, totalCommission: h.totalCommission,
-          finalized: true,
-        } : { month: m, source: 'history', empty: true });
+        if (h) {
+          const base: any = {
+            month: m, source: 'history',
+            bookedRevenue: h.bookedRevenue, cumulativeBookedRevenue: h.cumulativeBookedRevenue,
+            prePeriodDelta: h.prePeriodDelta,
+            otherAdjustment: h.otherAdjustments, adjustedRevenue: h.adjustedBookedRevenue,
+            leadCount: h.numLeads, wildlifeCommission: h.wildlifeCommission,
+            pestControlComm: h.pestControlCommission, totalCommission: h.totalCommission,
+            finalized: true,
+          };
+          // For lead_bucket PMs, derive the per-lead + per-bucket display from the frozen
+          // totals (numLeads + adjustedBookedRevenue) so finalized months show the same rows.
+          if (methodByPm.get(pmName) === 'lead_bucket' && h.numLeads && h.numLeads > 0) {
+            const plan = await planFor(pmName, monthDate);
+            const adj = h.adjustedBookedRevenue ?? 0;
+            base.revPerLead = (h.bookedRevenue ?? 0) / h.numLeads;
+            base.adjustedRevPerLead = adj / h.numLeads;
+            if (plan) base.buckets = bucketBreakdown(plan.tiers, adj, h.numLeads);
+          }
+          months.push(base);
+        } else {
+          months.push({ month: m, source: 'history', empty: true });
+        }
       } else if (monthDate <= new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))) {
         // Live computed month (current or a past live month).
         // Displayed "Booked Revenue" = booked + upsell (totalRevenue), to match the PM KPIs
