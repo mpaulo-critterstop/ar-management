@@ -204,7 +204,7 @@ export default function FieldPerformancePage() {
           )}
         </div>
           {/* Manual sync buttons removed — these operations run via scheduled crons.
-              Endpoints remain live: /api/field-performance/{run,week,routeCustomers,pmpAppointments,completion,import-routes},
+              Endpoints remain live: /api/field-performance/{run,week,routeCustomers,pmpAppointments,completion},
               /api/tc-accountability/run, /api/cron/{bouncie,reliability,geocode,sync-addresses,field-performance}. */}
       </div>
 

@@ -59,40 +59,37 @@ not preference. The "depends on" column is the real constraint.
    reservice attribution in `run`.
    *First-time seed only:* add `&backfill=true` (one heavy pull of full 90 days per office).
 
-6. **`/api/field-performance/import-routes`** *(MANUAL CSV upload)*
-   The PC Routes production CSV → `techWeek.productionValue`.
-   CSV columns: "Route Assigned To", "Production Value", "Total Scheduled Services",
-   "Completed Services".
-   ⚠️ CONFIRM: is import-routes still needed, or does `week` (step 4) now fully cover
-   production? (Both write production; clarify which is authoritative for a normal week.)
+   ~~import-routes CSV~~ — **DEPRECATED & DISABLED (2026-07-23).** Production + completion now
+   come entirely from the `week` endpoint (step 4). The old CSV importer wrote the same
+   `techWeek` fields and would overwrite authoritative data, so it now returns HTTP 410.
+   Not part of the weekly run. (Original code in git history if ever needed.)
 
 ### Stage C — Bouncie-derived (THE "LATTER PART")
 
 These run AFTER the FR pulls. Bouncie trip data streams in continuously via
 `/api/bouncie/webhook` → `bouncieTripEvent` (not a pull step).
 
-7. **`/api/cron/bouncie`**
+6. **`/api/cron/bouncie`**
    Driving scores (max speed, alerts/1k mi, idle) → `techWeek.drivingScore` + raw fields.
    *Depends on:* `techWeek` rows existing (Stage B), streamed `bouncieTripEvent`.
 
-8. **`/api/cron/reliability`**
+7. **`/api/cron/reliability`**
    Attendance/punctuality → `techWeek.reliabilityScore` + `techDayAttendance`.
    *Depends on:* geocoded `customer` (step 2) + `bouncieTripEvent` + `techWeek` rows.
    WHY LATTER: needs both customer coords AND Bouncie trips to compute start/end of day.
 
 ### Stage D — Final scoring (reads DB only, no FR fetch)
 
-9. **`/api/field-performance/run?token=critterstop2026&office=X&weekEnd=YYYY-MM-DD`**
+8. **`/api/field-performance/run?token=critterstop2026&office=X&weekEnd=YYYY-MM-DD`**
    PMP reservice rate + revenue efficiency; finalizes PMP `techWeek` scores.
    Reads `tech_routes` + `pmpAppointment` from DB. **Computes from DB — no FR calls.**
 
-10. **`/api/cron/field-performance`**
-    WP scoring finalize (close-out/callback from `tcAppointment`). Skips PMP (handled by
-    the week/thirtyDay/run chain).
+9. **`/api/cron/field-performance`**
+   WP scoring finalize (close-out/callback from `tcAppointment`). Skips PMP (handled by
+   the week/thirtyDay/run chain).
 
-⚠️ CONFIRM (the one spot not provable from code): steps 9–10 (final scoring) run AFTER
-steps 7–8 (bouncie/reliability), so the final weekly score includes driving + reliability.
-Mark confirmed once verified: [ ] confirmed / order is 1→10 as written.
+✅ CONFIRMED (2026-07-23): steps 8–9 (final scoring) run AFTER bouncie/reliability, so the
+final weekly score includes driving + reliability. Sequence locked.
 
 ---
 
@@ -104,11 +101,11 @@ Mark confirmed once verified: [ ] confirmed / order is 1→10 as written.
 [ ] 3. tc-accountability   (cron)
 [ ] 4. week → thirtyDayA → thirtyDayB   (token, strict order; DFW splits thirtyDayA)
 [ ] 5. pmpAppointments     (token)
-[ ] 6. import-routes CSV   (manual)  ⚠️ confirm still needed
-[ ] 7. bouncie             (cron)
-[ ] 8. reliability         (cron)
-[ ] 9. run                 (token)
-[ ] 10. field-performance  (cron, WP finalize)
+[ ] 6. bouncie             (cron)      ← "latter part"
+[ ] 7. reliability         (cron)      ← "latter part"
+[ ] 8. run                 (token, PMP final scoring)
+[ ] 9. field-performance   (cron, WP final scoring)
+    (import-routes CSV — DEPRECATED, no longer run)
 ```
 
 ---
