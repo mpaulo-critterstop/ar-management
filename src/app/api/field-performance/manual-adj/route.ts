@@ -99,7 +99,7 @@ export async function DELETE(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!canAccessModule(session.user as any, 'field-performance')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const role = (session.user as any)?.role;
-  if (!['ADMIN'].includes(role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!['Admin'].includes(role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
