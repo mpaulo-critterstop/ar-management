@@ -11,6 +11,7 @@ export function MoMTab({ office }: Props) {
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState(2026);
   const [teamFilter, setTeamFilter] = useState('');
+  const [viewMode, setViewMode] = useState<'tech' | 'leader'>('tech');
   const [leaderFilter, setLeaderFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ACTIVE' | 'INACTIVE' | 'ALL'>('ACTIVE');
   const [search, setSearch] = useState('');
@@ -71,6 +72,35 @@ export function MoMTab({ office }: Props) {
 
   const teamAvg = teamAverages[metric] ?? { ytd: null, monthly: {} };
 
+  // Crew-leader rollup: group the filtered techs by crewLeader; each month value is the
+  // average of that crew's techs for that month (matches the FPEM MoM summary section).
+  const leaderRollup = (() => {
+    const groups = new Map<string, any[]>();
+    for (const t of filtered) {
+      const cl = t.crewLeader || '—';
+      if (!groups.has(cl)) groups.set(cl, []);
+      groups.get(cl)!.push(t);
+    }
+    const avg = (nums: number[]) => nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+    const rows = [...groups.entries()].map(([leader, members]) => {
+      const monthly: Record<number, number | null> = {};
+      for (let m = 1; m <= 12; m++) {
+        const vals = members.map(t => mData(t).monthly?.[m]).filter((v: any) => v !== null && v !== undefined) as number[];
+        monthly[m] = avg(vals);
+      }
+      const ytdVals = members.map(t => mData(t).ytd).filter((v: any) => v !== null && v !== undefined) as number[];
+      const offices = [...new Set(members.map(t => t.office))];
+      return { leader, memberCount: members.length, office: offices.length === 1 ? offices[0] : 'Multi', ytd: avg(ytdVals), monthly };
+    });
+    // Sort best-first by YTD (respecting metric direction).
+    rows.sort((a, b) => {
+      if (a.ytd === null) return 1;
+      if (b.ytd === null) return -1;
+      return higher ? b.ytd - a.ytd : a.ytd - b.ytd;
+    });
+    return rows;
+  })();
+
   return (
     <div>
       {/* Metric selector — the 8 MoM tables from the FPEM sheet */}
@@ -85,6 +115,22 @@ export function MoMTab({ office }: Props) {
               fontWeight: metric === m.key ? 600 : 400,
             }}>
             {m.label}
+          </button>
+        ))}
+      </div>
+
+      {/* View toggle: individual techs vs crew-leader summary */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+        {([['tech', 'By Technician'], ['leader', 'By Crew Leader']] as const).map(([v, lbl]) => (
+          <button key={v} onClick={() => setViewMode(v)}
+            style={{
+              fontSize: 12, padding: '6px 13px', borderRadius: 8, cursor: 'pointer',
+              border: viewMode === v ? '1px solid #0052cc' : '0.5px solid #D3D1C7',
+              background: viewMode === v ? '#0052cc' : '#fff',
+              color: viewMode === v ? '#fff' : '#64748b',
+              fontWeight: viewMode === v ? 600 : 400,
+            }}>
+            {lbl}
           </button>
         ))}
       </div>
@@ -120,20 +166,55 @@ export function MoMTab({ office }: Props) {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>
-                <th style={{ ...th, width: 55, position: 'sticky', left: 0, background: '#f8fafc', zIndex: 1 }}>Tech ID</th>
-                <th style={{ ...th, width: 150, position: 'sticky', left: 55, background: '#f8fafc', zIndex: 1 }}>Name</th>
-                <th style={{ ...th, width: 46 }}>Team</th>
-                <th style={{ ...th, width: 55 }}>Office</th>
-                <th style={{ ...th, width: 65, background: '#f0f7ff', color: '#0052cc' }}>YTD</th>
-                {MONTHS.map(m => <th key={m} style={{ ...th, width: 52, textAlign: 'center' }}>{m}</th>)}
-              </tr>
+              {viewMode === 'leader' ? (
+                <tr>
+                  <th style={{ ...th, width: 180, position: 'sticky', left: 0, background: '#f8fafc', zIndex: 1 }}>Crew Leader</th>
+                  <th style={{ ...th, width: 55 }}>Techs</th>
+                  <th style={{ ...th, width: 55 }}>Office</th>
+                  <th style={{ ...th, width: 65, background: '#f0f7ff', color: '#0052cc' }}>YTD</th>
+                  {MONTHS.map(m => <th key={m} style={{ ...th, width: 52, textAlign: 'center' }}>{m}</th>)}
+                </tr>
+              ) : (
+                <tr>
+                  <th style={{ ...th, width: 55, position: 'sticky', left: 0, background: '#f8fafc', zIndex: 1 }}>Tech ID</th>
+                  <th style={{ ...th, width: 150, position: 'sticky', left: 55, background: '#f8fafc', zIndex: 1 }}>Name</th>
+                  <th style={{ ...th, width: 46 }}>Team</th>
+                  <th style={{ ...th, width: 55 }}>Office</th>
+                  <th style={{ ...th, width: 65, background: '#f0f7ff', color: '#0052cc' }}>YTD</th>
+                  {MONTHS.map(m => <th key={m} style={{ ...th, width: 52, textAlign: 'center' }}>{m}</th>)}
+                </tr>
+              )}
             </thead>
             <tbody>
               {loading ? (
                 <tr><td colSpan={17} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>Loading...</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={17} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>No data available.</td></tr>
+              ) : viewMode === 'leader' ? (
+                <>
+                  {/* Total Team row */}
+                  <tr style={{ background: '#F8F7F4' }}>
+                    <td style={{ ...td, position: 'sticky', left: 0, background: '#F8F7F4', zIndex: 1, fontWeight: 600, fontSize: 12 }}>
+                      Total Team <span style={{ color: '#888780', fontWeight: 400 }}>· Std {(standard * 100).toFixed(0)}%</span>
+                    </td>
+                    <td style={td}></td>
+                    <td style={td}></td>
+                    {scoreCell(teamAvg.ytd, 'ytd')}
+                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => scoreCell(teamAvg.monthly?.[m], m))}
+                  </tr>
+                  {leaderRollup.map(row => (
+                    <tr key={row.leader}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f8fafc'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+                    >
+                      <td style={{ ...td, fontWeight: 500, position: 'sticky', left: 0, background: 'inherit', zIndex: 1 }}>{row.leader}</td>
+                      <td style={{ ...td, fontSize: 12, color: '#64748b' }}>{row.memberCount}</td>
+                      <td style={{ ...td, fontSize: 12 }}>{row.office}</td>
+                      {scoreCell(row.ytd, 'ytd')}
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => scoreCell(row.monthly?.[m], m))}
+                    </tr>
+                  ))}
+                </>
               ) : (
                 <>
                   {/* Standard + Team-average summary row */}
@@ -170,7 +251,9 @@ export function MoMTab({ office }: Props) {
         </div>
       </div>
       <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>
-        {filtered.length} technicians · {activeMetric?.label} · {year} — monthly values are averages of that month's weekly scores
+        {viewMode === 'leader'
+          ? `${leaderRollup.length} crew leaders · ${activeMetric?.label} · ${year} — each leader's monthly value is the average of their crew's techs`
+          : `${filtered.length} technicians · ${activeMetric?.label} · ${year} — monthly values are averages of that month's weekly scores`}
       </div>
     </div>
   );
