@@ -36,18 +36,25 @@ export async function pmRevenueForMonth(pmName: string, start: Date, end: Date):
     include: { invoice: { select: { date: true } } },
   });
 
-  let booked = 0, upsell = 0, leadCount = 0;
+  let booked = 0, upsell = 0;
   for (const l of leads as any[]) {
     const invDate = l.invoice?.date ? new Date(l.invoice.date) : null;
     if (l.status === 'SOLD' && invDate && invDate >= start && invDate <= end) {
       booked += l.amount || 0;
-      leadCount++;
     }
     if (l.upsellAmount && l.upsellDate) {
       const ud = new Date(l.upsellDate);
       if (ud >= start && ud <= end) upsell += l.upsellAmount || 0;
     }
   }
+
+  // leadCount = TOTAL leads worked that month (by inspectionDate), NOT just sold leads.
+  // This is the denominator for the lead_bucket rev-per-lead metric (booked revenue spread
+  // across every lead worked, matching the FPEM sheet's "# of Leads").
+  const leadCount = await prisma.lead.count({
+    where: { pmName, inspectionDate: { gte: start, lte: end } },
+  });
+
   return { bookedRevenue: booked, upsellRevenue: upsell, totalRevenue: booked + upsell, leadCount };
 }
 
