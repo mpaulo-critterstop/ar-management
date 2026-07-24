@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { computeCommission, monthStart, planFor, bucketBreakdown } from '@/lib/commissions';
+import { computeCommission, monthStart, planFor, bucketBreakdown, DEFAULT_LEAD_BUCKET_TIERS } from '@/lib/commissions';
 import { canAccessModule, isOwnDataOnly, perm } from '@/lib/access';
 
 // GET /api/leads/commissions?year=2026 → returns all 12 months for that year, per PM.
@@ -67,10 +67,11 @@ export async function GET(req: NextRequest) {
           // totals (numLeads + adjustedBookedRevenue) so finalized months show the same rows.
           if (methodByPm.get(pmName) === 'lead_bucket' && h.numLeads && h.numLeads > 0) {
             const plan = await planFor(pmName, monthDate);
+            const tiers = plan?.tiers ?? DEFAULT_LEAD_BUCKET_TIERS; // fallback if plan doesn't cover this month (e.g. 2025)
             const adj = h.adjustedBookedRevenue ?? 0;
             base.revPerLead = (h.bookedRevenue ?? 0) / h.numLeads;
             base.adjustedRevPerLead = adj / h.numLeads;
-            if (plan) base.buckets = bucketBreakdown(plan.tiers, adj, h.numLeads);
+            base.buckets = bucketBreakdown(tiers, adj, h.numLeads);
           }
           months.push(base);
         } else {

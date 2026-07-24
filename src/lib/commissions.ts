@@ -11,6 +11,18 @@ export interface BucketTiers {
   buckets: { floor: number; cap: number | null; rate: number }[]; // by revenue-per-lead
 }
 
+// Canonical lead_bucket tiers — single source of truth. Used as a fallback when a PM's
+// commission plan doesn't cover an older month (e.g. plan effectiveFrom is 2026 but the PM
+// has 2025 history), so finalized months still render the per-bucket breakdown.
+export const DEFAULT_LEAD_BUCKET_TIERS: BucketTiers = {
+  buckets: [
+    { floor: 700, cap: 1000, rate: 0.08 },
+    { floor: 1000, cap: 1200, rate: 0.10 },
+    { floor: 1200, cap: 1400, rate: 0.12 },
+    { floor: 1400, cap: null, rate: 0.14 },
+  ],
+};
+
 // ─── Month helpers ──────────────────────────────────────────────────────────────
 export function monthStart(year: number, month1to12: number): Date {
   return new Date(Date.UTC(year, month1to12 - 1, 1, 0, 0, 0));
