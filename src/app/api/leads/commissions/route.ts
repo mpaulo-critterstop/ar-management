@@ -31,9 +31,10 @@ export async function GET(req: NextRequest) {
 
   const plans = await prisma.commissionPlan.findMany({
     where: { active: true, ...(pmParam ? { pmName: pmParam } : {}) },
-    select: { pmName: true },
+    select: { pmName: true, method: true },
   });
   const pmNames = [...new Set(plans.map(p => p.pmName))];
+  const methodByPm = new Map(plans.map(p => [p.pmName, p.method]));
 
   // Pull this year's frozen history for the relevant PMs in one query.
   const yearStart = new Date(Date.UTC(year, 0, 1));
@@ -90,7 +91,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    rows.push({ pmName, months });
+    rows.push({ pmName, method: methodByPm.get(pmName) ?? 'abr_tiered', months });
   }
 
   return NextResponse.json({ year, rows });

@@ -81,6 +81,25 @@ export function wildlifeCommission(method: CommissionMethod, tiers: any, adjuste
   return 0;
 }
 
+// Per-bucket commission breakdown for lead_bucket plans (for display in the commissions table).
+// Returns one entry per bucket: its label, rate, and the commission amount from that bucket.
+export function bucketBreakdown(tiers: any, adjustedRevenue: number, leadCount: number): { label: string; rate: number; amount: number }[] {
+  const t = tiers as BucketTiers;
+  if (!leadCount || leadCount <= 0) return (t?.buckets ?? []).map(b => ({ label: bucketLabel(b), rate: b.rate, amount: 0 }));
+  const revPerLead = adjustedRevenue / leadCount;
+  return t.buckets.map(b => {
+    const cap = b.cap === null ? Infinity : b.cap;
+    const perLeadInBucket = Math.max(0, Math.min(revPerLead, cap) - b.floor);
+    return { label: bucketLabel(b), rate: b.rate, amount: perLeadInBucket * leadCount * b.rate };
+  });
+}
+
+function bucketLabel(b: { floor: number; cap: number | null; rate: number }): string {
+  const money = (n: number) => '$' + n.toLocaleString('en-US');
+  const range = b.cap === null ? `>${money(b.floor)}` : `${money(b.floor)} - ${money(b.cap)}`;
+  return `${range} (${(b.rate * 100).toFixed(0)}%)`;
+}
+
 // ─── The plan in effect for a PM at a given month ───────────────────────────────
 export async function planFor(pmName: string, month: Date) {
   const plans = await prisma.commissionPlan.findMany({
@@ -148,6 +167,12 @@ export async function computeCommission(pmName: string, year: number, month1to12
   const calculatedCommission = wildlife + pestControlComm;
   const totalCommission = calculatedCommission + otherAdjustment;
 
+  // Lead-bucket display extras (null for non-bucket plans).
+  const isBucket = plan?.method === 'lead_bucket';
+  const revPerLead = (isBucket && rev.leadCount > 0) ? rev.bookedRevenue / rev.leadCount : null;
+  const adjustedRevPerLead = (isBucket && rev.leadCount > 0) ? adjustedRevenue / rev.leadCount : null;
+  const buckets = isBucket ? bucketBreakdown(plan!.tiers, adjustedRevenue, rev.leadCount) : null;
+
   return {
     pmName, year, month: month1to12,
     monthKey: start.toISOString().slice(0, 7),
@@ -156,6 +181,9 @@ export async function computeCommission(pmName: string, year: number, month1to12
     upsellRevenue: rev.upsellRevenue,
     totalRevenue: rev.totalRevenue,
     leadCount: rev.leadCount,
+    revPerLead,
+    adjustedRevPerLead,
+    buckets,
     prePeriodDelta,
     deltaDetail,
     adjustedRevenue,

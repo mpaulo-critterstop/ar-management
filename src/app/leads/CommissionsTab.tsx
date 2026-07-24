@@ -16,6 +16,26 @@ const ROW_DEFS: { key: string; label: string; kind?: 'delta' }[] = [
   { key: 'totalCommission', label: 'Total Commission' },
 ];
 
+// Lead-bucket PMs (Blake, Han, Cynthia) get extra rows: # leads, rev/lead, and the per-bucket
+// commission breakdown — matching the FPEM Sales Commission sheet's lead-bucket sections.
+const BUCKET_ROW_DEFS: { key: string; label: string; kind?: 'delta'; fmt?: 'int' | 'money' }[] = [
+  { key: 'bookedRevenue', label: 'Booked Revenue' },
+  { key: 'leadCount', label: '# of Leads', fmt: 'int' },
+  { key: 'revPerLead', label: 'Booked Revenue / Lead' },
+  { key: 'cumulativeBookedRevenue', label: 'Total Cumulative Booked Rev.' },
+  { key: 'prePeriodDelta', label: 'Pre-Period Delta', kind: 'delta' },
+  { key: 'adjustedRevenue', label: 'Adjusted Booked Revenue' },
+  { key: 'adjustedRevPerLead', label: 'Adjusted Booked Revenue / Lead' },
+  { key: 'bucket:0', label: '$700 - $1,000 (8%)' },
+  { key: 'bucket:1', label: '$1,000 - $1,200 (10%)' },
+  { key: 'bucket:2', label: '$1,200 - $1,400 (12%)' },
+  { key: 'bucket:3', label: '>$1,400 (14%)' },
+  { key: 'wildlifeCommission', label: 'Wildlife Commission' },
+  { key: 'pestControlComm', label: 'Pest Control Commission' },
+  { key: 'otherAdjustment', label: 'Other Adjustments', kind: 'delta' },
+  { key: 'totalCommission', label: 'Total Commission' },
+];
+
 export function CommissionsTab() {
   const now = new Date();
   const [year, setYear] = useState(now.getUTCFullYear());
@@ -37,9 +57,22 @@ export function CommissionsTab() {
   // month index helper: normalize both history & live records to a flat value map
   function cell(monthRec: any, key: string): number | null | undefined {
     if (!monthRec || monthRec.empty) return undefined;
-    // history uses adjustedRevenue via adjustedRevenue; live uses adjustedRevenue too (mapped in API)
     if (key === 'adjustedRevenue') return monthRec.adjustedRevenue ?? monthRec.adjustedBookedRevenue;
+    // Per-bucket commission amount (lead_bucket plans, live months only).
+    if (key.startsWith('bucket:')) {
+      const idx = Number(key.split(':')[1]);
+      return monthRec.buckets?.[idx]?.amount;
+    }
+    // leadCount/revPerLead/adjustedRevPerLead come through on live months; history may carry numLeads.
+    if (key === 'leadCount') return monthRec.leadCount ?? monthRec.numLeads;
     return monthRec[key];
+  }
+
+  // Format a value per row type: money by default, integer for counts.
+  function fmtRow(v: number | null | undefined, rowFmt?: 'int' | 'money') {
+    if (v === null || v === undefined) return '—';
+    if (rowFmt === 'int') return Math.round(v).toLocaleString('en-US');
+    return fmt(v);
   }
 
   async function saveEdit(pmName: string, month: number, field: string) {
@@ -98,9 +131,9 @@ export function CommissionsTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ROW_DEFS.map(rd => (
+                    {(pm.method === 'lead_bucket' ? BUCKET_ROW_DEFS : ROW_DEFS).map((rd: any) => (
                       <tr key={rd.key} style={{ borderTop: '0.5px solid #F1EFE8' }}>
-                        <td style={{ padding: '6px 12px', color: rd.key === 'totalCommission' ? '#2C2C2A' : '#64748b', fontWeight: rd.key === 'totalCommission' ? 600 : 400, position: 'sticky', left: 0, background: '#fff' }}>
+                        <td style={{ padding: '6px 12px', color: rd.key === 'totalCommission' ? '#2C2C2A' : '#64748b', fontWeight: rd.key === 'totalCommission' ? 600 : 400, position: 'sticky', left: 0, background: '#fff', paddingLeft: rd.key.startsWith('bucket:') ? 24 : 12 }}>
                           {rd.label}
                         </td>
                         {MONTHS.map((_, i) => {
@@ -127,7 +160,7 @@ export function CommissionsTab() {
                                   onBlur={() => saveEdit(pm.pmName, i + 1, rd.key)}
                                   onKeyDown={e => { if (e.key === 'Enter') saveEdit(pm.pmName, i + 1, rd.key); if (e.key === 'Escape') setEditCell(null); }}
                                   style={{ width: 64, fontSize: 12, textAlign: 'right', border: '1px solid #0052cc', borderRadius: 4, padding: '2px 4px' }} />
-                              ) : fmt(v)}
+                              ) : fmtRow(v, rd.fmt)}
                             </td>
                           );
                         })}
