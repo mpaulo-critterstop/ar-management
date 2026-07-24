@@ -62,9 +62,13 @@ export async function GET(req: NextRequest) {
           finalized: true,
         } : { month: m, source: 'history', empty: true });
       } else if (monthDate <= new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))) {
-        // Live computed month (current or a past live month)
+        // Live computed month (current or a past live month).
+        // Displayed "Booked Revenue" = booked + upsell (totalRevenue), to match the PM KPIs
+        // table's definition. computeCommission keeps bookedRevenue (booked-only) and
+        // totalRevenue (booked+upsell) separate; the commission math already uses totalRevenue,
+        // and history/finalized months keep their frozen figures below (untouched).
         const c = await computeCommission(pmName, year, m);
-        months.push({ ...c, month: m, source: 'live' });
+        months.push({ ...c, bookedRevenue: c.totalRevenue, bookedOnly: c.bookedRevenue, month: m, source: 'live' });
       } else {
         months.push({ month: m, source: 'future', empty: true });
       }
