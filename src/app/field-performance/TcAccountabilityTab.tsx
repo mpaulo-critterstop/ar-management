@@ -73,7 +73,6 @@ function FilterBool({ k, v, set }: { k: string; v: Record<string, string>; set: 
       <option>All</option>
       <option>Yes</option>
       <option>No</option>
-      <option>Blank</option>
     </select>
   );
 }
@@ -140,7 +139,6 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
     if (f === 'All') return true;
     if (f === 'Yes') return v === true;
     if (f === 'No') return v === false;
-    if (f === 'Blank') return v === null || v === undefined;
     return true;
   };
   const inc = (val: string | null | undefined, key: string) => {
