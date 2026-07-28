@@ -71,11 +71,12 @@ export async function GET(req: NextRequest) {
     avgScore: avg(c.weeks.map((w: any) => w.totalScore!)),
     avgCloseOutPct: avg(c.weeks.filter((w: any) => w.closeOutPct !== null).map((w: any) => w.closeOutPct!)),
     avgCallbackRate: avg(c.weeks.filter((w: any) => w.callbackRate !== null).map((w: any) => w.callbackRate!)),
-    avgDriving: avg(c.weeks.filter((w: any) => w.drivingScore !== null).map((w: any) => w.drivingScore!)),
     avgRevEff: avg(c.weeks.filter((w: any) => w.revenueEfficiency !== null).map((w: any) => w.revenueEfficiency!)),
     avgReservice: avg(c.weeks.filter((w: any) => w.reseviceRate !== null).map((w: any) => w.reseviceRate!)),
     avgCompletion: avg(c.weeks.filter((w: any) => w.completionPct !== null).map((w: any) => w.completionPct!)),
+    avgDriving: avg(c.weeks.filter((w: any) => w.drivingScore !== null).map((w: any) => w.drivingScore!)),
     avgReliability: avg(c.weeks.filter((w: any) => w.reliabilityScore !== null).map((w: any) => w.reliabilityScore!)),
+    avgReviews: avg(c.weeks.filter((w: any) => w.reviewsPts !== null && w.reviewsPts !== undefined).map((w: any) => w.reviewsPts!)),
   })).sort((a: any, b: any) => (b.avgScore ?? 0) - (a.avgScore ?? 0));
 
   // Site leader rollup
