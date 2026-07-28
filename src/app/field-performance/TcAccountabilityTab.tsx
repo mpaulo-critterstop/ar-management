@@ -25,7 +25,7 @@ interface TcRecord {
 }
 
 const td: React.CSSProperties = {
-  padding: '8px 12px',
+  padding: '8px 8px',
   borderBottom: '0.5px solid #F1EFE8',
   fontSize: 12,
   color: '#2C2C2A',
@@ -167,14 +167,14 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
                 <SortableTh sortKey="techId" sort={sort}>Tech ID</SortableTh>
                 <SortableTh sortKey="techName" sort={sort}>Tech Name</SortableTh>
                 <SortableTh sortKey="coJob" sort={sort}>CO Job?</SortableTh>
-                <SortableTh sortKey="futureVisits" sort={sort}>Future Visits</SortableTh>
-                <SortableTh sortKey="nextVisitDays" sort={sort}>Next Visit Days</SortableTh>
-                <SortableTh sortKey="closeOut" sort={sort}>Close Out?</SortableTh>
-                <SortableTh sortKey="wk1" sort={sort}>1 Wk C/O</SortableTh>
-                <SortableTh sortKey="wk2" sort={sort}>2 Wk C/O</SortableTh>
-                <SortableTh sortKey="cb60" sort={sort}>60 Day CB</SortableTh>
-                <SortableTh sortKey="futureCbs" sort={sort}>Future CBs</SortableTh>
-                <SortableTh sortKey="timeAtJob" sort={sort}>Time at Job</SortableTh>
+                <SortableTh sortKey="futureVisits" sort={sort} style={{ padding: '7px 8px' }}>Future Visits</SortableTh>
+                <SortableTh sortKey="nextVisitDays" sort={sort} style={{ padding: '7px 8px' }}>Next Visit Days</SortableTh>
+                <SortableTh sortKey="closeOut" sort={sort} style={{ padding: '7px 8px' }}>Close Out?</SortableTh>
+                <SortableTh sortKey="wk1" sort={sort} style={{ padding: '7px 8px' }}>1 Wk C/O</SortableTh>
+                <SortableTh sortKey="wk2" sort={sort} style={{ padding: '7px 8px' }}>2 Wk C/O</SortableTh>
+                <SortableTh sortKey="cb60" sort={sort} style={{ padding: '7px 8px' }}>60 Day CB</SortableTh>
+                <SortableTh sortKey="futureCbs" sort={sort} style={{ padding: '7px 8px' }}>Future CBs</SortableTh>
+                <SortableTh sortKey="timeAtJob" sort={sort} style={{ padding: '7px 8px' }}>Time at Job</SortableTh>
               </tr>
             </thead>
             <tbody>
@@ -188,11 +188,11 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
                   onMouseLeave={e => (e.currentTarget.style.background = rowBg)}
                 >
                   <td style={td}>{fmtDate(r.date)}</td>
-                  <td style={{ ...td, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <td style={{ ...td, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {r.customerName}
                     {isPending && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: '#D97706', background: '#FEF3C7', borderRadius: 4, padding: '1px 5px' }}>PENDING</span>}
                   </td>
-                  <td style={{ ...td, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.jobTitle}</td>
+                  <td style={{ ...td, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.jobTitle}</td>
                   <td style={td}>{r.techId}</td>
                   <td style={td}>{r.techName}</td>
                   <td style={td}><BoolBadge value={r.isCoJob} /></td>
