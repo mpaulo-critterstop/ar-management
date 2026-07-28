@@ -36,7 +36,6 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
     avgCompletion:   c => c.avgCompletion,
     avgDriving:      c => c.avgDriving,
     avgReliability:  c => c.avgReliability,
-    avgReviews:      c => c.avgReviews,
   });
   const sortedSite = sortRows(siteLeaders as any[], siteSort, {
     leader:    s => s.leader ?? '',
@@ -49,7 +48,6 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
   });
 
   const pct = (v: number | null) => v !== null && v !== undefined ? (v * 100).toFixed(0) + '%' : '—';
-  const score2 = (v: number | null) => v !== null && v !== undefined ? v.toFixed(2) : '—';
 
   return (
     <div>
@@ -70,12 +68,11 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
                 <SortableTh sortKey="avgCompletion" sort={crewSort} style={{ width: 82 }}>Avg Completion</SortableTh>
                 <SortableTh sortKey="avgDriving" sort={crewSort} style={{ width: 72 }}>Avg driving</SortableTh>
                 <SortableTh sortKey="avgReliability" sort={crewSort} style={{ width: 80 }}>Avg Reliability</SortableTh>
-                <SortableTh sortKey="avgReviews" sort={crewSort} style={{ width: 70 }}>Avg Reviews</SortableTh>
               </tr>
             </thead>
             <tbody>
               {sortedCrew.length === 0 ? (
-                <tr><td colSpan={12} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 24 }}>No data for this week yet.</td></tr>
+                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 24 }}>No data for this week yet.</td></tr>
               ) : sortedCrew.map((c: any) => (
                 <tr key={c.leader}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
@@ -92,7 +89,6 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
                   <td style={td}>{pct(c.avgCompletion)}</td>
                   <td style={td}>{pct(c.avgDriving)}</td>
                   <td style={td}>{pct(c.avgReliability)}</td>
-                  <td style={td}>{score2(c.avgReviews)}</td>
                 </tr>
               ))}
             </tbody>
