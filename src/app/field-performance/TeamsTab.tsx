@@ -32,6 +32,10 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
     avgCloseOutPct:  c => c.avgCloseOutPct,
     avgCallbackRate: c => c.avgCallbackRate,
     avgDriving:      c => c.avgDriving,
+    avgRevEff:       c => c.avgRevEff,
+    avgReservice:    c => c.avgReservice,
+    avgCompletion:   c => c.avgCompletion,
+    avgReliability:  c => c.avgReliability,
   });
   const sortedSite = sortRows(siteLeaders as any[], siteSort, {
     leader:    s => s.leader ?? '',
@@ -60,11 +64,15 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
                 <SortableTh sortKey="avgCloseOutPct" sort={crewSort} style={{ width: 65 }}>Avg CO%</SortableTh>
                 <SortableTh sortKey="avgCallbackRate" sort={crewSort} style={{ width: 72 }}>Avg CB rate</SortableTh>
                 <SortableTh sortKey="avgDriving" sort={crewSort} style={{ width: 72 }}>Avg driving</SortableTh>
+                <SortableTh sortKey="avgRevEff" sort={crewSort} style={{ width: 70 }}>Avg RevEff</SortableTh>
+                <SortableTh sortKey="avgReservice" sort={crewSort} style={{ width: 78 }}>Avg Reservice</SortableTh>
+                <SortableTh sortKey="avgCompletion" sort={crewSort} style={{ width: 82 }}>Avg Completion</SortableTh>
+                <SortableTh sortKey="avgReliability" sort={crewSort} style={{ width: 80 }}>Avg Reliability</SortableTh>
               </tr>
             </thead>
             <tbody>
               {sortedCrew.length === 0 ? (
-                <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 24 }}>No data for this week yet.</td></tr>
+                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 24 }}>No data for this week yet.</td></tr>
               ) : sortedCrew.map((c: any) => (
                 <tr key={c.leader}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
@@ -77,6 +85,10 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
                   <td style={td}>{pct(c.avgCloseOutPct)}</td>
                   <td style={td}>{pct(c.avgCallbackRate)}</td>
                   <td style={td}>{pct(c.avgDriving)}</td>
+                  <td style={td}>{pct(c.avgRevEff)}</td>
+                  <td style={td}>{pct(c.avgReservice)}</td>
+                  <td style={td}>{pct(c.avgCompletion)}</td>
+                  <td style={td}>{pct(c.avgReliability)}</td>
                 </tr>
               ))}
             </tbody>

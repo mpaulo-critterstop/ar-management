@@ -72,6 +72,10 @@ export async function GET(req: NextRequest) {
     avgCloseOutPct: avg(c.weeks.filter((w: any) => w.closeOutPct !== null).map((w: any) => w.closeOutPct!)),
     avgCallbackRate: avg(c.weeks.filter((w: any) => w.callbackRate !== null).map((w: any) => w.callbackRate!)),
     avgDriving: avg(c.weeks.filter((w: any) => w.drivingScore !== null).map((w: any) => w.drivingScore!)),
+    avgRevEff: avg(c.weeks.filter((w: any) => w.revenueEfficiency !== null).map((w: any) => w.revenueEfficiency!)),
+    avgReservice: avg(c.weeks.filter((w: any) => w.reseviceRate !== null).map((w: any) => w.reseviceRate!)),
+    avgCompletion: avg(c.weeks.filter((w: any) => w.completionPct !== null).map((w: any) => w.completionPct!)),
+    avgReliability: avg(c.weeks.filter((w: any) => w.reliabilityScore !== null).map((w: any) => w.reliabilityScore!)),
   })).sort((a: any, b: any) => (b.avgScore ?? 0) - (a.avgScore ?? 0));
 
   // Site leader rollup
