@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { useSort, sortRows, SortableTh, periodParams, type Period } from './helpers';
+import { type Period } from './helpers';
 
 interface TcRecord {
   id: string;
@@ -32,6 +32,52 @@ const td: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
+const thBase: React.CSSProperties = {
+  padding: '7px 8px',
+  fontSize: 11,
+  fontWeight: 600,
+  color: '#6B6A64',
+  textAlign: 'left',
+  whiteSpace: 'nowrap',
+  background: '#FAFAF8',
+  borderBottom: '0.5px solid #E8E7E3',
+  letterSpacing: '0.02em',
+};
+
+const thFilter: React.CSSProperties = {
+  padding: '4px 6px',
+  background: '#FAFAF8',
+  borderBottom: '0.5px solid #E8E7E3',
+};
+
+// Text/number substring filter input
+function FilterText({ k, v, set, ph }: { k: string; v: Record<string, string>; set: (k: string, val: string) => void; ph?: string }) {
+  return (
+    <input
+      value={v[k] ?? ''}
+      onChange={e => set(k, e.target.value)}
+      placeholder={ph || 'filter'}
+      style={{ width: '100%', minWidth: 44, boxSizing: 'border-box', padding: '3px 6px', fontSize: 11, border: '0.5px solid #E0DED7', borderRadius: 5, background: '#fff', color: '#2C2C2A' }}
+    />
+  );
+}
+
+// Yes/No/Blank/All dropdown for boolean columns
+function FilterBool({ k, v, set }: { k: string; v: Record<string, string>; set: (k: string, val: string) => void }) {
+  return (
+    <select
+      value={v[k] ?? 'All'}
+      onChange={e => set(k, e.target.value)}
+      style={{ width: '100%', minWidth: 52, boxSizing: 'border-box', padding: '3px 4px', fontSize: 11, border: '0.5px solid #E0DED7', borderRadius: 5, background: '#fff', color: '#2C2C2A', cursor: 'pointer' }}
+    >
+      <option>All</option>
+      <option>Yes</option>
+      <option>No</option>
+      <option>Blank</option>
+    </select>
+  );
+}
+
 
 
 function BoolBadge({ value, nullLabel = '—' }: { value: boolean | null; nullLabel?: string }) {
@@ -52,8 +98,7 @@ function BoolBadge({ value, nullLabel = '—' }: { value: boolean | null; nullLa
 }
 
 function fmtDate(d: string) {
-  const dt = new Date(d);
-  return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', timeZone: 'UTC' });
+  const dt = new Date(d);  return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', timeZone: 'UTC' });
 }
 
 interface Props {
@@ -66,9 +111,9 @@ interface Props {
 export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period }: Props) {
   const [records, setRecords] = useState<TcRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const sort = useSort('date', 'desc');
-  const [teamFilter, setTeamFilter] = useState('All');
+  // Per-column filters. Text columns hold a substring; boolean columns hold 'All' | 'Yes' | 'No'.
+  const [colFilters, setColFilters] = useState<Record<string, string>>({});
+  const setCol = (key: string, val: string) => setColFilters(prev => ({ ...prev, [key]: val }));
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -88,30 +133,38 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const filteredUnsorted = records.filter(r => {
-    const q = search.toLowerCase();
-    const matchesSearch = !q ||
-      r.techName.toLowerCase().includes(q) ||
-      r.techId.toLowerCase().includes(q) ||
-      r.customerName.toLowerCase().includes(q);
+  // Helpers for filter matching
+  const txt = (key: string) => (colFilters[key] ?? '').trim().toLowerCase();
+  const boolMatch = (key: string, v: boolean | null) => {
+    const f = colFilters[key] ?? 'All';
+    if (f === 'All') return true;
+    if (f === 'Yes') return v === true;
+    if (f === 'No') return v === false;
+    if (f === 'Blank') return v === null || v === undefined;
+    return true;
+  };
+  const inc = (val: string | null | undefined, key: string) => {
+    const q = txt(key);
+    return !q || (val ?? '').toString().toLowerCase().includes(q);
+  };
+
+  const filtered = records.filter(r => {
     const leaderMatch = !leaderFilter || r.crewLeader === leaderFilter;
-    return matchesSearch && leaderMatch;
-  });
-  const filtered = sortRows(filteredUnsorted, sort, {
-    date:         r => r.date,
-    customer:     r => r.customerName ?? '',
-    appointment:  r => r.jobTitle ?? '',
-    techId:       r => r.techId,
-    techName:     r => r.techName ?? '',
-    coJob:        r => r.isCoJob === null ? null : (r.isCoJob ? 1 : 0),
-    futureVisits: r => r.futureNonCbVisits,
-    nextVisitDays:r => r.nextVisitDays,
-    closeOut:     r => r.closedOut === null ? null : (r.closedOut ? 1 : 0),
-    wk1:          r => r.wk1CloseOut === null ? null : (r.wk1CloseOut ? 1 : 0),
-    wk2:          r => r.wk2CloseOut === null ? null : (r.wk2CloseOut ? 1 : 0),
-    cb60:         r => r.cb60Day === null ? null : (r.cb60Day ? 1 : 0),
-    futureCbs:    r => r.futureCbs,
-    timeAtJob:    r => r.timeAtJobMins,
+    return leaderMatch
+      && inc(fmtDate(r.date), 'date')
+      && inc(r.customerName, 'customer')
+      && inc(r.jobTitle, 'appointment')
+      && inc(r.techId, 'techId')
+      && inc(r.techName, 'techName')
+      && boolMatch('coJob', r.isCoJob)
+      && inc(r.futureNonCbVisits?.toString() ?? '', 'futureVisits')
+      && inc(r.nextVisitDays?.toString() ?? '', 'nextVisitDays')
+      && boolMatch('closeOut', r.closedOut)
+      && boolMatch('wk1', r.wk1CloseOut)
+      && boolMatch('wk2', r.wk2CloseOut)
+      && boolMatch('cb60', r.cb60Day)
+      && inc(r.futureCbs?.toString() ?? '', 'futureCbs')
+      && inc(r.timeAtJobMins != null ? Math.round(r.timeAtJobMins).toString() : '', 'timeAtJob');
   });
 
   // KPI summary
@@ -139,15 +192,18 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
         ))}
       </div>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search tech or customer..."
-          style={{ padding: '6px 10px', fontSize: 12, border: '0.5px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#2C2C2A', width: 240 }}
-        />
-        <span style={{ fontSize: 12, color: '#B4B2A9' }}>{filtered.length} records</span>
+      {/* Filter summary + clear */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'center' }}>
+        <span style={{ fontSize: 12, color: '#6B6A64' }}>{filtered.length} of {records.length} records</span>
+        {Object.values(colFilters).some(v => v && v !== 'All') && (
+          <button
+            onClick={() => setColFilters({})}
+            style={{ fontSize: 11, padding: '4px 10px', border: '0.5px solid #E0DED7', borderRadius: 6, background: '#fff', color: '#6B6A64', cursor: 'pointer' }}
+          >
+            Clear filters
+          </button>
+        )}
+        <span style={{ fontSize: 11, color: '#B4B2A9' }}>Filter each column below</span>
       </div>
 
       {loading ? (
@@ -160,21 +216,31 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
         <div style={{ overflowX: 'auto', borderRadius: 10, border: '0.5px solid #E8E7E3' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
             <thead>
+              {/* Column labels */}
               <tr>
-                <SortableTh sortKey="date" sort={sort}>Date</SortableTh>
-                <SortableTh sortKey="customer" sort={sort}>Customer</SortableTh>
-                <SortableTh sortKey="appointment" sort={sort}>Appointment</SortableTh>
-                <SortableTh sortKey="techId" sort={sort}>Tech ID</SortableTh>
-                <SortableTh sortKey="techName" sort={sort}>Tech Name</SortableTh>
-                <SortableTh sortKey="coJob" sort={sort}>CO Job?</SortableTh>
-                <SortableTh sortKey="futureVisits" sort={sort} style={{ padding: '7px 8px' }}>Future Visits</SortableTh>
-                <SortableTh sortKey="nextVisitDays" sort={sort} style={{ padding: '7px 8px' }}>Next Visit Days</SortableTh>
-                <SortableTh sortKey="closeOut" sort={sort} style={{ padding: '7px 8px' }}>Close Out?</SortableTh>
-                <SortableTh sortKey="wk1" sort={sort} style={{ padding: '7px 8px' }}>1 Wk C/O</SortableTh>
-                <SortableTh sortKey="wk2" sort={sort} style={{ padding: '7px 8px' }}>2 Wk C/O</SortableTh>
-                <SortableTh sortKey="cb60" sort={sort} style={{ padding: '7px 8px' }}>60 Day CB</SortableTh>
-                <SortableTh sortKey="futureCbs" sort={sort} style={{ padding: '7px 8px' }}>Future CBs</SortableTh>
-                <SortableTh sortKey="timeAtJob" sort={sort} style={{ padding: '7px 8px' }}>Time at Job</SortableTh>
+                {[
+                  'Date','Customer','Appointment','Tech ID','Tech Name','CO Job?',
+                  'Future Visits','Next Visit Days','Close Out?','1 Wk C/O','2 Wk C/O','60 Day CB','Future CBs','Time at Job'
+                ].map(label => (
+                  <th key={label} style={{ ...thBase }}>{label}</th>
+                ))}
+              </tr>
+              {/* Per-column filter row */}
+              <tr>
+                <th style={thFilter}><FilterText k="date" v={colFilters} set={setCol} ph="filter" /></th>
+                <th style={thFilter}><FilterText k="customer" v={colFilters} set={setCol} ph="filter" /></th>
+                <th style={thFilter}><FilterText k="appointment" v={colFilters} set={setCol} ph="filter" /></th>
+                <th style={thFilter}><FilterText k="techId" v={colFilters} set={setCol} ph="filter" /></th>
+                <th style={thFilter}><FilterText k="techName" v={colFilters} set={setCol} ph="filter" /></th>
+                <th style={thFilter}><FilterBool k="coJob" v={colFilters} set={setCol} /></th>
+                <th style={thFilter}><FilterText k="futureVisits" v={colFilters} set={setCol} ph="#" /></th>
+                <th style={thFilter}><FilterText k="nextVisitDays" v={colFilters} set={setCol} ph="#" /></th>
+                <th style={thFilter}><FilterBool k="closeOut" v={colFilters} set={setCol} /></th>
+                <th style={thFilter}><FilterBool k="wk1" v={colFilters} set={setCol} /></th>
+                <th style={thFilter}><FilterBool k="wk2" v={colFilters} set={setCol} /></th>
+                <th style={thFilter}><FilterBool k="cb60" v={colFilters} set={setCol} /></th>
+                <th style={thFilter}><FilterText k="futureCbs" v={colFilters} set={setCol} ph="#" /></th>
+                <th style={thFilter}><FilterText k="timeAtJob" v={colFilters} set={setCol} ph="#" /></th>
               </tr>
             </thead>
             <tbody>
