@@ -159,9 +159,18 @@ export default function DispatchPage() {
 
   // Customer search (client-side filter on the loaded jobs).
   const searchLower = customerSearch.trim().toLowerCase();
-  const filteredJobs = searchLower
+  const filteredJobs = (searchLower
     ? jobs.filter(j => (j.customer?.name || '').toLowerCase().includes(searchLower))
-    : jobs;
+    : jobs
+  ).slice().sort((a, b) => {
+    // Sold date (invoice date) desc, with invoice-less jobs sorted LAST.
+    const da = a.invoice?.date ? new Date(a.invoice.date).getTime() : null;
+    const db = b.invoice?.date ? new Date(b.invoice.date).getTime() : null;
+    if (da === null && db === null) return 0;
+    if (da === null) return 1;   // a has no date → after b
+    if (db === null) return -1;  // b has no date → after a
+    return db - da;              // both have dates → newest first
+  });
 
   const totalPages = Math.ceil(filteredJobs.length / pageSize);
   const displayed = filteredJobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);

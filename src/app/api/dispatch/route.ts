@@ -69,10 +69,10 @@ export async function GET(req: NextRequest) {
         customer: { select: { id: true, name: true, phone: true, serviceAddr: true, externalId: true } },
         invoice: { select: { id: true, externalId: true, amount: true, date: true } },
       },
-      // Sort by sold date (invoice date), newest first. Jobs without an invoice sort LAST
-      // (NULLS LAST) so an unlinked job never floats to the top of the board.
+      // Primary sort by sold date desc; final null-handling done client-side (Prisma 5.10 doesn't
+      // support `nulls` on relation-field ordering). See dispatch page: invoice-less jobs sort last.
       orderBy: [
-        { invoice: { date: { sort: 'desc', nulls: 'last' } } },
+        { invoice: { date: 'desc' } },
         { createdAt: 'desc' },
       ],
     });
