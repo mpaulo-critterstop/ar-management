@@ -284,8 +284,12 @@ async function syncDispatch(office: string, key: string, token: string) {
 }
 
 export async function POST(req: NextRequest) {
+  // Accept either the x-cron-secret header OR Authorization: Bearer <CRON_SECRET>,
+  // so all cron-job.org jobs (AR / dispatch / leads) can use one uniform header.
   const cronSecret = req.headers.get('x-cron-secret');
-  if (cronSecret !== process.env.CRON_SECRET) {
+  const bearer = req.headers.get('authorization');
+  const cronOk = cronSecret === process.env.CRON_SECRET || bearer === `Bearer ${process.env.CRON_SECRET}`;
+  if (!cronOk) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
