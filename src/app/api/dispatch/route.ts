@@ -69,10 +69,10 @@ export async function GET(req: NextRequest) {
         customer: { select: { id: true, name: true, phone: true, serviceAddr: true, externalId: true } },
         invoice: { select: { id: true, externalId: true, amount: true, date: true } },
       },
-      // Sort by sold date (invoice date), newest first. Jobs without an invoice fall last.
-      // (Previously createdAt desc, which pushed backfilled jobs to the top regardless of sold date.)
+      // Sort by sold date (invoice date), newest first. Jobs without an invoice sort LAST
+      // (NULLS LAST) so an unlinked job never floats to the top of the board.
       orderBy: [
-        { invoice: { date: 'desc' } },
+        { invoice: { date: { sort: 'desc', nulls: 'last' } } },
         { createdAt: 'desc' },
       ],
     });
