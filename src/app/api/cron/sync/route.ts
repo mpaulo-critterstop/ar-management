@@ -9,6 +9,7 @@
 // Usage (per office): GET /api/cron/sync?office=DFW  with either
 //   Authorization: Bearer <CRON_SECRET>   OR   ?token=critterstop2026
 import { NextRequest, NextResponse } from 'next/server';
+import { waitUntil } from '@vercel/functions';
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
@@ -65,8 +66,10 @@ export async function GET(req: NextRequest) {
     }
   };
 
-  // Fire-and-forget: start the pipeline but don't await it, so cron-job.org gets an instant 200.
-  runPipeline();
+  // waitUntil keeps the serverless function alive to finish the pipeline AFTER the response is
+  // sent — so cron-job.org gets an instant 200 while the AR->Leads->Dispatch chain reliably runs
+  // to completion (plain fire-and-forget gets frozen by Vercel after the response; verified).
+  waitUntil(runPipeline());
 
   return NextResponse.json({
     message: `Pipeline triggered for ${office || 'all offices'}${stage ? ` (stage: ${stage})` : ' (AR -> Leads -> Dispatch)'}`,
