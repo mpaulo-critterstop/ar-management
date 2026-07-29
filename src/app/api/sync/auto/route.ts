@@ -675,8 +675,11 @@ async function syncPayments(
 // ============================================================
 
 export async function POST(req: NextRequest) {
+  // Accept x-cron-secret OR Authorization: Bearer <CRON_SECRET> (uniform cron auth), else session.
   const cronSecret = req.headers.get('x-cron-secret');
-  if (cronSecret !== process.env.CRON_SECRET) {
+  const bearer = req.headers.get('authorization');
+  const cronOk = cronSecret === process.env.CRON_SECRET || bearer === `Bearer ${process.env.CRON_SECRET}`;
+  if (!cronOk) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
