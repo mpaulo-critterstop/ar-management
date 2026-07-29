@@ -1,5 +1,9 @@
 {
   "functions": {
+    "src/app/api/sync/auto/route.ts": { "maxDuration": 300 },
+    "src/app/api/sync/appointments/route.ts": { "maxDuration": 300 },
+    "src/app/api/dispatch/sync/route.ts": { "maxDuration": 300 },
+    "src/app/api/cron/sync/route.ts": { "maxDuration": 300 },
     "src/app/api/field-performance/run/route.ts": { "maxDuration": 300 },
     "src/app/api/field-performance/week/route.ts": { "maxDuration": 300 },
     "src/app/api/tc-accountability/run/route.ts": { "maxDuration": 300 },
