@@ -108,7 +108,7 @@ async function syncLeads(office: string, key: string, token: string) {
   console.log(`[${office}] Part 1b: Checking INSPECTED leads for sold invoices...`);
   const inspectedLeads = await prisma.lead.findMany({
     where: { office, status: 'INSPECTED', invoiceId: null },
-    include: { customer: { select: { name: true, phone: true, email: true } } },
+    include: { customer: { select: { name: true, phone: true, email: true, externalId: true } } },
   });
 
   for (const lead of inspectedLeads) {
@@ -152,6 +152,16 @@ async function syncLeads(office: string, key: string, token: string) {
             }).catch(() => {}); // fire and forget
           }
           updated++;
+
+          // Create the dispatch job for this newly-SOLD lead. Part 2 only creates jobs for leads
+          // created fresh-as-SOLD; a lead that was already INSPECTED and flips to SOLD here (invoice
+          // arrived later) was previously never getting a dispatch job. createDispatchJob is guarded
+          // against duplicates (findFirst on customerId+invoiceId), so this is safe.
+          try {
+            await createDispatchJob(lead.customerId, invoice.id, office, lead.pmName, lead.customer?.externalId || String(lead.customerId), key, token);
+          } catch (e) {
+            // non-fatal: next sync retries
+          }
         }
       }
     } catch (err) {
