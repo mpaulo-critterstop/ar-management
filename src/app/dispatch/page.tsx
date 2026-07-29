@@ -64,6 +64,7 @@ export default function DispatchPage() {
   const [syncing, setSyncing] = useState(false);
   const [office, setOffice] = useState('DFW');
   const [stageFilter, setStageFilter] = useState('all');
+  const [customerSearch, setCustomerSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
   const [toast, setToast] = useState<string | null>(null);
@@ -156,8 +157,14 @@ export default function DispatchPage() {
     return flags;
   }
 
-  const totalPages = Math.ceil(jobs.length / pageSize);
-  const displayed = jobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  // Customer search (client-side filter on the loaded jobs).
+  const searchLower = customerSearch.trim().toLowerCase();
+  const filteredJobs = searchLower
+    ? jobs.filter(j => (j.customer?.name || '').toLowerCase().includes(searchLower))
+    : jobs;
+
+  const totalPages = Math.ceil(filteredJobs.length / pageSize);
+  const displayed = filteredJobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const current = editingJob ? { ...editingJob, ...stageEdit } : null;
 
   if (status === 'loading') return null;
@@ -313,6 +320,23 @@ export default function DispatchPage() {
               ))}
             </select>
           </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="text"
+              value={customerSearch}
+              onChange={e => { setCustomerSearch(e.target.value); setCurrentPage(1); }}
+              placeholder="Search customer..."
+              style={{ fontSize: 12, padding: '6px 12px', borderRadius: 20, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', width: 200 }}
+            />
+            {customerSearch && (
+              <button
+                onClick={() => { setCustomerSearch(''); setCurrentPage(1); }}
+                style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
         <button onClick={runSync} disabled={syncing} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: syncing ? 'not-allowed' : 'pointer', fontWeight: 500, opacity: syncing ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
        {syncing ? (
@@ -418,17 +442,19 @@ export default function DispatchPage() {
                   </tr>
                 );
               })}
-              {!loading && jobs.length === 0 && (
-                <tr><td colSpan={11} style={{ padding: 20, textAlign: 'center', color: '#888780' }}>No jobs found</td></tr>
+              {!loading && filteredJobs.length === 0 && (
+                <tr><td colSpan={11} style={{ padding: 20, textAlign: 'center', color: '#888780' }}>
+                  {customerSearch ? `No jobs matching "${customerSearch}"` : 'No jobs found'}
+                </td></tr>
               )}
             </tbody>
           </table>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '0.5px solid #E8E7E3', background: '#F8F7F4', flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontSize: 12, color: '#888780' }}>
-            Showing {jobs.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+            Showing {filteredJobs.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
             {'\u2013'}
-            {Math.min(currentPage * pageSize, jobs.length)} of {jobs.length} jobs
+            {Math.min(currentPage * pageSize, filteredJobs.length)} of {filteredJobs.length} jobs
             <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} style={{ fontSize: 12, padding: '2px 6px', border: '0.5px solid #B4B2A9', borderRadius: 4, marginLeft: 8 }}>
               <option value={100}>100</option>
               <option value={500}>500</option>
