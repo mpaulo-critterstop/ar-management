@@ -625,3 +625,26 @@ active now. Will recur on any historical backfill involving a since-transferred 
 ### STILL PENDING
 - 7/17: still empty, no tech_routes — needs full FR pull chain to populate before it can score.
 - Other June/July weeks rerunnable from DB if desired (6/12,6/19,7/03,7/10 have routes).
+
+## LSA LEAD RATING — PREP NOTES (parked, pending Google LSA API access)
+Context: Chisam/Nacho requesting Google Ads LSA API access (weeks-long approval possible). Once in, the Hub
+can rate LSA lead quality (currently done manually by Rubi listening to call recordings).
+
+HOW RATING WILL WORK:
+- MESSAGE leads: message text is in LocalServicesLeadConversation → Claude reads + rates directly
+  (intent, serviceability, urgency, fit). Straightforward.
+- CALL leads: API gives a call RECORDING URL + duration, NOT text. Claude cannot listen to audio.
+  Pipeline must be: pull recording URL → TRANSCRIBE via a speech-to-text service (separate integration,
+  small per-minute cost) → Claude rates the transcript. Transcription is the required bridge.
+- Rating is triage-at-scale (flag obvious good/junk, prioritize follow-up), not a full replacement for
+  human review on borderline/high-stakes calls. Suggest: Claude first-pass on all, humans spot-check.
+- TRUE "good lead" = became revenue → needs LSA→FieldRoutes outcome attribution (fuzzy match on name/
+  phone/timing; leads often lack contact info in export but API has it). Outcome-predictive rating is a
+  later phase once linked outcomes accumulate.
+
+HIGHEST-VALUE PREP ITEM (do NOW, independent of API timing):
+- Have Rubi / the team WRITE DOWN exactly what they listen for when judging a call "good" (serviceable
+  job? real intent? in-area? service we offer? CSR handling?). That rubric becomes the prompt Claude uses.
+  Capturing it now is valuable regardless of when the API lands.
+
+TRANSCRIPTION: evaluating free/low-cost options (see chat 2026-07-29).
