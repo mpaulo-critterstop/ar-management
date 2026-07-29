@@ -490,9 +490,15 @@ async function syncInvoices(
     orderBy: { completedAt: 'desc' },
     select: { completedAt: true },
   });
-  const dateFrom = fromDate || (lastSync?.completedAt
+  // Incremental window. Start 1 day BEFORE the last successful sync as a safety buffer:
+  // FR timestamps are US Central while completedAt is UTC, and same-day edits after the prior
+  // run could otherwise fall in a gap. Overlap is harmless (upserts are idempotent).
+  const rawFrom = fromDate || (lastSync?.completedAt
     ? lastSync.completedAt.toISOString().split('T')[0]
     : '2020-01-01');
+  const dateFrom = fromDate
+    ? rawFrom // manual runs use the exact date the caller asked for
+    : (() => { const d = new Date(rawFrom); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; })();
   const dateTo = toDate || new Date().toISOString().split('T')[0];
   console.log(`[${office}] Incremental sync from: ${dateFrom} to: ${dateTo}`);
 
@@ -531,22 +537,36 @@ async function syncInvoices(
     console.log(`[${office}] Total unique IDs (invoiceDate + dateUpdated): ${allIds.length}`);
 
   } else {
-    // Cron path — dateUpdated range to catch ALL invoices modified since last sync
-    // This catches old invoices that received payments, refunds, voids, or manual changes
+    // Cron path — scan BOTH invoiceDate AND dateUpdated over the window, then union.
+    // dateUpdated alone MISSES new invoices whose invoiceDate is in-window but whose dateUpdated
+    // timestamp falls on a different day (common in FR when the invoice/service date differs from
+    // the finalize/update date). The invoiceDate pass catches those; the dateUpdated pass catches
+    // old invoices modified in-window (payments, voids, refunds, edits). (Diagnosed 2026-07-29.)
     const idSet = new Set<number>();
-    let current3 = new Date(dateFrom);
     const end3 = new Date(dateTo);
-    while (current3 <= end3) {
-      const dateStr = current3.toISOString().split('T')[0];
-      const data = await frFetch('ticket/search', `dateUpdated=${dateStr}`, key, token);
-      if (data.success && data.ticketIDs) {
-        data.ticketIDs.forEach((id: number) => idSet.add(id));
-      }
-      current3.setDate(current3.getDate() + 1);
+
+    // Pass 1: invoiceDate loop — catches newly-created invoices.
+    let cInv = new Date(dateFrom);
+    while (cInv <= end3) {
+      const dateStr = cInv.toISOString().split('T')[0];
+      const data = await frFetch('ticket/search', `invoiceDate=${dateStr}`, key, token);
+      if (data.success && data.ticketIDs) data.ticketIDs.forEach((id: number) => idSet.add(id));
+      cInv.setDate(cInv.getDate() + 1);
       await new Promise(r => setTimeout(r, 150));
     }
+
+    // Pass 2: dateUpdated loop — catches existing invoices modified in-window.
+    let cUpd = new Date(dateFrom);
+    while (cUpd <= end3) {
+      const dateStr = cUpd.toISOString().split('T')[0];
+      const data = await frFetch('ticket/search', `dateUpdated=${dateStr}`, key, token);
+      if (data.success && data.ticketIDs) data.ticketIDs.forEach((id: number) => idSet.add(id));
+      cUpd.setDate(cUpd.getDate() + 1);
+      await new Promise(r => setTimeout(r, 150));
+    }
+
     allIds = Array.from(idSet);
-    console.log(`[${office}] Total IDs: ${allIds.length} (incremental, dateUpdated ${dateFrom} → ${dateTo})`);
+    console.log(`[${office}] Total IDs: ${allIds.length} (incremental, invoiceDate + dateUpdated ${dateFrom} → ${dateTo})`);
   }
 
   if (allIds.length === 0) {
