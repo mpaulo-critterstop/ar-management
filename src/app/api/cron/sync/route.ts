@@ -1,39 +1,74 @@
 // src/app/api/cron/sync/route.ts
+// Trigger endpoint for cron-job.org. Returns 200 INSTANTLY (fire-and-forget) so the cron
+// service records "Successful 200 OK" without waiting out the multi-minute sync.
+//
+// Runs the pipeline in the correct order — AR -> Leads -> Dispatch — by chaining each stage
+// to the next ON COMPLETION (each stage is its own request with its own maxDuration budget),
+// which also fixes the old race where AR + Leads fired simultaneously and Dispatch was skipped.
+//
+// Usage (per office): GET /api/cron/sync?office=DFW  with either
+//   Authorization: Bearer <CRON_SECRET>   OR   ?token=critterstop2026
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
   const isVercelCron = req.headers.get('x-vercel-cron') === '1';
+  const { searchParams } = new URL(req.url);
+  const token = searchParams.get('token');
 
-  if (!isVercelCron && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const authed =
+    isVercelCron ||
+    authHeader === `Bearer ${process.env.CRON_SECRET}` ||
+    token === 'critterstop2026' ||
+    token === process.env.CRON_SECRET;
+
+  if (!authed) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { searchParams } = new URL(req.url);
   const office = searchParams.get('office') || '';
   const baseUrl = process.env.NEXTAUTH_URL;
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-cron-secret': process.env.CRON_SECRET || '',
+  };
+  const body = JSON.stringify({ office });
 
-  fetch(`${baseUrl}/api/sync/auto`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-cron-secret': process.env.CRON_SECRET || '',
-    },
-    body: JSON.stringify({ office }),
-    // @ts-ignore
-    signal: AbortSignal.timeout(600000),
-  }).catch(err => console.error(`Sync trigger error for ${office}:`, err));
+  // Which stages to run (default: full pipeline). Allows ?stage=ar|leads|dispatch to run just one.
+  const stage = searchParams.get('stage');
 
-  fetch(`${baseUrl}/api/sync/appointments`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-cron-secret': process.env.CRON_SECRET || '',
-    },
-    body: JSON.stringify({ office }),
-    // @ts-ignore
-    signal: AbortSignal.timeout(600000),
-  }).catch(err => console.error(`Appointment sync trigger error for ${office}:`, err));
+  const call = (path: string) =>
+    fetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers,
+      body,
+      // @ts-ignore
+      signal: AbortSignal.timeout(290000),
+    });
 
-  return NextResponse.json({ message: `Sync triggered for ${office || 'all offices'}` });
+  // Chain in order: AR -> Leads -> Dispatch. Each awaits the previous so the invoice exists
+  // before Leads matches it, and the dispatch jobs exist before Dispatch enriches them.
+  // NOT awaited by the handler — it returns immediately below.
+  const runPipeline = async () => {
+    try {
+      if (!stage || stage === 'ar') {
+        await call('/api/sync/auto');
+      }
+      if (!stage || stage === 'leads') {
+        await call('/api/sync/appointments');
+      }
+      if (!stage || stage === 'dispatch') {
+        await call('/api/dispatch/sync');
+      }
+    } catch (err) {
+      console.error(`[cron/sync] pipeline error for ${office || 'all'}:`, err);
+    }
+  };
+
+  // Fire-and-forget: start the pipeline but don't await it, so cron-job.org gets an instant 200.
+  runPipeline();
+
+  return NextResponse.json({
+    message: `Pipeline triggered for ${office || 'all offices'}${stage ? ` (stage: ${stage})` : ' (AR -> Leads -> Dispatch)'}`,
+  });
 }
