@@ -47,9 +47,17 @@ export async function GET(req: NextRequest) {
       signal: AbortSignal.timeout(290000),
     });
 
-  // Chain in order: AR -> Leads -> Dispatch. Each awaits the previous so the invoice exists
-  // before Leads matches it, and the dispatch jobs exist before Dispatch enriches them.
-  // NOT awaited by the handler — it returns immediately below.
+  // CSR appointments sync is a GET authed by ?token= (not POST/x-cron-secret like the others).
+  const callGet = (path: string) =>
+    fetch(`${baseUrl}${path}${path.includes('?') ? '&' : '?'}token=critterstop2026${office ? `&office=${office}` : ''}`, {
+      method: 'GET',
+      // @ts-ignore
+      signal: AbortSignal.timeout(290000),
+    });
+
+  // Chain in order: AR -> Leads -> CSR -> Dispatch. Each awaits the previous so the invoice exists
+  // before Leads matches it, CSR inspection/lead data pulls after, and dispatch jobs exist before
+  // Dispatch enriches them. NOT awaited by the handler — it returns immediately below.
   const runPipeline = async () => {
     try {
       if (!stage || stage === 'ar') {
@@ -57,6 +65,9 @@ export async function GET(req: NextRequest) {
       }
       if (!stage || stage === 'leads') {
         await call('/api/sync/appointments');
+      }
+      if (!stage || stage === 'csr') {
+        await callGet('/api/sync/csr-appointments');
       }
       if (!stage || stage === 'dispatch') {
         await call('/api/dispatch/sync');
@@ -72,6 +83,6 @@ export async function GET(req: NextRequest) {
   waitUntil(runPipeline());
 
   return NextResponse.json({
-    message: `Pipeline triggered for ${office || 'all offices'}${stage ? ` (stage: ${stage})` : ' (AR -> Leads -> Dispatch)'}`,
+    message: `Pipeline triggered for ${office || 'all offices'}${stage ? ` (stage: ${stage})` : ' (AR -> Leads -> CSR -> Dispatch)'}`,
   });
 }
