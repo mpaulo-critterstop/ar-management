@@ -648,3 +648,19 @@ HIGHEST-VALUE PREP ITEM (do NOW, independent of API timing):
   Capturing it now is valuable regardless of when the API lands.
 
 TRANSCRIPTION: evaluating free/low-cost options (see chat 2026-07-29).
+
+## TRANSCRIPTION FOR LSA CALL RATING — RECOMMENDATION (researched 2026-07-29)
+Q was "is there a free service?" Answer: no meaningful free option for ongoing production.
+- Free tiers are trial-sized only (Speechmatics ~480 min/mo; Deepgram $200 one-time credit) — not enough
+  for ongoing LSA call volume.
+- Self-hosted Whisper is the ONLY true $0-per-minute route, but requires standing up own GPU/server
+  infra (Hub is Vercel serverless) — trades money for setup/maintenance; not worth it at low volume.
+- Paid batch APIs are so cheap it's a rounding error: AssemblyAI ~$0.0025/min, Rev AI ~$0.003/min,
+  Deepgram Nova-3 ~$0.0043/min, OpenAI Whisper API ~$0.006/min. Est. ~300 calls/mo × 4 min ≈ 1,200 min
+  = ~$3–10/MONTH total. Negligible vs the ~$100/lead already spent.
+RECOMMENDATION: don't chase free. Use a cheap BATCH API — evaluate AssemblyAI or Deepgram first because
+they include call-center features we'd actually use, esp. SPEAKER DIARIZATION (separates caller from CSR),
+which materially improves Claude's rating accuracy ("what the CUSTOMER said" vs the rep). AVOID OpenAI
+GPT-4o Transcribe for calls specifically — collapsed to ~43.8% WER on long-form/noisy audio in independent
+2026 benchmarks; purpose-built engines (AssemblyAI/Deepgram/Speechmatics) beat it on real phone audio.
+FLOW: LSA API call recording URL → batch STT (AssemblyAI/Deepgram, w/ diarization) → Claude rates transcript.
