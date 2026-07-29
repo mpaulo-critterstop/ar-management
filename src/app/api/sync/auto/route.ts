@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { healPlaceholderCustomers } from '@/lib/healPlaceholderCustomers';
 import { prisma } from '@/lib/prisma';
 
 // AR Follow-up webhooks
@@ -691,6 +692,14 @@ export async function POST(req: NextRequest) {
       }
       if (syncType === 'all' || syncType === 'payments') {
         results[office].payments = await syncPayments(office, key, token);
+      }
+
+      // Self-heal any "Customer <id>" placeholders created this run (new customers whose
+      // details weren't pulled yet). Enriches them from FR in batches so stubs never persist.
+      try {
+        results[office].healed = await healPlaceholderCustomers(office, key, token);
+      } catch (e: any) {
+        results[office].healed = { error: e.message };
       }
 
       await prisma.syncLog.create({

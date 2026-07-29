@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { healPlaceholderCustomers } from '@/lib/healPlaceholderCustomers';
 
 const OFFICES = {
   DFW: { key: process.env.FIELDROUTES_KEY_DFW!, token: process.env.FIELDROUTES_TOKEN_DFW!, officeId: '1' },
@@ -313,6 +314,12 @@ export async function POST(req: NextRequest) {
     if (!config) continue;
     try {
       results[office] = await syncLeads(office, config.key, config.token);
+      // Self-heal placeholder "Customer <id>" records created for new leads.
+      try {
+        results[office].healed = await healPlaceholderCustomers(office, config.key, config.token);
+      } catch (e: any) {
+        results[office].healed = { error: e.message };
+      }
     } catch (err: any) {
       results[office] = { error: err.message };
     }
