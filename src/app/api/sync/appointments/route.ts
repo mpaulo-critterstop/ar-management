@@ -304,6 +304,40 @@ async function createDispatchJob(customerId: string, invoiceId: string, office: 
   });
 }
 
+// Safety net: find any SOLD lead (with an invoice) in this office that has NO dispatch job, and
+// create it. Catches leads that flipped to SOLD before dispatch-job creation existed on their path,
+// or any future straggler — regardless of which sync path sold them. Idempotent (createDispatchJob
+// guards on customerId+invoiceId).
+async function sweepMissingDispatchJobs(office: string, key: string, token: string): Promise<{ checked: number; created: number }> {
+  const soldLeads = await prisma.lead.findMany({
+    where: { office, status: 'SOLD', invoiceId: { not: null } },
+    include: { customer: { select: { externalId: true } } },
+  });
+
+  let createdCount = 0;
+  for (const lead of soldLeads) {
+    const existing = await prisma.dispatchJob.findFirst({
+      where: { customerId: lead.customerId, invoiceId: lead.invoiceId! },
+    });
+    if (existing) continue;
+    try {
+      await createDispatchJob(
+        lead.customerId,
+        lead.invoiceId!,
+        office,
+        lead.pmName,
+        lead.customer?.externalId || String(lead.customerId),
+        key,
+        token,
+      );
+      createdCount++;
+    } catch {
+      // non-fatal; next sweep retries
+    }
+  }
+  return { checked: soldLeads.length, created: createdCount };
+}
+
 export async function POST(req: NextRequest) {
   // Accept either x-cron-secret header OR Authorization: Bearer <CRON_SECRET>,
   // so all cron-job.org jobs use one uniform header.
@@ -329,6 +363,13 @@ export async function POST(req: NextRequest) {
         results[office].healed = await healPlaceholderCustomers(office, config.key, config.token);
       } catch (e: any) {
         results[office].healed = { error: e.message };
+      }
+      // Safety net: ensure every SOLD lead has a dispatch job (catches leads that flipped before
+      // dispatch-job creation was wired into their path, e.g. pre-fix SOLD leads).
+      try {
+        results[office].dispatchSweep = await sweepMissingDispatchJobs(office, config.key, config.token);
+      } catch (e: any) {
+        results[office].dispatchSweep = { error: e.message };
       }
     } catch (err: any) {
       results[office] = { error: err.message };
