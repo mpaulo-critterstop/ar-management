@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     // (a) CSR appointment types per office
     for (const o of offices) {
       await fetch(`${baseUrl}/api/sync/csr-appointments?token=critterstop2026&office=${o}`, {
-        method: 'GET', // @ts-ignore
+        method: 'GET',
         signal: AbortSignal.timeout(290000),
       }).catch(e => console.error(`[cron/sync] csr-appointments ${o}:`, e));
     }
@@ -66,8 +66,8 @@ export async function GET(req: NextRequest) {
     while (fixUrl && guard < 200) {
       guard++;
       try {
-        const r = await fetch(`${baseUrl}${fixUrl}`, { signal: AbortSignal.timeout(290000) as any });
-        const d = await r.json();
+        const r: Response = await fetch(`${baseUrl}${fixUrl}`, { signal: AbortSignal.timeout(290000) });
+        const d: any = await r.json();
         fixUrl = d.hasMore && d.nextUrl ? d.nextUrl : null;
       } catch (e) {
         console.error('[cron/sync] csr-wildlife-fix:', e);
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
     }
     // (c) incremental CSR backfill
     await fetch(`${baseUrl}/api/leads/csr-backfill?token=critterstop2026&mode=incremental`, {
-      signal: AbortSignal.timeout(290000) as any,
+      signal: AbortSignal.timeout(290000),
     }).catch(e => console.error('[cron/sync] csr-backfill:', e));
   };
 
