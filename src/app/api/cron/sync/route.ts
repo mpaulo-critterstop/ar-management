@@ -83,7 +83,12 @@ export async function GET(req: NextRequest) {
   // Chain in order: AR -> Leads -> CSR(full) -> Dispatch. Each awaits the previous so the invoice
   // exists before Leads matches it, CSR inspection/lead data pulls after, and dispatch jobs exist
   // before Dispatch enriches them. NOT awaited by the handler — it returns immediately below.
+  // On completion, writes a `pipeline_<office>` row to sync_logs as a health/last-run signal the
+  // module tables can display.
   const runPipeline = async () => {
+    const pipelineStart = new Date();
+    const logSource = `pipeline_${office || 'all'}`;
+    let ok = true;
     try {
       if (!stage || stage === 'ar') {
         await call('/api/sync/auto');
@@ -98,7 +103,23 @@ export async function GET(req: NextRequest) {
         await call('/api/dispatch/sync');
       }
     } catch (err) {
+      ok = false;
       console.error(`[cron/sync] pipeline error for ${office || 'all'}:`, err);
+    }
+    // Record completion (best-effort; don't let logging failure break anything).
+    try {
+      const { prisma } = await import('@/lib/prisma');
+      await prisma.syncLog.create({
+        data: {
+          source: logSource,
+          status: ok ? 'success' : 'error',
+          mode: stage ? `stage:${stage}` : 'full_pipeline',
+          startedAt: pipelineStart,
+          completedAt: new Date(),
+        },
+      });
+    } catch (e) {
+      console.error('[cron/sync] failed to write pipeline log:', e);
     }
   };
 
