@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { type Period } from './helpers';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 interface TcRecord {
   id: string;
@@ -114,6 +115,24 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
   const [colFilters, setColFilters] = useState<Record<string, string>>({});
   const setCol = (key: string, val: string) => setColFilters(prev => ({ ...prev, [key]: val }));
 
+  // TC Frequency drawer (line charts: monthly + year-over-year)
+  const [showFreq, setShowFreq] = useState(false);
+  const [freqData, setFreqData] = useState<any>(null);
+  const [freqLoading, setFreqLoading] = useState(false);
+  const openFreq = async () => {
+    setShowFreq(true);
+    if (freqData) return;
+    setFreqLoading(true);
+    try {
+      const officeParam = office === 'All' ? 'ALL' : office;
+      const res = await fetch(`/api/tc-accountability/frequency?office=${officeParam}`);
+      setFreqData(await res.json());
+    } catch { /* keep drawer open with empty state */ }
+    setFreqLoading(false);
+  };
+  // Refetch when office changes while closed (so reopening reflects the current office).
+  useEffect(() => { setFreqData(null); }, [office]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -202,6 +221,12 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
           </button>
         )}
         <span style={{ fontSize: 11, color: '#B4B2A9' }}>Filter each column below</span>
+        <button
+          onClick={openFreq}
+          style={{ marginLeft: 'auto', fontSize: 12, padding: '6px 12px', border: '0.5px solid #D3D1C7', borderRadius: 8, background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
+        >
+          📈 TC Frequency
+        </button>
       </div>
 
       {loading ? (
@@ -277,6 +302,80 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
           </table>
         </div>
       )}
+
+      {/* TC Frequency drawer — monthly + year-over-year line charts */}
+      {showFreq && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setShowFreq(false); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
+          <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 1100, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid #E8E7E3' }}>
+              <div style={{ fontWeight: 600, fontSize: 15, color: '#2C2C2A' }}>
+                TC Frequency <span style={{ fontSize: 12, fontWeight: 400, color: '#888780', marginLeft: 6 }}>— avg. days between visits {office !== 'All' && office !== 'ALL' ? `· ${office}` : ''}</span>
+              </div>
+              <button onClick={() => setShowFreq(false)} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888780', lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ overflow: 'auto', padding: 20 }}>
+              {freqLoading ? (
+                <div style={{ padding: 60, textAlign: 'center', color: '#B4B2A9' }}>Loading…</div>
+              ) : !freqData || !freqData.monthly?.length ? (
+                <div style={{ padding: 60, textAlign: 'center', color: '#B4B2A9' }}>No TC Frequency data.</div>
+              ) : (
+                <>
+                  {freqData.current && (
+                    <div style={{ marginBottom: 20, display: 'flex', gap: 24, alignItems: 'baseline' }}>
+                      <div>
+                        <span style={{ fontSize: 28, fontWeight: 600, color: '#2C2C2A' }}>{freqData.current.value?.toFixed(1) ?? '—'}</span>
+                        <span style={{ fontSize: 13, color: '#888780', marginLeft: 6 }}>days ({freqData.current.month})</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#888780' }}>Standard: {freqData.standard} days</div>
+                    </div>
+                  )}
+
+                  {/* Continuous monthly */}
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#2C2C2A', marginBottom: 8 }}>Monthly trend</div>
+                  <div style={{ width: '100%', height: 280, marginBottom: 28 }}>
+                    <ResponsiveContainer>
+                      <LineChart data={freqData.monthly} margin={{ top: 8, right: 20, bottom: 8, left: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#F1EFE8" />
+                        <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#888780' }} interval="preserveStartEnd" minTickGap={24} />
+                        <YAxis tick={{ fontSize: 10, fill: '#888780' }} width={36} />
+                        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '0.5px solid #E8E7E3' }} formatter={(v: any) => [`${v} days`, 'TC Freq']} />
+                        <ReferenceLine y={freqData.standard} stroke="#C99A2E" strokeDasharray="4 4" label={{ value: `Std ${freqData.standard}`, fontSize: 10, fill: '#C99A2E', position: 'right' }} />
+                        <Line type="monotone" dataKey="value" stroke="#0052cc" strokeWidth={2} dot={false} connectNulls />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Year-over-year */}
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#2C2C2A', marginBottom: 8 }}>Year-over-year</div>
+                  <div style={{ width: '100%', height: 300 }}>
+                    <ResponsiveContainer>
+                      <LineChart data={freqData.yoy.matrix} margin={{ top: 8, right: 20, bottom: 8, left: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#F1EFE8" />
+                        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#888780' }} />
+                        <YAxis tick={{ fontSize: 10, fill: '#888780' }} width={36} />
+                        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '0.5px solid #E8E7E3' }} formatter={(v: any) => [`${v} days`]} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <ReferenceLine y={freqData.standard} stroke="#C99A2E" strokeDasharray="4 4" />
+                        {freqData.yoy.years.map((y: number, i: number) => (
+                          <Line key={y} type="monotone" dataKey={String(y)} stroke={YOY_COLORS[i % YOY_COLORS.length]} strokeWidth={2} dot={{ r: 2 }} connectNulls />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 12 }}>
+                    Note: the most recent month(s) may read low until future visits are booked. Lower = more frequent visits.
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const YOY_COLORS = ['#B4B2A9', '#8AB4D6', '#5A8FBD', '#0052cc', '#C99A2E'];
