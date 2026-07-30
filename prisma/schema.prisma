@@ -382,6 +382,13 @@ model TechWeek {
   coJobs          Int?
   callbackJobs    Int?
 
+  // WP raw inputs (Excel Raw Data cols AD-AH) — persisted for display + traceability
+  coPlusWk1_15_45   Int?     // AD: closedOut + wk1CloseOut count, isCoJob, date 15-45 days ago
+  coJobs_15_45      Int?     // AE: isCoJob count, date 15-45 days ago
+  wAvgTimeAtJob     Float?   // AF: avg timeAtJobMins for this tech+weekEnd
+  jobs60_120        Int?     // AG: all appts, date 60-120 days ago
+  callbacks60_120   Int?     // AH: cb60Day count, date 60-120 days ago
+
   // PMP metrics
   revenueEfficiency Float?
   reseviceRate    Float?

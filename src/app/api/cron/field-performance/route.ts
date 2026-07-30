@@ -97,6 +97,7 @@ interface TechWPStats {
   closeouts: number;               // CO window: closed out jobs
   callbacks: number;               // CB window: total jobs
   callbackCount: number;           // CB window: jobs with future CBs
+  avgTimeAtJob: number | null;     // AF: avg timeAtJobMins for tech @ this weekEnd
 }
 
 async function pullWPMetrics(
@@ -107,7 +108,7 @@ async function pullWPMetrics(
 ): Promise<Map<string, TechWPStats>> {
 
   const result = new Map<string, TechWPStats>();
-  const initStats = (): TechWPStats => ({ closeoutOpportunities: 0, closeouts: 0, callbacks: 0, callbackCount: 0 });
+  const initStats = (): TechWPStats => ({ closeoutOpportunities: 0, closeouts: 0, callbacks: 0, callbackCount: 0, avgTimeAtJob: null });
 
   // CO%: use tc_appointments from 15-45 days ago (Excel formula: AD/AE)
   const coEnd   = new Date(weekEnd); coEnd.setDate(coEnd.getDate() - 15);
@@ -157,6 +158,24 @@ async function pullWPMetrics(
     const stats = result.get(techId)!;
     stats.callbacks++; // total jobs in CB window
     if (appt.cb60Day) stats.callbackCount++; // jobs that resulted in a callback within 60 days
+  }
+
+  // AF — W Avg. Time at Job: average timeAtJobMins for this tech at THIS weekEnd
+  // (Excel AVERAGEIFS on col R filtered by tech H and weekEnd B = Raw Data A8).
+  const timeRows = await prisma.tcAppointment.groupBy({
+    by: ['techId'],
+    where: {
+      techId: { in: [...wpTechIds] },
+      weekEnd: weekEnd,
+      timeAtJobMins: { not: null },
+    },
+    _avg: { timeAtJobMins: true },
+  });
+  for (const row of timeRows) {
+    const techId = row.techId;
+    if (!techId || !wpTechIds.has(techId)) continue;
+    if (!result.has(techId)) result.set(techId, initStats());
+    result.get(techId)!.avgTimeAtJob = row._avg.timeAtJobMins ?? null;
   }
 
   return result;
@@ -272,6 +291,12 @@ export async function POST(req: NextRequest) {
           closeOutPct:  coPct,
           callbackRate: cbRate,
           coJobs:       coCount,
+          // WP raw inputs (Excel AD-AH)
+          coPlusWk1_15_45: coCount,
+          coJobs_15_45:    coOpps,
+          wAvgTimeAtJob:   metrics.avgTimeAtJob,
+          jobs60_120:      cbJobs,
+          callbacks60_120: cbCount,
           updatedAt:    new Date(),
         };
 
@@ -301,6 +326,11 @@ export async function POST(req: NextRequest) {
               closeOutPct:  coPct,
               callbackRate: cbRate,
               coJobs:       coCount,
+              coPlusWk1_15_45: coCount,
+              coJobs_15_45:    coOpps,
+              wAvgTimeAtJob:   metrics.avgTimeAtJob,
+              jobs60_120:      cbJobs,
+              callbacks60_120: cbCount,
               manualAdj:    0,
             },
           });

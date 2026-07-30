@@ -151,6 +151,11 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
             {[
               { label: 'Close-out %', val: selected.closeOutPct !== null ? (selected.closeOutPct * 100).toFixed(0) + '%' : '—' },
               { label: 'Callback rate', val: selected.callbackRate !== null ? (selected.callbackRate * 100).toFixed(0) + '%' : '—' },
+              { label: 'CO + 1wk CO (15-45d)', val: selected.coPlusWk1_15_45 ?? '—' },
+              { label: 'CO jobs (15-45d)', val: selected.coJobs_15_45 ?? '—' },
+              { label: 'W avg. time at job', val: selected.wAvgTimeAtJob != null ? Math.round(selected.wAvgTimeAtJob) + ' min' : '—' },
+              { label: 'Jobs (60-120d)', val: selected.jobs60_120 ?? '—' },
+              { label: 'Callbacks (60-120d)', val: selected.callbacks60_120 ?? '—' },
               { label: 'Rev. efficiency', val: selected.revenueEfficiency !== null ? (selected.revenueEfficiency * 100).toFixed(0) + '%' : '—' },
               { label: 'Reservice rate', val: selected.reseviceRate !== null ? (selected.reseviceRate * 100).toFixed(0) + '%' : '—' },
               { label: 'Completion %', val: selected.completionPct !== null ? (selected.completionPct * 100).toFixed(0) + '%' : '—' },

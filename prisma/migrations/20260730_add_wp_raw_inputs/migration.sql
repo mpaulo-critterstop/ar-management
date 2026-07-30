@@ -1,0 +1,7 @@
+-- Add WP raw-input columns to tech_weeks (Excel Raw Data cols AD-AH)
+ALTER TABLE "tech_weeks"
+  ADD COLUMN IF NOT EXISTS "coPlusWk1_15_45" INTEGER,
+  ADD COLUMN IF NOT EXISTS "coJobs_15_45"    INTEGER,
+  ADD COLUMN IF NOT EXISTS "wAvgTimeAtJob"   DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS "jobs60_120"      INTEGER,
+  ADD COLUMN IF NOT EXISTS "callbacks60_120" INTEGER;
