@@ -219,9 +219,9 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 ? (
-                    <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No scores recorded for this week yet.</td></tr>
-                  ) : filtered.map(w => (
+                  {filtered.filter(w => w.team === 'WP').length === 0 ? (
+                    <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No WP techs for this week yet.</td></tr>
+                  ) : filtered.filter(w => w.team === 'WP').map(w => (
                     <tr key={w.id}>
                       <td style={{ ...td, fontSize: 11, color: '#888780' }}>{w.techId}</td>
                       <td style={{ ...td, fontWeight: 500 }}>{w.technician?.name ?? '—'}</td>
