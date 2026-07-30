@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { canAccessModule } from '@/lib/access';
+import { LastSynced } from '@/components/LastSynced';
 
 const ACCENT = '#0052cc';
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
@@ -61,7 +62,6 @@ export default function DispatchPage() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [kpis, setKpis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [office, setOffice] = useState('DFW');
   const [stageFilter, setStageFilter] = useState('all');
   const [customerSearch, setCustomerSearch] = useState('');
@@ -98,28 +98,6 @@ export default function DispatchPage() {
     setTimeout(() => setToast(null), 3000);
   }
 
-  async function runSync() {
-    setSyncing(true);
-    try {
-  fetch('/api/dispatch/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      showToast('Sync triggered — refreshing in 30 seconds');
-      setTimeout(() => {
-        fetchJobs();
-        setSyncing(false);
-      }, 30000);
-      return;
-      
-      showToast('Sync complete!');
-      fetchJobs();
-    } catch {
-      showToast('Sync failed');
-    }
-    setSyncing(false);
-  }
 
   async function saveStage() {
     setSavingStage(true);
@@ -347,14 +325,7 @@ export default function DispatchPage() {
             )}
           </div>
         </div>
-        <button onClick={runSync} disabled={syncing} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: syncing ? 'not-allowed' : 'pointer', fontWeight: 500, opacity: syncing ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-       {syncing ? (
-            <>
-              <span style={{display:'inline-block',width:12,height:12,border:'2px solid #D3D1C7',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}} />
-              Syncing...
-            </>
-          ) : '⟳ Sync FR'}
-        </button>
+        <LastSynced office={office} />
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

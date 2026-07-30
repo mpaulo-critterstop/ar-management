@@ -1,6 +1,7 @@
 // v2
 "use client";
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { LastSynced } from "@/components/LastSynced";
 
 const ACCENT = '#0052cc';
 const TODAY = new Date();
@@ -129,7 +130,6 @@ export default function ARApp() {
   const [invoices, setInvoicesState] = useState<any[]>([]);
   const [payments, setPaymentsState] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [officeFilter, setOfficeFilter] = useState("ALL");
   const [collectedDays, setCollectedDays] = useState(30);
   const [customDateFrom, setCustomDateFrom] = useState('');
@@ -156,31 +156,7 @@ export default function ARApp() {
     setLoading(false);
   }
 
-  async function syncFR() {
-    setSyncing(true);
-    const office = officeFilter !== "ALL" ? officeFilter : undefined;
-    try {
-      fetch("/api/sync/auto", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-cron-secret": "critterstop-cron-2024" },
-        body: JSON.stringify({ ...(office && { office }), syncType: "invoices" }),
-      });
-      fetch("/api/sync/auto", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-cron-secret": "critterstop-cron-2024" },
-        body: JSON.stringify({ ...(office && { office }), syncType: "payments" }),
-      });
-      showToast("Sync triggered — refreshing in 30 seconds");
-      setTimeout(async () => {
-        await loadAll();
-        setSyncing(false);
-        showToast("Data refreshed!");
-      }, 30000);
-    } catch (e) {
-      showToast("Sync failed", "error");
-      setSyncing(false);
-    }
-  }
+
 
   useEffect(()=>{ loadAll(); },[]);
 
@@ -259,34 +235,7 @@ export default function ARApp() {
               </button>
             ))}
           </div>
-          <button
-            onClick={syncFR}
-            disabled={syncing}
-            style={{
-              background: "#fff",
-              color: "#888780",
-              border: "0.5px solid #D3D1C7",
-              padding: "7px 14px",
-              borderRadius: 9,
-              cursor: syncing ? "not-allowed" : "pointer",
-              fontSize: 13,
-              fontWeight: 500,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              whiteSpace: "nowrap",
-              opacity: syncing ? 0.7 : 1,
-            }}
-          >
-            {syncing ? (
-              <>
-                <span style={{display:"inline-block",width:12,height:12,border:"2px solid #D3D1C7",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}} />
-                Syncing...
-              </>
-            ) : (
-              <>⟳ Sync FR</>
-            )}
-          </button>
+          <LastSynced office={officeFilter} />
         </div>
       </div>
 

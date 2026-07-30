@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { CommissionsTab } from './CommissionsTab';
+import { LastSynced } from '@/components/LastSynced';
 import { canAccessModule, perm } from '@/lib/access';
 
 const ACCENT = '#0052cc';
@@ -45,17 +46,7 @@ export default function LeadsPage() {
   const [pmKpis, setPmKpis] = useState<any[]>([]);
   const [allPMs, setAllPMs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [office, setOffice] = useState('DFW');
-  const [lastRun, setLastRun] = useState<string | null>(null);
-  const relTime = (iso: string | null) => {
-    if (!iso) return null;
-    const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-    if (secs < 60) return 'just now';
-    if (secs < 3600) return `${Math.floor(secs / 60)} min ago`;
-    if (secs < 86400) return `${Math.floor(secs / 3600)} hr ago`;
-    return `${Math.floor(secs / 86400)} d ago`;
-  };
   const [statusFilter, setStatusFilter] = useState('All');
   const [statusInput, setStatusInput] = useState('All');
   const [pmInput, setPmInput] = useState('All');
@@ -127,20 +118,6 @@ export default function LeadsPage() {
   }, [office, statusFilter, pmFilter, from, to]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
-
-  // Load "last synced" indicator for the current office (health check).
-  useEffect(() => {
-    let cancelled = false;
-    const load = () => {
-      fetch(`/api/sync/last-run?office=${office}`)
-        .then(r => r.json())
-        .then(d => { if (!cancelled) setLastRun(d?.[office]?.completedAt ?? null); })
-        .catch(() => {});
-    };
-    load();
-    const iv = setInterval(load, 60000); // refresh each minute
-    return () => { cancelled = true; clearInterval(iv); };
-  }, [office]);
 
   useEffect(() => {
     fetch('/api/pm')
@@ -233,47 +210,7 @@ export default function LeadsPage() {
             )}
           </div>
         </div>
-        <button
-          onClick={async () => {
-            if (syncing) return;
-            setSyncing(true);
-            // Step 1: Sync main wildlife leads
-            await fetch('/api/sync/appointments', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-cron-secret': 'critterstop-cron-2024' },
-              body: JSON.stringify({}),
-            });
-            // Step 2: Sync new CSR appointment types (runs for each office)
-            for (const office of ['DFW', 'ATX', 'OKC', 'CStat']) {
-              await fetch(`/api/sync/csr-appointments?token=critterstop2026&office=${office}`);
-            }
-            // Step 3: Fix wildlife records with missing employeeId
-            let wildlifeFixDone = false;
-            let wildlifeFixUrl = '/api/sync/csr-wildlife-fix?token=critterstop2026&offset=0';
-            while (!wildlifeFixDone) {
-              const wRes = await fetch('https://hub.critterstop.com' + wildlifeFixUrl);
-              const wData = await wRes.json();
-              if (wData.hasMore && wData.nextUrl) {
-                wildlifeFixUrl = wData.nextUrl;
-              } else {
-                wildlifeFixDone = true;
-              }
-            }
-            // Step 4: Run incremental CSR backfill for new records
-            await fetch('/api/leads/csr-backfill?token=critterstop2026&mode=incremental');
-            await fetchLeads();
-            setSyncing(false);
-          }}
-          disabled={syncing}
-          style={{ background: '#fff', color: '#888780', border: '0.5px solid #D3D1C7', padding: '7px 14px', borderRadius: 9, cursor: syncing ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, opacity: syncing ? 0.7 : 1 }}
-        >
-          {syncing ? (<><span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid #D3D1C7', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />Syncing...</>) : '⟳ Sync FR'}
-        </button>
-        {lastRun && (
-          <span style={{ fontSize: 11, fontStyle: 'italic', color: '#A8A69E', marginLeft: 10, alignSelf: 'center' }}>
-            Last synced {relTime(lastRun)}
-          </span>
-        )}
+        <LastSynced office={office} />
       </div>
 
       {/* LEADS TAB */}
