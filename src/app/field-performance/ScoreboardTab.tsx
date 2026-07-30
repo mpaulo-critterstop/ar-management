@@ -138,7 +138,7 @@ export function ScoreboardTab({ office, weekEnd, leaderFilter = '', period }: Pr
                 <SortableTh sortKey="name" sort={sort} style={{ width: 150 }}>Name</SortableTh>
                 <SortableTh sortKey="team" sort={sort} style={{ width: 52 }}>Team</SortableTh>
                 <SortableTh sortKey="office" sort={sort} style={{ width: 55 }}>Office</SortableTh>
-                <SortableTh sortKey="score" sort={sort} style={{ width: 110 }}>Score</SortableTh>
+                <SortableTh sortKey="score" sort={sort} style={{ width: 110 }}>Total Effort</SortableTh>
                 <SortableTh sortKey="co" sort={sort} style={{ width: 60 }}>CO%</SortableTh>
                 <SortableTh sortKey="cb" sort={sort} style={{ width: 65 }}>CB rate</SortableTh>
                 <SortableTh sortKey="driving" sort={sort} style={{ width: 65 }}>Driving</SortableTh>

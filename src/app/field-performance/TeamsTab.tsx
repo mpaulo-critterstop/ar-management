@@ -60,7 +60,7 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
                 <SortableTh sortKey="leader" sort={crewSort} style={{ width: 160 }}>Crew leader</SortableTh>
                 <SortableTh sortKey="office" sort={crewSort} style={{ width: 60 }}>Office</SortableTh>
                 <SortableTh sortKey="techCount" sort={crewSort} style={{ width: 55 }}>Techs</SortableTh>
-                <SortableTh sortKey="avgScore" sort={crewSort} style={{ width: 95 }}>Avg score</SortableTh>
+                <SortableTh sortKey="avgScore" sort={crewSort} style={{ width: 110 }}>Avg. Total Effort</SortableTh>
                 <SortableTh sortKey="avgCloseOutPct" sort={crewSort} style={{ width: 65 }}>Avg CO%</SortableTh>
                 <SortableTh sortKey="avgCallbackRate" sort={crewSort} style={{ width: 72 }}>Avg CB rate</SortableTh>
                 <SortableTh sortKey="avgRevEff" sort={crewSort} style={{ width: 70 }}>Avg RevEff</SortableTh>
@@ -106,7 +106,7 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
                 <SortableTh sortKey="office" sort={siteSort} style={{ width: 60 }}>Office</SortableTh>
                 <SortableTh sortKey="crewCount" sort={siteSort} style={{ width: 55 }}>Crews</SortableTh>
                 <SortableTh sortKey="techCount" sort={siteSort} style={{ width: 55 }}>Techs</SortableTh>
-                <SortableTh sortKey="avgScore" sort={siteSort} style={{ width: 95 }}>Avg score</SortableTh>
+                <SortableTh sortKey="avgScore" sort={siteSort} style={{ width: 110 }}>Avg. Total Effort</SortableTh>
                 <SortableTh sortKey="wpAvg" sort={siteSort} style={{ width: 90 }}>WP avg</SortableTh>
                 <SortableTh sortKey="pmpAvg" sort={siteSort} style={{ width: 90 }}>PMP avg</SortableTh>
               </tr>

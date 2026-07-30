@@ -83,7 +83,7 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
                   <SortableTh sortKey="name" sort={sort} style={{ width: selected ? 120 : 150 }}>Name</SortableTh>
                   <SortableTh sortKey="team" sort={sort} style={{ width: 46 }}>Team</SortableTh>
                   <SortableTh sortKey="office" sort={sort} style={{ width: 52 }}>Office</SortableTh>
-                  <SortableTh sortKey="score" sort={sort} style={{ width: 95 }}>Score</SortableTh>
+                  <SortableTh sortKey="score" sort={sort} style={{ width: 95 }}>Total Effort</SortableTh>
                   {!selected && <SortableTh sortKey="co" sort={sort} style={{ width: 52 }}>CO%</SortableTh>}
                   {!selected && <SortableTh sortKey="cb" sort={sort} style={{ width: 58 }}>CB Rate</SortableTh>}
                   {!selected && <SortableTh sortKey="revEff" sort={sort} style={{ width: 60 }}>Rev Eff</SortableTh>}
