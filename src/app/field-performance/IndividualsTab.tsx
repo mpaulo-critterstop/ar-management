@@ -209,7 +209,7 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
-                    <th style={{ ...th, width: 60 }}>ID</th>
+                    <th style={{ ...th, width: 72, whiteSpace: 'nowrap' }}>ID</th>
                     <th style={{ ...th }}>Name</th>
                     <SortableTh sortKey="coPlusWk1" sort={sort} style={{ width: 130 }}>CO + 1wk CO (15-45d)</SortableTh>
                     <SortableTh sortKey="coJobs1545" sort={sort} style={{ width: 120 }}>CO Jobs (15-45d)</SortableTh>
@@ -223,7 +223,7 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
                     <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No WP techs for this week yet.</td></tr>
                   ) : filtered.filter(w => w.team === 'WP').map(w => (
                     <tr key={w.id}>
-                      <td style={{ ...td, fontSize: 11, color: '#888780' }}>{w.techId}</td>
+                      <td style={{ ...td, fontSize: 11, color: '#888780', whiteSpace: 'nowrap' }}>{w.techId}</td>
                       <td style={{ ...td, fontWeight: 500 }}>{w.technician?.name ?? '—'}</td>
                       <td style={{ ...td, fontSize: 12 }}>{w.coPlusWk1_15_45 ?? '—'}</td>
                       <td style={{ ...td, fontSize: 12 }}>{w.coJobs_15_45 ?? '—'}</td>
