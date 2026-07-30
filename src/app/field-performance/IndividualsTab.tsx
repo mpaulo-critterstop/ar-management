@@ -45,6 +45,11 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
     completion: w => w.completionPct,
     driving:    w => w.drivingScore,
     reliability:w => w.reliabilityScore,
+    coPlusWk1:  w => w.coPlusWk1_15_45,
+    coJobs1545: w => w.coJobs_15_45,
+    wTime:      w => w.wAvgTimeAtJob,
+    jobs60120:  w => w.jobs60_120,
+    cb60120:    w => w.callbacks60_120,
   });
 
   const inputStyle: React.CSSProperties = { fontSize: 12, padding: '6px 9px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#2C2C2A' };
@@ -86,13 +91,18 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
                   {!selected && <SortableTh sortKey="completion" sort={sort} style={{ width: 62 }}>Completion</SortableTh>}
                   {!selected && <SortableTh sortKey="driving" sort={sort} style={{ width: 60 }}>Driving</SortableTh>}
                   {!selected && <SortableTh sortKey="reliability" sort={sort} style={{ width: 68 }}>Reliability</SortableTh>}
+                  {!selected && <SortableTh sortKey="coPlusWk1" sort={sort} style={{ width: 68 }}>CO+1wk (15-45d)</SortableTh>}
+                  {!selected && <SortableTh sortKey="coJobs1545" sort={sort} style={{ width: 68 }}>CO Jobs (15-45d)</SortableTh>}
+                  {!selected && <SortableTh sortKey="wTime" sort={sort} style={{ width: 62 }}>W Avg Time</SortableTh>}
+                  {!selected && <SortableTh sortKey="jobs60120" sort={sort} style={{ width: 64 }}>Jobs (60-120d)</SortableTh>}
+                  {!selected && <SortableTh sortKey="cb60120" sort={sort} style={{ width: 68 }}>Callbacks (60-120d)</SortableTh>}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>Loading...</td></tr>
+                  <tr><td colSpan={18} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>Loading...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No scores recorded for this week yet.</td></tr>
+                  <tr><td colSpan={18} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No scores recorded for this week yet.</td></tr>
                 ) : filtered.map((w, i) => (
                   <tr key={w.id}
                     onClick={() => setSelected(selected?.id === w.id ? null : w)}
@@ -118,6 +128,11 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.completionPct !== null ? (w.completionPct * 100).toFixed(0) + '%' : '—'}</td>}
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.drivingOverride ? <span style={{color:'#791F1F',fontWeight:500}}>0% ⚠</span> : w.drivingScore !== null ? (w.drivingScore * 100).toFixed(0) + '%' : '—'}</td>}
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.reliabilityScore !== null ? (w.reliabilityScore * 100).toFixed(0) + '%' : '—'}</td>}
+                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.coPlusWk1_15_45 ?? '—'}</td>}
+                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.coJobs_15_45 ?? '—'}</td>}
+                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.wAvgTimeAtJob != null ? Math.round(w.wAvgTimeAtJob) : '—'}</td>}
+                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.jobs60_120 ?? '—'}</td>}
+                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.callbacks60_120 ?? '—'}</td>}
                   </tr>
                 ))}
               </tbody>
