@@ -12,7 +12,6 @@ import { DrivingTab } from './DrivingTab';
 import { MoMTab } from './MoMTab';
 import { ManualAdjTab } from './ManualAdjTab';
 import { TcAccountabilityTab } from './TcAccountabilityTab';
-import { RoutesTab } from './RoutesTab';
 
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
 
@@ -34,7 +33,7 @@ function fmtWeek(d: Date) {
 export default function FieldPerformancePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'scoreboard' | 'individuals' | 'teams' | 'roster' | 'attendance' | 'tc-accountability' | 'driving' | 'routes' | 'mom' | 'adjustments'>('scoreboard');
+  const [activeTab, setActiveTab] = useState<'scoreboard' | 'individuals' | 'teams' | 'roster' | 'attendance' | 'tc-accountability' | 'driving' | 'mom' | 'adjustments'>('scoreboard');
   const [office, setOffice] = useState('All');
   const [weekIdx, setWeekIdx] = useState(0);
   const [periodMode, setPeriodMode] = useState<'week' | 'month'>('week');
@@ -140,9 +139,9 @@ export default function FieldPerformancePage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
         {/* Tab nav */}
         <div style={{ display: 'inline-flex', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
-          {(['scoreboard', 'individuals', 'teams', 'roster', 'attendance', 'tc-accountability', 'driving', 'routes', 'mom', 'adjustments'] as const).map(tab => (
+          {(['scoreboard', 'individuals', 'teams', 'roster', 'attendance', 'tc-accountability', 'driving', 'mom', 'adjustments'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} style={navStyle(activeTab === tab)}>
-              {tab === 'mom' ? 'MoM' : tab === 'adjustments' ? 'Adjustments' : tab === 'tc-accountability' ? 'TC Accountability' : tab === 'routes' ? 'PC Routes' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'mom' ? 'MoM' : tab === 'adjustments' ? 'Adjustments' : tab === 'tc-accountability' ? 'TC Accountability' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
@@ -216,7 +215,6 @@ export default function FieldPerformancePage() {
       {activeTab === 'attendance' && <AttendanceTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} period={period} />}
       {activeTab === 'tc-accountability' && <TcAccountabilityTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} period={period} />}
       {activeTab === 'driving' && <DrivingTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} period={period} />}
-      {activeTab === 'routes' && <RoutesTab office={officeParam} weekEnd={selectedWeek} leaderFilter={leaderFilter} />}
       {activeTab === 'mom' && <MoMTab office={officeParam} />}
       {activeTab === 'adjustments' && <ManualAdjTab office={officeParam} weekEnd={selectedWeek} />}
     </div>

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { scoreBadge, scoreBar, teamPill, card, th, td, initials, useSort, sortRows, SortableTh, periodParams, type Period } from './helpers';
+import { RoutesTab } from './RoutesTab';
 
 interface Props { office: string; weekEnd: Date; leaderFilter?: string; period?: Period; }
 
@@ -11,6 +12,8 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
   const [teamFilter, setTeamFilter] = useState('');
   const sort = useSort('score', 'desc');
   const [selected, setSelected] = useState<any>(null);
+  const [showWpDrawer, setShowWpDrawer] = useState(false);
+  const [showRoutesDrawer, setShowRoutesDrawer] = useState(false);
 
   const periodKey = period?.mode === 'month' ? `m${period.year}-${period.month}` : weekEnd.toLocaleDateString('en-CA');
   useEffect(() => {
@@ -71,11 +74,23 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
             <option value="PMP">PMP</option>
             <option value="IP">IP</option>
           </select>
+          <button
+            onClick={() => setShowWpDrawer(true)}
+            style={{ fontSize: 12, padding: '6px 12px', border: '0.5px solid #D3D1C7', borderRadius: 8, background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
+          >
+            WP Details
+          </button>
+          <button
+            onClick={() => setShowRoutesDrawer(true)}
+            style={{ fontSize: 12, padding: '6px 12px', border: '0.5px solid #D3D1C7', borderRadius: 8, background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
+          >
+            PC Routes
+          </button>
         </div>
 
         <div style={card}>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', minWidth: 1300, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <thead>
                 <tr>
                   <th style={{ ...th, width: 30 }}>#</th>
@@ -91,18 +106,13 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
                   {!selected && <SortableTh sortKey="completion" sort={sort} style={{ width: 62 }}>Completion</SortableTh>}
                   {!selected && <SortableTh sortKey="driving" sort={sort} style={{ width: 60 }}>Driving</SortableTh>}
                   {!selected && <SortableTh sortKey="reliability" sort={sort} style={{ width: 68 }}>Reliability</SortableTh>}
-                  {!selected && <SortableTh sortKey="coPlusWk1" sort={sort} style={{ width: 82, whiteSpace: 'normal', lineHeight: 1.15 }}>CO+1wk (15-45d)</SortableTh>}
-                  {!selected && <SortableTh sortKey="coJobs1545" sort={sort} style={{ width: 82, whiteSpace: 'normal', lineHeight: 1.15 }}>CO Jobs (15-45d)</SortableTh>}
-                  {!selected && <SortableTh sortKey="wTime" sort={sort} style={{ width: 70, whiteSpace: 'normal', lineHeight: 1.15 }}>W Avg Time</SortableTh>}
-                  {!selected && <SortableTh sortKey="jobs60120" sort={sort} style={{ width: 80, whiteSpace: 'normal', lineHeight: 1.15 }}>Jobs (60-120d)</SortableTh>}
-                  {!selected && <SortableTh sortKey="cb60120" sort={sort} style={{ width: 88, whiteSpace: 'normal', lineHeight: 1.15 }}>Callbacks (60-120d)</SortableTh>}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={18} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>Loading...</td></tr>
+                  <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>Loading...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={18} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No scores recorded for this week yet.</td></tr>
+                  <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No scores recorded for this week yet.</td></tr>
                 ) : filtered.map((w, i) => (
                   <tr key={w.id}
                     onClick={() => setSelected(selected?.id === w.id ? null : w)}
@@ -128,11 +138,6 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.completionPct !== null ? (w.completionPct * 100).toFixed(0) + '%' : '—'}</td>}
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.drivingOverride ? <span style={{color:'#791F1F',fontWeight:500}}>0% ⚠</span> : w.drivingScore !== null ? (w.drivingScore * 100).toFixed(0) + '%' : '—'}</td>}
                     {!selected && <td style={{ ...td, fontSize: 12 }}>{w.reliabilityScore !== null ? (w.reliabilityScore * 100).toFixed(0) + '%' : '—'}</td>}
-                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.coPlusWk1_15_45 ?? '—'}</td>}
-                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.coJobs_15_45 ?? '—'}</td>}
-                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.wAvgTimeAtJob != null ? Math.round(w.wAvgTimeAtJob) : '—'}</td>}
-                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.jobs60_120 ?? '—'}</td>}
-                    {!selected && <td style={{ ...td, fontSize: 12 }}>{w.callbacks60_120 ?? '—'}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -185,6 +190,69 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
                 <span style={{ fontSize: 12, fontWeight: 500, color: '#2C2C2A' }}>{row.val}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* WP Details drawer — full-screen modal with the 5 WP raw-input columns */}
+      {showWpDrawer && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setShowWpDrawer(false); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
+          <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 1000, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid #E8E7E3' }}>
+              <div style={{ fontWeight: 600, fontSize: 15, color: '#2C2C2A' }}>WP Details <span style={{ fontSize: 12, fontWeight: 400, color: '#888780', marginLeft: 6 }}>— wildlife raw inputs</span></div>
+              <button onClick={() => setShowWpDrawer(false)} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888780', lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ overflow: 'auto', padding: '4px 0' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...th, width: 60 }}>ID</th>
+                    <th style={{ ...th }}>Name</th>
+                    <SortableTh sortKey="coPlusWk1" sort={sort} style={{ width: 130 }}>CO + 1wk CO (15-45d)</SortableTh>
+                    <SortableTh sortKey="coJobs1545" sort={sort} style={{ width: 120 }}>CO Jobs (15-45d)</SortableTh>
+                    <SortableTh sortKey="wTime" sort={sort} style={{ width: 110 }}>W Avg. Time at Job</SortableTh>
+                    <SortableTh sortKey="jobs60120" sort={sort} style={{ width: 110 }}>Jobs (60-120d)</SortableTh>
+                    <SortableTh sortKey="cb60120" sort={sort} style={{ width: 130 }}>Callbacks (60-120d)</SortableTh>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No scores recorded for this week yet.</td></tr>
+                  ) : filtered.map(w => (
+                    <tr key={w.id}>
+                      <td style={{ ...td, fontSize: 11, color: '#888780' }}>{w.techId}</td>
+                      <td style={{ ...td, fontWeight: 500 }}>{w.technician?.name ?? '—'}</td>
+                      <td style={{ ...td, fontSize: 12 }}>{w.coPlusWk1_15_45 ?? '—'}</td>
+                      <td style={{ ...td, fontSize: 12 }}>{w.coJobs_15_45 ?? '—'}</td>
+                      <td style={{ ...td, fontSize: 12 }}>{w.wAvgTimeAtJob != null ? Math.round(w.wAvgTimeAtJob) + ' min' : '—'}</td>
+                      <td style={{ ...td, fontSize: 12 }}>{w.jobs60_120 ?? '—'}</td>
+                      <td style={{ ...td, fontSize: 12 }}>{w.callbacks60_120 ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PC Routes drawer — full-screen modal rendering the RoutesTab content */}
+      {showRoutesDrawer && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setShowRoutesDrawer(false); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
+          <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 1400, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid #E8E7E3' }}>
+              <div style={{ fontWeight: 600, fontSize: 15, color: '#2C2C2A' }}>PC Routes</div>
+              <button onClick={() => setShowRoutesDrawer(false)} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888780', lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ overflow: 'auto', padding: 20 }}>
+              <RoutesTab weekEnd={weekEnd} office={office} leaderFilter={leaderFilter} />
+            </div>
           </div>
         </div>
       )}
