@@ -119,6 +119,51 @@ export async function GET(req: NextRequest) {
       reliabilityScore: w.reliabilityScore,
     }));
 
+  // ---- Excel Scoreboard tiles ----
+  // Effort-meter averages by segment/office/combo (avg of totalScore over the matching techweeks).
+  const avgWhere = (fn: (w: any) => boolean) => avg(active.filter(fn).map((w: any) => w.totalScore!));
+  const effortMeters = {
+    WP:  avgWhere((w: any) => w.team === 'WP'),
+    IP:  avgWhere((w: any) => w.team === 'IP'),
+    PMP: avgWhere((w: any) => w.team === 'PMP'),
+    DFW:   avgWhere((w: any) => w.office === 'DFW'),
+    ATX:   avgWhere((w: any) => w.office === 'ATX'),
+    OKC:   avgWhere((w: any) => w.office === 'OKC'),
+    CStat: avgWhere((w: any) => w.office === 'CStat'),
+    DFW_WP_IP: avgWhere((w: any) => w.office === 'DFW' && (w.team === 'WP' || w.team === 'IP')),
+    DFW_PMP:   avgWhere((w: any) => w.office === 'DFW' && w.team === 'PMP'),
+  };
+
+  // DFW Pest Route Value — avg productionValue from tech_routes for DFW in the same period.
+  const routeWhere: any = { office: 'DFW' };
+  if (isMonth) routeWhere.weekEnd = { gte: new Date(monthStart!), lte: new Date(monthEnd!) };
+  else routeWhere.weekEnd = where.weekEnd;
+  const dfwRoutes = await prisma.techRoute.aggregate({
+    where: routeWhere,
+    _avg: { productionValue: true },
+  });
+  const dfwPestRouteValue = dfwRoutes._avg.productionValue ?? null;
+
+  // TC Frequency (avg nextVisitDays) — latest meaningful month, honoring office filter.
+  const tcFreqOffice = officeParam && officeParam !== 'ALL' && officeParam !== 'ADMIN' ? officeParam : null;
+  const tcFreqRows: Array<{ value: number | null; n: bigint }> = tcFreqOffice
+    ? await prisma.$queryRaw`
+        SELECT AVG("nextVisitDays") AS value, COUNT("nextVisitDays") AS n
+        FROM "tc_appointments"
+        WHERE "nextVisitDays" IS NOT NULL AND office = ${tcFreqOffice}
+          AND "date" >= (date_trunc('month', CURRENT_DATE) - interval '2 months')
+          AND "date" <  date_trunc('month', CURRENT_DATE)`
+    : await prisma.$queryRaw`
+        SELECT AVG("nextVisitDays") AS value, COUNT("nextVisitDays") AS n
+        FROM "tc_appointments"
+        WHERE "nextVisitDays" IS NOT NULL
+          AND "date" >= (date_trunc('month', CURRENT_DATE) - interval '2 months')
+          AND "date" <  date_trunc('month', CURRENT_DATE)`;
+  const tcFrequency = tcFreqRows[0]?.value != null ? Math.round(Number(tcFreqRows[0].value) * 100) / 100 : null;
+
+  // Capacity (W/I/PMP) — no populated source yet (0 in Excel too); expose as placeholders.
+  const capacity = { W: null as number | null, I: null as number | null, PMP: null as number | null };
+
   return NextResponse.json({
     weekEnd,
     summary: {
@@ -132,5 +177,11 @@ export async function GET(req: NextRequest) {
     officeBreakdown,
     teamBreakdown,
     topPerformers,
+    // Excel Scoreboard tiles:
+    effortMeters,
+    dfwPestRouteValue,
+    tcFrequency,
+    capacity,
+    standards: { effortMeter: 0.90, tcFrequency: 10 },
   });
 }

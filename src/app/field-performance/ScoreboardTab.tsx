@@ -31,7 +31,7 @@ export function ScoreboardTab({ office, weekEnd, leaderFilter = '', period }: Pr
   if (error) return <div style={{ padding: 40, textAlign: 'center', color: '#7A1A1A' }}>Error: {error}</div>;
   if (!data) return <div style={{ padding: 40, textAlign: 'center', color: TEXT_MUTED }}>No data for this week yet.</div>;
 
-  const { summary, officeBreakdown, teamBreakdown, topPerformers } = data;
+  const { summary, officeBreakdown, teamBreakdown, topPerformers, effortMeters, dfwPestRouteValue, tcFrequency, capacity, standards } = data;
   const sortedPerformers = sortRows(topPerformers as any[], sort, {
     name:        t => t.name ?? '',
     team:        t => t.team ?? '',
@@ -74,6 +74,42 @@ export function ScoreboardTab({ office, weekEnd, leaderFilter = '', period }: Pr
           ACCENT
         )}
       </div>
+
+      {/* Excel Scoreboard — Effort Meter averages + TC Frequency + Route Value + Capacity */}
+      {effortMeters && (() => {
+        const em = (v: number | null) => v != null ? (v * 100).toFixed(1) + '%' : '—';
+        const emColor = (v: number | null) => v == null ? BG_TILE : v >= (standards?.effortMeter ?? 0.9) ? '#22C55E' : '#F59E0B';
+        const emTiles: Array<[string, number | null]> = [
+          ['WP Avg. Effort Meter', effortMeters.WP],
+          ['IP Avg. Effort Meter', effortMeters.IP],
+          ['PMP Avg. Effort Meter', effortMeters.PMP],
+          ['DFW Avg. Effort Meter', effortMeters.DFW],
+          ['ATX Avg. Effort Meter', effortMeters.ATX],
+          ['OKC Avg. Effort Meter', effortMeters.OKC],
+          ['CStat Avg. Effort Meter', effortMeters.CStat],
+          ['DFW WP & IP Effort Meter', effortMeters.DFW_WP_IP],
+          ['DFW PMP Effort Meter', effortMeters.DFW_PMP],
+        ];
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8, marginBottom: 12 }}>
+            {kpiTile(
+              tcFrequency != null ? tcFrequency.toFixed(1) : '—',
+              'TC Frequency', `Std ${standards?.tcFrequency ?? 10} days`,
+              tcFrequency != null && tcFrequency <= (standards?.tcFrequency ?? 10) ? '#22C55E' : '#F59E0B'
+            )}
+            {emTiles.map(([label, v]) => (
+              <div key={label}>{kpiTile(em(v), label, 'Target ≥90%', emColor(v))}</div>
+            ))}
+            {kpiTile(
+              dfwPestRouteValue != null ? '$' + Math.round(dfwPestRouteValue).toLocaleString() : '—',
+              'DFW Pest Route Value', 'Avg / route', ACCENT
+            )}
+            {kpiTile(capacity?.W != null ? capacity.W : '—', 'W Capacity', '—', TEXT_MUTED)}
+            {kpiTile(capacity?.I != null ? capacity.I : '—', 'I Capacity Worked', '—', TEXT_MUTED)}
+            {kpiTile(capacity?.PMP != null ? capacity.PMP : '—', 'PMP Capacity Worked', '—', TEXT_MUTED)}
+          </div>
+        );
+      })()}
 
       {/* Office + Team breakdown side by side */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
