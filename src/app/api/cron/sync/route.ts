@@ -47,17 +47,42 @@ export async function GET(req: NextRequest) {
       signal: AbortSignal.timeout(290000),
     });
 
-  // CSR appointments sync is a GET authed by ?token= (not POST/x-cron-secret like the others).
-  const callGet = (path: string) =>
-    fetch(`${baseUrl}${path}${path.includes('?') ? '&' : '?'}token=critterstop2026${office ? `&office=${office}` : ''}`, {
-      method: 'GET',
-      // @ts-ignore
-      signal: AbortSignal.timeout(290000),
-    });
+  // Full CSR stage — mirrors the Leads Tracker "Sync FR" button exactly:
+  //   (a) sync/csr-appointments per office
+  //   (b) sync/csr-wildlife-fix — paginated loop fixing wildlife records missing employeeId
+  //   (c) leads/csr-backfill?mode=incremental — backfill new CSR records
+  const runCsrStage = async () => {
+    const offices = office ? [office] : ['DFW', 'ATX', 'OKC', 'CStat'];
+    // (a) CSR appointment types per office
+    for (const o of offices) {
+      await fetch(`${baseUrl}/api/sync/csr-appointments?token=critterstop2026&office=${o}`, {
+        method: 'GET', // @ts-ignore
+        signal: AbortSignal.timeout(290000),
+      }).catch(e => console.error(`[cron/sync] csr-appointments ${o}:`, e));
+    }
+    // (b) wildlife employeeId fix — follow the pagination until hasMore is false
+    let fixUrl: string | null = '/api/sync/csr-wildlife-fix?token=critterstop2026&offset=0';
+    let guard = 0;
+    while (fixUrl && guard < 200) {
+      guard++;
+      try {
+        const r = await fetch(`${baseUrl}${fixUrl}`, { signal: AbortSignal.timeout(290000) as any });
+        const d = await r.json();
+        fixUrl = d.hasMore && d.nextUrl ? d.nextUrl : null;
+      } catch (e) {
+        console.error('[cron/sync] csr-wildlife-fix:', e);
+        break;
+      }
+    }
+    // (c) incremental CSR backfill
+    await fetch(`${baseUrl}/api/leads/csr-backfill?token=critterstop2026&mode=incremental`, {
+      signal: AbortSignal.timeout(290000) as any,
+    }).catch(e => console.error('[cron/sync] csr-backfill:', e));
+  };
 
-  // Chain in order: AR -> Leads -> CSR -> Dispatch. Each awaits the previous so the invoice exists
-  // before Leads matches it, CSR inspection/lead data pulls after, and dispatch jobs exist before
-  // Dispatch enriches them. NOT awaited by the handler — it returns immediately below.
+  // Chain in order: AR -> Leads -> CSR(full) -> Dispatch. Each awaits the previous so the invoice
+  // exists before Leads matches it, CSR inspection/lead data pulls after, and dispatch jobs exist
+  // before Dispatch enriches them. NOT awaited by the handler — it returns immediately below.
   const runPipeline = async () => {
     try {
       if (!stage || stage === 'ar') {
@@ -67,7 +92,7 @@ export async function GET(req: NextRequest) {
         await call('/api/sync/appointments');
       }
       if (!stage || stage === 'csr') {
-        await callGet('/api/sync/csr-appointments');
+        await runCsrStage();
       }
       if (!stage || stage === 'dispatch') {
         await call('/api/dispatch/sync');
