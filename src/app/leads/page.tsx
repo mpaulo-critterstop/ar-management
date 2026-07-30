@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { CommissionsTab } from './CommissionsTab';
+import { KpiTab } from './KpiTab';
 import { LastSynced } from '@/components/LastSynced';
 import { canAccessModule, perm } from '@/lib/access';
 
@@ -60,12 +61,12 @@ export default function LeadsPage() {
   const [pageSize, setPageSize] = useState(100);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'leads' | 'commissions'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'commissions' | 'kpi'>('leads');
 
   // Honor ?tab= for deep links.
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'commissions' || t === 'leads') setActiveTab(t as any);
+    if (t === 'commissions' || t === 'leads' || t === 'kpi') setActiveTab(t as any);
   }, []);
 
   // Access: full leads module unlocks Leads/KPIs/Commissions.
@@ -79,7 +80,8 @@ export default function LeadsPage() {
     if (status !== 'authenticated') return;
     if (activeTab === 'leads' && !canLeads) setActiveTab('commissions');
     if (activeTab === 'commissions' && !canCommissions) setActiveTab('leads');
-  }, [status, activeTab, canLeads, canCommissions]);
+    if (activeTab === 'kpi' && !canKpis) setActiveTab('leads');
+  }, [status, activeTab, canLeads, canCommissions, canKpis]);
 
   // Import state
   const [showImport, setShowImport] = useState(false);
@@ -199,7 +201,7 @@ export default function LeadsPage() {
             ))}
             {canKpis && <>
               <div style={{ width: '0.5px', background: '#D3D1C7', height: 20, margin: '0 2px' }} />
-              <button onClick={() => router.push('/kpi')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: '#888780', background: 'transparent', border: '0.5px solid transparent', cursor: 'pointer' }}>
+              <button onClick={() => setActiveTab('kpi')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: activeTab === 'kpi' ? '#0052cc' : '#888780', background: activeTab === 'kpi' ? '#e6f0ff' : 'transparent', border: activeTab === 'kpi' ? '0.5px solid #b3d0ff' : '0.5px solid transparent', cursor: 'pointer' }}>
                 KPIs
               </button>
             </>}
@@ -400,6 +402,13 @@ export default function LeadsPage() {
       {activeTab === 'commissions' && canCommissions && (
         <div style={{ marginTop: 16 }}>
           <CommissionsTab />
+        </div>
+      )}
+
+      {/* KPI TAB */}
+      {activeTab === 'kpi' && canKpis && (
+        <div style={{ marginTop: 16 }}>
+          <KpiTab />
         </div>
       )}
     </div>
