@@ -6,6 +6,11 @@ import { authOptions } from '@/lib/auth';
 import { canAccessModule } from '@/lib/access';
 import { prisma } from '@/lib/prisma';
 
+// Service managers / non-PM staff who occasionally do wildlife inspections. Their leads DO appear in
+// the Leads Tracker list, but they are excluded from the PM-KPI performance rollup (and, by having no
+// commission plan, from commissions). Add names here to keep someone in the leads list but out of KPIs.
+const KPI_EXCLUDED_PMS = new Set(['Kyle Oktay']);
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -129,6 +134,7 @@ export async function GET(req: NextRequest) {
   const pmMap: Record<string, any> = {};
   for (const lead of kpiLeads) {
     const pm = (lead as any).pmName || 'Unassigned';
+    if (KPI_EXCLUDED_PMS.has(pm)) continue; // service managers: in leads list, not in PM-KPI rollup
     if (!pmMap[pm]) pmMap[pm] = { pmName: pm, total: 0, sold: 0, bookedRevenue: 0, upsellRevenue: 0 };
     pmMap[pm].total++;
     if ((lead as any).status === 'SOLD') {
