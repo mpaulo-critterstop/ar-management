@@ -94,7 +94,7 @@ export function ScoreboardTab({ office, weekEnd, leaderFilter = '', period }: Pr
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8, marginBottom: 12 }}>
             {kpiTile(
               tcFrequency != null ? tcFrequency.toFixed(1) : '—',
-              'TC Frequency', `Std ${standards?.tcFrequency ?? 10} days`,
+              'TC Frequency', data.tcFrequencyIsFallback ? 'Recent (no wk data)' : `Std ${standards?.tcFrequency ?? 10} days`,
               tcFrequency != null && tcFrequency <= (standards?.tcFrequency ?? 10) ? '#22C55E' : '#F59E0B'
             )}
             {emTiles.map(([label, v]) => (
@@ -104,9 +104,9 @@ export function ScoreboardTab({ office, weekEnd, leaderFilter = '', period }: Pr
               dfwPestRouteValue != null ? '$' + Math.round(dfwPestRouteValue).toLocaleString() : '—',
               'DFW Pest Route Value', 'Avg / route', ACCENT
             )}
-            {kpiTile(capacity?.W != null ? capacity.W : '—', 'W Capacity', '—', TEXT_MUTED)}
-            {kpiTile(capacity?.I != null ? capacity.I : '—', 'I Capacity Worked', '—', TEXT_MUTED)}
-            {kpiTile(capacity?.PMP != null ? capacity.PMP : '—', 'PMP Capacity Worked', '—', TEXT_MUTED)}
+            {kpiTile(capacity?.W ?? 0, 'W Capacity', 'Techs worked', TEXT_MUTED)}
+            {kpiTile(capacity?.I ?? 0, 'I Capacity Worked', 'Techs worked', TEXT_MUTED)}
+            {kpiTile(capacity?.PMP ?? 0, 'PMP Capacity Worked', 'Techs worked', TEXT_MUTED)}
           </div>
         );
       })()}

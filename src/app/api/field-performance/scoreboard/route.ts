@@ -144,25 +144,34 @@ export async function GET(req: NextRequest) {
   });
   const dfwPestRouteValue = dfwRoutes._avg.productionValue ?? null;
 
-  // TC Frequency (avg nextVisitDays) — latest meaningful month, honoring office filter.
+  // TC Frequency (avg nextVisitDays) for the SELECTED period (week or month), honoring office.
+  // Excel Scoreboard row 4 is AVERAGEIFS by weekEnd, so it changes with the selected week.
   const tcFreqOffice = officeParam && officeParam !== 'ALL' && officeParam !== 'ADMIN' ? officeParam : null;
-  const tcFreqRows: Array<{ value: number | null; n: bigint }> = tcFreqOffice
-    ? await prisma.$queryRaw`
-        SELECT AVG("nextVisitDays") AS value, COUNT("nextVisitDays") AS n
-        FROM "tc_appointments"
-        WHERE "nextVisitDays" IS NOT NULL AND office = ${tcFreqOffice}
-          AND "date" >= (date_trunc('month', CURRENT_DATE) - interval '2 months')
-          AND "date" <  date_trunc('month', CURRENT_DATE)`
-    : await prisma.$queryRaw`
-        SELECT AVG("nextVisitDays") AS value, COUNT("nextVisitDays") AS n
-        FROM "tc_appointments"
-        WHERE "nextVisitDays" IS NOT NULL
-          AND "date" >= (date_trunc('month', CURRENT_DATE) - interval '2 months')
-          AND "date" <  date_trunc('month', CURRENT_DATE)`;
-  const tcFrequency = tcFreqRows[0]?.value != null ? Math.round(Number(tcFreqRows[0].value) * 100) / 100 : null;
+  const tcWhere: any = { nextVisitDays: { not: null } };
+  if (tcFreqOffice) tcWhere.office = tcFreqOffice;
+  if (isMonth) tcWhere.date = { gte: new Date(monthStart!), lte: new Date(monthEnd!) };
+  else {
+    // week mode: the tc_appointments in the same week as the selected weekEnd (weekEnd matches).
+    tcWhere.weekEnd = where.weekEnd;
+  }
+  const tcAgg = await prisma.tcAppointment.aggregate({ where: tcWhere, _avg: { nextVisitDays: true }, _count: { nextVisitDays: true } });
+  let tcFrequency = tcAgg._avg.nextVisitDays != null ? Math.round(tcAgg._avg.nextVisitDays * 100) / 100 : null;
+  // Fallback: if the selected period has no TC data (common for older/empty weeks), show the latest
+  // complete-month company figure so the tile isn't blank.
+  let tcFrequencyIsFallback = false;
+  if (tcFrequency == null) {
+    const fb: Array<{ value: number | null }> = tcFreqOffice
+      ? await prisma.$queryRaw`SELECT AVG("nextVisitDays") AS value FROM "tc_appointments" WHERE "nextVisitDays" IS NOT NULL AND office = ${tcFreqOffice} AND "date" >= (date_trunc('month', CURRENT_DATE) - interval '2 months') AND "date" < date_trunc('month', CURRENT_DATE)`
+      : await prisma.$queryRaw`SELECT AVG("nextVisitDays") AS value FROM "tc_appointments" WHERE "nextVisitDays" IS NOT NULL AND "date" >= (date_trunc('month', CURRENT_DATE) - interval '2 months') AND "date" < date_trunc('month', CURRENT_DATE)`;
+    tcFrequency = fb[0]?.value != null ? Math.round(Number(fb[0].value) * 100) / 100 : null;
+    tcFrequencyIsFallback = tcFrequency != null;
+  }
 
-  // Capacity (W/I/PMP) — no populated source yet (0 in Excel too); expose as placeholders.
-  const capacity = { W: null as number | null, I: null as number | null, PMP: null as number | null };
+  // Capacity (W/I/PMP) — count of techs per segment with utilization > 0 for the period.
+  // Excel: COUNTIFS(Raw Data AB[Utilization] > 0, F[segment], A[weekEnd]).
+  const capCount = (team: string) =>
+    active.filter((w: any) => w.team === team && (w.utilization ?? 0) > 0).length;
+  const capacity = { W: capCount('WP'), I: capCount('IP'), PMP: capCount('PMP') };
 
   return NextResponse.json({
     weekEnd,
@@ -181,6 +190,7 @@ export async function GET(req: NextRequest) {
     effortMeters,
     dfwPestRouteValue,
     tcFrequency,
+    tcFrequencyIsFallback,
     capacity,
     standards: { effortMeter: 0.90, tcFrequency: 10 },
   });
