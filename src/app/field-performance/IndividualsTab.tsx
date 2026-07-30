@@ -75,7 +75,7 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
 
         <div style={card}>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <table style={{ width: '100%', minWidth: 1300, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <thead>
                 <tr>
                   <th style={{ ...th, width: 30 }}>#</th>
@@ -91,11 +91,11 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
                   {!selected && <SortableTh sortKey="completion" sort={sort} style={{ width: 62 }}>Completion</SortableTh>}
                   {!selected && <SortableTh sortKey="driving" sort={sort} style={{ width: 60 }}>Driving</SortableTh>}
                   {!selected && <SortableTh sortKey="reliability" sort={sort} style={{ width: 68 }}>Reliability</SortableTh>}
-                  {!selected && <SortableTh sortKey="coPlusWk1" sort={sort} style={{ width: 68 }}>CO+1wk (15-45d)</SortableTh>}
-                  {!selected && <SortableTh sortKey="coJobs1545" sort={sort} style={{ width: 68 }}>CO Jobs (15-45d)</SortableTh>}
-                  {!selected && <SortableTh sortKey="wTime" sort={sort} style={{ width: 62 }}>W Avg Time</SortableTh>}
-                  {!selected && <SortableTh sortKey="jobs60120" sort={sort} style={{ width: 64 }}>Jobs (60-120d)</SortableTh>}
-                  {!selected && <SortableTh sortKey="cb60120" sort={sort} style={{ width: 68 }}>Callbacks (60-120d)</SortableTh>}
+                  {!selected && <SortableTh sortKey="coPlusWk1" sort={sort} style={{ width: 82, whiteSpace: 'normal', lineHeight: 1.15 }}>CO+1wk (15-45d)</SortableTh>}
+                  {!selected && <SortableTh sortKey="coJobs1545" sort={sort} style={{ width: 82, whiteSpace: 'normal', lineHeight: 1.15 }}>CO Jobs (15-45d)</SortableTh>}
+                  {!selected && <SortableTh sortKey="wTime" sort={sort} style={{ width: 70, whiteSpace: 'normal', lineHeight: 1.15 }}>W Avg Time</SortableTh>}
+                  {!selected && <SortableTh sortKey="jobs60120" sort={sort} style={{ width: 80, whiteSpace: 'normal', lineHeight: 1.15 }}>Jobs (60-120d)</SortableTh>}
+                  {!selected && <SortableTh sortKey="cb60120" sort={sort} style={{ width: 88, whiteSpace: 'normal', lineHeight: 1.15 }}>Callbacks (60-120d)</SortableTh>}
                 </tr>
               </thead>
               <tbody>
