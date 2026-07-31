@@ -307,6 +307,7 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
   const summary = bonusData?.summary;
 
   const [lunch, setLunch] = useState<any>(null);
+  const [showLunch, setShowLunch] = useState(false);
   useEffect(() => {
     fetch(`/api/field-performance/lunch-winners?year=${year}`).then(r => r.json()).then(setLunch).catch(() => {});
   }, [year]);
@@ -360,6 +361,10 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
           style={{ marginLeft: 'auto', fontSize: 13, padding: '7px 14px', borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', fontWeight: 500, cursor: 'pointer' }}>
           + Add Bonus
         </button>
+        <button onClick={() => setShowLunch(true)}
+          style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', fontWeight: 500, cursor: 'pointer' }}>
+          🍔 Lunch on Critter Stop
+        </button>
       </div>
 
       {/* Summary cards */}
@@ -389,36 +394,6 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
         </>
       )}
 
-      {/* Lunch on Critter Stop — recognition winners */}
-      <div style={{ ...card, marginBottom: 16, overflow: 'hidden' }}>
-        <div style={{ fontWeight: 600, fontSize: 14, color: '#2C2C2A', padding: '12px 16px', borderBottom: '0.5px solid #E8E7E3' }}>
-          Lunch on Critter Stop <span style={{ fontWeight: 400, color: '#888780' }}>· recognition (up to $14 solo / $18 with another member)</span>
-        </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <tbody>
-            {(lunch?.weeklyTem || []).slice(0, 6).map((w: any, i: number) => (
-              <tr key={'t'+i} style={{ borderTop: '0.5px solid #F1EFE8' }}>
-                <td style={{ ...td, color: '#888780' }}>{w.label} · Highest team TEM</td>
-                <td style={{ ...td, textAlign: 'right' }}>{w.team}'s team <span style={{ color: '#B4B2A9' }}>{(w.score * 100).toFixed(1)}</span></td>
-              </tr>
-            ))}
-            {(lunch?.monthlyDriving || []).slice(0, 3).map((w: any, i: number) => (
-              <tr key={'d'+i} style={{ borderTop: '0.5px solid #F1EFE8' }}>
-                <td style={{ ...td, color: '#888780' }}>{w.label} · Safest driving team</td>
-                <td style={{ ...td, textAlign: 'right' }}>{w.team}'s team <span style={{ color: '#B4B2A9' }}>{(w.score * 100).toFixed(1)}</span></td>
-              </tr>
-            ))}
-            {(lunch?.monthlyReliability || []).slice(0, 3).map((w: any, i: number) => (
-              <tr key={'r'+i} style={{ borderTop: '0.5px solid #F1EFE8' }}>
-                <td style={{ ...td, color: '#888780' }}>{w.label} · Highest reliability team</td>
-                <td style={{ ...td, textAlign: 'right' }}>{w.team}'s team <span style={{ color: '#B4B2A9' }}>{(w.score * 100).toFixed(1)}</span></td>
-              </tr>
-            ))}
-            {!lunch && <tr><td style={{ ...td, color: '#B4B2A9', padding: 16 }}>Loading…</td></tr>}
-          </tbody>
-        </table>
-      </div>
-
       {/* Performance Incentive criteria reference */}
       <div style={{ ...card, marginBottom: 16, padding: '14px 18px', fontSize: 12.5, color: '#4B4A45', lineHeight: 1.7 }}>
         <div style={{ fontWeight: 600, fontSize: 14, color: '#2C2C2A', marginBottom: 8 }}>What it takes to hit bonuses</div>
@@ -435,6 +410,7 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
       </div>
 
       {showAddBonus && <AddBonusModal year={year} onClose={() => setShowAddBonus(false)} onSaved={() => { setShowAddBonus(false); onSaved(); }} />}
+      {showLunch && <LunchDrawer lunch={lunch} onClose={() => setShowLunch(false)} />}
     </div>
   );
 }
@@ -504,6 +480,60 @@ function AddBonusModal({ year, onClose, onSaved }: { year: number; onClose: () =
             style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Saving…' : 'Save Bonus'}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LunchDrawer({ lunch, onClose }: { lunch: any; onClose: () => void }) {
+  const [tab, setTab] = useState<'weekly' | 'monthly'>('weekly');
+  const row = (label: string, team: string, score: number, kind: string, key: number) => (
+    <tr key={key} style={{ borderTop: '0.5px solid #F1EFE8' }}>
+      <td style={{ padding: '9px 16px', color: '#888780', fontSize: 12 }}>{label}</td>
+      <td style={{ padding: '9px 16px', fontSize: 12, color: '#6B6A64' }}>{kind}</td>
+      <td style={{ padding: '9px 16px', textAlign: 'right', fontSize: 12 }}>{team}'s team <span style={{ color: '#B4B2A9' }}>{(score * 100).toFixed(1)}</span></td>
+    </tr>
+  );
+  const weekly = lunch?.weeklyTem || [];
+  const driving = lunch?.monthlyDriving || [];
+  const reliability = lunch?.monthlyReliability || [];
+  const monthly = [...driving.map((w: any) => ({ ...w, kind: 'Safest driving' })),
+                   ...reliability.map((w: any) => ({ ...w, kind: 'Highest reliability' }))]
+                   .sort((a, b) => b.period.localeCompare(a.period));
+
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 620, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid #E8E7E3' }}>
+          <div style={{ fontWeight: 600, fontSize: 15 }}>🍔 Lunch on Critter Stop <span style={{ fontWeight: 400, fontSize: 12, color: '#888780' }}>· up to $14 solo / $18 with another member</span></div>
+          <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888780' }}>×</button>
+        </div>
+        <div style={{ display: 'flex', gap: 6, padding: '12px 20px 0' }}>
+          {(['weekly', 'monthly'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              style={{ fontSize: 13, padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 500,
+                border: tab === t ? '1px solid #0052cc' : '0.5px solid #D3D1C7',
+                background: tab === t ? '#0052cc' : '#fff', color: tab === t ? '#fff' : '#2C2C2A' }}>
+              {t === 'weekly' ? 'Weekly (Highest TEM)' : 'Monthly (Driving + Reliability)'}
+            </button>
+          ))}
+        </div>
+        <div style={{ overflow: 'auto', padding: '12px 0' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody>
+              {tab === 'weekly' ? (
+                weekly.length === 0
+                  ? <tr><td style={{ padding: 24, textAlign: 'center', color: '#B4B2A9', fontSize: 13 }}>No winners recorded yet — recognition starts week ending 8/7.</td></tr>
+                  : weekly.map((w: any, i: number) => row(w.label, w.team, w.score, "Highest team TEM", i))
+              ) : (
+                monthly.length === 0
+                  ? <tr><td style={{ padding: 24, textAlign: 'center', color: '#B4B2A9', fontSize: 13 }}>No winners recorded yet — recognition starts week ending 8/7.</td></tr>
+                  : monthly.map((w: any, i: number) => row(w.label, w.team, w.score, w.kind, i))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

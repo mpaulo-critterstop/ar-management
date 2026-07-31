@@ -19,22 +19,26 @@ export async function GET(req: NextRequest) {
   const yearStart = new Date(Date.UTC(year, 0, 1));
   const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
 
+  // Recognition is recorded moving forward only, starting weekEnd 2026-08-07.
+  const RECORD_FROM = new Date(Date.UTC(2026, 7, 7)); // 2026-08-07
+  // Kyle Oktay is a service manager, not a crew leader — excluded from team lunch eligibility.
+  const EXCLUDE_LEADERS = new Set(['Kyle Oktay']);
+
   const weeks = await prisma.techWeek.findMany({
-    where: { weekEnd: { gte: yearStart, lt: yearEnd } },
+    where: { weekEnd: { gte: RECORD_FROM > yearStart ? RECORD_FROM : yearStart, lt: yearEnd } },
     select: { weekEnd: true, crewLeader: true, totalScore: true, drivingScore: true, reliabilityScore: true },
   });
 
   const avg = (a: number[]) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
 
-  // Group by (weekEnd, crewLeader) for weekly; by (month, crewLeader) for monthly.
-  type Agg = Record<string, Record<string, number[]>>; // key -> leader -> values
+  type Agg = Record<string, Record<string, number[]>>;
   const weeklyTem: Agg = {};
   const monthlyDrive: Agg = {};
   const monthlyRel: Agg = {};
 
   for (const w of weeks) {
     const leader = w.crewLeader;
-    if (!leader) continue;
+    if (!leader || EXCLUDE_LEADERS.has(leader)) continue;
     const wk = new Date(w.weekEnd).toISOString().slice(0, 10);
     const mo = new Date(w.weekEnd).toISOString().slice(0, 7);
     if (w.totalScore != null) ((weeklyTem[wk] ||= {})[leader] ||= []).push(w.totalScore);

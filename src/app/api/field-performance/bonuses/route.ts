@@ -105,10 +105,12 @@ export async function GET(req: NextRequest) {
   // Summary accumulators (YTD, office-filtered).
   let sumImmediate = 0, sumAccrued = 0;
 
-  // ── Field Professional grid.
+  // ── Field Professional grid. Crew leaders are shown in the Team block only (not here).
+  const leaderNameSet = new Set(leaderTechs.map(l => l.name));
   function buildFieldPro() {
     const rows: any[] = [];
     for (const t of activeTechs) {
+      if (leaderNameSet.has(t.name)) continue; // crew leaders excluded from FP block
       const amounts: Record<string, number> = {};       // total per month (for the grid cells)
       let ytd = 0, immediate = 0, accrued = 0;
       for (let m0 = 0; m0 < 12; m0++) {
@@ -118,11 +120,13 @@ export async function GET(req: NextRequest) {
           const b = fpBonus(t.techId, monthlyScore(t.techId, m0), m0);
           mImm += b.immediate; mAcc += b.accrued;
         }
-        // Stored rows (imported history OR manual adjustments) count as immediate (paid).
+        // Stored rows (imported history OR manual adjustments): the stored value is the immediate
+        // (paid) amount; per spec each paid $ has an equal Christmas-accrued twin.
         const manual = stored.get('field_professional')?.get(t.techId)?.[mk] || 0;
         mImm += manual;
+        if (manual) mAcc += manual; // matching accrual for stored/imported payments
         const total = mImm + mAcc;
-        if (total) { amounts[mk] = total; ytd += total; immediate += mImm; accrued += mAcc; }
+        if (mImm) { amounts[mk] = mImm; ytd += mImm; immediate += mImm; accrued += mAcc; }
       }
       sumImmediate += immediate; sumAccrued += accrued;
       rows.push({ techId: t.techId, techName: t.name, crewLeader: t.crewLeader, office: t.office, amounts, ytd, immediate, accrued });
@@ -163,8 +167,8 @@ export async function GET(req: NextRequest) {
         }
         const manual = stored.get('team')?.get(leader.techId)?.[mk] || 0;
         mImm += manual;
-        const total = mImm + mAcc;
-        if (total) { amounts[mk] = total; ytd += total; immediate += mImm; accrued += mAcc; }
+        if (manual) mAcc += manual; // matching accrual for stored/imported payments
+        if (mImm) { amounts[mk] = mImm; ytd += mImm; immediate += mImm; accrued += mAcc; }
       }
       sumImmediate += immediate; sumAccrued += accrued;
       rows.push({ techId: leader.techId, techName: leader.name, crewLeader: leader.name, office: leader.office, amounts, ytd, immediate, accrued });
