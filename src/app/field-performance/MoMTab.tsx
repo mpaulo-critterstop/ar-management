@@ -321,22 +321,18 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
             <th style={{ ...th, textAlign: 'left' }}>Tech ID</th>
             <th style={{ ...th, textAlign: 'left' }}>{leaderCol}</th>
             <th style={{ ...th, textAlign: 'left' }}>Branch</th>
-            <th style={{ ...th, textAlign: 'right' }}>Immediate</th>
-            <th style={{ ...th, textAlign: 'right' }}>Accrued</th>
             <th style={{ ...th, textAlign: 'right' }}>YTD</th>
             {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => <th key={i} style={{ ...th, textAlign: 'right' }}>{m}</th>)}
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={18} style={{ ...td, textAlign: 'center', color: '#B4B2A9', padding: 20 }}>No bonuses recorded.</td></tr>
+            <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: '#B4B2A9', padding: 20 }}>No bonuses recorded.</td></tr>
           ) : rows.map((r: any) => (
             <tr key={r.techId}>
               <td style={{ ...td, fontWeight: 500 }}>{r.techId}</td>
               <td style={td}>{leaderCol.startsWith('Team') ? (r.crewLeader || r.techName) : r.techName}</td>
               <td style={td}>{r.office || '—'}</td>
-              <td style={{ ...td, textAlign: 'right' }}>{money(r.immediate)}</td>
-              <td style={{ ...td, textAlign: 'right', color: '#185FA5' }}>{money(r.accrued)}</td>
               <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(r.ytd)}</td>
               {months.map((mk: string, i: number) => (
                 <td key={i} style={{ ...td, textAlign: 'right', color: r.amounts?.[mk] ? '#2C2C2A' : '#D3D1C7' }}>
@@ -369,18 +365,14 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
 
       {/* Summary cards */}
       {summary && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
-          <div style={{ background: '#F7F6F3', borderRadius: 8, padding: 14 }}>
-            <div style={{ fontSize: 12, color: '#6B6A64' }}>Paid immediately YTD</div>
-            <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4 }}>{money(summary.immediateYtd)}</div>
-          </div>
-          <div style={{ background: '#E6F1FB', borderRadius: 8, padding: 14 }}>
-            <div style={{ fontSize: 12, color: '#185FA5' }}>Christmas accrued (owed)</div>
-            <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4, color: '#185FA5' }}>{money(summary.christmasAccrued)}</div>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
           <div style={{ background: '#F7F6F3', borderRadius: 8, padding: 14 }}>
             <div style={{ fontSize: 12, color: '#6B6A64' }}>Total bonuses YTD</div>
-            <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4 }}>{money(summary.totalYtd)}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4 }}>{money(summary.totalYtd)}</div>
+          </div>
+          <div style={{ background: '#E6F1FB', borderRadius: 8, padding: 14 }}>
+            <div style={{ fontSize: 12, color: '#185FA5' }}>Christmas accrued (owed) · from Aug</div>
+            <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4, color: '#185FA5' }}>{money(summary.christmasAccrued)}</div>
           </div>
         </div>
       )}

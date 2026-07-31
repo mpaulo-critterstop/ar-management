@@ -23,10 +23,9 @@ export async function GET(req: NextRequest) {
   const where: any = { month: { gte: start, lte: end } };
   if (office && office !== 'ALL' && office !== 'ADMIN' && office !== 'All') where.office = office;
 
-  // ── Cutover: months < COMPUTE_FROM use imported/stored Bonus rows; months >= COMPUTE_FROM
-  // are computed live from monthly scores (formula), with any stored Bonus row treated as a manual
-  // adjustment that STACKS on top of the computed amount. July 2026 = first computed month.
-  const COMPUTE_FROM = new Date(Date.UTC(2026, 6, 1)); // 2026-07-01 (month index 6 = July)
+  // ── Cutover: months < COMPUTE_FROM use imported/stored sheet values (source of truth through July);
+  // months >= COMPUTE_FROM compute live from scores. August 2026 = first computed month.
+  const COMPUTE_FROM = new Date(Date.UTC(2026, 7, 1)); // 2026-08-01
 
   const bonuses = await prisma.bonus.findMany({ where, orderBy: [{ techId: 'asc' }, { month: 'asc' }] });
 
@@ -179,14 +178,16 @@ export async function GET(req: NextRequest) {
   const fieldPro = buildFieldPro();
   const team = buildTeam();
 
+  // Grand total = every bonus dollar, all people, all months (matches sheet V363).
+  const grandTotal = [...fieldPro, ...team].reduce((s, r) => s + r.ytd, 0);
+
   return NextResponse.json({
     year, months,
     computeFrom: COMPUTE_FROM.toISOString().slice(0, 7),
     team, fieldPro,
     summary: {
-      immediateYtd: Math.round(sumImmediate),
-      christmasAccrued: Math.round(sumAccrued),
-      totalYtd: Math.round(sumImmediate + sumAccrued),
+      totalYtd: Math.round(grandTotal),             // headline: total bonuses paid YTD
+      christmasAccrued: Math.round(sumAccrued),     // for the separate Christmas-accrual view
     },
   });
 }
