@@ -15,6 +15,23 @@ export function MoMTab({ office }: Props) {
   const [statusFilter, setStatusFilter] = useState<'ACTIVE' | 'INACTIVE' | 'ALL'>('ACTIVE');
   const [search, setSearch] = useState('');
   const [metric, setMetric] = useState('totalScore');
+  // Sub-view toggle: MoM scores vs Bonuses
+  const [view, setView] = useState<'scores' | 'bonuses'>('scores');
+  const [bonusData, setBonusData] = useState<any>(null);
+  const [bonusLoading, setBonusLoading] = useState(false);
+  const [showAddBonus, setShowAddBonus] = useState(false);
+
+  const loadBonuses = () => {
+    setBonusLoading(true);
+    fetch(`/api/field-performance/bonuses?year=${year}&office=${office}`)
+      .then(r => r.json())
+      .then(d => { setBonusData(d); setBonusLoading(false); })
+      .catch(() => setBonusLoading(false));
+  };
+  useEffect(() => {
+    if (view === 'bonuses') loadBonuses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, year, office]);
 
   useEffect(() => {
     setLoading(true);
@@ -102,6 +119,29 @@ export function MoMTab({ office }: Props) {
 
   return (
     <div>
+      {/* View toggle: MoM scores ↔ Bonuses */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        {(['scores', 'bonuses'] as const).map(v => (
+          <button key={v} onClick={() => setView(v)}
+            style={{
+              fontSize: 13, padding: '7px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 500,
+              border: view === v ? '1px solid #0052cc' : '0.5px solid #D3D1C7',
+              background: view === v ? '#0052cc' : '#fff',
+              color: view === v ? '#fff' : '#2C2C2A',
+            }}>
+            {v === 'scores' ? 'MoM Scores' : 'Bonuses'}
+          </button>
+        ))}
+      </div>
+
+      {view === 'bonuses' ? (
+        <BonusesView
+          bonusData={bonusData} bonusLoading={bonusLoading} year={year} setYear={setYear}
+          onAdd={() => setShowAddBonus(true)}
+          showAddBonus={showAddBonus} setShowAddBonus={setShowAddBonus} onSaved={loadBonuses}
+        />
+      ) : (
+      <>
       {/* Metric selector — the 8 MoM tables from the FPEM sheet */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
         {metricDefs.map((m: any) => (
@@ -251,6 +291,147 @@ export function MoMTab({ office }: Props) {
       </div>
       <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>
         {filtered.length} technicians · {activeMetric?.label} · {year} — crew-leader values are averages of each crew's techs; monthly values are averages of that month's weekly scores
+      </div>
+      </>
+      )}
+    </div>
+  );
+}
+
+// ─── Bonuses sub-view: two grids (Crew Leader + Field Professional) + add modal ───
+const BONUS_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBonus, setShowAddBonus, onSaved }: any) {
+  const money = (n: number) => n ? '$' + Math.round(n).toLocaleString() : '—';
+  const months: string[] = bonusData?.months || [];
+
+  const grid = (title: string, rows: any[], showFieldPro: boolean) => (
+    <div style={{ ...card, marginBottom: 16, overflowX: 'auto' }}>
+      <div style={{ fontWeight: 600, fontSize: 14, color: '#2C2C2A', padding: '12px 16px', borderBottom: '0.5px solid #E8E7E3' }}>{title}</div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <thead>
+          <tr>
+            <th style={{ ...th, textAlign: 'left' }}>Tech ID</th>
+            <th style={{ ...th, textAlign: 'left' }}>{showFieldPro ? 'Field Professional' : 'Crew Leader'}</th>
+            <th style={{ ...th, textAlign: 'left' }}>Branch</th>
+            <th style={{ ...th, textAlign: 'right' }}>YTD</th>
+            {BONUS_MONTHS.map((m, i) => <th key={i} style={{ ...th, textAlign: 'right' }}>{m}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: '#B4B2A9', padding: 20 }}>No bonuses recorded.</td></tr>
+          ) : rows.map((r: any) => (
+            <tr key={r.techId}>
+              <td style={{ ...td, fontWeight: 500 }}>{r.techId}</td>
+              <td style={td}>{showFieldPro ? r.techName : (r.crewLeader || r.techName)}</td>
+              <td style={td}>{r.office || '—'}</td>
+              <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(r.ytd)}</td>
+              {months.map((mk: string, i: number) => (
+                <td key={i} style={{ ...td, textAlign: 'right', color: r.amounts?.[mk] ? '#2C2C2A' : '#D3D1C7' }}>
+                  {r.amounts?.[mk] ? money(r.amounts[mk]) : '—'}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'center' }}>
+        <select value={year} onChange={e => setYear(parseInt(e.target.value))}
+          style={{ fontSize: 13, padding: '6px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }}>
+          {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <button onClick={onAdd}
+          style={{ marginLeft: 'auto', fontSize: 13, padding: '7px 14px', borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', fontWeight: 500, cursor: 'pointer' }}>
+          + Add Bonus
+        </button>
+      </div>
+
+      {bonusLoading ? (
+        <div style={{ padding: 40, textAlign: 'center', color: '#B4B2A9' }}>Loading…</div>
+      ) : (
+        <>
+          {grid('Crew Leader Bonuses', bonusData?.crewLeader || [], false)}
+          {grid('Field Professional Bonuses', bonusData?.fieldPro || [], true)}
+        </>
+      )}
+
+      {showAddBonus && <AddBonusModal year={year} onClose={() => setShowAddBonus(false)} onSaved={() => { setShowAddBonus(false); onSaved(); }} />}
+    </div>
+  );
+}
+
+function AddBonusModal({ year, onClose, onSaved }: { year: number; onClose: () => void; onSaved: () => void }) {
+  const [techId, setTechId] = useState('');
+  const [kind, setKind] = useState<'field_professional' | 'crew_leader'>('field_professional');
+  const [monthIdx, setMonthIdx] = useState(new Date().getMonth());
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async () => {
+    setError(null);
+    if (!techId.trim() || !amount) { setError('Tech ID and amount are required.'); return; }
+    setSaving(true);
+    // month-end of the selected month
+    const monthEnd = new Date(Date.UTC(year, monthIdx + 1, 0)).toISOString().slice(0, 10);
+    const res = await fetch('/api/field-performance/bonuses', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ techId: techId.trim().toUpperCase(), kind, month: monthEnd, amount: parseFloat(amount), note: note || undefined }),
+    });
+    setSaving(false);
+    if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error || 'Failed to save.'); return; }
+    onSaved();
+  };
+
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 440, padding: 24 }}>
+        <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 16 }}>Add Bonus</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label style={{ fontSize: 12, color: '#6B6A64' }}>Tech ID
+            <input value={techId} onChange={e => setTechId(e.target.value)} placeholder="e.g. W-005"
+              style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', fontSize: 13 }} />
+          </label>
+          <label style={{ fontSize: 12, color: '#6B6A64' }}>Type
+            <select value={kind} onChange={e => setKind(e.target.value as any)}
+              style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', fontSize: 13 }}>
+              <option value="field_professional">Field Professional</option>
+              <option value="crew_leader">Crew Leader</option>
+            </select>
+          </label>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <label style={{ fontSize: 12, color: '#6B6A64', flex: 1 }}>Month
+              <select value={monthIdx} onChange={e => setMonthIdx(parseInt(e.target.value))}
+                style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', fontSize: 13 }}>
+                {BONUS_MONTHS.map((m, i) => <option key={i} value={i}>{m} {year}</option>)}
+              </select>
+            </label>
+            <label style={{ fontSize: 12, color: '#6B6A64', flex: 1 }}>Amount ($)
+              <input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="0"
+                style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', fontSize: 13 }} />
+            </label>
+          </div>
+          <label style={{ fontSize: 12, color: '#6B6A64' }}>Note (optional)
+            <input value={note} onChange={e => setNote(e.target.value)}
+              style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', fontSize: 13 }} />
+          </label>
+          {error && <div style={{ color: '#B91C1C', fontSize: 12 }}>{error}</div>}
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={save} disabled={saving}
+            style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Saving…' : 'Save Bonus'}
+          </button>
+        </div>
       </div>
     </div>
   );

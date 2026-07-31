@@ -695,3 +695,20 @@ model CommissionHistory {
   @@index([pmName])
   @@map("commission_history")
 }
+
+model Bonus {
+  id            String   @id @default(cuid())
+  techId        String   // recipient (matches Technician.techId)
+  techName      String   // denormalized for display
+  crewLeader    String?  // crew leader at time of bonus (for the crew-leader block grouping)
+  office        String?  // branch
+  kind          String   // 'crew_leader' | 'field_professional'
+  month         DateTime // month-end (or first-of-month) the bonus applies to
+  amount        Float
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([techId])
+  @@index([month])
+  @@map("bonuses")
+}
