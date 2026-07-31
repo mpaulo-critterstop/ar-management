@@ -162,6 +162,7 @@ export function KpiTab() {
                 <option value="">No commission plan</option>
                 <option value="abr_tiered">Structure 1 — Booked Revenue Tier (8/10/12%, $80k floor)</option>
                 <option value="abr_adrian">Structure 2 — Booked Revenue Tier (5/7%)</option>
+                <option value="abr_cynthia">Structure 2b — Booked Revenue Tier (5/7%, $15k)</option>
                 <option value="lead_bucket">Structure 3 — Lead buckets (8/10/12/14% by rev/lead)</option>
               </select>
               <button onClick={addPM} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500 }}>
@@ -191,6 +192,7 @@ export function KpiTab() {
                         <option value="">None</option>
                         <option value="abr_tiered">Structure 1 (8/10/12%)</option>
                         <option value="abr_adrian">Structure 2 (5/7%)</option>
+                        <option value="abr_cynthia">Structure 2b (5/7%, $15k)</option>
                         <option value="lead_bucket">Structure 3 (buckets)</option>
                       </select>
                     </td>

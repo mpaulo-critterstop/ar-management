@@ -37,6 +37,14 @@ const METHOD_PRESETS: Record<string, { method: string; tiers: any }> = {
       { upTo: null, rate: 0.07 },
     ] },
   },
+  // Cynthia's variant — two-rate on ABR (no floor), higher first threshold ($15k)
+  abr_cynthia: {
+    method: 'abr_cynthia',
+    tiers: { floor: 0, breaks: [
+      { upTo: 15000, rate: 0.05 },
+      { upTo: null, rate: 0.07 },
+    ] },
+  },
   // Method 2 — lead-bucket by revenue-per-lead
   lead_bucket: {
     method: 'lead_bucket',

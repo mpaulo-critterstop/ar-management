@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 const PRESETS: Record<string, any> = {
   abr_tiered: { floor: 80000, breaks: [{ upTo: 140000, rate: 0.08 }, { upTo: 180000, rate: 0.10 }, { upTo: null, rate: 0.12 }] },
   abr_adrian: { floor: 0, breaks: [{ upTo: 10000, rate: 0.05 }, { upTo: null, rate: 0.07 }] },
+  abr_cynthia: { floor: 0, breaks: [{ upTo: 15000, rate: 0.05 }, { upTo: null, rate: 0.07 }] },
   lead_bucket: { buckets: [{ floor: 700, cap: 1000, rate: 0.08 }, { floor: 1000, cap: 1200, rate: 0.10 }, { floor: 1200, cap: 1400, rate: 0.12 }, { floor: 1400, cap: null, rate: 0.14 }] },
 };
 

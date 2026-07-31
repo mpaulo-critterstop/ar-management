@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export type CommissionMethod = 'abr_tiered' | 'abr_adrian' | 'lead_bucket';
+export type CommissionMethod = 'abr_tiered' | 'abr_adrian' | 'abr_cynthia' | 'lead_bucket';
 
 export interface AbrTiers {
   floor: number;                                   // revenue below this earns 0
@@ -72,7 +72,7 @@ export async function pmRevenueForMonth(pmName: string, start: Date, end: Date):
 
 // ─── Wildlife commission by method ──────────────────────────────────────────────
 export function wildlifeCommission(method: CommissionMethod, tiers: any, adjustedRevenue: number, leadCount: number): number {
-  if (method === 'abr_tiered' || method === 'abr_adrian') {
+  if (method === 'abr_tiered' || method === 'abr_adrian' || method === 'abr_cynthia') {
     const t = tiers as AbrTiers;
     const floor = t.floor ?? 0;
     let comm = 0, prev = floor;
