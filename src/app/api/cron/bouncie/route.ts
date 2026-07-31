@@ -290,6 +290,12 @@ export async function POST(req: NextRequest) {
         where: { techId_weekEnd: { techId, weekEnd } },
       });
 
+      // Locked rows are imported/frozen — never overwrite them.
+      if (existing?.locked) {
+        log.push(`  ${techId}: locked (imported) — skipped`);
+        continue;
+      }
+
       const updateData: any = {
         drivingScore,
         maxSpeed:          agg.maxSpeed,

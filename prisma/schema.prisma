@@ -375,6 +375,9 @@ model TechWeek {
   pmpScore        Float?
   ipScore         Float?
   manualAdj       Float?     @default(0)
+  // When true, this row was imported/backfilled from the spreadsheet and recompute crons must
+  // NOT overwrite it (protects frozen historical values). Manual edits may still touch it.
+  locked          Boolean    @default(false)
 
   // WP metrics
   closeOutPct     Float?

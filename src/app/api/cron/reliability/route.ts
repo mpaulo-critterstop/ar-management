@@ -735,6 +735,7 @@ export async function POST(req: NextRequest) {
       const existing = await prisma.techWeek.findUnique({
         where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
       });
+      if (existing?.locked) continue; // imported/frozen row — do not overwrite
 
       const updateData: any = {
         reliabilityScore,
@@ -947,6 +948,7 @@ export async function POST(req: NextRequest) {
           const existing = await prisma.techWeek.findUnique({
             where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
           });
+          if (existing?.locked) continue; // imported/frozen row — do not overwrite
 
           const updateData: any = { reliabilityScore, minutesLate: avgMinutesLate, utilization: avgUtilization, updatedAt: new Date() };
 
@@ -1045,6 +1047,7 @@ export async function POST(req: NextRequest) {
         const existing = await prisma.techWeek.findUnique({
           where: { techId_weekEnd: { techId: tech.techId, weekEnd } },
         });
+        if (existing?.locked) continue; // imported/frozen row — do not overwrite
 
         const updateData: any = { reliabilityScore, minutesLate: avgMinutesLate, utilization: avgUtilization, updatedAt: new Date() };
 
