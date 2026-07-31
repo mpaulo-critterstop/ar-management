@@ -43,7 +43,10 @@ export async function GET(req: NextRequest) {
     select: { techId: true, name: true, office: true, crewLeader: true },
   });
   const leaderNames = new Set(activeTechs.map(t => t.crewLeader).filter(Boolean) as string[]);
-  const leaderTechs = activeTechs.filter(t => leaderNames.has(t.name));
+  // Kyle Oktay is a service manager, not a crew leader — never treat him as one.
+  const NON_LEADERS = new Set(['Kyle Oktay']);
+  for (const n of NON_LEADERS) leaderNames.delete(n);
+  const leaderTechs = activeTechs.filter(t => leaderNames.has(t.name) && !NON_LEADERS.has(t.name));
 
   // ── Monthly scores per tech (avg of weekly totalScores in the month) — matches MoM/AVERAGEIFS.
   const yearStart = new Date(Date.UTC(year, 0, 1));

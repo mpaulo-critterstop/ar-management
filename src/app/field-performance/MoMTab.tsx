@@ -331,7 +331,7 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
           ) : rows.map((r: any) => (
             <tr key={r.techId}>
               <td style={{ ...td, fontWeight: 500 }}>{r.techId}</td>
-              <td style={td}>{leaderCol.startsWith('Team') ? (r.crewLeader || r.techName) : r.techName}</td>
+              <td style={td}>{leaderCol === 'Crew Leader' ? (r.crewLeader || r.techName) : r.techName}</td>
               <td style={td}>{r.office || '—'}</td>
               <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(r.ytd)}</td>
               {months.map((mk: string, i: number) => (
@@ -381,7 +381,7 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
         <div style={{ padding: 40, textAlign: 'center', color: '#B4B2A9' }}>Loading…</div>
       ) : (
         <>
-          {grid('Team Bonuses', bonusData?.team || [], 'Team (Crew Leader)')}
+          {grid('Crew Leaders', bonusData?.team || [], 'Crew Leader')}
           {grid('Field Professional Bonuses', bonusData?.fieldPro || [], 'Field Professional')}
         </>
       )}
