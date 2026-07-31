@@ -304,28 +304,38 @@ const BONUS_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct
 function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBonus, setShowAddBonus, onSaved }: any) {
   const money = (n: number) => n ? '$' + Math.round(n).toLocaleString() : '—';
   const months: string[] = bonusData?.months || [];
+  const summary = bonusData?.summary;
 
-  const grid = (title: string, rows: any[], showFieldPro: boolean) => (
+  const [lunch, setLunch] = useState<any>(null);
+  useEffect(() => {
+    fetch(`/api/field-performance/lunch-winners?year=${year}`).then(r => r.json()).then(setLunch).catch(() => {});
+  }, [year]);
+
+  const grid = (title: string, rows: any[], leaderCol: string) => (
     <div style={{ ...card, marginBottom: 16, overflowX: 'auto' }}>
       <div style={{ fontWeight: 600, fontSize: 14, color: '#2C2C2A', padding: '12px 16px', borderBottom: '0.5px solid #E8E7E3' }}>{title}</div>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
         <thead>
           <tr>
             <th style={{ ...th, textAlign: 'left' }}>Tech ID</th>
-            <th style={{ ...th, textAlign: 'left' }}>{showFieldPro ? 'Field Professional' : 'Team (Crew Leader)'}</th>
+            <th style={{ ...th, textAlign: 'left' }}>{leaderCol}</th>
             <th style={{ ...th, textAlign: 'left' }}>Branch</th>
+            <th style={{ ...th, textAlign: 'right' }}>Immediate</th>
+            <th style={{ ...th, textAlign: 'right' }}>Accrued</th>
             <th style={{ ...th, textAlign: 'right' }}>YTD</th>
-            {BONUS_MONTHS.map((m, i) => <th key={i} style={{ ...th, textAlign: 'right' }}>{m}</th>)}
+            {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => <th key={i} style={{ ...th, textAlign: 'right' }}>{m}</th>)}
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: '#B4B2A9', padding: 20 }}>No bonuses recorded.</td></tr>
+            <tr><td colSpan={18} style={{ ...td, textAlign: 'center', color: '#B4B2A9', padding: 20 }}>No bonuses recorded.</td></tr>
           ) : rows.map((r: any) => (
             <tr key={r.techId}>
               <td style={{ ...td, fontWeight: 500 }}>{r.techId}</td>
-              <td style={td}>{showFieldPro ? r.techName : (r.crewLeader || r.techName)}</td>
+              <td style={td}>{leaderCol.startsWith('Team') ? (r.crewLeader || r.techName) : r.techName}</td>
               <td style={td}>{r.office || '—'}</td>
+              <td style={{ ...td, textAlign: 'right' }}>{money(r.immediate)}</td>
+              <td style={{ ...td, textAlign: 'right', color: '#185FA5' }}>{money(r.accrued)}</td>
               <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(r.ytd)}</td>
               {months.map((mk: string, i: number) => (
                 <td key={i} style={{ ...td, textAlign: 'right', color: r.amounts?.[mk] ? '#2C2C2A' : '#D3D1C7' }}>
@@ -352,14 +362,77 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
         </button>
       </div>
 
+      {/* Summary cards */}
+      {summary && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
+          <div style={{ background: '#F7F6F3', borderRadius: 8, padding: 14 }}>
+            <div style={{ fontSize: 12, color: '#6B6A64' }}>Paid immediately YTD</div>
+            <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4 }}>{money(summary.immediateYtd)}</div>
+          </div>
+          <div style={{ background: '#E6F1FB', borderRadius: 8, padding: 14 }}>
+            <div style={{ fontSize: 12, color: '#185FA5' }}>Christmas accrued (owed)</div>
+            <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4, color: '#185FA5' }}>{money(summary.christmasAccrued)}</div>
+          </div>
+          <div style={{ background: '#F7F6F3', borderRadius: 8, padding: 14 }}>
+            <div style={{ fontSize: 12, color: '#6B6A64' }}>Total bonuses YTD</div>
+            <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4 }}>{money(summary.totalYtd)}</div>
+          </div>
+        </div>
+      )}
+
       {bonusLoading ? (
         <div style={{ padding: 40, textAlign: 'center', color: '#B4B2A9' }}>Loading…</div>
       ) : (
         <>
-          {grid('Team Bonuses', bonusData?.team || [], false)}
-          {grid('Field Professional Bonuses', bonusData?.fieldPro || [], true)}
+          {grid('Team Bonuses', bonusData?.team || [], 'Team (Crew Leader)')}
+          {grid('Field Professional Bonuses', bonusData?.fieldPro || [], 'Field Professional')}
         </>
       )}
+
+      {/* Lunch on Critter Stop — recognition winners */}
+      <div style={{ ...card, marginBottom: 16, overflow: 'hidden' }}>
+        <div style={{ fontWeight: 600, fontSize: 14, color: '#2C2C2A', padding: '12px 16px', borderBottom: '0.5px solid #E8E7E3' }}>
+          Lunch on Critter Stop <span style={{ fontWeight: 400, color: '#888780' }}>· recognition (up to $14 solo / $18 with another member)</span>
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <tbody>
+            {(lunch?.weeklyTem || []).slice(0, 6).map((w: any, i: number) => (
+              <tr key={'t'+i} style={{ borderTop: '0.5px solid #F1EFE8' }}>
+                <td style={{ ...td, color: '#888780' }}>{w.label} · Highest team TEM</td>
+                <td style={{ ...td, textAlign: 'right' }}>{w.team}'s team <span style={{ color: '#B4B2A9' }}>{(w.score * 100).toFixed(1)}</span></td>
+              </tr>
+            ))}
+            {(lunch?.monthlyDriving || []).slice(0, 3).map((w: any, i: number) => (
+              <tr key={'d'+i} style={{ borderTop: '0.5px solid #F1EFE8' }}>
+                <td style={{ ...td, color: '#888780' }}>{w.label} · Safest driving team</td>
+                <td style={{ ...td, textAlign: 'right' }}>{w.team}'s team <span style={{ color: '#B4B2A9' }}>{(w.score * 100).toFixed(1)}</span></td>
+              </tr>
+            ))}
+            {(lunch?.monthlyReliability || []).slice(0, 3).map((w: any, i: number) => (
+              <tr key={'r'+i} style={{ borderTop: '0.5px solid #F1EFE8' }}>
+                <td style={{ ...td, color: '#888780' }}>{w.label} · Highest reliability team</td>
+                <td style={{ ...td, textAlign: 'right' }}>{w.team}'s team <span style={{ color: '#B4B2A9' }}>{(w.score * 100).toFixed(1)}</span></td>
+              </tr>
+            ))}
+            {!lunch && <tr><td style={{ ...td, color: '#B4B2A9', padding: 16 }}>Loading…</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Performance Incentive criteria reference */}
+      <div style={{ ...card, marginBottom: 16, padding: '14px 18px', fontSize: 12.5, color: '#4B4A45', lineHeight: 1.7 }}>
+        <div style={{ fontWeight: 600, fontSize: 14, color: '#2C2C2A', marginBottom: 8 }}>What it takes to hit bonuses</div>
+        <div style={{ fontWeight: 600, marginTop: 6 }}>Field Professionals</div>
+        <div>Gatekeeper: worked &gt;12 days in the month.</div>
+        <div>TEM 93.0–97.9 → <b>$200</b> ($100 paid now + $100 accrued to Christmas).</div>
+        <div>TEM ≥98.0 → <b>$300</b> ($150 now + $150 accrued).</div>
+        <div>Gritty Growth Award: subjective $50–$100 for leaders to award unscored new hires (add manually).</div>
+        <div style={{ fontWeight: 600, marginTop: 8 }}>Team Leaders</div>
+        <div>Eligible for the individual TEM bonuses above (same &gt;12-day gate).</div>
+        <div>Team-driven: gated on team TEM ≥90.0 AND leader TEM ≥93.0 → $100 per member scoring 93.0–97.9 and $150 per member ≥98.0, split 50% monthly / 50% accrued.</div>
+        <div style={{ fontWeight: 600, marginTop: 8 }}>Team lunches</div>
+        <div>Weekly: highest average TEM team. Monthly: safest-driving team + highest-reliability team. Up to $14 solo / $18 with another member.</div>
+      </div>
 
       {showAddBonus && <AddBonusModal year={year} onClose={() => setShowAddBonus(false)} onSaved={() => { setShowAddBonus(false); onSaved(); }} />}
     </div>

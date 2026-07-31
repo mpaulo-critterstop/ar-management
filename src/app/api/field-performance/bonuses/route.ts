@@ -67,8 +67,30 @@ export async function GET(req: NextRequest) {
     const pool = scorePool.get(techId)?.[m0];
     return pool && pool.length ? avg(pool) : null;
   };
-  // Field-pro bonus tier from a monthly score.
-  const fpTier = (s: number | null): number => (s == null ? 0 : s >= 0.98 ? 150 : s >= 0.93 ? 100 : 0);
+
+  // ── Days worked per tech per month (gatekeeper: >12 days) — count WORKED attendance rows.
+  const attendance = await prisma.techDayAttendance.findMany({
+    where: { date: { gte: yearStart, lt: yearEnd }, status: 'WORKED' },
+    select: { techId: true, date: true },
+  });
+  const daysPool = new Map<string, Record<number, number>>();
+  for (const a of attendance) {
+    const m = new Date(a.date).getUTCMonth();
+    if (!daysPool.has(a.techId)) daysPool.set(a.techId, {});
+    daysPool.get(a.techId)![m] = (daysPool.get(a.techId)![m] || 0) + 1;
+  }
+  const daysWorked = (techId: string, m0: number) => daysPool.get(techId)?.[m0] || 0;
+  const meetsGate = (techId: string, m0: number) => daysWorked(techId, m0) > 12;
+
+  // Field-pro bonus tiers, split into immediate + Christmas-accrued halves (spec):
+  //   TEM 93.0-97.9 -> $200 ($100 now + $100 accrued);  TEM >=98.0 -> $300 ($150 + $150).
+  // Gated by >12 days worked that month.
+  const fpBonus = (techId: string, s: number | null, m0: number): { immediate: number; accrued: number } => {
+    if (!meetsGate(techId, m0) || s == null) return { immediate: 0, accrued: 0 };
+    if (s >= 0.98) return { immediate: 150, accrued: 150 };
+    if (s >= 0.93) return { immediate: 100, accrued: 100 };
+    return { immediate: 0, accrued: 0 };
+  };
 
   // Stored bonus rows indexed: kind -> techId -> monthKey -> summed amount.
   const stored = new Map<string, Map<string, Record<string, number>>>();
@@ -80,65 +102,88 @@ export async function GET(req: NextRequest) {
     byTech.get(b.techId)![mk] = (byTech.get(b.techId)![mk] || 0) + b.amount;
   }
 
-  // ── Field Professional grid: computed tier (computed months) + stored (all months, stacks).
+  // Summary accumulators (YTD, office-filtered).
+  let sumImmediate = 0, sumAccrued = 0;
+
+  // ── Field Professional grid.
   function buildFieldPro() {
     const rows: any[] = [];
     for (const t of activeTechs) {
-      const amounts: Record<string, number> = {};
-      const computedFlag: Record<string, boolean> = {};
-      let ytd = 0;
+      const amounts: Record<string, number> = {};       // total per month (for the grid cells)
+      let ytd = 0, immediate = 0, accrued = 0;
       for (let m0 = 0; m0 < 12; m0++) {
         const mk = months[m0];
-        let amt = 0;
-        if (isComputed(m0)) { amt += fpTier(monthlyScore(t.techId, m0)); computedFlag[mk] = true; }
+        let mImm = 0, mAcc = 0;
+        if (isComputed(m0)) {
+          const b = fpBonus(t.techId, monthlyScore(t.techId, m0), m0);
+          mImm += b.immediate; mAcc += b.accrued;
+        }
+        // Stored rows (imported history OR manual adjustments) count as immediate (paid).
         const manual = stored.get('field_professional')?.get(t.techId)?.[mk] || 0;
-        amt += manual;
-        if (amt) { amounts[mk] = amt; ytd += amt; }
+        mImm += manual;
+        const total = mImm + mAcc;
+        if (total) { amounts[mk] = total; ytd += total; immediate += mImm; accrued += mAcc; }
       }
-      rows.push({ techId: t.techId, techName: t.name, crewLeader: t.crewLeader, office: t.office, amounts, ytd, computedFlag });
+      sumImmediate += immediate; sumAccrued += accrued;
+      rows.push({ techId: t.techId, techName: t.name, crewLeader: t.crewLeader, office: t.office, amounts, ytd, immediate, accrued });
     }
     return rows.sort((a, b) => a.techId.localeCompare(b.techId));
   }
 
-  // ── Team grid (per crew leader): leader tier + 50% gated team share, + stored (stacks).
+  // ── Team grid (per crew leader): leader tier + 50% gated team share.
   function buildTeam() {
     const rows: any[] = [];
     for (const leader of leaderTechs) {
       const amounts: Record<string, number> = {};
-      const computedFlag: Record<string, boolean> = {};
-      let ytd = 0;
-      // team members = active techs whose crewLeader is this leader's name.
+      let ytd = 0, immediate = 0, accrued = 0;
       const members = activeTechs.filter(t => t.crewLeader === leader.name);
       for (let m0 = 0; m0 < 12; m0++) {
         const mk = months[m0];
-        let amt = 0;
+        let mImm = 0, mAcc = 0;
         if (isComputed(m0)) {
           const leaderScore = monthlyScore(leader.techId, m0);
-          // Part 1: leader's own tier
-          amt += fpTier(leaderScore);
-          // Part 2: 50% of team's summed field-pro bonuses, gated on leader>=0.93 AND team avg>0.90
+          // Part 1: leader's own individual bonus (same tiers/gate as a field pro).
+          const own = fpBonus(leader.techId, leaderScore, m0);
+          mImm += own.immediate; mAcc += own.accrued;
+          // Part 2: team-driven — 50% of team's summed field-pro bonuses, split 50/50 immediate/accrued,
+          // gated on leader TEM >= 0.93 AND team-avg TEM > 0.90.
           const memberScores = members.map(mem => monthlyScore(mem.techId, m0)).filter(s => s != null) as number[];
           const teamAvg = memberScores.length ? avg(memberScores)! : null;
           if (leaderScore != null && leaderScore >= 0.93 && teamAvg != null && teamAvg > 0.90) {
-            const teamFpSum = members.reduce((sum, mem) => sum + fpTier(monthlyScore(mem.techId, m0)), 0);
-            amt += teamFpSum * 0.5;
+            // Sum the FULL team member bonuses ($100/$150 tiers, gated per member), take 50%.
+            const teamFull = members.reduce((sum, mem) => {
+              const mb = fpBonus(mem.techId, monthlyScore(mem.techId, m0), m0);
+              return sum + mb.immediate + mb.accrued; // full ($200/$300) per member
+            }, 0);
+            // Spec: 50% of that pool, itself split 50% monthly / 50% accrued.
+            const share = teamFull * 0.5;
+            mImm += share * 0.5;
+            mAcc += share * 0.5;
           }
-          computedFlag[mk] = true;
         }
         const manual = stored.get('team')?.get(leader.techId)?.[mk] || 0;
-        amt += manual;
-        if (amt) { amounts[mk] = amt; ytd += amt; }
+        mImm += manual;
+        const total = mImm + mAcc;
+        if (total) { amounts[mk] = total; ytd += total; immediate += mImm; accrued += mAcc; }
       }
-      rows.push({ techId: leader.techId, techName: leader.name, crewLeader: leader.name, office: leader.office, amounts, ytd, computedFlag });
+      sumImmediate += immediate; sumAccrued += accrued;
+      rows.push({ techId: leader.techId, techName: leader.name, crewLeader: leader.name, office: leader.office, amounts, ytd, immediate, accrued });
     }
     return rows.sort((a, b) => a.techId.localeCompare(b.techId));
   }
 
+  const fieldPro = buildFieldPro();
+  const team = buildTeam();
+
   return NextResponse.json({
     year, months,
     computeFrom: COMPUTE_FROM.toISOString().slice(0, 7),
-    team: buildTeam(),
-    fieldPro: buildFieldPro(),
+    team, fieldPro,
+    summary: {
+      immediateYtd: Math.round(sumImmediate),
+      christmasAccrued: Math.round(sumAccrued),
+      totalYtd: Math.round(sumImmediate + sumAccrued),
+    },
   });
 }
 
