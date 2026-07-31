@@ -312,7 +312,7 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
         <thead>
           <tr>
             <th style={{ ...th, textAlign: 'left' }}>Tech ID</th>
-            <th style={{ ...th, textAlign: 'left' }}>{showFieldPro ? 'Field Professional' : 'Crew Leader'}</th>
+            <th style={{ ...th, textAlign: 'left' }}>{showFieldPro ? 'Field Professional' : 'Team (Crew Leader)'}</th>
             <th style={{ ...th, textAlign: 'left' }}>Branch</th>
             <th style={{ ...th, textAlign: 'right' }}>YTD</th>
             {BONUS_MONTHS.map((m, i) => <th key={i} style={{ ...th, textAlign: 'right' }}>{m}</th>)}
@@ -356,7 +356,7 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
         <div style={{ padding: 40, textAlign: 'center', color: '#B4B2A9' }}>Loading…</div>
       ) : (
         <>
-          {grid('Crew Leader Bonuses', bonusData?.crewLeader || [], false)}
+          {grid('Team Bonuses', bonusData?.team || [], false)}
           {grid('Field Professional Bonuses', bonusData?.fieldPro || [], true)}
         </>
       )}
@@ -368,7 +368,7 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
 
 function AddBonusModal({ year, onClose, onSaved }: { year: number; onClose: () => void; onSaved: () => void }) {
   const [techId, setTechId] = useState('');
-  const [kind, setKind] = useState<'field_professional' | 'crew_leader'>('field_professional');
+  const [kind, setKind] = useState<'field_professional' | 'team'>('field_professional');
   const [monthIdx, setMonthIdx] = useState(new Date().getMonth());
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
@@ -404,7 +404,7 @@ function AddBonusModal({ year, onClose, onSaved }: { year: number; onClose: () =
             <select value={kind} onChange={e => setKind(e.target.value as any)}
               style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', fontSize: 13 }}>
               <option value="field_professional">Field Professional</option>
-              <option value="crew_leader">Crew Leader</option>
+              <option value="team">Team (Crew Leader)</option>
             </select>
           </label>
           <div style={{ display: 'flex', gap: 10 }}>

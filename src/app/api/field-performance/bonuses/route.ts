@@ -31,9 +31,28 @@ export async function GET(req: NextRequest) {
   );
   const monthKey = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
 
+  // Roster for zero-fill: all ACTIVE techs (so everyone appears even at $0).
+  const techWhere: any = { status: 'ACTIVE' };
+  if (office && office !== 'ALL' && office !== 'ADMIN' && office !== 'All') techWhere.office = office;
+  const activeTechs = await prisma.technician.findMany({
+    where: techWhere,
+    select: { techId: true, name: true, office: true, crewLeader: true },
+  });
+  // Crew leaders = distinct crewLeader names that are themselves active techs.
+  const leaderNames = new Set(activeTechs.map(t => t.crewLeader).filter(Boolean) as string[]);
+  const leaderTechs = activeTechs.filter(t => leaderNames.has(t.name));
+
   // Pivot into per-person rows with amounts keyed by month-end + a YTD total.
-  function pivot(kind: string) {
+  // seedRoster = the list of techs to always include (zero-filled) for this block.
+  function pivot(kind: string, seedRoster: { techId: string; name: string; office: string | null; crewLeader: string | null }[]) {
     const byTech = new Map<string, any>();
+    // Seed every roster tech at $0 first so they always show.
+    for (const t of seedRoster) {
+      byTech.set(t.techId, {
+        techId: t.techId, techName: t.name, crewLeader: t.crewLeader,
+        office: t.office, amounts: {} as Record<string, number>, ytd: 0,
+      });
+    }
     for (const b of bonuses.filter(b => b.kind === kind)) {
       if (!byTech.has(b.techId)) {
         byTech.set(b.techId, {
@@ -51,8 +70,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     year, months,
-    crewLeader: pivot('crew_leader'),
-    fieldPro: pivot('field_professional'),
+    team: pivot('team', leaderTechs),
+    fieldPro: pivot('field_professional', activeTechs),
   });
 }
 
@@ -69,8 +88,8 @@ export async function POST(req: NextRequest) {
   if (!techId || !kind || !month || amount == null) {
     return NextResponse.json({ error: 'techId, kind, month, amount required' }, { status: 400 });
   }
-  if (kind !== 'crew_leader' && kind !== 'field_professional') {
-    return NextResponse.json({ error: 'kind must be crew_leader or field_professional' }, { status: 400 });
+  if (kind !== 'team' && kind !== 'field_professional') {
+    return NextResponse.json({ error: 'kind must be team or field_professional' }, { status: 400 });
   }
 
   // Resolve tech details for denormalized display.
