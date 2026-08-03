@@ -124,6 +124,44 @@ export function KpiTab() {
     { label: 'Trailing 4W BPL', fn: (m: any) => fmt(m.trailing4WeekBPL) },
   ];
 
+  // Export the KPI tables (company + each PM) to CSV — mirrors exactly what's displayed,
+  // respecting the current office / period / PM filters. Opens in Excel for charting.
+  const exportCSV = () => {
+    const esc = (v: any) => {
+      const s = String(v ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines: string[] = [];
+    const periodLabel = period === 'monthly' ? 'Monthly' : 'Weekly';
+    lines.push(esc(`Lead KPIs — ${periodLabel}${office !== 'All' ? ` — ${office}` : ''}`));
+    lines.push('');
+    // Company-wide block
+    lines.push('Company-wide');
+    lines.push(['Metric', ...labels].map(esc).join(','));
+    for (const row of companyRows) {
+      lines.push([row.label, ...company.map((m: any) => row.fn(m))].map(esc).join(','));
+    }
+    lines.push('');
+    // Per-PM blocks
+    for (const pm of pmData) {
+      lines.push(`${pm.pm}${pm.office ? ` (${pm.office})` : ''}`);
+      lines.push(['Metric', ...labels].map(esc).join(','));
+      const series = period === 'monthly' ? (pm.months || []) : (pm.weeks || []);
+      for (const row of pmRows) {
+        lines.push([row.label, ...series.map((m: any) => row.fn(m))].map(esc).join(','));
+      }
+      lines.push('');
+    }
+    const csv = lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lead-kpis-${period}${office !== 'All' ? '-' + office : ''}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: 12 };
   const thStyle: React.CSSProperties = {
     padding: '8px 12px', textAlign: 'right', fontSize: 11, fontWeight: 500, color: '#888780',
@@ -231,6 +269,9 @@ export function KpiTab() {
           </div>
           <button onClick={() => { setShowPMManager(true); fetchPMs(); }} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer', fontWeight: 500 }}>
             Manage PMs
+          </button>
+          <button onClick={exportCSV} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500 }}>
+            Export CSV
           </button>
           <select value={pmFilter} onChange={e => setPmFilter(e.target.value)} style={{ fontSize: 13, padding: '7px 12px', borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer' }}>
             <option value="All">All PMs</option>
