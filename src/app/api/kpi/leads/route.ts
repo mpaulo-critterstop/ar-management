@@ -56,9 +56,9 @@ export async function GET(req: NextRequest) {
     const officeFilter = searchParams.get('office');
     const pmFilter = searchParams.get('pm');
     const period = searchParams.get('period') || 'monthly';
-    // offset shifts the 12-period window further back (0 = latest 12, 1 = the 12 before that, etc.)
-    // Used by the "Load more" button to page into pre-2026 history.
-    const offset = Math.max(0, parseInt(searchParams.get('offset') || '0'));
+    // companyCount = how many periods the COMPANY-WIDE table shows (default 12, grows via "Load more").
+    // Per-PM tables always stay at 12. Older company periods (pre-2026) come from kpi_history.
+    const companyCount = Math.min(120, Math.max(12, parseInt(searchParams.get('companyCount') || '12')));
 
     // Get all active PMs
     const pms = await prisma.pM.findMany({ where: { active: true }, orderBy: { name: 'asc' } });
@@ -66,19 +66,19 @@ export async function GET(req: NextRequest) {
     const now = new Date();
 
     if (period === 'monthly') {
-      // Build 12 month periods (current month first)
+      // Company table spans `companyCount` months; per-PM tables use the first 12 of these.
       const months: { year: number; month: number; start: Date; end: Date }[] = [];
-      for (let i = 0; i < 12; i++) {
-        const idx = i + offset * 12; // shift window back by offset*12 months
-        const year = now.getMonth() - idx < 0 ? now.getFullYear() + Math.floor((now.getMonth() - idx) / 12) : now.getFullYear();
-        const month = ((now.getMonth() - idx) % 12 + 12) % 12;
+      for (let i = 0; i < companyCount; i++) {
+        const year = now.getMonth() - i < 0 ? now.getFullYear() + Math.floor((now.getMonth() - i) / 12) : now.getFullYear();
+        const month = ((now.getMonth() - i) % 12 + 12) % 12;
         months.push({ year, month, start: getMonthStart(year, month), end: getMonthEnd(year, month) });
       }
+      const pmMonthsWindow = months.slice(0, 12); // per-PM stays at rolling 12
 
       // Fetch all leads and payments in one go
       const allLeads = await prisma.lead.findMany({
         where: {
-          inspectionDate: { gte: months[11].start, lte: months[0].end },
+          inspectionDate: { gte: months[months.length - 1].start, lte: months[0].end },
           ...(officeFilter && officeFilter !== 'All' && { office: { equals: officeFilter, mode: 'insensitive' } }),
           ...(pmFilter && { pmName: pmFilter }),        },
         select: { id: true, inspectionDate: true, status: true, amount: true, pmName: true, office: true, upsellAmount: true, upsellDate: true, invoice: { select: { amount: true, date: true } } },
@@ -127,7 +127,7 @@ const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBook
         const pmLeads = allLeads.filter(l => l.pmName === pm.name);
         const pmPayments = allPayments.filter(p => p.invoice?.lead?.pmName === pm.name);
 
-        const monthData = months.map(({ year, month, start, end }) => {
+        const monthData = pmMonthsWindow.map(({ year, month, start, end }) => {
           const monthLeads = pmLeads.filter(l => l.inspectionDate && new Date(l.inspectionDate) >= start && new Date(l.inspectionDate) <= end);
           const totalLeads = monthLeads.length;
           const soldByInspection = monthLeads.filter(l => l.status === 'SOLD');
@@ -164,21 +164,22 @@ const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBook
         };
       });
 
-      return NextResponse.json({ period: 'monthly', offset, labels: companyMonthlyFinal.map(m => m.label), company: companyMonthlyFinal, pms: pmMonthly });
+      return NextResponse.json({ period: 'monthly', companyCount, labels: companyMonthlyFinal.map(m => m.label), pmLabels: companyMonthlyFinal.slice(0, 12).map(m => m.label), company: companyMonthlyFinal, pms: pmMonthly });
 
     } else {
-      // Weekly - 12 weeks trailing from this Monday
+      // Weekly - company table spans `companyCount` weeks; per-PM uses first 12.
       const thisMonday = getMondayOf(now);
       const weeks: { start: Date; end: Date; label: string }[] = [];
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < companyCount; i++) {
         const monday = new Date(thisMonday);
-        monday.setDate(monday.getDate() - (i + offset * 12) * 7); // shift back by offset*12 weeks
+        monday.setDate(monday.getDate() - i * 7);
         weeks.push({ start: monday, end: getWeekEnd(monday), label: monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) });
       }
+      const pmWeeksWindow = weeks.slice(0, 12);
 
       const allLeads = await prisma.lead.findMany({
         where: {
-          inspectionDate: { gte: weeks[11].start, lte: weeks[0].end },
+          inspectionDate: { gte: weeks[weeks.length - 1].start, lte: weeks[0].end },
 ...(officeFilter && officeFilter !== 'All' && { office: { equals: officeFilter, mode: 'insensitive' } }),
           ...(pmFilter && { pmName: pmFilter }),
         },
@@ -203,7 +204,7 @@ const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBook
       // PM weekly
       const pmWeekly = pms.map(pm => {
         const pmLeads = allLeads.filter(l => l.pmName === pm.name);
-        const weekData = weeks.map(({ start, end }) => {
+        const weekData = pmWeeksWindow.map(({ start, end }) => {
           const weekLeads = pmLeads.filter(l => l.inspectionDate && new Date(l.inspectionDate) >= start && new Date(l.inspectionDate) <= end);
           const totalLeads = weekLeads.length;
           const soldByInspection = weekLeads.filter(l => l.status === 'SOLD');
@@ -245,7 +246,7 @@ const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBook
                  trailing4WeekBPL: (w as any).trailing4WeekBPL ?? 0 };
       });
 
-      return NextResponse.json({ period: 'weekly', offset, labels: companyWeeklyFinal.map(w => w.label), company: companyWeeklyFinal, pms: pmWeekly });
+      return NextResponse.json({ period: 'weekly', companyCount, labels: companyWeeklyFinal.map(w => w.label), pmLabels: companyWeeklyFinal.slice(0, 12).map(w => w.label), company: companyWeeklyFinal, pms: pmWeekly });
     }
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
