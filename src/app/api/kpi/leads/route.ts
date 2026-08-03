@@ -98,6 +98,20 @@ export async function GET(req: NextRequest) {
       });
 
       // Build company-wide monthly KPIs
+      // Prior-year booked lookup for YoY: prefer kpi_history (all pre-2026 months), then the
+      // hardcoded HISTORICAL_BOOKED, then live-computed months in this same window.
+      const allHist = await prisma.kpiHistory.findMany({ where: { period: 'monthly', scope: 'company' } });
+      const histBookedByKey = new Map(allHist.map(h => [h.periodKey, h.booked])); // 'YYYY-MM' -> booked
+      const priorYearBooked = (year: number, month0: number): number => {
+        // 1) kpi_history (periodKey is 1-based YYYY-MM)
+        const hk = `${year - 1}-${String(month0 + 1).padStart(2, '0')}`;
+        if (histBookedByKey.has(hk)) return histBookedByKey.get(hk)!;
+        // 2) hardcoded fallback (keyed year-monthIndex, 0-based)
+        const legacy = HISTORICAL_BOOKED[`${year - 1}-${month0}`];
+        if (legacy != null) return legacy;
+        return 0;
+      };
+
       const companyMonthly = months.map(({ year, month, start, end }) => {
         const monthLeads = allLeads.filter(l => l.inspectionDate && new Date(l.inspectionDate) >= start && new Date(l.inspectionDate) <= end);
         const totalLeads = monthLeads.length;
@@ -112,9 +126,8 @@ export async function GET(req: NextRequest) {
         const bookedPerLead = totalLeads > 0 ? booked / totalLeads : 0;
 
         // YoY - same month last year
-        const histKey = `${year - 1}-${month}`;
-const lastYearBooked = HISTORICAL_BOOKED[histKey] ?? 0;
-const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBooked) * 100 : null;
+        const lastYearBooked = priorYearBooked(year, month);
+        const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBooked) * 100 : null;
 
         return {
           label: new Date(year, month, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
@@ -156,11 +169,12 @@ const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBook
         if (year >= 2026) return m;
         const h = histMap.get(`${year}-${String(month + 1).padStart(2, '0')}`);
         if (!h) return m; // no stored history for this month → leave computed (likely zeros)
+        const priorBooked = priorYearBooked(year, month);
         return {
           label: m.label,
           booked: h.booked, totalLeads: h.leads, totalClosed: h.closed,
           closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead,
-          yoyGrowth: null,
+          yoyGrowth: priorBooked > 0 ? ((h.booked - priorBooked) / priorBooked) * 100 : null,
         };
       });
 
