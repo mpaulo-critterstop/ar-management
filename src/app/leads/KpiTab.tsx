@@ -133,7 +133,7 @@ export function KpiTab() {
     };
     const lines: string[] = [];
     const periodLabel = period === 'monthly' ? 'Monthly' : 'Weekly';
-    lines.push(esc(`Lead KPIs — ${periodLabel}${office !== 'All' ? ` — ${office}` : ''}`));
+    lines.push(esc(`Lead KPIs - ${periodLabel}${office !== 'All' ? ` - ${office}` : ''}`));
     lines.push('');
     // Company-wide block
     lines.push('Company-wide');
@@ -153,7 +153,9 @@ export function KpiTab() {
       lines.push('');
     }
     const csv = lines.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // Prepend a UTF-8 BOM so Excel reads the file as UTF-8 (otherwise em dashes / accented
+    // names get mangled into sequences like "â€”").
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
