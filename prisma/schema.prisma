@@ -712,3 +712,19 @@ model Bonus {
   @@index([month])
   @@map("bonuses")
 }
+
+model KpiHistory {
+  id            String   @id @default(cuid())
+  period        String   // 'monthly' | 'weekly'
+  periodKey     String   // 'YYYY-MM' for monthly, 'YYYY-MM-DD' (week-end) for weekly
+  scope         String   @default("company") // 'company' | pmName
+  booked        Float
+  leads         Int
+  closed        Int
+  closingPct    Float
+  avgSale       Float
+  bookedPerLead Float
+  createdAt     DateTime @default(now())
+  @@unique([period, periodKey, scope])
+  @@map("kpi_history")
+}

@@ -56,6 +56,9 @@ export async function GET(req: NextRequest) {
     const officeFilter = searchParams.get('office');
     const pmFilter = searchParams.get('pm');
     const period = searchParams.get('period') || 'monthly';
+    // offset shifts the 12-period window further back (0 = latest 12, 1 = the 12 before that, etc.)
+    // Used by the "Load more" button to page into pre-2026 history.
+    const offset = Math.max(0, parseInt(searchParams.get('offset') || '0'));
 
     // Get all active PMs
     const pms = await prisma.pM.findMany({ where: { active: true }, orderBy: { name: 'asc' } });
@@ -66,8 +69,9 @@ export async function GET(req: NextRequest) {
       // Build 12 month periods (current month first)
       const months: { year: number; month: number; start: Date; end: Date }[] = [];
       for (let i = 0; i < 12; i++) {
-        const year = now.getMonth() - i < 0 ? now.getFullYear() - 1 : now.getFullYear();
-        const month = ((now.getMonth() - i) + 12) % 12;
+        const idx = i + offset * 12; // shift window back by offset*12 months
+        const year = now.getMonth() - idx < 0 ? now.getFullYear() + Math.floor((now.getMonth() - idx) / 12) : now.getFullYear();
+        const month = ((now.getMonth() - idx) % 12 + 12) % 12;
         months.push({ year, month, start: getMonthStart(year, month), end: getMonthEnd(year, month) });
       }
 
@@ -144,7 +148,23 @@ const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBook
         return { pm: pm.name, office: pm.office, months: monthData };
       });
 
-      return NextResponse.json({ period: 'monthly', labels: companyMonthly.map(m => m.label), company: companyMonthly, pms: pmMonthly });
+      // Overlay stored history for pre-2026 periods (locked numbers from the legacy tracker).
+      const histMonths = await prisma.kpiHistory.findMany({ where: { period: 'monthly', scope: 'company' } });
+      const histMap = new Map(histMonths.map(h => [h.periodKey, h]));
+      const companyMonthlyFinal = companyMonthly.map((m, i) => {
+        const { year, month } = months[i];
+        if (year >= 2026) return m;
+        const h = histMap.get(`${year}-${String(month + 1).padStart(2, '0')}`);
+        if (!h) return m; // no stored history for this month → leave computed (likely zeros)
+        return {
+          label: m.label,
+          booked: h.booked, totalLeads: h.leads, totalClosed: h.closed,
+          closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead,
+          yoyGrowth: null,
+        };
+      });
+
+      return NextResponse.json({ period: 'monthly', offset, labels: companyMonthlyFinal.map(m => m.label), company: companyMonthlyFinal, pms: pmMonthly });
 
     } else {
       // Weekly - 12 weeks trailing from this Monday
@@ -152,7 +172,7 @@ const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBook
       const weeks: { start: Date; end: Date; label: string }[] = [];
       for (let i = 0; i < 12; i++) {
         const monday = new Date(thisMonday);
-        monday.setDate(monday.getDate() - i * 7);
+        monday.setDate(monday.getDate() - (i + offset * 12) * 7); // shift back by offset*12 weeks
         weeks.push({ start: monday, end: getWeekEnd(monday), label: monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) });
       }
 
@@ -211,7 +231,21 @@ const yoyGrowth = lastYearBooked > 0 ? ((booked - lastYearBooked) / lastYearBook
         return { pm: pm.name, office: pm.office, weeks: weekDataWithTrailing };
       });
 
-      return NextResponse.json({ period: 'weekly', labels: companyWeekly.map(w => w.label), company: companyWeekly, pms: pmWeekly });
+      // Overlay stored weekly history for pre-2026 (locked legacy numbers), matched by week-end date.
+      const histWeeks = await prisma.kpiHistory.findMany({ where: { period: 'weekly', scope: 'company' } });
+      const histWMap = new Map(histWeeks.map(h => [h.periodKey, h]));
+      const companyWeeklyFinal = companyWeekly.map((w, i) => {
+        const wEnd = weeks[i].end;
+        if (wEnd.getFullYear() >= 2026) return w;
+        const key = wEnd.toISOString().slice(0, 10);
+        const h = histWMap.get(key);
+        if (!h) return w;
+        return { label: w.label, booked: h.booked, totalLeads: h.leads, totalClosed: h.closed,
+                 closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead,
+                 trailing4WeekBPL: (w as any).trailing4WeekBPL ?? 0 };
+      });
+
+      return NextResponse.json({ period: 'weekly', offset, labels: companyWeeklyFinal.map(w => w.label), company: companyWeeklyFinal, pms: pmWeekly });
     }
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

@@ -19,6 +19,7 @@ function pct(n: number | null | undefined) {
 export function KpiTab() {
   const [office, setOffice] = useState('All');
   const [period, setPeriod] = useState<'monthly' | 'weekly'>('monthly');
+  const [offset, setOffset] = useState(0); // 0 = latest 12; each +1 pages 12 periods older
   const [pmFilter, setPmFilter] = useState('All');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -32,13 +33,17 @@ export function KpiTab() {
     fetchKPIs();
     fetchPMs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [office, period]);
+  }, [office, period, offset]);
+
+  // Reset paging back to latest when the office or period toggle changes.
+  useEffect(() => { setOffset(0); }, [office, period]);
 
   async function fetchKPIs() {
     setLoading(true);
     const params = new URLSearchParams();
     if (office !== 'All') params.set('office', office);
     params.set('period', period);
+    if (offset > 0) params.set('offset', String(offset));
     const res = await fetch('/api/kpi/leads?' + params.toString());
     const d = await res.json();
     setData(d);
@@ -349,6 +354,20 @@ export function KpiTab() {
               </div>
             </div>
           ))}
+
+          {/* Load more — pages back 12 periods into pre-2026 history (locked legacy numbers) */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 8, marginBottom: 24 }}>
+            {offset > 0 && (
+              <button onClick={() => setOffset(o => Math.max(0, o - 1))}
+                style={{ padding: '8px 18px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500 }}>
+                ← Newer
+              </button>
+            )}
+            <button onClick={() => setOffset(o => o + 1)}
+              style={{ padding: '8px 18px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500 }}>
+              Load {period === 'monthly' ? 'earlier months' : 'earlier weeks'} →
+            </button>
+          </div>
         </>
       )}
     </div>
