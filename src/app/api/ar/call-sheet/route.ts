@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
 
   const office = req.nextUrl.searchParams.get('office');
   const now = new Date();
-  const officeFilter = office && office !== 'All' ? `AND i.office = '${office.replace(/'/g, "''")}'` : '';
+  const noFilter = !office || office === 'All' || office === 'ALL' || office === 'all';
+  const officeFilter = !noFilter ? `AND i.office = '${office!.replace(/'/g, "''")}'` : '';
 
   // Overdue, unpaid invoices (past due date), not excluded from automation.
   const invoices = await prisma.$queryRawUnsafe(`
