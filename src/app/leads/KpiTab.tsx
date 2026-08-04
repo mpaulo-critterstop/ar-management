@@ -304,7 +304,7 @@ export function KpiTab() {
                   <tr>
                     <th style={{ ...thStyle, textAlign: 'left', position: 'sticky', left: 0, zIndex: 3 }}>Metric</th>
                     {labels.map((l: string) => <th key={l} style={thStyle}>{l}</th>)}
-                    <th style={{ ...thStyle, borderLeft: '2px solid #D3D1C7', background: '#F1EFE8', fontWeight: 600 }}>Total</th>
+                    <th style={{ ...thStyle, borderLeft: '2px solid #D3D1C7', background: '#F1EFE8', fontWeight: 600 }}>Cumulative</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -355,7 +355,7 @@ export function KpiTab() {
                       <tr>
                         <th style={{ ...thStyle, textAlign: 'left', position: 'sticky', left: 0, zIndex: 3 }}>Metric</th>
                         {labels.map((l: string) => <th key={l} style={thStyle}>{l}</th>)}
-                        <th style={{ ...thStyle, borderLeft: '2px solid #D3D1C7', background: '#F1EFE8', fontWeight: 600 }}>Total</th>
+                        <th style={{ ...thStyle, borderLeft: '2px solid #D3D1C7', background: '#F1EFE8', fontWeight: 600 }}>Cumulative</th>
                       </tr>
                     </thead>
                     <tbody>
