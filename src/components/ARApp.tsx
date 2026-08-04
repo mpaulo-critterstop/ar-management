@@ -199,6 +199,7 @@ export default function ARApp() {
 
   const PAGES = [
     {id:"dashboard",label:"Dashboard"},
+    {id:"callsheet",label:"Call Sheet"},
     {id:"customers",label:"Customers"},
     {id:"invoices",label:"Invoices"},
     {id:"payments",label:"Payments"},
@@ -242,6 +243,7 @@ export default function ARApp() {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {page==="dashboard" && <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected={collected} agingTotals={agingTotals} collectedDays={collectedDays} setCollectedDays={setCollectedDays} customDateFrom={customDateFrom} customDateTo={customDateTo} setCustomDateFrom={setCustomDateFrom} setCustomDateTo={setCustomDateTo} prevMonthAR={prevMonthAR} />}
+      {page==="callsheet" && <CallSheetPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="customers" && <CustPage {...shared} />}
       {page==="invoices" && <InvPage {...shared} />}
       {page==="payments" && <PayPage {...shared} />}
@@ -252,6 +254,130 @@ export default function ARApp() {
       {modal==="newPayment" && <PayModal {...shared} invoice={null} onClose={()=>setModal(null)} />}
       {modal?.type==="closeOut" && <CloseOutModal {...shared} invoice={modal.invoice} onClose={()=>setModal(null)} />}
       {modal?.type==="customerDetail" && <CustDetail {...shared} customer={modal.customer} onClose={()=>setModal(null)} />}
+    </div>
+  );
+}
+
+function CallSheetPage({officeFilter, showToast}: any) {
+  const [data, setData] = useState<any>(null);
+  const [loadingCS, setLoadingCS] = useState(true);
+  const [callModal, setCallModal] = useState<any>(null);
+
+  const load = useCallback(() => {
+    setLoadingCS(true);
+    fetch(`/api/ar/call-sheet?office=${officeFilter||'All'}`)
+      .then(r=>r.json()).then(d=>{setData(d);setLoadingCS(false);})
+      .catch(()=>{setLoadingCS(false);});
+  },[officeFilter]);
+  useEffect(()=>{ load(); },[load]);
+
+  const money=(n:number)=>'$'+Math.round(n).toLocaleString();
+  const fmtDate=(d:string)=>new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+  if(loadingCS) return <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780"}}>Loading call sheet…</div>;
+  const items = data?.items||[];
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:16}}>
+        <div style={{fontSize:15,fontWeight:600,color:"#2C2C2A"}}>Today&apos;s Call Sheet</div>
+        <div style={{fontSize:13,color:"#888780"}}>{items.length} to call{items.length===0?" — all caught up 🎉":""}</div>
+      </div>
+
+      {items.length>0 && (
+        <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3",overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr style={{color:"#888780",textAlign:"left"}}>
+                <th style={{padding:"10px 14px",fontWeight:500}}>Customer</th>
+                <th style={{padding:"10px 14px",fontWeight:500}}>Service</th>
+                <th style={{padding:"10px 14px",fontWeight:500,textAlign:"right"}}>Outstanding</th>
+                <th style={{padding:"10px 14px",fontWeight:500,textAlign:"right"}}>Days Overdue</th>
+                <th style={{padding:"10px 14px",fontWeight:500}}>Phone</th>
+                <th style={{padding:"10px 14px",fontWeight:500}}>Last Note</th>
+                <th style={{padding:"10px 14px",fontWeight:500}}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it:any)=>(
+                <tr key={it.invoiceId} style={{borderTop:"0.5px solid #F1EFE8"}}>
+                  <td style={{padding:"10px 14px",fontWeight:500,color:"#2C2C2A"}}>
+                    {it.customerName}
+                    <div style={{fontSize:11,color:"#B4B2A9"}}>{it.serviceAddr||""}</div>
+                  </td>
+                  <td style={{padding:"10px 14px",color:"#6B6A64"}}>{it.serviceType||"—"}</td>
+                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:600,color:"#791F1F"}}>{money(it.outstanding)}</td>
+                  <td style={{padding:"10px 14px",textAlign:"right"}}>
+                    {it.daysOverdue}d
+                    <div style={{fontSize:10,color:"#B4B2A9"}}>step {it.cadenceStep}</div>
+                  </td>
+                  <td style={{padding:"10px 14px",color:"#6B6A64"}}>{it.phone||"—"}</td>
+                  <td style={{padding:"10px 14px",color:"#888780",maxWidth:200}}>
+                    {it.lastNote?(<span title={it.lastNote.text}>{it.lastNote.text.slice(0,40)}{it.lastNote.text.length>40?"…":""}<div style={{fontSize:10,color:"#B4B2A9"}}>{fmtDate(it.lastNote.date)} · {it.noteCount} note{it.noteCount!==1?"s":""}</div></span>):<span style={{color:"#C9C7BE"}}>No prior contact</span>}
+                  </td>
+                  <td style={{padding:"10px 14px"}}>
+                    <button onClick={()=>setCallModal(it)} style={{background:"#0052cc",color:"#fff",border:"none",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer"}}>Mark Called</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {callModal && <MarkCalledModal item={callModal} onClose={()=>setCallModal(null)} onSaved={()=>{setCallModal(null);load();showToast&&showToast("Call logged");}} />}
+    </div>
+  );
+}
+
+function MarkCalledModal({item, onClose, onSaved}: any) {
+  const [text,setText]=useState("");
+  const [status,setStatus]=useState("SPOKE");
+  const [promisedAmount,setPromisedAmount]=useState("");
+  const [promisedDate,setPromisedDate]=useState("");
+  const [saving,setSaving]=useState(false);
+  const OUTCOMES=[["SPOKE","Spoke with customer"],["LEFT_VOICEMAIL","Left voicemail"],["NO_CONTACT","No answer"],["PAYMENT_PROMISED","Promised payment"],["DISPUTED","Disputed"],["ESCALATED","Escalated"]];
+
+  const save=async()=>{
+    if(!text.trim()){return;}
+    setSaving(true);
+    const res=await fetch('/api/ar/call-sheet',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({invoiceId:item.invoiceId,customerId:item.customerId,text:text.trim(),status,
+        promisedAmount:promisedAmount?parseFloat(promisedAmount):undefined,promisedDate:promisedDate||undefined})});
+    setSaving(false);
+    if(res.ok) onSaved();
+  };
+
+  return (
+    <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div style={{background:"#fff",borderRadius:14,width:"100%",maxWidth:460,padding:24}}>
+        <div style={{fontWeight:600,fontSize:16,marginBottom:4}}>Log call — {item.customerName}</div>
+        <div style={{fontSize:12,color:"#888780",marginBottom:16}}>{item.serviceType||""} · ${Math.round(item.outstanding).toLocaleString()} outstanding · {item.daysOverdue}d overdue</div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <label style={{fontSize:12,color:"#6B6A64"}}>Outcome
+            <select value={status} onChange={e=>setStatus(e.target.value)} style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #D3D1C7",fontSize:13}}>
+              {OUTCOMES.map(([v,l])=><option key={v} value={v}>{l}</option>)}
+            </select>
+          </label>
+          <label style={{fontSize:12,color:"#6B6A64"}}>Note
+            <textarea value={text} onChange={e=>setText(e.target.value)} rows={3} placeholder="What happened on the call…" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #D3D1C7",fontSize:13,resize:"vertical"}} />
+          </label>
+          {status==="PAYMENT_PROMISED" && (
+            <div style={{display:"flex",gap:10}}>
+              <label style={{fontSize:12,color:"#6B6A64",flex:1}}>Promised $
+                <input value={promisedAmount} onChange={e=>setPromisedAmount(e.target.value)} type="number" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #D3D1C7",fontSize:13}} />
+              </label>
+              <label style={{fontSize:12,color:"#6B6A64",flex:1}}>By date
+                <input value={promisedDate} onChange={e=>setPromisedDate(e.target.value)} type="date" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #D3D1C7",fontSize:13}} />
+              </label>
+            </div>
+          )}
+        </div>
+        <div style={{display:"flex",gap:10,marginTop:20,justifyContent:"flex-end"}}>
+          <button onClick={onClose} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"0.5px solid #D3D1C7",background:"#fff",cursor:"pointer"}}>Cancel</button>
+          <button onClick={save} disabled={saving||!text.trim()} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#0052cc",color:"#fff",fontWeight:500,cursor:"pointer",opacity:(saving||!text.trim())?0.6:1}}>{saving?"Saving…":"Log Call"}</button>
+        </div>
+      </div>
     </div>
   );
 }
