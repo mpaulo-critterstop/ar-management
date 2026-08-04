@@ -262,6 +262,10 @@ function CallSheetPage({officeFilter, showToast}: any) {
   const [data, setData] = useState<any>(null);
   const [loadingCS, setLoadingCS] = useState(true);
   const [callModal, setCallModal] = useState<any>(null);
+  const [search, setSearch] = useState("");
+  const [svcFilter, setSvcFilter] = useState<"all"|"Pest Control"|"Wildlife">("all");
+  const [noteEdits, setNoteEdits] = useState<Record<string,string>>({});
+  const [savingNote, setSavingNote] = useState<string|null>(null);
 
   const load = useCallback(() => {
     setLoadingCS(true);
@@ -274,54 +278,97 @@ function CallSheetPage({officeFilter, showToast}: any) {
   const money=(n:number)=>'$'+Math.round(n).toLocaleString();
   const fmtDate=(d:string)=>new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 
+  const saveNote=async(invoiceId:string)=>{
+    setSavingNote(invoiceId);
+    await fetch('/api/ar/call-sheet',{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({invoiceId,arNote:noteEdits[invoiceId]??''})});
+    setSavingNote(null);
+    showToast&&showToast("Note saved");
+  };
+
   if(loadingCS) return <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780"}}>Loading call sheet…</div>;
-  const items = data?.items||[];
+
+  const allItems = data?.items||[];
+  const items = allItems.filter((it:any)=>{
+    const matchSearch = !search.trim() || (it.customerName||'').toLowerCase().includes(search.toLowerCase());
+    const matchSvc = svcFilter==="all" || it.serviceCategory===svcFilter;
+    return matchSearch && matchSvc;
+  });
 
   return (
     <div>
       <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:16}}>
         <div style={{fontSize:15,fontWeight:600,color:"#2C2C2A"}}>Today&apos;s Call Sheet</div>
-        <div style={{fontSize:13,color:"#888780"}}>{items.length} to call{items.length===0?" — all caught up 🎉":""}</div>
+        <div style={{fontSize:13,color:"#888780"}}>{items.length} to call{allItems.length===0?" — all caught up 🎉":""}</div>
       </div>
 
-      {items.length>0 && (
-        <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3",overflow:"hidden"}}>
+      {/* Search + service filter */}
+      <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center",flexWrap:"wrap"}}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customer…"
+          style={{padding:"7px 12px",fontSize:13,borderRadius:8,border:"0.5px solid #D3D1C7",minWidth:220}} />
+        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
+          {(["all","Pest Control","Wildlife"] as const).map(s=>(
+            <button key={s} onClick={()=>setSvcFilter(s)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:svcFilter===s?"0.5px solid #D3D1C7":"0.5px solid transparent",background:svcFilter===s?"#fff":"transparent",color:svcFilter===s?"#2C2C2A":"#888780"}}>
+              {s==="all"?"All Services":s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {items.length>0 ? (
+        <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3",overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead>
               <tr style={{color:"#888780",textAlign:"left"}}>
-                <th style={{padding:"10px 14px",fontWeight:500}}>Customer</th>
-                <th style={{padding:"10px 14px",fontWeight:500}}>Service</th>
-                <th style={{padding:"10px 14px",fontWeight:500,textAlign:"right"}}>Outstanding</th>
-                <th style={{padding:"10px 14px",fontWeight:500,textAlign:"right"}}>Days Overdue</th>
-                <th style={{padding:"10px 14px",fontWeight:500}}>Phone</th>
-                <th style={{padding:"10px 14px",fontWeight:500}}>Last Note</th>
-                <th style={{padding:"10px 14px",fontWeight:500}}></th>
+                <th style={{padding:"10px 12px",fontWeight:500}}>Customer</th>
+                <th style={{padding:"10px 12px",fontWeight:500}}>Service</th>
+                <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>Outstanding</th>
+                <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>Overdue</th>
+                <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>On Sheet</th>
+                <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>Last Call</th>
+                <th style={{padding:"10px 12px",fontWeight:500}}>Phone</th>
+                <th style={{padding:"10px 12px",fontWeight:500,minWidth:180}}>Note</th>
+                <th style={{padding:"10px 12px",fontWeight:500}}></th>
               </tr>
             </thead>
             <tbody>
-              {items.map((it:any)=>(
+              {items.map((it:any)=>{
+                const noteVal = noteEdits[it.invoiceId]!==undefined ? noteEdits[it.invoiceId] : it.arNote;
+                const dirty = noteEdits[it.invoiceId]!==undefined && noteEdits[it.invoiceId]!==it.arNote;
+                return (
                 <tr key={it.invoiceId} style={{borderTop:"0.5px solid #F1EFE8"}}>
-                  <td style={{padding:"10px 14px",fontWeight:500,color:"#2C2C2A"}}>
+                  <td style={{padding:"10px 12px",fontWeight:500,color:"#2C2C2A"}}>
                     {it.customerName}
                     <div style={{fontSize:11,color:"#B4B2A9"}}>{it.serviceAddr||""}</div>
                   </td>
-                  <td style={{padding:"10px 14px",color:"#6B6A64"}}>{it.serviceType||"—"}</td>
-                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:600,color:"#791F1F"}}>{money(it.outstanding)}</td>
-                  <td style={{padding:"10px 14px",textAlign:"right"}}>
-                    {it.daysOverdue}d
-                    <div style={{fontSize:10,color:"#B4B2A9"}}>step {it.cadenceStep}</div>
+                  <td style={{padding:"10px 12px"}}>
+                    <span style={{fontSize:11,padding:"2px 7px",borderRadius:6,background:it.serviceCategory==="Wildlife"?"#E9F1E5":"#EAEEF6",color:it.serviceCategory==="Wildlife"?"#3F6B2E":"#2E4A79"}}>{it.serviceCategory}</span>
                   </td>
-                  <td style={{padding:"10px 14px",color:"#6B6A64"}}>{it.phone||"—"}</td>
-                  <td style={{padding:"10px 14px",color:"#888780",maxWidth:200}}>
-                    {it.lastNote?(<span title={it.lastNote.text}>{it.lastNote.text.slice(0,40)}{it.lastNote.text.length>40?"…":""}<div style={{fontSize:10,color:"#B4B2A9"}}>{fmtDate(it.lastNote.date)} · {it.noteCount} note{it.noteCount!==1?"s":""}</div></span>):<span style={{color:"#C9C7BE"}}>No prior contact</span>}
+                  <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,color:"#791F1F"}}>{money(it.outstanding)}</td>
+                  <td style={{padding:"10px 12px",textAlign:"right"}}>{it.daysOverdue}d</td>
+                  <td style={{padding:"10px 12px",textAlign:"right",color:it.daysOnSheet>=7?"#B45309":"#6B6A64"}}>{it.daysOnSheet}d</td>
+                  <td style={{padding:"10px 12px",textAlign:"right",color:"#6B6A64"}}>{it.daysSinceCall==null?<span style={{color:"#C9C7BE"}}>never</span>:`${it.daysSinceCall}d`}</td>
+                  <td style={{padding:"10px 12px",color:"#6B6A64"}}>{it.phone||"—"}</td>
+                  <td style={{padding:"8px 12px"}}>
+                    <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                      <input value={noteVal} onChange={e=>setNoteEdits(p=>({...p,[it.invoiceId]:e.target.value}))}
+                        placeholder="Add note…" style={{flex:1,padding:"5px 8px",fontSize:12,borderRadius:6,border:"0.5px solid #D3D1C7",minWidth:120}} />
+                      {dirty && <button onClick={()=>saveNote(it.invoiceId)} disabled={savingNote===it.invoiceId} style={{padding:"5px 8px",fontSize:11,borderRadius:6,border:"none",background:"#0052cc",color:"#fff",cursor:"pointer"}}>{savingNote===it.invoiceId?"…":"Save"}</button>}
+                    </div>
+                    {it.lastNote && <div style={{fontSize:10,color:"#B4B2A9",marginTop:3}} title={it.lastNote.text}>Last: {it.lastNote.text.slice(0,30)}{it.lastNote.text.length>30?"…":""} ({fmtDate(it.lastNote.date)})</div>}
                   </td>
-                  <td style={{padding:"10px 14px"}}>
-                    <button onClick={()=>setCallModal(it)} style={{background:"#0052cc",color:"#fff",border:"none",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer"}}>Mark Called</button>
+                  <td style={{padding:"10px 12px"}}>
+                    <button onClick={()=>setCallModal(it)} style={{background:"#0052cc",color:"#fff",border:"none",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>Mark Called</button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
+        </div>
+      ) : (
+        <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780",background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3"}}>
+          {allItems.length===0?"No invoices due for a call today.":"No matches for the current search/filter."}
         </div>
       )}
 

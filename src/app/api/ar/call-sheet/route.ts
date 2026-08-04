@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
   // Overdue, unpaid invoices (past due date), not excluded from automation.
   const invoices = await prisma.$queryRawUnsafe(`
-    SELECT i.id, i."customerId", i.date, i.due, i.amount, i.paid, i."serviceType", i.office,
+    SELECT i.id, i."customerId", i.date, i.due, i.amount, i.paid, i."serviceType", i."serviceId", i."arNote", i.office,
            c.name as "customerName", c.phone, c.email, c."serviceAddr"
     FROM invoices i
     JOIN customers c ON c.id = i."customerId"
@@ -80,6 +80,14 @@ export async function GET(req: NextRequest) {
     if (calledThisWindow) continue; // actioned already this step → rolls to next step
 
     const outstanding = Number(inv.amount) - Number(inv.paid);
+    // "Entered the sheet" = the day it crossed 21 days overdue (first cadence step).
+    const enteredSheet = new Date(due.getTime() + 21 * MS_DAY);
+    const daysOnSheet = Math.floor((now.getTime() - enteredSheet.getTime()) / MS_DAY);
+    const lastNote = invNotes[0] || null;
+    const daysSinceCall = lastNote ? Math.floor((now.getTime() - new Date(lastNote.date).getTime()) / MS_DAY) : null;
+    const WILDLIFE_IDS = [553, 716, 720, 501, 674, 479, 541, 542, 624, 510];
+    const isWildlife = WILDLIFE_IDS.includes(Number(inv.serviceId));
+
     items.push({
       invoiceId: inv.id,
       customerId: inv.customerId,
@@ -88,13 +96,18 @@ export async function GET(req: NextRequest) {
       email: inv.email,
       serviceAddr: inv.serviceAddr,
       serviceType: inv.serviceType,
+      serviceCategory: isWildlife ? 'Wildlife' : 'Pest Control',
       office: inv.office,
       amount: Number(inv.amount),
       outstanding,
       due: inv.due,
       daysOverdue,
       cadenceStep: currentStep,
-      lastNote: invNotes[0] ? { text: invNotes[0].text, date: invNotes[0].date, status: invNotes[0].status } : null,
+      enteredSheet: enteredSheet.toISOString().slice(0, 10),
+      daysOnSheet,
+      daysSinceCall,
+      arNote: inv.arNote || '',
+      lastNote: lastNote ? { text: lastNote.text, date: lastNote.date, status: lastNote.status } : null,
       noteCount: invNotes.length,
     });
   }
@@ -129,4 +142,18 @@ export async function POST(req: NextRequest) {
     },
   });
   return NextResponse.json({ ok: true, note });
+}
+
+// PATCH: save the persistent per-invoice call-sheet note (arNote). { invoiceId, arNote }
+export async function PATCH(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!canAccessModule(session.user as any, 'ar')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  const b = await req.json().catch(() => ({}));
+  const { invoiceId, arNote } = b;
+  if (!invoiceId) return NextResponse.json({ error: 'invoiceId required' }, { status: 400 });
+  await prisma.invoice.update({ where: { id: invoiceId }, data: { arNote: arNote ?? null } });
+  return NextResponse.json({ ok: true });
 }

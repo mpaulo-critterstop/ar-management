@@ -89,6 +89,7 @@ model Invoice {
   updatedAt      DateTime      @updatedAt
   arFollowupSent   Boolean   @default(false)
   arFollowupSentAt DateTime?
+  arNote           String?   // persistent call-sheet note (editable inline, separate from call logs)
   customer       Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   payments        Payment[]
   lead            Lead?     @relation("LeadInvoice")
