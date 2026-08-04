@@ -324,7 +324,6 @@ function CallSheetPage({officeFilter, showToast}: any) {
                 <th style={{padding:"10px 12px",fontWeight:500}}>Service</th>
                 <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>Outstanding</th>
                 <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>Overdue</th>
-                <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>On Sheet</th>
                 <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>Last Call</th>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Phone</th>
                 <th style={{padding:"10px 12px",fontWeight:500,minWidth:180}}>Note</th>
@@ -346,7 +345,6 @@ function CallSheetPage({officeFilter, showToast}: any) {
                   </td>
                   <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,color:"#791F1F"}}>{money(it.outstanding)}</td>
                   <td style={{padding:"10px 12px",textAlign:"right"}}>{it.daysOverdue}d</td>
-                  <td style={{padding:"10px 12px",textAlign:"right",color:it.daysOnSheet>=7?"#B45309":"#6B6A64"}}>{it.daysOnSheet}d</td>
                   <td style={{padding:"10px 12px",textAlign:"right",color:"#6B6A64"}}>{it.daysSinceCall==null?<span style={{color:"#C9C7BE"}}>never</span>:`${it.daysSinceCall}d`}</td>
                   <td style={{padding:"10px 12px",color:"#6B6A64"}}>{it.phone||"—"}</td>
                   <td style={{padding:"8px 12px"}}>
