@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
       // Build company-wide monthly KPIs
       // Prior-year booked lookup for YoY: prefer kpi_history (all pre-2026 months), then the
       // hardcoded HISTORICAL_BOOKED, then live-computed months in this same window.
-      const allHist = await prisma.kpiHistory.findMany({ where: { period: 'monthly', scope: 'company' } });
+      const allHist = await prisma.kpiHistory.findMany({ where: { period: 'monthly', scope: 'company' } }).catch(() => [] as any[]);
       const histBookedByKey = new Map(allHist.map(h => [h.periodKey, h.booked])); // 'YYYY-MM' -> booked
       const priorYearBooked = (year: number, month0: number): number => {
         // 1) kpi_history (periodKey is 1-based YYYY-MM)
@@ -166,7 +166,7 @@ export async function GET(req: NextRequest) {
       });
 
       // Overlay stored history for pre-2026 periods (locked numbers from the legacy tracker).
-      const histMonths = await prisma.kpiHistory.findMany({ where: { period: 'monthly', scope: 'company' } });
+      const histMonths = await prisma.kpiHistory.findMany({ where: { period: 'monthly', scope: 'company' } }).catch(() => [] as any[]);
       const histMap = new Map(histMonths.map(h => [h.periodKey, h]));
       const companyMonthlyFinal = companyMonthly.map((m, i) => {
         const { year, month } = months[i];
@@ -253,7 +253,7 @@ export async function GET(req: NextRequest) {
       });
 
       // Overlay stored weekly history for pre-2026 (locked legacy numbers), matched by week-end date.
-      const histWeeks = await prisma.kpiHistory.findMany({ where: { period: 'weekly', scope: 'company' } });
+      const histWeeks = await prisma.kpiHistory.findMany({ where: { period: 'weekly', scope: 'company' } }).catch(() => [] as any[]);
       const histWMap = new Map(histWeeks.map(h => [h.periodKey, h]));
       const companyWeeklyFinal = companyWeekly.map((w, i) => {
         const wEnd = weeks[i].end;
