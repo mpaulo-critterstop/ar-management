@@ -169,12 +169,14 @@ export async function GET(req: NextRequest) {
         if (year >= 2026) return m;
         const h = histMap.get(`${year}-${String(month + 1).padStart(2, '0')}`);
         if (!h) return m; // no stored history for this month → leave computed (likely zeros)
+        // Use the tracker's own YoY if present; else derive from prior-year stored booked.
         const priorBooked = priorYearBooked(year, month);
+        const yoy = h.yoy != null ? h.yoy : (priorBooked > 0 ? ((h.booked - priorBooked) / priorBooked) * 100 : null);
         return {
           label: m.label,
           booked: h.booked, totalLeads: h.leads, totalClosed: h.closed,
           closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead,
-          yoyGrowth: priorBooked > 0 ? ((h.booked - priorBooked) / priorBooked) * 100 : null,
+          yoyGrowth: yoy,
         };
       });
 
