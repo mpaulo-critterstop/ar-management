@@ -79,6 +79,15 @@ export async function GET(req: NextRequest) {
       },
       select: { status: true, amount: true, pmName: true, upsellAmount: true },
     });
+    // All-time live cash (2026+) from payment records, so the cumulative cash isn't undercounted.
+    const allTimePayments = await prisma.payment.findMany({
+      where: {
+        date: { gte: liveStart },
+        invoice: { lead: { status: 'SOLD',
+          ...(officeFilter && officeFilter !== 'All' && { office: { equals: officeFilter, mode: 'insensitive' } }) } },
+      },
+      select: { amount: true, invoice: { select: { lead: { select: { pmName: true } } } } },
+    });
     const allHistAll = await prisma.kpiHistory.findMany({ where: { period: 'monthly' } }).catch(() => [] as any[]);
     const cumulativeFor = (scope: string) => {
       let booked = 0, leads = 0, closed = 0, cash = 0, cashSeen = false;
@@ -92,6 +101,10 @@ export async function GET(req: NextRequest) {
       const sold = scoped.filter(l => l.status === 'SOLD');
       closed += sold.length;
       booked += sold.reduce((s, l) => s + Number(l.amount || 0), 0) + scoped.reduce((s, l) => s + Number(l.upsellAmount || 0), 0);
+      // Live 2026+ cash for this scope.
+      const scopedPay = scope === 'company' ? allTimePayments : allTimePayments.filter(p => p.invoice?.lead?.pmName === scope);
+      const liveCash = scopedPay.reduce((s, p) => s + Number(p.amount || 0), 0);
+      if (liveCash > 0) { cash += liveCash; cashSeen = true; }
       return {
         booked, totalLeads: leads, totalClosed: closed,
         closingPct: leads > 0 ? (closed / leads) * 100 : 0,
