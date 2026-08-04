@@ -68,6 +68,39 @@ export async function GET(req: NextRequest) {
 
     const now = new Date();
 
+    // ── All-time cumulative ("Total" column), shared by monthly + weekly.
+    // Stored history (pre-2026, from kpi_history) + all live 2026+ leads (fetched in full, not windowed).
+    const liveStart = new Date(Date.UTC(2026, 0, 1));
+    const allTimeLeads = await prisma.lead.findMany({
+      where: {
+        inspectionDate: { gte: liveStart },
+        ...(officeFilter && officeFilter !== 'All' && { office: { equals: officeFilter, mode: 'insensitive' } }),
+        ...(pmFilter && { pmName: pmFilter }),
+      },
+      select: { status: true, amount: true, pmName: true, upsellAmount: true },
+    });
+    const allHistAll = await prisma.kpiHistory.findMany({ where: { period: 'monthly' } }).catch(() => [] as any[]);
+    const cumulativeFor = (scope: string) => {
+      let booked = 0, leads = 0, closed = 0, cash = 0, cashSeen = false;
+      for (const h of allHistAll) {
+        if (h.scope !== scope) continue;
+        booked += h.booked; leads += h.leads; closed += h.closed;
+        if (h.cashCollected != null) { cash += h.cashCollected; cashSeen = true; }
+      }
+      const scoped = scope === 'company' ? allTimeLeads : allTimeLeads.filter(l => l.pmName === scope);
+      leads += scoped.length;
+      const sold = scoped.filter(l => l.status === 'SOLD');
+      closed += sold.length;
+      booked += sold.reduce((s, l) => s + Number(l.amount || 0), 0) + scoped.reduce((s, l) => s + Number(l.upsellAmount || 0), 0);
+      return {
+        booked, totalLeads: leads, totalClosed: closed,
+        closingPct: leads > 0 ? (closed / leads) * 100 : 0,
+        avgSale: closed > 0 ? booked / closed : 0,
+        bookedPerLead: leads > 0 ? booked / leads : 0,
+        cashCollected: cashSeen ? cash : null,
+      };
+    };
+
     if (period === 'monthly') {
       // Company table spans `companyCount` months; per-PM tables use the first 12 of these.
       const months: { year: number; month: number; start: Date; end: Date }[] = [];
@@ -179,7 +212,7 @@ export async function GET(req: NextRequest) {
           return { booked, cashCollected, totalLeads, totalClosed, closingPct, avgSale, bookedPerLead };
         });
 
-        return { pm: pm.name, office: pm.office, months: monthData };
+        return { pm: pm.name, office: pm.office, months: monthData, cumulative: cumulativeFor(pm.name) };
       });
 
       // Overlay stored history for pre-2026 periods (locked numbers from the legacy tracker).
@@ -201,7 +234,7 @@ export async function GET(req: NextRequest) {
         };
       });
 
-      return NextResponse.json({ period: 'monthly', companyCount, labels: companyMonthlyFinal.map(m => m.label), pmLabels: companyMonthlyFinal.slice(0, 12).map(m => m.label), company: companyMonthlyFinal, pms: pmMonthly });
+      return NextResponse.json({ period: 'monthly', companyCount, labels: companyMonthlyFinal.map(m => m.label), pmLabels: companyMonthlyFinal.slice(0, 12).map(m => m.label), company: companyMonthlyFinal, companyCumulative: cumulativeFor('company'), pms: pmMonthly });
 
     } else {
       // Weekly - company table spans `companyCount` weeks; per-PM uses first 12.
@@ -281,7 +314,7 @@ export async function GET(req: NextRequest) {
           return { ...w, trailing4WeekBPL };
         });
 
-        return { pm: pm.name, office: pm.office, weeks: weekDataWithTrailing };
+        return { pm: pm.name, office: pm.office, weeks: weekDataWithTrailing, cumulative: cumulativeFor(pm.name) };
       });
 
       // Overlay stored weekly history for pre-2026. The tracker ends weeks on Friday; the Hub uses
@@ -299,7 +332,7 @@ export async function GET(req: NextRequest) {
                  trailing4WeekBPL: (w as any).trailing4WeekBPL ?? 0 };
       });
 
-      return NextResponse.json({ period: 'weekly', companyCount, labels: companyWeeklyFinal.map(w => w.label), pmLabels: companyWeeklyFinal.slice(0, 12).map(w => w.label), company: companyWeeklyFinal, pms: pmWeekly });
+      return NextResponse.json({ period: 'weekly', companyCount, labels: companyWeeklyFinal.map(w => w.label), pmLabels: companyWeeklyFinal.slice(0, 12).map(w => w.label), company: companyWeeklyFinal, companyCumulative: cumulativeFor('company'), pms: pmWeekly });
     }
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

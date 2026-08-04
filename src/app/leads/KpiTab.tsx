@@ -304,6 +304,7 @@ export function KpiTab() {
                   <tr>
                     <th style={{ ...thStyle, textAlign: 'left', position: 'sticky', left: 0, zIndex: 3 }}>Metric</th>
                     {labels.map((l: string) => <th key={l} style={thStyle}>{l}</th>)}
+                    <th style={{ ...thStyle, borderLeft: '2px solid #D3D1C7', background: '#F1EFE8', fontWeight: 600 }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -315,6 +316,9 @@ export function KpiTab() {
                           {row.fn(m)}
                         </td>
                       ))}
+                      <td style={{ ...tdStyle, borderLeft: '2px solid #D3D1C7', background: '#F7F6F3', fontWeight: 600, color: row.bold ? '#1D9E75' : '#2C2C2A' }}>
+                        {data.companyCumulative ? row.fn(data.companyCumulative) : '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -351,6 +355,7 @@ export function KpiTab() {
                       <tr>
                         <th style={{ ...thStyle, textAlign: 'left', position: 'sticky', left: 0, zIndex: 3 }}>Metric</th>
                         {labels.map((l: string) => <th key={l} style={thStyle}>{l}</th>)}
+                        <th style={{ ...thStyle, borderLeft: '2px solid #D3D1C7', background: '#F1EFE8', fontWeight: 600 }}>Total</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -362,6 +367,9 @@ export function KpiTab() {
                               {row.fn(m)}
                             </td>
                           ))}
+                          <td style={{ ...tdStyle, borderLeft: '2px solid #D3D1C7', background: '#F7F6F3', fontWeight: 600, color: row.bold ? '#1D9E75' : '#2C2C2A' }}>
+                            {pm.cumulative ? row.fn(pm.cumulative) : '—'}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
