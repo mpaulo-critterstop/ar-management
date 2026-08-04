@@ -209,7 +209,6 @@ export async function GET(req: NextRequest) {
         monday.setDate(monday.getDate() - i * 7);
         weeks.push({ start: monday, end: getWeekEnd(monday), label: monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) });
       }
-      const pmWeeksWindow = weeks.slice(0, 12);
 
       const allLeads = await prisma.lead.findMany({
         where: {
@@ -235,10 +234,24 @@ export async function GET(req: NextRequest) {
         return { label, booked, totalLeads, totalClosed, closingPct, avgSale, bookedPerLead };
       });
 
-      // PM weekly
+      // PM weekly — same window as company (page together), with pre-2026 history overlay.
+      const pmHistW = await prisma.kpiHistory.findMany({ where: { period: 'weekly', scope: { not: 'company' } } }).catch(() => [] as any[]);
+      const pmHistWMap = new Map<string, Map<string, any>>();
+      for (const h of pmHistW) {
+        if (!pmHistWMap.has(h.scope)) pmHistWMap.set(h.scope, new Map());
+        pmHistWMap.get(h.scope)!.set(h.periodKey, h);
+      }
+
       const pmWeekly = pms.map(pm => {
         const pmLeads = allLeads.filter(l => l.pmName === pm.name);
-        const weekData = pmWeeksWindow.map(({ start, end }) => {
+        const pmHistForName = pmHistWMap.get(pm.name);
+        const weekData = weeks.map(({ start, end }) => {
+          // Pre-2026: use stored weekly history (matched on week-end date) if present.
+          if (end.getFullYear() < 2026 && pmHistForName) {
+            const h = pmHistForName.get(end.toISOString().slice(0, 10));
+            if (h) return { booked: h.booked, cashCollected: null, totalLeads: h.leads, totalClosed: h.closed,
+                            closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead, trailing4WeekBPL: 0 };
+          }
           const weekLeads = pmLeads.filter(l => l.inspectionDate && new Date(l.inspectionDate) >= start && new Date(l.inspectionDate) <= end);
           const totalLeads = weekLeads.length;
           const soldByInspection = weekLeads.filter(l => l.status === 'SOLD');
