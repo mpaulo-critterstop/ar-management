@@ -350,7 +350,7 @@ export function KpiTab() {
                     <thead>
                       <tr>
                         <th style={{ ...thStyle, textAlign: 'left', position: 'sticky', left: 0, zIndex: 3 }}>Metric</th>
-                        {(data.pmLabels || labels).map((l: string) => <th key={l} style={thStyle}>{l}</th>)}
+                        {labels.map((l: string) => <th key={l} style={thStyle}>{l}</th>)}
                       </tr>
                     </thead>
                     <tbody>

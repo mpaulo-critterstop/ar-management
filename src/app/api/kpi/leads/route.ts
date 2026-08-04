@@ -73,7 +73,6 @@ export async function GET(req: NextRequest) {
         const month = ((now.getMonth() - i) % 12 + 12) % 12;
         months.push({ year, month, start: getMonthStart(year, month), end: getMonthEnd(year, month) });
       }
-      const pmMonthsWindow = months.slice(0, 12); // per-PM stays at rolling 12
 
       // Fetch all leads and payments in one go
       const allLeads = await prisma.lead.findMany({
@@ -139,12 +138,27 @@ export async function GET(req: NextRequest) {
         };
       });
 
-      // Build PM monthly KPIs
+      // Build PM monthly KPIs — per-PM tables span the SAME window as company (page together).
+      // Load per-PM stored history once for the overlay.
+      const pmHist = await prisma.kpiHistory.findMany({ where: { period: 'monthly', scope: { not: 'company' } } }).catch(() => [] as any[]);
+      const pmHistMap = new Map<string, Map<string, any>>();
+      for (const h of pmHist) {
+        if (!pmHistMap.has(h.scope)) pmHistMap.set(h.scope, new Map());
+        pmHistMap.get(h.scope)!.set(h.periodKey, h);
+      }
+
       const pmMonthly = pms.map(pm => {
         const pmLeads = allLeads.filter(l => l.pmName === pm.name);
         const pmPayments = allPayments.filter(p => p.invoice?.lead?.pmName === pm.name);
+        const pmHistForName = pmHistMap.get(pm.name);
 
-        const monthData = pmMonthsWindow.map(({ year, month, start, end }) => {
+        const monthData = months.map(({ year, month, start, end }) => {
+          // Pre-2026: use stored history if we have it for this PM.
+          if (year < 2026 && pmHistForName) {
+            const h = pmHistForName.get(`${year}-${String(month + 1).padStart(2, '0')}`);
+            if (h) return { booked: h.booked, cashCollected: h.cashCollected ?? null, totalLeads: h.leads,
+                            totalClosed: h.closed, closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead };
+          }
           const monthLeads = pmLeads.filter(l => l.inspectionDate && new Date(l.inspectionDate) >= start && new Date(l.inspectionDate) <= end);
           const totalLeads = monthLeads.length;
           const soldByInspection = monthLeads.filter(l => l.status === 'SOLD');
