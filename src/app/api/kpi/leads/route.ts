@@ -245,10 +245,11 @@ export async function GET(req: NextRequest) {
       const pmWeekly = pms.map(pm => {
         const pmLeads = allLeads.filter(l => l.pmName === pm.name);
         const pmHistForName = pmHistWMap.get(pm.name);
+        const pmHistDates = pmHistForName ? [...pmHistForName.values()].map((h: any) => ({ d: new Date(h.periodKey + 'T12:00:00Z'), h })) : [];
         const weekData = weeks.map(({ start, end }) => {
-          // Pre-2026: use stored weekly history (matched on week-end date) if present.
-          if (end.getFullYear() < 2026 && pmHistForName) {
-            const h = pmHistForName.get(end.toISOString().slice(0, 10));
+          // Pre-2026: use stored weekly history (tracker ends weeks Friday → match by range).
+          if (end.getFullYear() < 2026 && pmHistDates.length) {
+            const h = pmHistDates.find(x => x.d >= start && x.d <= end)?.h;
             if (h) return { booked: h.booked, cashCollected: null, totalLeads: h.leads, totalClosed: h.closed,
                             closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead, trailing4WeekBPL: 0 };
           }
@@ -279,14 +280,15 @@ export async function GET(req: NextRequest) {
         return { pm: pm.name, office: pm.office, weeks: weekDataWithTrailing };
       });
 
-      // Overlay stored weekly history for pre-2026 (locked legacy numbers), matched by week-end date.
+      // Overlay stored weekly history for pre-2026. The tracker ends weeks on Friday; the Hub uses
+      // Mon–Sun. So match by RANGE: the stored week-end date must fall within the Hub's week.
       const histWeeks = await prisma.kpiHistory.findMany({ where: { period: 'weekly', scope: 'company' } }).catch(() => [] as any[]);
-      const histWMap = new Map(histWeeks.map(h => [h.periodKey, h]));
+      const histByDate = histWeeks.map(h => ({ d: new Date(h.periodKey + 'T12:00:00Z'), h }));
+      const findHistWeek = (start: Date, end: Date) => histByDate.find(x => x.d >= start && x.d <= end)?.h;
       const companyWeeklyFinal = companyWeekly.map((w, i) => {
-        const wEnd = weeks[i].end;
-        if (wEnd.getFullYear() >= 2026) return w;
-        const key = wEnd.toISOString().slice(0, 10);
-        const h = histWMap.get(key);
+        const { start, end } = weeks[i];
+        if (end.getFullYear() >= 2026) return w;
+        const h = findHistWeek(start, end);
         if (!h) return w;
         return { label: w.label, booked: h.booked, totalLeads: h.leads, totalClosed: h.closed,
                  closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead,
