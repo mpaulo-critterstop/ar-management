@@ -124,6 +124,10 @@ export async function GET(req: NextRequest) {
         const closingPct = totalLeads > 0 ? (totalClosed / totalLeads) * 100 : 0;
         const avgSale = totalClosed > 0 ? booked / totalClosed : 0;
         const bookedPerLead = totalLeads > 0 ? booked / totalLeads : 0;
+        // Company-wide cash collected this month (from payment records).
+        const cashCollected = allPayments
+          .filter(p => p.date && new Date(p.date) >= start && new Date(p.date) <= end)
+          .reduce((s, p) => s + Number(p.amount || 0), 0);
 
         // YoY - same month last year
         const lastYearBooked = priorYearBooked(year, month);
@@ -131,7 +135,7 @@ export async function GET(req: NextRequest) {
 
         return {
           label: new Date(year, month, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-          booked, totalLeads, totalClosed, closingPct, avgSale, bookedPerLead, yoyGrowth,
+          booked, cashCollected, totalLeads, totalClosed, closingPct, avgSale, bookedPerLead, yoyGrowth,
         };
       });
 
@@ -174,7 +178,7 @@ export async function GET(req: NextRequest) {
         const yoy = h.yoy != null ? h.yoy : (priorBooked > 0 ? ((h.booked - priorBooked) / priorBooked) * 100 : null);
         return {
           label: m.label,
-          booked: h.booked, totalLeads: h.leads, totalClosed: h.closed,
+          booked: h.booked, cashCollected: h.cashCollected ?? null, totalLeads: h.leads, totalClosed: h.closed,
           closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead,
           yoyGrowth: yoy,
         };

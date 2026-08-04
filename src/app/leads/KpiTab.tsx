@@ -96,6 +96,7 @@ export function KpiTab() {
 
   const companyRows = period === 'monthly' ? [
     { label: 'Total Booked Revenue', fn: (m: any) => fmt(m.booked), bold: true },
+    { label: 'Total Cash Collected', fn: (m: any) => m.cashCollected != null ? fmt(m.cashCollected) : '—' },
     { label: 'Total Leads', fn: (m: any) => m.totalLeads },
     { label: 'Total Closed', fn: (m: any) => m.totalClosed },
     { label: 'Closing %', fn: (m: any) => pct(m.closingPct) },

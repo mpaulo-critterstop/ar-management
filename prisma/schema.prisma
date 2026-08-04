@@ -724,6 +724,7 @@ model KpiHistory {
   closingPct    Float
   avgSale       Float
   bookedPerLead Float
+  cashCollected Float?
   yoy           Float?   // % Growth YoY (from the tracker, already computed)
   createdAt     DateTime @default(now())
   @@unique([period, periodKey, scope])
