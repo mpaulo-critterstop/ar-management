@@ -9,17 +9,20 @@ function getMonthStart(year: number, month: number) {
 function getMonthEnd(year: number, month: number) {
   return new Date(year, month + 1, 0, 23, 59, 59, 999);
 }
+// Weeks run Saturday → Friday, ending on Friday — matching the legacy tracker and the FP module.
+// getMondayOf returns the week's START (Saturday); getWeekEnd returns the Friday end.
 function getMondayOf(date: Date) {
   const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
   d.setHours(0, 0, 0, 0);
+  const day = d.getDay();               // 0=Sun..6=Sat
+  const daysToFri = day >= 5 ? day - 5 : day + 2; // days back to the most recent Friday
+  d.setDate(d.getDate() - daysToFri);   // this = the Friday (week end)
+  d.setDate(d.getDate() - 6);           // back up to Saturday (week start)
   return d;
 }
-function getWeekEnd(monday: Date) {
-  const d = new Date(monday);
-  d.setDate(d.getDate() + 6);
+function getWeekEnd(weekStart: Date) {
+  const d = new Date(weekStart);
+  d.setDate(d.getDate() + 6);           // Saturday + 6 = Friday
   d.setHours(23, 59, 59, 999);
   return d;
 }
@@ -207,7 +210,8 @@ export async function GET(req: NextRequest) {
       for (let i = 0; i < companyCount; i++) {
         const monday = new Date(thisMonday);
         monday.setDate(monday.getDate() - i * 7);
-        weeks.push({ start: monday, end: getWeekEnd(monday), label: monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) });
+        const wkEnd = getWeekEnd(monday);
+        weeks.push({ start: monday, end: wkEnd, label: wkEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) });
       }
 
       const allLeads = await prisma.lead.findMany({
