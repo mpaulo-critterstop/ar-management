@@ -6,6 +6,10 @@ import { authOptions } from '@/lib/auth';
 import { healPlaceholderCustomers } from '@/lib/healPlaceholderCustomers';
 import { prisma } from '@/lib/prisma';
 
+// Pro plan allows up to 800s. DFW's AR sync exceeds the 300s default, which silently killed it
+// (no fieldroutes_auto_DFW log ever written). Raising the ceiling so DFW completes.
+export const maxDuration = 800;
+
 // AR Follow-up webhooks
 const AR_FOLLOWUP_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/804c863a-a07d-4e18-804d-ab399061cdf9';
 const AR_PARTIAL_WEBHOOK  = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/AM0p0PhEMlKoBozA9FnB';

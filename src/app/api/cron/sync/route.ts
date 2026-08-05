@@ -15,6 +15,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { waitUntil } from '@vercel/functions';
 
+// The wrapper returns 200 instantly but keeps running the stage via waitUntil, which is bounded by
+// this function's maxDuration. Default 300s killed DFW's AR stage mid-run (no fieldroutes_auto_DFW
+// log). Pro allows 800s. Each stage chains as its OWN request, so each gets a fresh 800s budget.
+export const maxDuration = 800;
+
 const STAGES = ['ar', 'leads', 'csr', 'dispatch'] as const;
 type Stage = typeof STAGES[number];
 
@@ -49,7 +54,7 @@ export async function GET(req: NextRequest) {
   // Run the current stage's actual work (awaits the underlying sync endpoint).
   const runStage = async () => {
     if (stage === 'ar') {
-      await fetch(`${baseUrl}/api/sync/auto`, { method: 'POST', headers, body, signal: AbortSignal.timeout(295000) });
+      await fetch(`${baseUrl}/api/sync/auto`, { method: 'POST', headers, body, signal: AbortSignal.timeout(790000) });
     } else if (stage === 'leads') {
       await fetch(`${baseUrl}/api/sync/appointments`, { method: 'POST', headers, body, signal: AbortSignal.timeout(295000) });
     } else if (stage === 'csr') {
