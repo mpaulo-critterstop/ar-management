@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
       AND i.paid < i.amount
       AND i.amount > 0
       AND c."excludeFromAutomation" = false
+      AND i."arStage" IS NULL
       ${officeFilter}
     ORDER BY i.due ASC
   `) as any[];
@@ -144,7 +145,8 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, note });
 }
 
-// PATCH: save the persistent per-invoice call-sheet note (arNote). { invoiceId, arNote }
+// PATCH: save the persistent note (arNote) and/or set the escalation stage (arStage).
+// { invoiceId, arNote?, arStage? }  arStage: 'COLLECTIONS'|'SCC'|'BAD_DEBT'|null (null = back to call sheet)
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -152,8 +154,17 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   const b = await req.json().catch(() => ({}));
-  const { invoiceId, arNote } = b;
+  const { invoiceId, arNote, arStage } = b;
   if (!invoiceId) return NextResponse.json({ error: 'invoiceId required' }, { status: 400 });
-  await prisma.invoice.update({ where: { id: invoiceId }, data: { arNote: arNote ?? null } });
+
+  const data: any = {};
+  if (arNote !== undefined) data.arNote = arNote ?? null;
+  if (arStage !== undefined) {
+    const valid = ['COLLECTIONS', 'SCC', 'BAD_DEBT', null];
+    if (!valid.includes(arStage)) return NextResponse.json({ error: 'invalid arStage' }, { status: 400 });
+    data.arStage = arStage;
+    data.arStageAt = arStage ? new Date() : null;
+  }
+  await prisma.invoice.update({ where: { id: invoiceId }, data });
   return NextResponse.json({ ok: true });
 }

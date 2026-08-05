@@ -90,6 +90,8 @@ model Invoice {
   arFollowupSent   Boolean   @default(false)
   arFollowupSentAt DateTime?
   arNote           String?   // persistent call-sheet note (editable inline, separate from call logs)
+  arStage          String?   // escalation stage: COLLECTIONS | SCC | BAD_DEBT (null = on the call sheet)
+  arStageAt        DateTime?
   customer       Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   payments        Payment[]
   lead            Lead?     @relation("LeadInvoice")

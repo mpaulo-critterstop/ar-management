@@ -200,6 +200,7 @@ export default function ARApp() {
   const PAGES = [
     {id:"dashboard",label:"Dashboard"},
     {id:"callsheet",label:"Call Sheet"},
+    {id:"stages",label:"Collections / SCC / Bad Debt"},
     {id:"customers",label:"Customers"},
     {id:"invoices",label:"Invoices"},
     {id:"payments",label:"Payments"},
@@ -244,6 +245,7 @@ export default function ARApp() {
 
       {page==="dashboard" && <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected={collected} agingTotals={agingTotals} collectedDays={collectedDays} setCollectedDays={setCollectedDays} customDateFrom={customDateFrom} customDateTo={customDateTo} setCustomDateFrom={setCustomDateFrom} setCustomDateTo={setCustomDateTo} prevMonthAR={prevMonthAR} />}
       {page==="callsheet" && <CallSheetPage officeFilter={officeFilter} showToast={showToast} />}
+      {page==="stages" && <StagesPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="customers" && <CustPage {...shared} />}
       {page==="invoices" && <InvPage {...shared} />}
       {page==="payments" && <PayPage {...shared} />}
@@ -262,6 +264,7 @@ function CallSheetPage({officeFilter, showToast}: any) {
   const [data, setData] = useState<any>(null);
   const [loadingCS, setLoadingCS] = useState(true);
   const [callModal, setCallModal] = useState<any>(null);
+  const [moveModal, setMoveModal] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [svcFilter, setSvcFilter] = useState<"all"|"Pest Control"|"Wildlife">("all");
   const [noteEdits, setNoteEdits] = useState<Record<string,string>>({});
@@ -356,7 +359,10 @@ function CallSheetPage({officeFilter, showToast}: any) {
                     {it.lastNote && <div style={{fontSize:10,color:"#B4B2A9",marginTop:3}} title={it.lastNote.text}>Last: {it.lastNote.text.slice(0,30)}{it.lastNote.text.length>30?"…":""} ({fmtDate(it.lastNote.date)})</div>}
                   </td>
                   <td style={{padding:"10px 12px"}}>
-                    <button onClick={()=>setCallModal(it)} style={{background:"#0052cc",color:"#fff",border:"none",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>Mark Called</button>
+                    <div style={{display:"flex",gap:6,whiteSpace:"nowrap"}}>
+                      <button onClick={()=>setCallModal(it)} style={{background:"#0052cc",color:"#fff",border:"none",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer"}}>Mark Called</button>
+                      <button onClick={()=>setMoveModal(it)} style={{background:"#fff",color:"#791F1F",border:"0.5px solid #D3B0B0",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer"}}>Move To</button>
+                    </div>
                   </td>
                 </tr>
                 );
@@ -371,6 +377,7 @@ function CallSheetPage({officeFilter, showToast}: any) {
       )}
 
       {callModal && <MarkCalledModal item={callModal} onClose={()=>setCallModal(null)} onSaved={()=>{setCallModal(null);load();showToast&&showToast("Call logged");}} />}
+      {moveModal && <MoveToModal item={moveModal} onClose={()=>setMoveModal(null)} onMoved={()=>{setMoveModal(null);load();showToast&&showToast("Moved off call sheet");}} />}
     </div>
   );
 }
@@ -423,6 +430,116 @@ function MarkCalledModal({item, onClose, onSaved}: any) {
           <button onClick={save} disabled={saving||!text.trim()} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#0052cc",color:"#fff",fontWeight:500,cursor:"pointer",opacity:(saving||!text.trim())?0.6:1}}>{saving?"Saving…":"Log Call"}</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function MoveToModal({item, onClose, onMoved}: any) {
+  const [stage,setStage]=useState<"COLLECTIONS"|"SCC"|"BAD_DEBT">("COLLECTIONS");
+  const [note,setNote]=useState("");
+  const [saving,setSaving]=useState(false);
+  const STAGES=[["COLLECTIONS","Collections"],["SCC","SCC"],["BAD_DEBT","Bad Debt"]];
+
+  const move=async()=>{
+    setSaving(true);
+    // set the stage; if a note was entered, save it to arNote too
+    await fetch('/api/ar/call-sheet',{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({invoiceId:item.invoiceId,arStage:stage,...(note.trim()?{arNote:note.trim()}:{})})});
+    setSaving(false);
+    onMoved();
+  };
+
+  return (
+    <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div style={{background:"#fff",borderRadius:14,width:"100%",maxWidth:420,padding:24}}>
+        <div style={{fontWeight:600,fontSize:16,marginBottom:4}}>Move — {item.customerName}</div>
+        <div style={{fontSize:12,color:"#888780",marginBottom:16}}>${Math.round(item.outstanding).toLocaleString()} outstanding · removes from the call sheet</div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <label style={{fontSize:12,color:"#6B6A64"}}>Move to
+            <select value={stage} onChange={e=>setStage(e.target.value as any)} style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #D3D1C7",fontSize:13}}>
+              {STAGES.map(([v,l])=><option key={v} value={v}>{l}</option>)}
+            </select>
+          </label>
+          <label style={{fontSize:12,color:"#6B6A64"}}>Note (optional)
+            <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="Reason for moving…" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #D3D1C7",fontSize:13,resize:"vertical"}} />
+          </label>
+        </div>
+        <div style={{display:"flex",gap:10,marginTop:20,justifyContent:"flex-end"}}>
+          <button onClick={onClose} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"0.5px solid #D3D1C7",background:"#fff",cursor:"pointer"}}>Cancel</button>
+          <button onClick={move} disabled={saving} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#791F1F",color:"#fff",fontWeight:500,cursor:"pointer",opacity:saving?0.6:1}}>{saving?"Moving…":"Move"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StagesPage({officeFilter, showToast}: any) {
+  const [data,setData]=useState<any>(null);
+  const [loadingS,setLoadingS]=useState(true);
+  const [filter,setFilter]=useState<"all"|"COLLECTIONS"|"SCC"|"BAD_DEBT">("all");
+
+  const load=useCallback(()=>{
+    setLoadingS(true);
+    fetch(`/api/ar/stages?office=${officeFilter||'All'}`).then(r=>r.json()).then(d=>{setData(d);setLoadingS(false);}).catch(()=>setLoadingS(false));
+  },[officeFilter]);
+  useEffect(()=>{load();},[load]);
+
+  const money=(n:number)=>'$'+Math.round(n).toLocaleString();
+  const LABEL:any={COLLECTIONS:"Collections",SCC:"SCC",BAD_DEBT:"Bad Debt"};
+  const COLOR:any={COLLECTIONS:{bg:"#EAEEF6",fg:"#2E4A79"},SCC:{bg:"#FBF0E4",fg:"#8A5A1E"},BAD_DEBT:{bg:"#F6EAEA",fg:"#791F1F"}};
+
+  const moveBack=async(invoiceId:string)=>{
+    await fetch('/api/ar/call-sheet',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({invoiceId,arStage:null})});
+    load(); showToast&&showToast("Moved back to call sheet");
+  };
+
+  if(loadingS) return <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780"}}>Loading…</div>;
+  const all=data?.items||[];
+  const items=all.filter((it:any)=>filter==="all"||it.status===filter);
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:16}}>
+        <div style={{fontSize:15,fontWeight:600,color:"#2C2C2A"}}>Collections / SCC / Bad Debt</div>
+        <div style={{fontSize:13,color:"#888780"}}>{items.length} account{items.length!==1?"s":""}</div>
+      </div>
+
+      <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3",marginBottom:14}}>
+        {(["all","COLLECTIONS","SCC","BAD_DEBT"] as const).map(s=>(
+          <button key={s} onClick={()=>setFilter(s)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:filter===s?"0.5px solid #D3D1C7":"0.5px solid transparent",background:filter===s?"#fff":"transparent",color:filter===s?"#2C2C2A":"#888780"}}>
+            {s==="all"?"All":LABEL[s]}
+          </button>
+        ))}
+      </div>
+
+      {items.length>0 ? (
+        <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3",overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr style={{color:"#888780",textAlign:"left"}}>
+                <th style={{padding:"10px 14px",fontWeight:500}}>Customer</th>
+                <th style={{padding:"10px 14px",fontWeight:500}}>Service</th>
+                <th style={{padding:"10px 14px",fontWeight:500,textAlign:"right"}}>Outstanding</th>
+                <th style={{padding:"10px 14px",fontWeight:500}}>Status</th>
+                <th style={{padding:"10px 14px",fontWeight:500}}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it:any)=>(
+                <tr key={it.invoiceId} style={{borderTop:"0.5px solid #F1EFE8"}}>
+                  <td style={{padding:"10px 14px",fontWeight:500,color:"#2C2C2A"}}>{it.customerName}<div style={{fontSize:11,color:"#B4B2A9"}}>{it.serviceAddr||""}</div></td>
+                  <td style={{padding:"10px 14px"}}><span style={{fontSize:11,padding:"2px 7px",borderRadius:6,background:it.serviceCategory==="Wildlife"?"#E9F1E5":"#EAEEF6",color:it.serviceCategory==="Wildlife"?"#3F6B2E":"#2E4A79"}}>{it.serviceCategory}</span></td>
+                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:600,color:"#791F1F"}}>{money(it.outstanding)}</td>
+                  <td style={{padding:"10px 14px"}}><span style={{fontSize:11,padding:"3px 9px",borderRadius:6,fontWeight:500,background:COLOR[it.status]?.bg,color:COLOR[it.status]?.fg}}>{LABEL[it.status]}</span></td>
+                  <td style={{padding:"10px 14px"}}><button onClick={()=>moveBack(it.invoiceId)} style={{background:"#fff",color:"#6B6A64",border:"0.5px solid #D3D1C7",padding:"5px 10px",borderRadius:7,fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>Back to sheet</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780",background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3"}}>No accounts in this stage.</div>
+      )}
     </div>
   );
 }
