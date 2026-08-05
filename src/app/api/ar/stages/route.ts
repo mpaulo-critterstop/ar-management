@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   const invoices = await prisma.invoice.findMany({
     where: {
       arStage: { not: null },
+      status: { not: 'PAID' },
       ...(noFilter ? {} : { office: { equals: office!, mode: 'insensitive' } }),
     },
     select: {
@@ -31,7 +32,9 @@ export async function GET(req: NextRequest) {
     orderBy: { arStageAt: 'desc' },
   });
 
-  const items = invoices.map(i => ({
+  const items = invoices
+    .filter(i => Number(i.paid) < Number(i.amount)) // safety: drop anything fully paid
+    .map(i => ({
     invoiceId: i.id,
     customerId: i.customerId,
     customerName: i.customer?.name || '—',
