@@ -84,7 +84,8 @@ export async function GET(req: NextRequest) {
     // Collections (payments) credited to the scoped reps.
     const fridList = [...fridKeys.keys()];
     const payments = fridList.length ? await prisma.payment.findMany({
-      where: { date: { gte: start, lte: now }, amount: { gt: 0 }, processedBy: { in: fridList } },
+      where: { date: { gte: start, lte: now }, amount: { gt: 0 }, processedBy: { in: fridList },
+               invoice: { blitzListedAt: { not: null } } },
       select: { amount: true, date: true, processedBy: true, paymentSource: true,
                 invoice: { select: { customer: { select: { name: true } }, serviceType: true, externalId: true } } },
       orderBy: { date: 'desc' },
@@ -199,10 +200,17 @@ export async function GET(req: NextRequest) {
 
   // Collections credited per rep: payments in window whose processedBy maps to one of a user's
   // FR employee IDs (people have multiple "ghost" IDs across offices), excluding self-serve sources.
+  // SCOPED TO BLITZ ACCOUNTS: the payment's invoice must be a blitz member (blitzListedAt set).
+  // Credit = whoever PROCESSED the payment, regardless of who it was assigned to.
   const frToUser = new Map<string, string>();
   for (const u of users) for (const fid of (u.frEmployeeIds || [])) frToUser.set(String(fid), u.id);
   const payments = await prisma.payment.findMany({
-    where: { date: { gte: start, lte: now }, amount: { gt: 0 }, processedBy: { not: null } },
+    where: {
+      date: { gte: start, lte: now },
+      amount: { gt: 0 },
+      processedBy: { not: null },
+      invoice: { blitzListedAt: { not: null } }, // blitz-list accounts only
+    },
     select: { amount: true, processedBy: true, paymentSource: true },
   });
   const collectedByUser = new Map<string, number>();
