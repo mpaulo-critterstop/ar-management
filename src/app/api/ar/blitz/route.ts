@@ -107,3 +107,87 @@ export async function PATCH(req: NextRequest) {
   await prisma.invoice.update({ where: { id: invoiceId }, data: { blitzAssignedTo: blitzAssignedTo || null } });
   return NextResponse.json({ ok: true });
 }
+
+// POST: auto-distribute the backlog evenly across a roster, balanced within aging buckets.
+// { userIds: string[], office?, scope?: 'all'|'unassigned' }  (default scope 'all' = reshuffle everything)
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // Admin-only: distribution reshuffles everyone's slices.
+  if ((session.user as any)?.role !== 'Admin' && !((session.user as any)?.role === 'ADMIN')) {
+    return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+  }
+  const b = await req.json().catch(() => ({}));
+  const userIds: string[] = Array.isArray(b.userIds) ? b.userIds : [];
+  const office: string | undefined = b.office;
+  const scope: string = b.scope === 'unassigned' ? 'unassigned' : 'all';
+  if (userIds.length === 0) return NextResponse.json({ error: 'userIds required' }, { status: 400 });
+
+  const noOffice = !office || office === 'All' || office === 'ALL' || office === 'all';
+
+  // Pull the backlog (same filter as GET).
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      due: { not: null, lt: new Date() },
+      arStage: null,
+      ...(noOffice ? {} : { office: { equals: office!, mode: 'insensitive' } }),
+    },
+    select: { id: true, due: true, amount: true, paid: true, blitzAssignedTo: true },
+  });
+  const backlog = invoices.filter(i =>
+    Number(i.paid) < Number(i.amount) &&
+    (scope === 'all' || !i.blitzAssignedTo)
+  );
+
+  // Bucket by aging.
+  const MS_DAY = 86400000;
+  const now = Date.now();
+  const bucketOf = (due: Date) => {
+    const d = Math.floor((now - new Date(due).getTime()) / MS_DAY);
+    if (d <= 30) return 0;
+    if (d <= 60) return 1;
+    if (d <= 90) return 2;
+    if (d <= 180) return 3;
+    return 4;
+  };
+  const buckets: Record<number, typeof backlog> = { 0: [], 1: [], 2: [], 3: [], 4: [] };
+  for (const inv of backlog) buckets[bucketOf(inv.due as Date)].push(inv);
+
+  // Round-robin each bucket across the roster, rotating the start index per bucket so the
+  // remainder invoices don't always land on the same first people.
+  const assignments = new Map<string, string>(); // invoiceId -> userId
+  let startOffset = 0;
+  for (const key of [0, 1, 2, 3, 4]) {
+    const bucket = buckets[key];
+    // sort oldest-first within bucket for deterministic dealing
+    bucket.sort((a, b) => new Date(a.due as Date).getTime() - new Date(b.due as Date).getTime());
+    for (let i = 0; i < bucket.length; i++) {
+      const user = userIds[(i + startOffset) % userIds.length];
+      assignments.set(bucket[i].id, user);
+    }
+    startOffset = (startOffset + bucket.length) % userIds.length; // continue rotation into next bucket
+  }
+
+  // Apply in batches.
+  const entries = [...assignments.entries()];
+  const perUserCount: Record<string, number> = {};
+  for (const [, uid] of entries) perUserCount[uid] = (perUserCount[uid] || 0) + 1;
+
+  // Update by grouping invoice ids per user (fewer queries).
+  const byUser = new Map<string, string[]>();
+  for (const [invId, uid] of entries) {
+    if (!byUser.has(uid)) byUser.set(uid, []);
+    byUser.get(uid)!.push(invId);
+  }
+  for (const [uid, ids] of byUser) {
+    await prisma.invoice.updateMany({ where: { id: { in: ids } }, data: { blitzAssignedTo: uid } });
+  }
+  // If scope=all, clear assignments for anyone not in the roster? No — only touched matched invoices.
+
+  return NextResponse.json({
+    ok: true,
+    distributed: entries.length,
+    perUser: perUserCount,
+    buckets: { '1-30': buckets[0].length, '31-60': buckets[1].length, '61-90': buckets[2].length, '91-180': buckets[3].length, '181+': buckets[4].length },
+  });
+}

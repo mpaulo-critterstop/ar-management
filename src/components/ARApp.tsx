@@ -483,6 +483,7 @@ function BlitzPage({officeFilter, showToast}: any) {
   const [assigneeFilter,setAssigneeFilter]=useState<string>("all"); // 'all' | 'unassigned' | userId
   const [callModal,setCallModal]=useState<any>(null);
   const [savingAssign,setSavingAssign]=useState<string|null>(null);
+  const [distModal,setDistModal]=useState(false);
 
   const load=useCallback(()=>{
     setLoadingB(true);
@@ -519,7 +520,9 @@ function BlitzPage({officeFilter, showToast}: any) {
         <div style={{fontSize:15,fontWeight:600,color:"#2C2C2A"}}>AR Blitz — Full Backlog</div>
         <div style={{fontSize:13,color:"#888780"}}>{items.length} invoices · {money(shownOutstanding)} outstanding</div>
       </div>
-      <div style={{fontSize:12,color:"#B4B2A9",marginBottom:16}}>Every overdue invoice. Assign blocks to callers and work it down. (Separate from the regular cadence Call Sheet.)</div>
+      <div style={{fontSize:12,color:"#B4B2A9",marginBottom:16}}>Every overdue invoice. Assign blocks to callers and work it down. (Separate from the regular cadence Call Sheet.)
+        <button onClick={()=>setDistModal(true)} style={{marginLeft:12,padding:"5px 12px",fontSize:12,borderRadius:7,border:"0.5px solid #0052cc",background:"#fff",color:"#0052cc",fontWeight:500,cursor:"pointer"}}>Auto-distribute</button>
+      </div>
 
       <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center",flexWrap:"wrap"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customer…"
@@ -584,6 +587,75 @@ function BlitzPage({officeFilter, showToast}: any) {
       )}
 
       {callModal && <MarkCalledModal item={callModal} onClose={()=>setCallModal(null)} onSaved={()=>{setCallModal(null);load();showToast&&showToast("Call logged");}} />}
+      {distModal && <DistributeModal users={users} officeFilter={officeFilter} onClose={()=>setDistModal(false)} onDone={(res:any)=>{setDistModal(false);load();showToast&&showToast(`Distributed ${res.distributed} invoices`);}} />}
+    </div>
+  );
+}
+
+function DistributeModal({users, officeFilter, onClose, onDone}: any) {
+  // Default roster = the 16 blitz callers (by username), matched against available AR users.
+  const ROSTER_USERNAMES = ['mpaulo','lbueno','lcocjin','bnaco','mmarzon','crodriguez','nescobar','fcarreto','jpontillas','halaska','anavas','ecordova','vquebec','lcajas','gmiranda','vcarry'];
+  const [selected,setSelected]=useState<Record<string,boolean>>(()=>{
+    const m:Record<string,boolean>={};
+    (users||[]).forEach((u:any)=>{ m[u.id]=true; }); // default: everyone assignable selected
+    return m;
+  });
+  const [scope,setScope]=useState<"all"|"unassigned">("all");
+  const [running,setRunning]=useState(false);
+  const [result,setResult]=useState<any>(null);
+
+  const chosen=(users||[]).filter((u:any)=>selected[u.id]);
+
+  const run=async()=>{
+    setRunning(true);
+    const res=await fetch('/api/ar/blitz',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({userIds:chosen.map((u:any)=>u.id),office:officeFilter||'All',scope})});
+    const data=await res.json();
+    setRunning(false);
+    if(res.ok){ setResult(data); }
+    else { showToastFallback(data?.error); }
+  };
+  const showToastFallback=(msg:string)=>alert(msg||'Failed');
+
+  return (
+    <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div style={{background:"#fff",borderRadius:14,width:"100%",maxWidth:520,padding:24,maxHeight:"85vh",overflowY:"auto"}}>
+        <div style={{fontWeight:600,fontSize:16,marginBottom:4}}>Auto-distribute backlog</div>
+        <div style={{fontSize:12,color:"#888780",marginBottom:16}}>Spreads the overdue backlog evenly across the selected people, balanced within each aging bucket (1-30 / 31-60 / 61-90 / 91-180 / 181+).</div>
+
+        {!result ? (<>
+          <div style={{fontSize:12,color:"#6B6A64",marginBottom:8}}>Scope</div>
+          <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3",marginBottom:16}}>
+            <button onClick={()=>setScope("all")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:scope==="all"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:scope==="all"?"#fff":"transparent",color:scope==="all"?"#2C2C2A":"#888780"}}>Reshuffle all</button>
+            <button onClick={()=>setScope("unassigned")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:scope==="unassigned"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:scope==="unassigned"?"#fff":"transparent",color:scope==="unassigned"?"#2C2C2A":"#888780"}}>Only unassigned</button>
+          </div>
+
+          <div style={{fontSize:12,color:"#6B6A64",marginBottom:8}}>People ({chosen.length} selected)</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:18}}>
+            {(users||[]).map((u:any)=>(
+              <label key={u.id} style={{display:"flex",alignItems:"center",gap:7,fontSize:13,padding:"5px 8px",borderRadius:7,background:selected[u.id]?"#EAEEF6":"#F7F6F3",cursor:"pointer"}}>
+                <input type="checkbox" checked={!!selected[u.id]} onChange={e=>setSelected(p=>({...p,[u.id]:e.target.checked}))} />
+                {u.name}
+              </label>
+            ))}
+          </div>
+
+          <div style={{background:"#FBF6E9",border:"0.5px solid #E8DCC0",borderRadius:8,padding:"8px 12px",fontSize:11,color:"#8A6D1E",marginBottom:16}}>
+            {scope==="all"?"Reshuffle all will reassign every invoice \u2014 including ones already assigned or in progress.":"Only unassigned will keep existing assignments and distribute the rest."}
+          </div>
+
+          <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+            <button onClick={onClose} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"0.5px solid #D3D1C7",background:"#fff",cursor:"pointer"}}>Cancel</button>
+            <button onClick={run} disabled={running||chosen.length===0} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#0052cc",color:"#fff",fontWeight:500,cursor:"pointer",opacity:(running||chosen.length===0)?0.6:1}}>{running?"Distributing\u2026":`Distribute to ${chosen.length}`}</button>
+          </div>
+        </>) : (<>
+          <div style={{fontSize:13,color:"#2C2C2A",marginBottom:12}}>Distributed <b>{result.distributed}</b> invoices.</div>
+          <div style={{fontSize:12,color:"#6B6A64",marginBottom:8}}>By bucket: 1-30: {result.buckets['1-30']} · 31-60: {result.buckets['31-60']} · 61-90: {result.buckets['61-90']} · 91-180: {result.buckets['91-180']} · 181+: {result.buckets['181+']}</div>
+          <div style={{display:"flex",justifyContent:"flex-end",marginTop:16}}>
+            <button onClick={()=>onDone(result)} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#0052cc",color:"#fff",fontWeight:500,cursor:"pointer"}}>Done</button>
+          </div>
+        </>)}
+      </div>
     </div>
   );
 }
