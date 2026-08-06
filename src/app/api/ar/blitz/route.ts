@@ -20,20 +20,32 @@ export async function GET(req: NextRequest) {
 
   const office = req.nextUrl.searchParams.get('office');
   const assignee = req.nextUrl.searchParams.get('assignee'); // userId, 'unassigned', or null (all)
+  const paidFilter = req.nextUrl.searchParams.get('paid') || 'all'; // 'all' | 'unpaid' | 'paid'
   const noOffice = !office || office === 'All' || office === 'ALL' || office === 'all';
   const officeFilter = noOffice ? '' : `AND i.office = '${office!.replace(/'/g, "''")}'`;
 
-  // Every overdue, unpaid invoice — full backlog, no cadence minimum. Exclude escalated/staged ones.
+  // 1) Stamp membership: any invoice that CURRENTLY qualifies (overdue, unpaid, not staged/excluded)
+  //    and isn't already a member gets blitzListedAt set now. Once a member, it stays — even after paid.
+  await prisma.$executeRawUnsafe(`
+    UPDATE invoices i
+    SET "blitzListedAt" = NOW()
+    FROM customers c
+    WHERE c.id = i."customerId"
+      AND i."blitzListedAt" IS NULL
+      AND i.due IS NOT NULL AND i.due < NOW()
+      AND i.paid < i.amount AND i.amount > 0
+      AND i."arStage" IS NULL
+      AND c."excludeFromAutomation" = false
+  `);
+
+  // 2) Show all MEMBERS (blitzListedAt set), including now-paid ones. Still exclude staged/excluded.
   const invoices = await prisma.$queryRawUnsafe(`
     SELECT i.id, i."customerId", i.date, i.due, i.amount, i.paid, i."serviceType", i."serviceId",
-           i."arNote", i.office, i."blitzAssignedTo",
+           i."arNote", i.office, i."blitzAssignedTo", i.status,
            c.name as "customerName", c.phone, c.email, c."serviceAddr"
     FROM invoices i
     JOIN customers c ON c.id = i."customerId"
-    WHERE i.due IS NOT NULL
-      AND i.due < NOW()
-      AND i.paid < i.amount
-      AND i.amount > 0
+    WHERE i."blitzListedAt" IS NOT NULL
       AND i."arStage" IS NULL
       AND c."excludeFromAutomation" = false
       ${officeFilter}
@@ -52,7 +64,7 @@ export async function GET(req: NextRequest) {
 
   // Assignable users (AR module access) for the dropdown + name lookup.
   const users = await prisma.user.findMany({
-    where: { OR: [{ modules: { has: 'ar' } }, { role: { in: ['ADMIN', 'LEADERSHIP'] } }] },
+    where: { OR: [{ modules: { has: 'ar' } }, { role: { in: ['Admin', 'ADMIN', 'LEADERSHIP'] } }] },
     select: { id: true, name: true, office: true },
     orderBy: { name: 'asc' },
   });
@@ -63,6 +75,8 @@ export async function GET(req: NextRequest) {
   let items = invoices.map(inv => {
     const daysOverdue = Math.floor((now - new Date(inv.due).getTime()) / MS_DAY);
     const last = lastNoteByInvoice.get(inv.id);
+    const outstanding = Number(inv.amount) - Number(inv.paid);
+    const isPaid = outstanding <= 0 || inv.status === 'PAID';
     return {
       invoiceId: inv.id,
       customerId: inv.customerId,
@@ -72,7 +86,8 @@ export async function GET(req: NextRequest) {
       serviceType: inv.serviceType,
       serviceCategory: WILDLIFE_IDS.includes(Number(inv.serviceId)) ? 'Wildlife' : 'Pest Control',
       office: inv.office,
-      outstanding: Number(inv.amount) - Number(inv.paid),
+      outstanding: Math.max(0, outstanding),
+      paid: isPaid,
       daysOverdue,
       arNote: inv.arNote || '',
       assignedTo: inv.blitzAssignedTo || null,
@@ -85,10 +100,20 @@ export async function GET(req: NextRequest) {
   if (assignee === 'unassigned') items = items.filter(i => !i.assignedTo);
   else if (assignee) items = items.filter(i => i.assignedTo === assignee);
 
-  items.sort((a, b) => b.daysOverdue - a.daysOverdue); // oldest first
+  // Paid filter.
+  if (paidFilter === 'unpaid') items = items.filter(i => !i.paid);
+  else if (paidFilter === 'paid') items = items.filter(i => i.paid);
+
+  // Unpaid first (oldest overdue first), paid sink to the bottom.
+  items.sort((a, b) => {
+    if (a.paid !== b.paid) return a.paid ? 1 : -1;
+    return b.daysOverdue - a.daysOverdue;
+  });
 
   return NextResponse.json({
     count: items.length,
+    unpaidCount: items.filter(i => !i.paid).length,
+    paidCount: items.filter(i => i.paid).length,
     totalOutstanding: items.reduce((s, i) => s + i.outstanding, 0),
     assignableUsers: users.map(u => ({ id: u.id, name: u.name, office: u.office })),
     items,

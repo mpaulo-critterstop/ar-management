@@ -483,6 +483,7 @@ function BlitzPage({officeFilter, showToast}: any) {
   const [search,setSearch]=useState("");
   const [svcFilter,setSvcFilter]=useState<"all"|"Pest Control"|"Wildlife">("all");
   const [assigneeFilter,setAssigneeFilter]=useState<string>("all"); // 'all' | 'unassigned' | userId
+  const [paidFilter,setPaidFilter]=useState<"all"|"unpaid"|"paid">("all");
   const [callModal,setCallModal]=useState<any>(null);
   const [savingAssign,setSavingAssign]=useState<string|null>(null);
   const [distModal,setDistModal]=useState(false);
@@ -491,8 +492,9 @@ function BlitzPage({officeFilter, showToast}: any) {
     setLoadingB(true);
     const params=new URLSearchParams({office:officeFilter||'All'});
     if(assigneeFilter!=='all') params.set('assignee',assigneeFilter);
+    if(paidFilter!=='all') params.set('paid',paidFilter);
     fetch(`/api/ar/blitz?${params}`).then(r=>r.json()).then(d=>{setData(d);setLoadingB(false);}).catch(()=>setLoadingB(false));
-  },[officeFilter,assigneeFilter]);
+  },[officeFilter,assigneeFilter,paidFilter]);
   useEffect(()=>{load();},[load]);
 
   const money=(n:number)=>'$'+Math.round(n).toLocaleString();
@@ -520,7 +522,7 @@ function BlitzPage({officeFilter, showToast}: any) {
     <div>
       <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:6}}>
         <div style={{fontSize:15,fontWeight:600,color:"#2C2C2A"}}>AR Blitz — Full Backlog</div>
-        <div style={{fontSize:13,color:"#888780"}}>{items.length} invoices · {money(shownOutstanding)} outstanding</div>
+        <div style={{fontSize:13,color:"#888780"}}>{data?.unpaidCount??items.length} unpaid · {data?.paidCount??0} paid · {money(shownOutstanding)} outstanding</div>
       </div>
       <div style={{fontSize:12,color:"#B4B2A9",marginBottom:16}}>Every overdue invoice. Assign blocks to callers and work it down. (Separate from the regular cadence Call Sheet.)
         <button onClick={()=>setDistModal(true)} style={{marginLeft:12,padding:"5px 12px",fontSize:12,borderRadius:7,border:"0.5px solid #0052cc",background:"#fff",color:"#0052cc",fontWeight:500,cursor:"pointer"}}>Auto-distribute</button>
@@ -539,6 +541,11 @@ function BlitzPage({officeFilter, showToast}: any) {
           <option value="unassigned">Unassigned</option>
           {users.map((u:any)=><option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
+        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
+          {(["all","unpaid","paid"] as const).map(s=>(
+            <button key={s} onClick={()=>setPaidFilter(s)} style={{padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:paidFilter===s?"0.5px solid #D3D1C7":"0.5px solid transparent",background:paidFilter===s?"#fff":"transparent",color:paidFilter===s?"#2C2C2A":"#888780"}}>{s==="all"?"All":s==="unpaid"?"Unpaid":"Paid"}</button>
+          ))}
+        </div>
       </div>
 
       {items.length>0 ? (
@@ -558,8 +565,12 @@ function BlitzPage({officeFilter, showToast}: any) {
             </thead>
             <tbody>
               {items.map((it:any)=>(
-                <tr key={it.invoiceId} style={{borderTop:"0.5px solid #F1EFE8"}}>
-                  <td style={{padding:"10px 12px",fontWeight:500,color:"#2C2C2A"}}>{it.customerName}<div style={{fontSize:11,color:"#B4B2A9"}}>{it.serviceAddr||""}</div></td>
+                <tr key={it.invoiceId} style={{borderTop:"0.5px solid #F1EFE8",opacity:it.paid?0.6:1,background:it.paid?"#F7FBF8":"transparent"}}>
+                  <td style={{padding:"10px 12px",fontWeight:500,color:"#2C2C2A"}}>
+                    {it.customerName}
+                    {it.paid && <span style={{marginLeft:8,fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:6,background:"#DCF2E6",color:"#1D7A50"}}>PAID</span>}
+                    <div style={{fontSize:11,color:"#B4B2A9"}}>{it.serviceAddr||""}</div>
+                  </td>
                   <td style={{padding:"10px 12px"}}><span style={{fontSize:11,padding:"2px 7px",borderRadius:6,background:it.serviceCategory==="Wildlife"?"#E9F1E5":"#EAEEF6",color:it.serviceCategory==="Wildlife"?"#3F6B2E":"#2E4A79"}}>{it.serviceCategory}</span></td>
                   <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,color:"#791F1F"}}>{money(it.outstanding)}</td>
                   <td style={{padding:"10px 12px",textAlign:"right",color:it.daysOverdue>=90?"#791F1F":it.daysOverdue>=30?"#B45309":"#6B6A64"}}>{it.daysOverdue}d</td>
