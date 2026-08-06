@@ -49,6 +49,88 @@ export async function GET(req: NextRequest) {
     select: { id: true, name: true, dialpadName: true, frEmployeeIds: true },
   });
 
+  // ---- detail (one rep) OR activity (everyone): calls + collections + notes ----
+  if (view === 'detail' || view === 'activity') {
+    const targetUserId = req.nextUrl.searchParams.get('userId'); // required for detail
+    const scopeUsers = view === 'detail' && targetUserId
+      ? users.filter(u => u.id === targetUserId)
+      : users;
+    if (view === 'detail' && scopeUsers.length === 0) {
+      return NextResponse.json({ error: 'user not found' }, { status: 404 });
+    }
+
+    // name/frid lookups scoped to the target(s)
+    const nameKeys = new Map<string, string>(); // lowercased name -> userId
+    const fridKeys = new Map<string, string>(); // fr id -> userId
+    for (const u of scopeUsers) {
+      nameKeys.set((u.dialpadName || u.name).toLowerCase(), u.id);
+      nameKeys.set(u.name.toLowerCase(), u.id);
+      for (const fid of (u.frEmployeeIds || [])) fridKeys.set(String(fid), u.id);
+    }
+    const uName = new Map(users.map(u => [u.id, u.name]));
+
+    // Calls (outbound) for the scoped reps.
+    const targetNames = scopeUsers.flatMap(u => [u.name, u.dialpadName].filter(Boolean)) as string[];
+    const nameList = targetNames.map(n => `'${n.replace(/'/g, "''")}'`).join(',') || `''`;
+    const calls = await prisma.$queryRawUnsafe(`
+      SELECT target_name, external_number, date_started, direction, duration, state
+      FROM dialpad_calls
+      WHERE direction='outbound' AND target_name IN (${nameList})
+        AND date_started >= ${start.getTime()} AND date_started <= ${now.getTime()}
+      ORDER BY date_started DESC
+      LIMIT 500
+    `) as any[];
+
+    // Collections (payments) credited to the scoped reps.
+    const fridList = [...fridKeys.keys()];
+    const payments = fridList.length ? await prisma.payment.findMany({
+      where: { date: { gte: start, lte: now }, amount: { gt: 0 }, processedBy: { in: fridList } },
+      select: { amount: true, date: true, processedBy: true, paymentSource: true,
+                invoice: { select: { customer: { select: { name: true } }, serviceType: true, externalId: true } } },
+      orderBy: { date: 'desc' },
+      take: 500,
+    }) : [];
+
+    // Notes (Mark Called) logged by the scoped reps.
+    const userIdList = scopeUsers.map(u => u.id);
+    const notes = await prisma.collectionNote.findMany({
+      where: { date: { gte: start, lte: now }, userId: { in: userIdList } },
+      select: { id: true, date: true, text: true, status: true, userId: true,
+                customer: { select: { name: true } } },
+      orderBy: { date: 'desc' },
+      take: 500,
+    });
+
+    const selfServe = (s: string | null) => isSelfServe(s);
+    return NextResponse.json({
+      view, range,
+      calls: calls.map(c => ({
+        rep: nameKeys.get(String(c.target_name).toLowerCase()) ? uName.get(nameKeys.get(String(c.target_name).toLowerCase())!) : c.target_name,
+        phone: c.external_number,
+        date: new Date(Number(c.date_started)).toISOString(),
+        direction: c.direction,
+        durationSec: Number(c.duration) || 0,
+        state: c.state,
+      })),
+      collections: payments.map(p => ({
+        rep: p.processedBy ? uName.get(fridKeys.get(String(p.processedBy))!) || '—' : '—',
+        customer: p.invoice?.customer?.name || '—',
+        amount: Number(p.amount),
+        date: p.date,
+        source: p.paymentSource || '—',
+        credited: !selfServe(p.paymentSource),
+        serviceType: p.invoice?.serviceType || null,
+      })),
+      notes: notes.map(n => ({
+        rep: n.userId ? uName.get(n.userId) || '—' : '—',
+        customer: n.customer?.name || '—',
+        date: n.date,
+        status: n.status,
+        text: n.text,
+      })),
+    });
+  }
+
   if (view === 'failsafe') {
     if (!isAdmin) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
 

@@ -1,6 +1,6 @@
 // v2
 "use client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { LastSynced } from "@/components/LastSynced";
 
 const ACCENT = '#0052cc';
@@ -662,19 +662,62 @@ function DistributeModal({users, officeFilter, onClose, onDone}: any) {
   );
 }
 
+function RepDetailBlock({title, rows, kind, money, fmtDT, showRep}: any) {
+  const th:any={padding:"7px 10px",fontWeight:500,textAlign:"left",color:"#888780",fontSize:11};
+  const td:any={padding:"7px 10px",fontSize:12,color:"#2C2C2A"};
+  return (
+    <div>
+      <div style={{fontSize:12,fontWeight:600,color:"#6B6A64",marginBottom:6}}>{title}</div>
+      {rows.length===0 ? <div style={{fontSize:12,color:"#B4B2A9",padding:"4px 0"}}>None in this window.</div> : (
+        <div style={{background:"#fff",borderRadius:10,border:"0.5px solid #E8E7E3",overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            {kind==="collections" && <>
+              <thead><tr>{showRep&&<th style={th}>Rep</th>}<th style={th}>Customer</th><th style={{...th,textAlign:"right"}}>Amount</th><th style={th}>Date</th><th style={th}>Source</th><th style={th}>Credited</th></tr></thead>
+              <tbody>{rows.map((r:any,i:number)=>(<tr key={i} style={{borderTop:"0.5px solid #F1EFE8"}}>{showRep&&<td style={td}>{r.rep}</td>}<td style={td}>{r.customer}</td><td style={{...td,textAlign:"right",fontWeight:600,color:"#1D9E75"}}>{money(r.amount)}</td><td style={td}>{fmtDT(r.date)}</td><td style={td}>{r.source}</td><td style={td}>{r.credited?"✓":<span style={{color:"#B4B2A9"}}>self-serve</span>}</td></tr>))}</tbody>
+            </>}
+            {kind==="calls" && <>
+              <thead><tr>{showRep&&<th style={th}>Rep</th>}<th style={th}>Number</th><th style={th}>Date</th><th style={th}>Duration</th><th style={th}>State</th></tr></thead>
+              <tbody>{rows.map((r:any,i:number)=>(<tr key={i} style={{borderTop:"0.5px solid #F1EFE8"}}>{showRep&&<td style={td}>{r.rep}</td>}<td style={td}>{r.phone}</td><td style={td}>{fmtDT(r.date)}</td><td style={td}>{Math.floor((r.durationSec||0)/60)}m {(r.durationSec||0)%60}s</td><td style={td}>{r.state}</td></tr>))}</tbody>
+            </>}
+            {kind==="notes" && <>
+              <thead><tr>{showRep&&<th style={th}>Rep</th>}<th style={th}>Customer</th><th style={th}>Date</th><th style={th}>Outcome</th><th style={th}>Note</th></tr></thead>
+              <tbody>{rows.map((r:any,i:number)=>(<tr key={i} style={{borderTop:"0.5px solid #F1EFE8"}}>{showRep&&<td style={td}>{r.rep}</td>}<td style={td}>{r.customer}</td><td style={td}>{fmtDT(r.date)}</td><td style={td}>{r.status}</td><td style={{...td,color:"#6B6A64"}}>{r.text}</td></tr>))}</tbody>
+            </>}
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TrackingPage() {
-  const [tab,setTab]=useState<"leaderboard"|"failsafe">("leaderboard");
+  const [tab,setTab]=useState<"leaderboard"|"activity"|"failsafe">("leaderboard");
   const [range,setRange]=useState<"today"|"7d"|"30d">("7d");
   const [lb,setLb]=useState<any>(null);
   const [fs,setFs]=useState<any>(null);
   const [fsAllowed,setFsAllowed]=useState(false);
   const [loading,setLoading]=useState(true);
+  const [expanded,setExpanded]=useState<string|null>(null); // userId whose detail is open
+  const [detail,setDetail]=useState<Record<string,any>>({}); // userId -> detail payload
+  const [activity,setActivity]=useState<any>(null);
 
   const money=(n:number)=>'$'+Math.round(n).toLocaleString();
+  const fmtDT=(d:string)=>new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+
+  const toggleRep=(userId:string)=>{
+    if(expanded===userId){ setExpanded(null); return; }
+    setExpanded(userId);
+    if(!detail[userId]){
+      fetch(`/api/ar/tracking?view=detail&userId=${userId}&range=${range}`).then(r=>r.json())
+        .then(d=>setDetail(p=>({...p,[userId]:d}))).catch(()=>{});
+    }
+  };
 
   useEffect(()=>{
     setLoading(true);
+    setDetail({}); setExpanded(null);
     fetch(`/api/ar/tracking?view=leaderboard&range=${range}`).then(r=>r.json()).then(d=>{setLb(d);setLoading(false);}).catch(()=>setLoading(false));
+    fetch(`/api/ar/tracking?view=activity&range=${range}`).then(r=>r.json()).then(d=>setActivity(d)).catch(()=>{});
     // Attempt fail-safe; only admins get 200. If allowed, reveal the toggle.
     fetch(`/api/ar/tracking?view=failsafe&range=${range}`).then(async r=>{
       if(r.ok){ setFsAllowed(true); setFs(await r.json()); } else { setFsAllowed(false); }
@@ -687,6 +730,7 @@ function TrackingPage() {
         <div style={{fontSize:15,fontWeight:600,color:"#2C2C2A"}}>AR Tracking</div>
         <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
           <button onClick={()=>setTab("leaderboard")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:tab==="leaderboard"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:tab==="leaderboard"?"#fff":"transparent",color:tab==="leaderboard"?"#2C2C2A":"#888780"}}>Leaderboard</button>
+          <button onClick={()=>setTab("activity")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:tab==="activity"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:tab==="activity"?"#fff":"transparent",color:tab==="activity"?"#2C2C2A":"#888780"}}>Activity Log</button>
           {fsAllowed && <button onClick={()=>setTab("failsafe")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:tab==="failsafe"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:tab==="failsafe"?"#fff":"transparent",color:tab==="failsafe"?"#791F1F":"#888780"}}>Fail-safe audit</button>}
         </div>
         <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3",marginLeft:"auto"}}>
@@ -713,19 +757,38 @@ function TrackingPage() {
               </tr></thead>
               <tbody>
                 {(lb?.board||[]).map((r:any,i:number)=>(
-                  <tr key={r.userId} style={{borderTop:"0.5px solid #F1EFE8"}}>
-                    <td style={{padding:"10px 14px",color:"#B4B2A9"}}>{i+1}</td>
+                  <Fragment key={r.userId}>
+                  <tr onClick={()=>toggleRep(r.userId)} style={{borderTop:"0.5px solid #F1EFE8",cursor:"pointer",background:expanded===r.userId?"#F7F6F3":"transparent"}}>
+                    <td style={{padding:"10px 14px",color:"#B4B2A9"}}>{expanded===r.userId?"▾":"▸"} {i+1}</td>
                     <td style={{padding:"10px 14px",fontWeight:500,color:"#2C2C2A"}}>{r.name}{!r.mapped && <span title="No FieldRoutes employee mapping — collections can't be credited yet" style={{marginLeft:6,fontSize:10,color:"#B45309"}}>⚠ unmapped</span>}</td>
                     <td style={{padding:"10px 14px",textAlign:"right",fontWeight:600,color:"#1D9E75"}}>{money(r.collected)}</td>
                     <td style={{padding:"10px 14px",textAlign:"right",color:"#6B6A64"}}>{r.paymentsProcessed}</td>
                     <td style={{padding:"10px 14px",textAlign:"right",color:"#6B6A64"}}>{r.calls}</td>
                   </tr>
+                  {expanded===r.userId && (
+                    <tr><td colSpan={5} style={{padding:"0 14px 14px",background:"#F7F6F3"}}>
+                      {!detail[r.userId] ? <div style={{padding:12,fontSize:12,color:"#888780"}}>Loading detail…</div> : (
+                        <div style={{display:"flex",flexDirection:"column",gap:14,paddingTop:10}}>
+                          <RepDetailBlock title={`Collections (${detail[r.userId].collections.length})`} rows={detail[r.userId].collections} kind="collections" money={money} fmtDT={fmtDT} />
+                          <RepDetailBlock title={`Calls (${detail[r.userId].calls.length})`} rows={detail[r.userId].calls} kind="calls" money={money} fmtDT={fmtDT} />
+                          <RepDetailBlock title={`Logged notes (${detail[r.userId].notes.length})`} rows={detail[r.userId].notes} kind="notes" money={money} fmtDT={fmtDT} />
+                        </div>
+                      )}
+                    </td></tr>
+                  )}
+                  </Fragment>
                 ))}
                 {(lb?.board||[]).length===0 && <tr><td colSpan={5} style={{padding:30,textAlign:"center",color:"#888780"}}>No activity in this window yet.</td></tr>}
               </tbody>
             </table>
           </div>
           {lb?.unmappedUsers?.length>0 && <div style={{marginTop:10,fontSize:11,color:"#B45309"}}>Not yet credit-eligible (need FieldRoutes employee mapping): {lb.unmappedUsers.join(', ')}</div>}
+        </div>
+      ) : tab==="activity" ? (
+        <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          <RepDetailBlock title={`Collections (${activity?.collections?.length||0})`} rows={activity?.collections||[]} kind="collections" money={money} fmtDT={fmtDT} showRep />
+          <RepDetailBlock title={`Calls (${activity?.calls?.length||0})`} rows={activity?.calls||[]} kind="calls" money={money} fmtDT={fmtDT} showRep />
+          <RepDetailBlock title={`Logged notes (${activity?.notes?.length||0})`} rows={activity?.notes||[]} kind="notes" money={money} fmtDT={fmtDT} showRep />
         </div>
       ) : (
         <div>
