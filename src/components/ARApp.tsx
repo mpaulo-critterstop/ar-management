@@ -200,6 +200,7 @@ export default function ARApp() {
   const PAGES = [
     {id:"dashboard",label:"Dashboard"},
     {id:"callsheet",label:"Call Sheet"},
+    {id:"blitz",label:"AR Blitz"},
     {id:"stages",label:"Collections / SCC / Bad Debt"},
     {id:"customers",label:"Customers"},
     {id:"invoices",label:"Invoices"},
@@ -245,6 +246,7 @@ export default function ARApp() {
 
       {page==="dashboard" && <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected={collected} agingTotals={agingTotals} collectedDays={collectedDays} setCollectedDays={setCollectedDays} customDateFrom={customDateFrom} customDateTo={customDateTo} setCustomDateFrom={setCustomDateFrom} setCustomDateTo={setCustomDateTo} prevMonthAR={prevMonthAR} />}
       {page==="callsheet" && <CallSheetPage officeFilter={officeFilter} showToast={showToast} />}
+      {page==="blitz" && <BlitzPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="stages" && <StagesPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="customers" && <CustPage {...shared} />}
       {page==="invoices" && <InvPage {...shared} />}
@@ -469,6 +471,119 @@ function MoveToModal({item, onClose, onMoved}: any) {
           <button onClick={move} disabled={saving} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#791F1F",color:"#fff",fontWeight:500,cursor:"pointer",opacity:saving?0.6:1}}>{saving?"Moving…":"Move"}</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BlitzPage({officeFilter, showToast}: any) {
+  const [data,setData]=useState<any>(null);
+  const [loadingB,setLoadingB]=useState(true);
+  const [search,setSearch]=useState("");
+  const [svcFilter,setSvcFilter]=useState<"all"|"Pest Control"|"Wildlife">("all");
+  const [assigneeFilter,setAssigneeFilter]=useState<string>("all"); // 'all' | 'unassigned' | userId
+  const [callModal,setCallModal]=useState<any>(null);
+  const [savingAssign,setSavingAssign]=useState<string|null>(null);
+
+  const load=useCallback(()=>{
+    setLoadingB(true);
+    const params=new URLSearchParams({office:officeFilter||'All'});
+    if(assigneeFilter!=='all') params.set('assignee',assigneeFilter);
+    fetch(`/api/ar/blitz?${params}`).then(r=>r.json()).then(d=>{setData(d);setLoadingB(false);}).catch(()=>setLoadingB(false));
+  },[officeFilter,assigneeFilter]);
+  useEffect(()=>{load();},[load]);
+
+  const money=(n:number)=>'$'+Math.round(n).toLocaleString();
+  const users=data?.assignableUsers||[];
+
+  const assign=async(invoiceId:string,userId:string)=>{
+    setSavingAssign(invoiceId);
+    await fetch('/api/ar/blitz',{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({invoiceId,blitzAssignedTo:userId||null})});
+    setSavingAssign(null);
+    load();
+  };
+
+  if(loadingB) return <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780"}}>Loading blitz backlog…</div>;
+
+  const allItems=data?.items||[];
+  const items=allItems.filter((it:any)=>{
+    const ms=!search.trim()||(it.customerName||'').toLowerCase().includes(search.toLowerCase());
+    const mv=svcFilter==="all"||it.serviceCategory===svcFilter;
+    return ms&&mv;
+  });
+  const shownOutstanding=items.reduce((s:number,i:any)=>s+i.outstanding,0);
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:6}}>
+        <div style={{fontSize:15,fontWeight:600,color:"#2C2C2A"}}>AR Blitz — Full Backlog</div>
+        <div style={{fontSize:13,color:"#888780"}}>{items.length} invoices · {money(shownOutstanding)} outstanding</div>
+      </div>
+      <div style={{fontSize:12,color:"#B4B2A9",marginBottom:16}}>Every overdue invoice. Assign blocks to callers and work it down. (Separate from the regular cadence Call Sheet.)</div>
+
+      <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center",flexWrap:"wrap"}}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customer…"
+          style={{padding:"7px 12px",fontSize:13,borderRadius:8,border:"0.5px solid #D3D1C7",minWidth:200}} />
+        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
+          {(["all","Pest Control","Wildlife"] as const).map(s=>(
+            <button key={s} onClick={()=>setSvcFilter(s)} style={{padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:svcFilter===s?"0.5px solid #D3D1C7":"0.5px solid transparent",background:svcFilter===s?"#fff":"transparent",color:svcFilter===s?"#2C2C2A":"#888780"}}>{s==="all"?"All":s}</button>
+          ))}
+        </div>
+        <select value={assigneeFilter} onChange={e=>setAssigneeFilter(e.target.value)} style={{padding:"7px 10px",fontSize:12,borderRadius:8,border:"0.5px solid #D3D1C7"}}>
+          <option value="all">Everyone</option>
+          <option value="unassigned">Unassigned</option>
+          {users.map((u:any)=><option key={u.id} value={u.id}>{u.name}</option>)}
+        </select>
+      </div>
+
+      {items.length>0 ? (
+        <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3",overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr style={{color:"#888780",textAlign:"left"}}>
+                <th style={{padding:"10px 12px",fontWeight:500}}>Customer</th>
+                <th style={{padding:"10px 12px",fontWeight:500}}>Service</th>
+                <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>Outstanding</th>
+                <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>Days Overdue</th>
+                <th style={{padding:"10px 12px",fontWeight:500}}>Phone</th>
+                <th style={{padding:"10px 12px",fontWeight:500}}>Assigned To</th>
+                <th style={{padding:"10px 12px",fontWeight:500,minWidth:160}}>Note</th>
+                <th style={{padding:"10px 12px",fontWeight:500}}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it:any)=>(
+                <tr key={it.invoiceId} style={{borderTop:"0.5px solid #F1EFE8"}}>
+                  <td style={{padding:"10px 12px",fontWeight:500,color:"#2C2C2A"}}>{it.customerName}<div style={{fontSize:11,color:"#B4B2A9"}}>{it.serviceAddr||""}</div></td>
+                  <td style={{padding:"10px 12px"}}><span style={{fontSize:11,padding:"2px 7px",borderRadius:6,background:it.serviceCategory==="Wildlife"?"#E9F1E5":"#EAEEF6",color:it.serviceCategory==="Wildlife"?"#3F6B2E":"#2E4A79"}}>{it.serviceCategory}</span></td>
+                  <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,color:"#791F1F"}}>{money(it.outstanding)}</td>
+                  <td style={{padding:"10px 12px",textAlign:"right",color:it.daysOverdue>=90?"#791F1F":it.daysOverdue>=30?"#B45309":"#6B6A64"}}>{it.daysOverdue}d</td>
+                  <td style={{padding:"10px 12px",color:"#6B6A64"}}>{it.phone||"—"}</td>
+                  <td style={{padding:"8px 12px"}}>
+                    <select value={it.assignedTo||""} onChange={e=>assign(it.invoiceId,e.target.value)} disabled={savingAssign===it.invoiceId}
+                      style={{padding:"5px 8px",fontSize:12,borderRadius:6,border:"0.5px solid #D3D1C7",background:it.assignedTo?"#EAEEF6":"#fff",maxWidth:130}}>
+                      <option value="">Unassigned</option>
+                      {users.map((u:any)=><option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                  </td>
+                  <td style={{padding:"10px 12px",color:"#888780",maxWidth:180}}>
+                    {it.arNote && <div style={{fontSize:11,color:"#6B6A64"}} title={it.arNote}>{it.arNote.slice(0,40)}{it.arNote.length>40?"…":""}</div>}
+                    {it.lastNote && <div style={{fontSize:10,color:"#B4B2A9"}} title={it.lastNote.text}>Last call: {new Date(it.lastNote.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>}
+                    {!it.arNote && !it.lastNote && <span style={{color:"#C9C7BE",fontSize:11}}>—</span>}
+                  </td>
+                  <td style={{padding:"10px 12px"}}><button onClick={()=>setCallModal(it)} style={{background:"#0052cc",color:"#fff",border:"none",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>Mark Called</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780",background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3"}}>
+          {allItems.length===0?"No overdue invoices. Backlog clear \uD83C\uDF89":"No matches for the current filters."}
+        </div>
+      )}
+
+      {callModal && <MarkCalledModal item={callModal} onClose={()=>setCallModal(null)} onSaved={()=>{setCallModal(null);load();showToast&&showToast("Call logged");}} />}
     </div>
   );
 }
