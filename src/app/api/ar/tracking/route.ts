@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   // Users with their Dial Pad + FR mappings.
   const users = await prisma.user.findMany({
     where: { OR: [{ modules: { has: 'ar' } }, { role: { in: ['Admin', 'ADMIN', 'LEADERSHIP'] } }] },
-    select: { id: true, name: true, dialpadName: true, frEmployeeId: true },
+    select: { id: true, name: true, dialpadName: true, frEmployeeIds: true },
   });
 
   if (view === 'failsafe') {
@@ -115,10 +115,10 @@ export async function GET(req: NextRequest) {
     if (uid) callsByUser.set(uid, (callsByUser.get(uid) || 0) + Number(row.c));
   }
 
-  // Collections credited per rep: payments in window whose processedBy maps to a user's frEmployeeId,
-  // excluding self-serve sources.
+  // Collections credited per rep: payments in window whose processedBy maps to one of a user's
+  // FR employee IDs (people have multiple "ghost" IDs across offices), excluding self-serve sources.
   const frToUser = new Map<string, string>();
-  for (const u of users) if (u.frEmployeeId) frToUser.set(String(u.frEmployeeId), u.id);
+  for (const u of users) for (const fid of (u.frEmployeeIds || [])) frToUser.set(String(fid), u.id);
   const payments = await prisma.payment.findMany({
     where: { date: { gte: start, lte: now }, amount: { gt: 0 }, processedBy: { not: null } },
     select: { amount: true, processedBy: true, paymentSource: true },
@@ -141,7 +141,7 @@ export async function GET(req: NextRequest) {
       calls: callsByUser.get(u.id) || 0,
       collected: collectedByUser.get(u.id) || 0,
       paymentsProcessed: countByUser.get(u.id) || 0,
-      mapped: !!u.frEmployeeId, // false = can't be credited yet (no FR mapping)
+      mapped: (u.frEmployeeIds || []).length > 0, // false = can't be credited yet (no FR mapping)
     }))
     .filter(r => r.calls > 0 || r.collected > 0)
     .sort((a, b) => b.collected - a.collected || b.calls - a.calls);
@@ -149,7 +149,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     view: 'leaderboard', range,
     creditedTotal, selfServeTotal,
-    unmappedUsers: users.filter(u => !u.frEmployeeId).map(u => u.name),
+    unmappedUsers: users.filter(u => (u.frEmployeeIds || []).length === 0).map(u => u.name),
     board,
   });
 }

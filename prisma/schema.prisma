@@ -22,7 +22,7 @@ model User {
   pmName      String?                // links login → PM identity (own-commission row-level)
   techId      String?                // links login → Technician (own field-performance data)
   dialpadName String?                // Dial Pad display name if it differs from `name` (e.g. Heather Kaye Alaska)
-  frEmployeeId String?               // FieldRoutes employee ID → credit payments processed by this person
+  frEmployeeIds String[] @default([]) // ALL FieldRoutes employee IDs for this person (ghost IDs per office)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   notes     CollectionNote[]
