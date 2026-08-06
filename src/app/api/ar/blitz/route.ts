@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
       AND i.paid < i.amount
       AND i.amount > 0
       AND i."arStage" IS NULL
+      AND c."excludeFromAutomation" = false
       ${officeFilter}
     ORDER BY i.due ASC
   `) as any[];
@@ -130,6 +131,7 @@ export async function POST(req: NextRequest) {
     where: {
       due: { not: null, lt: new Date() },
       arStage: null,
+      customer: { excludeFromAutomation: false },
       ...(noOffice ? {} : { office: { equals: office!, mode: 'insensitive' } }),
     },
     select: { id: true, due: true, amount: true, paid: true, blitzAssignedTo: true },
