@@ -70,6 +70,9 @@ export async function GET(req: NextRequest) {
   });
   const userName = new Map(users.map(u => [u.id, u.name]));
 
+  const role = (session.user as any)?.role;
+  const isAdmin = role === 'Admin' || role === 'ADMIN' || role === 'LEADERSHIP';
+
   const MS_DAY = 86400000;
   const now = Date.now();
   let items = invoices.map(inv => {
@@ -116,6 +119,7 @@ export async function GET(req: NextRequest) {
     paidCount: items.filter(i => i.paid).length,
     totalOutstanding: items.reduce((s, i) => s + i.outstanding, 0),
     assignableUsers: users.map(u => ({ id: u.id, name: u.name, office: u.office })),
+    isAdmin,
     items,
   });
 }
