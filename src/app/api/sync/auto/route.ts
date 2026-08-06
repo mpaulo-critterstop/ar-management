@@ -661,6 +661,8 @@ async function syncPayments(
               note: p.paymentSource || null,
               externalId: String(p.paymentID),
               externalSource: 'fieldroutes',
+              processedBy: p.employeeID != null ? String(p.employeeID) : null,
+              paymentSource: p.paymentSource || p.paymentMethod || null,
             },
           });
         }

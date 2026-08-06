@@ -201,6 +201,7 @@ export default function ARApp() {
     {id:"dashboard",label:"Dashboard"},
     {id:"callsheet",label:"Call Sheet"},
     {id:"blitz",label:"AR Blitz"},
+    {id:"tracking",label:"Tracking"},
     {id:"stages",label:"Collections / SCC / Bad Debt"},
     {id:"customers",label:"Customers"},
     {id:"invoices",label:"Invoices"},
@@ -247,6 +248,7 @@ export default function ARApp() {
       {page==="dashboard" && <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected={collected} agingTotals={agingTotals} collectedDays={collectedDays} setCollectedDays={setCollectedDays} customDateFrom={customDateFrom} customDateTo={customDateTo} setCustomDateFrom={setCustomDateFrom} setCustomDateTo={setCustomDateTo} prevMonthAR={prevMonthAR} />}
       {page==="callsheet" && <CallSheetPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="blitz" && <BlitzPage officeFilter={officeFilter} showToast={showToast} />}
+      {page==="tracking" && <TrackingPage />}
       {page==="stages" && <StagesPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="customers" && <CustPage {...shared} />}
       {page==="invoices" && <InvPage {...shared} />}
@@ -656,6 +658,103 @@ function DistributeModal({users, officeFilter, onClose, onDone}: any) {
           </div>
         </>)}
       </div>
+    </div>
+  );
+}
+
+function TrackingPage() {
+  const [tab,setTab]=useState<"leaderboard"|"failsafe">("leaderboard");
+  const [range,setRange]=useState<"today"|"7d"|"30d">("7d");
+  const [lb,setLb]=useState<any>(null);
+  const [fs,setFs]=useState<any>(null);
+  const [fsAllowed,setFsAllowed]=useState(false);
+  const [loading,setLoading]=useState(true);
+
+  const money=(n:number)=>'$'+Math.round(n).toLocaleString();
+
+  useEffect(()=>{
+    setLoading(true);
+    fetch(`/api/ar/tracking?view=leaderboard&range=${range}`).then(r=>r.json()).then(d=>{setLb(d);setLoading(false);}).catch(()=>setLoading(false));
+    // Attempt fail-safe; only admins get 200. If allowed, reveal the toggle.
+    fetch(`/api/ar/tracking?view=failsafe&range=${range}`).then(async r=>{
+      if(r.ok){ setFsAllowed(true); setFs(await r.json()); } else { setFsAllowed(false); }
+    }).catch(()=>setFsAllowed(false));
+  },[range]);
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,flexWrap:"wrap"}}>
+        <div style={{fontSize:15,fontWeight:600,color:"#2C2C2A"}}>AR Tracking</div>
+        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
+          <button onClick={()=>setTab("leaderboard")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:tab==="leaderboard"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:tab==="leaderboard"?"#fff":"transparent",color:tab==="leaderboard"?"#2C2C2A":"#888780"}}>Leaderboard</button>
+          {fsAllowed && <button onClick={()=>setTab("failsafe")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:tab==="failsafe"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:tab==="failsafe"?"#fff":"transparent",color:tab==="failsafe"?"#791F1F":"#888780"}}>Fail-safe audit</button>}
+        </div>
+        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3",marginLeft:"auto"}}>
+          {(["today","7d","30d"] as const).map(r=>(
+            <button key={r} onClick={()=>setRange(r)} style={{padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:range===r?"0.5px solid #D3D1C7":"0.5px solid transparent",background:range===r?"#fff":"transparent",color:range===r?"#2C2C2A":"#888780"}}>{r==="today"?"Today":r==="7d"?"7 days":"30 days"}</button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780"}}>Loading…</div> : tab==="leaderboard" ? (
+        <div>
+          <div style={{display:"flex",gap:16,marginBottom:14,fontSize:12,color:"#6B6A64"}}>
+            <span>Credited to reps: <b style={{color:"#1D9E75"}}>{money(lb?.creditedTotal||0)}</b></span>
+            <span>Self-serve (portal/ACH/check, no credit): <b>{money(lb?.selfServeTotal||0)}</b></span>
+          </div>
+          <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3",overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead><tr style={{color:"#888780",textAlign:"left"}}>
+                <th style={{padding:"10px 14px",fontWeight:500}}>#</th>
+                <th style={{padding:"10px 14px",fontWeight:500}}>Rep</th>
+                <th style={{padding:"10px 14px",fontWeight:500,textAlign:"right"}}>Collected</th>
+                <th style={{padding:"10px 14px",fontWeight:500,textAlign:"right"}}>Payments</th>
+                <th style={{padding:"10px 14px",fontWeight:500,textAlign:"right"}}>Calls</th>
+              </tr></thead>
+              <tbody>
+                {(lb?.board||[]).map((r:any,i:number)=>(
+                  <tr key={r.userId} style={{borderTop:"0.5px solid #F1EFE8"}}>
+                    <td style={{padding:"10px 14px",color:"#B4B2A9"}}>{i+1}</td>
+                    <td style={{padding:"10px 14px",fontWeight:500,color:"#2C2C2A"}}>{r.name}{!r.mapped && <span title="No FieldRoutes employee mapping — collections can't be credited yet" style={{marginLeft:6,fontSize:10,color:"#B45309"}}>⚠ unmapped</span>}</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:600,color:"#1D9E75"}}>{money(r.collected)}</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",color:"#6B6A64"}}>{r.paymentsProcessed}</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",color:"#6B6A64"}}>{r.calls}</td>
+                  </tr>
+                ))}
+                {(lb?.board||[]).length===0 && <tr><td colSpan={5} style={{padding:30,textAlign:"center",color:"#888780"}}>No activity in this window yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          {lb?.unmappedUsers?.length>0 && <div style={{marginTop:10,fontSize:11,color:"#B45309"}}>Not yet credit-eligible (need FieldRoutes employee mapping): {lb.unmappedUsers.join(', ')}</div>}
+        </div>
+      ) : (
+        <div>
+          <div style={{background:"#F6EAEA",border:"0.5px solid #E0C4C4",borderRadius:8,padding:"8px 12px",fontSize:11,color:"#791F1F",marginBottom:14}}>Admin-only. Flags logged calls with no matching Dial Pad call to the customer's number. {fs?.flaggedCount||0} of {fs?.checked||0} logged calls flagged.</div>
+          <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3",overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead><tr style={{color:"#888780",textAlign:"left"}}>
+                <th style={{padding:"10px 14px",fontWeight:500}}>Date</th>
+                <th style={{padding:"10px 14px",fontWeight:500}}>Customer</th>
+                <th style={{padding:"10px 14px",fontWeight:500}}>Logged by</th>
+                <th style={{padding:"10px 14px",fontWeight:500}}>Phone</th>
+                <th style={{padding:"10px 14px",fontWeight:500}}>Note</th>
+              </tr></thead>
+              <tbody>
+                {(fs?.flagged||[]).map((f:any)=>(
+                  <tr key={f.noteId} style={{borderTop:"0.5px solid #F1EFE8"}}>
+                    <td style={{padding:"10px 14px",color:"#6B6A64"}}>{new Date(f.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</td>
+                    <td style={{padding:"10px 14px",fontWeight:500,color:"#2C2C2A"}}>{f.customerName}</td>
+                    <td style={{padding:"10px 14px",color:"#791F1F"}}>{f.loggedBy}</td>
+                    <td style={{padding:"10px 14px",color:"#6B6A64"}}>{f.phone}</td>
+                    <td style={{padding:"10px 14px",color:"#888780"}}>{f.note}</td>
+                  </tr>
+                ))}
+                {(fs?.flagged||[]).length===0 && <tr><td colSpan={5} style={{padding:30,textAlign:"center",color:"#1D9E75"}}>No mismatches — all logged calls have a matching Dial Pad call. ✓</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

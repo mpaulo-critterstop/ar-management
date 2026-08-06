@@ -21,6 +21,8 @@ model User {
   permissions Json?                  // sub-flags: { hidePmKpis, ownDataOnly, isTeamLeader }
   pmName      String?                // links login → PM identity (own-commission row-level)
   techId      String?                // links login → Technician (own field-performance data)
+  dialpadName String?                // Dial Pad display name if it differs from `name` (e.g. Heather Kaye Alaska)
+  frEmployeeId String?               // FieldRoutes employee ID → credit payments processed by this person
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   notes     CollectionNote[]
@@ -125,6 +127,8 @@ model Payment {
   note           String?
   externalId     String?
   externalSource String?
+  processedBy    String?  // FieldRoutes employeeID that entered the payment (for collection credit)
+  paymentSource  String?  // FR paymentSource/method (portal/ach/check vs office-entered) → credit gating
   createdAt      DateTime @default(now())
   invoice        Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   @@index([invoiceId])
