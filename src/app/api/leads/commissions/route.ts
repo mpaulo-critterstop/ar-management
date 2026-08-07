@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { computeCommission, monthStart, planFor, bucketBreakdown, DEFAULT_LEAD_BUCKET_TIERS } from '@/lib/commissions';
+import { computeCommission, monthStart, planFor, bucketBreakdown, wildlifeCommission, DEFAULT_LEAD_BUCKET_TIERS, type CommissionMethod } from '@/lib/commissions';
 import { canAccessModule, isOwnDataOnly, perm } from '@/lib/access';
 
 // GET /api/leads/commissions?year=2026 → returns all 12 months for that year, per PM.
@@ -45,6 +45,15 @@ export async function GET(req: NextRequest) {
   const histKey = (pm: string, m: number) => `${pm}|${m}`;
   const histMap = new Map(history.map(h => [histKey(h.pmName, h.month.getUTCMonth() + 1), h]));
 
+  // Finalized snapshots for LIVE months (Jul 2026+). Once a month is finalized, its commission was
+  // paid on asPaidTotalRevenue — the display must honor that frozen value, NOT recompute from leads
+  // (which would drift when a lead is added/edited after finalize).
+  const finalizedMonths = await prisma.commissionMonth.findMany({
+    where: { finalized: true, month: { gte: yearStart, lte: yearEnd }, ...(pmParam ? { pmName: pmParam } : {}) },
+  });
+  const finalKey = (pm: string, m: number) => `${pm}|${m}`;
+  const finalMap = new Map(finalizedMonths.map(f => [finalKey(f.pmName, f.month.getUTCMonth() + 1), f]));
+
   const rows = [];
   for (const pmName of pmNames) {
     const months = [];
@@ -79,12 +88,37 @@ export async function GET(req: NextRequest) {
         }
       } else if (monthDate <= new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))) {
         // Live computed month (current or a past live month).
-        // Displayed "Booked Revenue" = booked + upsell (totalRevenue), to match the PM KPIs
-        // table's definition. computeCommission keeps bookedRevenue (booked-only) and
-        // totalRevenue (booked+upsell) separate; the commission math already uses totalRevenue,
-        // and history/finalized months keep their frozen figures below (untouched).
         const c = await computeCommission(pmName, year, m);
-        months.push({ ...c, bookedRevenue: c.totalRevenue, bookedOnly: c.bookedRevenue, month: m, source: 'live' });
+        const finalRec = finalMap.get(finalKey(pmName, m));
+        if (finalRec && finalRec.asPaidTotalRevenue != null) {
+          // FINALIZED: commission was paid on the frozen asPaidTotalRevenue. Honor it — do NOT let
+          // later lead edits drift the displayed revenue. Recompute commission on the frozen base so
+          // the payout matches what was actually paid.
+          const frozenRev = finalRec.asPaidTotalRevenue;
+          const plan = await planFor(pmName, monthDate);
+          const prePeriodDelta = (c as any).prePeriodDelta ?? 0;
+          const adjustedRevenue = frozenRev + prePeriodDelta;
+          const wildlife = plan ? wildlifeCommission(plan.method as CommissionMethod, plan.tiers, adjustedRevenue, c.leadCount) : 0;
+          const pestControlComm = (c as any).pestControlComm ?? 0;
+          const otherAdjustment = (c as any).otherAdjustment ?? 0;
+          const totalCommission = wildlife + pestControlComm + otherAdjustment;
+          const isBucket = methodByPm.get(pmName) === 'lead_bucket';
+          months.push({
+            ...c,
+            bookedRevenue: frozenRev,          // displayed booked = frozen paid-on revenue
+            bookedOnly: (c as any).bookedRevenue,
+            adjustedRevenue,
+            wildlifeCommission: wildlife,
+            totalCommission,
+            revPerLead: (isBucket && c.leadCount > 0) ? frozenRev / c.leadCount : (c as any).revPerLead,
+            adjustedRevPerLead: (isBucket && c.leadCount > 0) ? adjustedRevenue / c.leadCount : (c as any).adjustedRevPerLead,
+            buckets: isBucket && plan ? bucketBreakdown(plan.tiers, adjustedRevenue, c.leadCount) : (c as any).buckets,
+            month: m, source: 'finalized', finalized: true,
+          });
+        } else {
+          // Not finalized → genuinely live, compute from current leads.
+          months.push({ ...c, bookedRevenue: c.totalRevenue, bookedOnly: c.bookedRevenue, month: m, source: 'live' });
+        }
       } else {
         months.push({ month: m, source: 'future', empty: true });
       }
