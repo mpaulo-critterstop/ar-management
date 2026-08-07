@@ -89,16 +89,20 @@ export function wildlifeCommission(method: CommissionMethod, tiers: any, adjuste
     const t = tiers as BucketTiers;
     if (!leadCount || leadCount <= 0) return 0;
     const revPerLead = adjustedRevenue / leadCount;
-    // Excel formula: find the SINGLE bucket the rev-per-lead falls into, then commission =
-    // (revPerLead − floorOfFirstBucket) × leadCount × thatBucket'sRate.
-    // (NOT cumulative tier-stacking.) Floor for the "amount above" is the lowest bucket floor (700).
+    // MARGINAL structure (per Chisam): each portion of rev-per-lead is taxed at its own bucket's
+    // rate, like progressive tax brackets — NOT a single flat rate on the whole amount.
+    // e.g. $1,199/lead = ($1,000−$700)×8% + ($1,199−$1,000)×10%, then × leadCount.
     const baseFloor = t.buckets[0]?.floor ?? 0;
     if (revPerLead < baseFloor) return 0;
-    const bucket = t.buckets.find(b => {
+    let perLead = 0;
+    for (const b of t.buckets) {
       const cap = b.cap === null ? Infinity : b.cap;
-      return revPerLead >= b.floor && revPerLead < cap;
-    }) ?? t.buckets[t.buckets.length - 1];
-    return (revPerLead - baseFloor) * leadCount * bucket.rate;
+      // portion of revPerLead that falls within this bucket [floor, cap)
+      const portion = Math.max(0, Math.min(revPerLead, cap) - b.floor);
+      perLead += portion * b.rate;
+      if (revPerLead <= cap) break;
+    }
+    return perLead * leadCount;
   }
   return 0;
 }
@@ -112,12 +116,12 @@ export function bucketBreakdown(tiers: any, adjustedRevenue: number, leadCount: 
   const revPerLead = adjustedRevenue / leadCount;
   const baseFloor = t.buckets[0]?.floor ?? 0;
   if (revPerLead < baseFloor) return base;
-  const idx = t.buckets.findIndex(b => {
+  // MARGINAL: each bucket earns on its own portion of rev-per-lead × leadCount.
+  t.buckets.forEach((b, i) => {
     const cap = b.cap === null ? Infinity : b.cap;
-    return revPerLead >= b.floor && revPerLead < cap;
+    const portion = Math.max(0, Math.min(revPerLead, cap) - b.floor);
+    base[i].amount = portion * b.rate * leadCount;
   });
-  const useIdx = idx === -1 ? t.buckets.length - 1 : idx;
-  base[useIdx].amount = (revPerLead - baseFloor) * leadCount * t.buckets[useIdx].rate;
   return base;
 }
 
