@@ -532,6 +532,7 @@ function BlitzPage({officeFilter, showToast}: any) {
       </div>
       <div style={{fontSize:12,color:"#B4B2A9",marginBottom:16}}>Every overdue invoice. Assign blocks to callers and work it down. (Separate from the regular cadence Call Sheet.)
         {data?.isAdmin && <button onClick={()=>setDistModal(true)} style={{marginLeft:12,padding:"5px 12px",fontSize:12,borderRadius:7,border:"0.5px solid #0052cc",background:"#fff",color:"#0052cc",fontWeight:500,cursor:"pointer"}}>Auto-distribute</button>}
+        {data?.isAdmin && <button onClick={async()=>{ if(!confirm("Rebuild the blitz list from today's overdue invoices? This CLEARS the current list (including paid + assignments) and creates a fresh frozen snapshot. New invoices after today won't auto-add.")) return; const r=await fetch('/api/ar/blitz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'rebuild'})}); const d=await r.json(); if(r.ok){showToast&&showToast(`List rebuilt — ${d.members} invoices`);load();} else {alert(d.error||'Rebuild failed');} }} style={{marginLeft:8,padding:"5px 12px",fontSize:12,borderRadius:7,border:"0.5px solid #B45309",background:"#fff",color:"#B45309",fontWeight:500,cursor:"pointer"}}>Rebuild list</button>}
       </div>
 
       <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center",flexWrap:"wrap"}}>

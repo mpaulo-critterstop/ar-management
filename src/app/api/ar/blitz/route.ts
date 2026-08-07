@@ -24,21 +24,11 @@ export async function GET(req: NextRequest) {
   const noOffice = !office || office === 'All' || office === 'ALL' || office === 'all';
   const officeFilter = noOffice ? '' : `AND i.office = '${office!.replace(/'/g, "''")}'`;
 
-  // 1) Stamp membership: any invoice that CURRENTLY qualifies (overdue, unpaid, not staged/excluded)
-  //    and isn't already a member gets blitzListedAt set now. Once a member, it stays — even after paid.
-  await prisma.$executeRawUnsafe(`
-    UPDATE invoices i
-    SET "blitzListedAt" = NOW()
-    FROM customers c
-    WHERE c.id = i."customerId"
-      AND i."blitzListedAt" IS NULL
-      AND i.due IS NOT NULL AND i.due < NOW()
-      AND i.paid < i.amount AND i.amount > 0
-      AND i."arStage" IS NULL
-      AND c."excludeFromAutomation" = false
-  `);
+  // NOTE: membership is a FROZEN SNAPSHOT. The list is built once via POST { action: 'rebuild' } and
+  // does NOT auto-add invoices that go overdue later — the regular call-sheet process handles those.
+  // (Previously this GET auto-stamped every qualifying invoice on load; that's intentionally removed.)
 
-  // 2) Show all MEMBERS (blitzListedAt set), including now-paid ones. Still exclude staged/excluded.
+  // Show all MEMBERS (blitzListedAt set), including now-paid ones. Still exclude staged/excluded.
   const invoices = await prisma.$queryRawUnsafe(`
     SELECT i.id, i."customerId", i.date, i.due, i.amount, i.paid, i."serviceType", i."serviceId",
            i."arNote", i.office, i."blitzAssignedTo", i.status,
@@ -148,6 +138,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Admin only' }, { status: 403 });
   }
   const b = await req.json().catch(() => ({}));
+
+  // ── REBUILD action: clear the whole blitz list, then stamp today's overdue set as a FROZEN
+  //    snapshot. Nothing auto-adds after this — the regular process handles new overdue invoices.
+  if (b.action === 'rebuild') {
+    // 1) Clear ALL current membership + assignments (paid, unpaid, assigned — everything).
+    await prisma.$executeRawUnsafe(`
+      UPDATE invoices SET "blitzListedAt" = NULL, "blitzAssignedTo" = NULL
+      WHERE "blitzListedAt" IS NOT NULL OR "blitzAssignedTo" IS NOT NULL
+    `);
+    // 2) Stamp every currently-overdue, unpaid, non-excluded invoice as a member (as of now).
+    await prisma.$executeRawUnsafe(`
+      UPDATE invoices i
+      SET "blitzListedAt" = NOW()
+      FROM customers c
+      WHERE c.id = i."customerId"
+        AND i.due IS NOT NULL AND i.due < NOW()
+        AND i.paid < i.amount AND i.amount > 0
+        AND i."arStage" IS NULL
+        AND c."excludeFromAutomation" = false
+    `);
+    const count = await prisma.invoice.count({ where: { blitzListedAt: { not: null } } });
+    return NextResponse.json({ ok: true, rebuilt: true, members: count });
+  }
+
   const userIds: string[] = Array.isArray(b.userIds) ? b.userIds : [];
   const office: string | undefined = b.office;
   const scope: string = b.scope === 'unassigned' ? 'unassigned' : 'all';
