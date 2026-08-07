@@ -184,19 +184,42 @@ export async function POST(req: NextRequest) {
   const buckets: Record<number, typeof backlog> = { 0: [], 1: [], 2: [], 3: [], 4: [] };
   for (const inv of backlog) buckets[bucketOf(inv.due as Date)].push(inv);
 
-  // Round-robin each bucket across the roster, rotating the start index per bucket so the
-  // remainder invoices don't always land on the same first people.
+  // Optional per-person cap: give each selected person at most `perPerson` invoices (spread across
+  // aging buckets), leaving the REST unassigned as the CSR pool. If unset/0, distribute everything
+  // (legacy behavior). perPerson is proportioned across the 5 buckets so the cap keeps the age mix.
+  const perPerson: number = Number.isFinite(Number(b.perPerson)) && Number(b.perPerson) > 0 ? Math.floor(Number(b.perPerson)) : 0;
+  const totalBacklog = backlog.length;
+
   const assignments = new Map<string, string>(); // invoiceId -> userId
   let startOffset = 0;
+  const assignedCount: Record<string, number> = {};
+  for (const uid of userIds) assignedCount[uid] = 0;
+
   for (const key of [0, 1, 2, 3, 4]) {
     const bucket = buckets[key];
-    // sort oldest-first within bucket for deterministic dealing
     bucket.sort((a, b) => new Date(a.due as Date).getTime() - new Date(b.due as Date).getTime());
+    // Per-bucket cap so each person's cap is spread proportionally across aging buckets.
+    const bucketCapPerPerson = perPerson > 0
+      ? Math.ceil(perPerson * (bucket.length / Math.max(1, totalBacklog)))
+      : Infinity;
+    let dealtThisBucket: Record<string, number> = {};
+    for (const uid of userIds) dealtThisBucket[uid] = 0;
     for (let i = 0; i < bucket.length; i++) {
-      const user = userIds[(i + startOffset) % userIds.length];
-      assignments.set(bucket[i].id, user);
+      // find the next user (round-robin) who is still under both caps
+      let placed = false;
+      for (let t = 0; t < userIds.length; t++) {
+        const user = userIds[(i + startOffset + t) % userIds.length];
+        if (perPerson > 0 && (assignedCount[user] >= perPerson || dealtThisBucket[user] >= bucketCapPerPerson)) continue;
+        assignments.set(bucket[i].id, user);
+        assignedCount[user]++;
+        dealtThisBucket[user]++;
+        placed = true;
+        break;
+      }
+      // if nobody can take it (all at cap), leave it unassigned → CSR pool
+      if (!placed) continue;
     }
-    startOffset = (startOffset + bucket.length) % userIds.length; // continue rotation into next bucket
+    startOffset = (startOffset + bucket.length) % userIds.length;
   }
 
   // Apply in batches.

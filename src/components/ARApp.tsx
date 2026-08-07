@@ -620,6 +620,7 @@ function DistributeModal({users, officeFilter, onClose, onDone}: any) {
     return m;
   });
   const [scope,setScope]=useState<"all"|"unassigned">("all");
+  const [perPerson,setPerPerson]=useState<string>("50");
   const [running,setRunning]=useState(false);
   const [result,setResult]=useState<any>(null);
 
@@ -628,7 +629,7 @@ function DistributeModal({users, officeFilter, onClose, onDone}: any) {
   const run=async()=>{
     setRunning(true);
     const res=await fetch('/api/ar/blitz',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({userIds:chosen.map((u:any)=>u.id),office:officeFilter||'All',scope})});
+      body:JSON.stringify({userIds:chosen.map((u:any)=>u.id),office:officeFilter||'All',scope,perPerson:parseInt(perPerson)||0})});
     const data=await res.json();
     setRunning(false);
     if(res.ok){ setResult(data); }
@@ -643,6 +644,13 @@ function DistributeModal({users, officeFilter, onClose, onDone}: any) {
         <div style={{fontSize:12,color:"#888780",marginBottom:16}}>Spreads the overdue backlog evenly across the selected people, balanced within each aging bucket (1-30 / 31-60 / 61-90 / 91-180 / 181+).</div>
 
         {!result ? (<>
+          <div style={{fontSize:12,color:"#6B6A64",marginBottom:8}}>How many each (rest stays in the CSR pool)</div>
+          <div style={{marginBottom:16}}>
+            <input type="number" value={perPerson} onChange={e=>setPerPerson(e.target.value)} placeholder="e.g. 50"
+              style={{padding:"7px 12px",fontSize:13,borderRadius:8,border:"0.5px solid #D3D1C7",width:120}} />
+            <span style={{marginLeft:8,fontSize:11,color:"#B4B2A9"}}>0 or blank = distribute everything</span>
+          </div>
+
           <div style={{fontSize:12,color:"#6B6A64",marginBottom:8}}>Scope</div>
           <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3",marginBottom:16}}>
             <button onClick={()=>setScope("all")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:scope==="all"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:scope==="all"?"#fff":"transparent",color:scope==="all"?"#2C2C2A":"#888780"}}>Reshuffle all</button>
