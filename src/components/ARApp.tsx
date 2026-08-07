@@ -499,6 +499,12 @@ function BlitzPage({officeFilter, showToast}: any) {
 
   const money=(n:number)=>'$'+Math.round(n).toLocaleString();
   const users=data?.assignableUsers||[];
+  // Blitz assignment is collapsed to 4 buckets: Mark, Vicki, Felly, and "CSRs" (= the shared
+  // unassigned pool the rotating CSR works). Individual CSR names are hidden from the dropdown, but
+  // tracking still logs whoever actually works an account by their own login.
+  const CORE_USERNAMES=['mpaulo','vcarry','fcarreto'];
+  const coreUsers=users.filter((u:any)=>CORE_USERNAMES.includes((u.username||'').toLowerCase())
+    || ['Mark Paulo','Vicki Carry','Felly Carreto'].includes(u.name));
 
   const assign=async(invoiceId:string,userId:string)=>{
     setSavingAssign(invoiceId);
@@ -538,8 +544,8 @@ function BlitzPage({officeFilter, showToast}: any) {
         </div>
         <select value={assigneeFilter} onChange={e=>setAssigneeFilter(e.target.value)} style={{padding:"7px 10px",fontSize:12,borderRadius:8,border:"0.5px solid #D3D1C7"}}>
           <option value="all">Everyone</option>
-          <option value="unassigned">Unassigned</option>
-          {users.map((u:any)=><option key={u.id} value={u.id}>{u.name}</option>)}
+          <option value="unassigned">CSRs (pool)</option>
+          {coreUsers.map((u:any)=><option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
         <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
           {(["all","unpaid","paid"] as const).map(s=>(
@@ -578,8 +584,8 @@ function BlitzPage({officeFilter, showToast}: any) {
                   <td style={{padding:"8px 12px"}}>
                     <select value={it.assignedTo||""} onChange={e=>assign(it.invoiceId,e.target.value)} disabled={savingAssign===it.invoiceId}
                       style={{padding:"5px 8px",fontSize:12,borderRadius:6,border:"0.5px solid #D3D1C7",background:it.assignedTo?"#EAEEF6":"#fff",maxWidth:130}}>
-                      <option value="">Unassigned</option>
-                      {users.map((u:any)=><option key={u.id} value={u.id}>{u.name}</option>)}
+                      <option value="">CSRs (pool)</option>
+                      {coreUsers.map((u:any)=><option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
                   </td>
                   <td style={{padding:"10px 12px",color:"#888780",maxWidth:180}}>
@@ -600,7 +606,7 @@ function BlitzPage({officeFilter, showToast}: any) {
       )}
 
       {callModal && <MarkCalledModal item={callModal} onClose={()=>setCallModal(null)} onSaved={()=>{setCallModal(null);load();showToast&&showToast("Call logged");}} />}
-      {distModal && <DistributeModal users={users} officeFilter={officeFilter} onClose={()=>setDistModal(false)} onDone={(res:any)=>{setDistModal(false);load();showToast&&showToast(`Distributed ${res.distributed} invoices`);}} />}
+      {distModal && <DistributeModal users={coreUsers} officeFilter={officeFilter} onClose={()=>setDistModal(false)} onDone={(res:any)=>{setDistModal(false);load();showToast&&showToast(`Distributed ${res.distributed} invoices`);}} />}
     </div>
   );
 }

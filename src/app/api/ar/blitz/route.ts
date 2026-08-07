@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
   // Assignable users (AR module access) for the dropdown + name lookup.
   const users = await prisma.user.findMany({
     where: { OR: [{ modules: { has: 'ar' } }, { role: { in: ['Admin', 'ADMIN', 'LEADERSHIP'] } }] },
-    select: { id: true, name: true, office: true },
+    select: { id: true, name: true, office: true, username: true },
     orderBy: { name: 'asc' },
   });
   const userName = new Map(users.map(u => [u.id, u.name]));
@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
     unpaidCount: items.filter(i => !i.paid).length,
     paidCount: items.filter(i => i.paid).length,
     totalOutstanding: items.reduce((s, i) => s + i.outstanding, 0),
-    assignableUsers: users.map(u => ({ id: u.id, name: u.name, office: u.office })),
+    assignableUsers: users.map(u => ({ id: u.id, name: u.name, office: u.office, username: u.username })),
     isAdmin,
     items,
   });
