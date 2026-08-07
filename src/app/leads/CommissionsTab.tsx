@@ -76,12 +76,17 @@ export function CommissionsTab() {
   }
 
   async function saveEdit(pmName: string, month: number, field: string) {
-    const val = parseFloat(editVal) || 0;
-    await fetch('/api/leads/commissions', {
+    // Tolerate "$", commas, and spaces (e.g. "$1,200.50") — parse just the number.
+    const cleaned = editVal.replace(/[^0-9.\-]/g, '');
+    const val = parseFloat(cleaned) || 0;
+    const res = await fetch('/api/leads/commissions', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pmName, year, month, [field]: val }),
     });
+    if (!res.ok) {
+      alert('Save failed — the value was not stored. Please try again.');
+    }
     setEditCell(null);
     setEditVal('');
     load();
