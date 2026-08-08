@@ -625,7 +625,7 @@ function DistributeModal({users, officeFilter, onClose, onDone}: any) {
     return m;
   });
   const [scope,setScope]=useState<"all"|"unassigned">("all");
-  const [perPerson,setPerPerson]=useState<string>("50");
+  const [caps,setCaps]=useState<Record<string,string>>({});
   const [running,setRunning]=useState(false);
   const [result,setResult]=useState<any>(null);
 
@@ -633,8 +633,10 @@ function DistributeModal({users, officeFilter, onClose, onDone}: any) {
 
   const run=async()=>{
     setRunning(true);
+    const capsNum: Record<string,number> = {};
+    chosen.forEach((u:any)=>{ const n=parseInt(caps[u.id]); if(n>0) capsNum[u.id]=n; });
     const res=await fetch('/api/ar/blitz',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({userIds:chosen.map((u:any)=>u.id),office:officeFilter||'All',scope,perPerson:parseInt(perPerson)||0})});
+      body:JSON.stringify({userIds:chosen.map((u:any)=>u.id),office:officeFilter||'All',scope,caps:capsNum})});
     const data=await res.json();
     setRunning(false);
     if(res.ok){ setResult(data); }
@@ -649,11 +651,16 @@ function DistributeModal({users, officeFilter, onClose, onDone}: any) {
         <div style={{fontSize:12,color:"#888780",marginBottom:16}}>Spreads the overdue backlog evenly across the selected people, balanced within each aging bucket (1-30 / 31-60 / 61-90 / 91-180 / 181+).</div>
 
         {!result ? (<>
-          <div style={{fontSize:12,color:"#6B6A64",marginBottom:8}}>How many each (rest stays in the CSR pool)</div>
-          <div style={{marginBottom:16}}>
-            <input type="number" value={perPerson} onChange={e=>setPerPerson(e.target.value)} placeholder="e.g. 50"
-              style={{padding:"7px 12px",fontSize:13,borderRadius:8,border:"0.5px solid #D3D1C7",width:120}} />
-            <span style={{marginLeft:8,fontSize:11,color:"#B4B2A9"}}>0 or blank = distribute everything</span>
+          <div style={{fontSize:12,color:"#6B6A64",marginBottom:8}}>How many each (leave blank for no limit; rest stays in the CSR pool)</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
+            {chosen.map((u:any)=>(
+              <div key={u.id} style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:13,minWidth:120}}>{u.name}</span>
+                <input type="number" value={caps[u.id]||""} onChange={e=>setCaps(p=>({...p,[u.id]:e.target.value}))} placeholder="e.g. 150"
+                  style={{padding:"6px 10px",fontSize:13,borderRadius:8,border:"0.5px solid #D3D1C7",width:100}} />
+              </div>
+            ))}
+            <span style={{fontSize:11,color:"#B4B2A9"}}>Each person's slice is spread evenly across all aging (newest to oldest), and so is the leftover CSR pool.</span>
           </div>
 
           <div style={{fontSize:12,color:"#6B6A64",marginBottom:8}}>Scope</div>

@@ -198,42 +198,60 @@ export async function POST(req: NextRequest) {
   const buckets: Record<number, typeof backlog> = { 0: [], 1: [], 2: [], 3: [], 4: [] };
   for (const inv of backlog) buckets[bucketOf(inv.due as Date)].push(inv);
 
-  // Optional per-person cap: give each selected person at most `perPerson` invoices (spread across
-  // aging buckets), leaving the REST unassigned as the CSR pool. If unset/0, distribute everything
-  // (legacy behavior). perPerson is proportioned across the 5 buckets so the cap keeps the age mix.
-  const perPerson: number = Number.isFinite(Number(b.perPerson)) && Number(b.perPerson) > 0 ? Math.floor(Number(b.perPerson)) : 0;
-  const totalBacklog = backlog.length;
+  // Per-person caps: caps[userId] = how many that person gets. Falls back to a uniform perPerson.
+  // Everything beyond the caps stays unassigned = CSR pool.
+  const capsInput: Record<string, number> = (b.caps && typeof b.caps === 'object') ? b.caps : {};
+  const uniformPer: number = Number.isFinite(Number(b.perPerson)) && Number(b.perPerson) > 0 ? Math.floor(Number(b.perPerson)) : 0;
+  const capFor = (uid: string): number => {
+    const c = Number(capsInput[uid]);
+    if (Number.isFinite(c) && c > 0) return Math.floor(c);
+    return uniformPer; // 0 = unlimited
+  };
+  const anyCap = userIds.some(uid => capFor(uid) > 0);
+
+  // Build ONE age-sorted stream (oldest first).
+  const stream = [...backlog].sort((a, b2) => new Date(a.due as Date).getTime() - new Date(b2.due as Date).getTime());
 
   const assignments = new Map<string, string>(); // invoiceId -> userId
-  let startOffset = 0;
   const assignedCount: Record<string, number> = {};
   for (const uid of userIds) assignedCount[uid] = 0;
 
-  for (const key of [0, 1, 2, 3, 4]) {
-    const bucket = buckets[key];
-    bucket.sort((a, b) => new Date(a.due as Date).getTime() - new Date(b.due as Date).getTime());
-    // Per-bucket cap so each person's cap is spread proportionally across aging buckets.
-    const bucketCapPerPerson = perPerson > 0
-      ? Math.ceil(perPerson * (bucket.length / Math.max(1, totalBacklog)))
-      : Infinity;
-    let dealtThisBucket: Record<string, number> = {};
-    for (const uid of userIds) dealtThisBucket[uid] = 0;
-    for (let i = 0; i < bucket.length; i++) {
-      // find the next user (round-robin) who is still under both caps
+  // To give EVERYONE (and the leftover pool) a proportional spread of new+old, we STRIDE through the
+  // age-sorted stream rather than taking contiguous age bands. Total to assign = sum of caps (bounded
+  // by backlog). We pick that many invoices EVENLY across the whole age range, then round-robin those
+  // picks across people by their cap weights. The un-picked invoices (also evenly spread by age)
+  // become the CSR pool — so the pool isn't all-newest or all-oldest either.
+  const totalToAssign = anyCap
+    ? Math.min(stream.length, userIds.reduce((s, uid) => s + (capFor(uid) || 0), 0))
+    : stream.length;
+
+  if (totalToAssign > 0) {
+    // Evenly sample `totalToAssign` indices across the sorted stream (stride sampling).
+    const picks: number[] = [];
+    if (totalToAssign >= stream.length) {
+      for (let i = 0; i < stream.length; i++) picks.push(i);
+    } else {
+      const step = stream.length / totalToAssign;
+      for (let k = 0; k < totalToAssign; k++) picks.push(Math.floor(k * step));
+    }
+    // Assign picks to people, respecting each person's cap; round-robin so each person's set is also
+    // spread across the picks (which are themselves age-spread).
+    let rr = 0;
+    for (const idx of picks) {
+      // next person under cap
       let placed = false;
       for (let t = 0; t < userIds.length; t++) {
-        const user = userIds[(i + startOffset + t) % userIds.length];
-        if (perPerson > 0 && (assignedCount[user] >= perPerson || dealtThisBucket[user] >= bucketCapPerPerson)) continue;
-        assignments.set(bucket[i].id, user);
-        assignedCount[user]++;
-        dealtThisBucket[user]++;
+        const uid = userIds[(rr + t) % userIds.length];
+        if (capFor(uid) > 0 && assignedCount[uid] >= capFor(uid)) continue;
+        if (!anyCap && false) continue;
+        assignments.set(stream[idx].id, uid);
+        assignedCount[uid]++;
+        rr = (rr + t + 1) % userIds.length;
         placed = true;
         break;
       }
-      // if nobody can take it (all at cap), leave it unassigned → CSR pool
-      if (!placed) continue;
+      if (!placed) break; // everyone capped
     }
-    startOffset = (startOffset + bucket.length) % userIds.length;
   }
 
   // Apply in batches.
