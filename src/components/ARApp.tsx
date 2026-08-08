@@ -160,6 +160,10 @@ export default function ARApp() {
 
   useEffect(()=>{ loadAll(); },[]);
 
+  // One-time admin check (Tracking tab is admin-only). Reuses the blitz endpoint's isAdmin flag.
+  const [isAdmin,setIsAdmin]=useState(false);
+  useEffect(()=>{ fetch('/api/ar/blitz?office=All').then(r=>r.json()).then(d=>setIsAdmin(!!d?.isAdmin)).catch(()=>{}); },[]);
+
   const custMap = useMemo(()=>Object.fromEntries(customers.map((c:any)=>[c.id,c])),[customers]);
   const enriched = useMemo(()=>invoices.map((inv:any)=>({
     ...inv,
@@ -201,7 +205,7 @@ export default function ARApp() {
     {id:"dashboard",label:"Dashboard"},
     {id:"callsheet",label:"Call Sheet"},
     {id:"blitz",label:"AR Blitz"},
-    {id:"tracking",label:"Tracking"},
+    ...(isAdmin ? [{id:"tracking",label:"Tracking"}] : []),
     {id:"stages",label:"Collections / SCC / Bad Debt"},
     {id:"customers",label:"Customers"},
     {id:"invoices",label:"Invoices"},
@@ -248,7 +252,7 @@ export default function ARApp() {
       {page==="dashboard" && <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected={collected} agingTotals={agingTotals} collectedDays={collectedDays} setCollectedDays={setCollectedDays} customDateFrom={customDateFrom} customDateTo={customDateTo} setCustomDateFrom={setCustomDateFrom} setCustomDateTo={setCustomDateTo} prevMonthAR={prevMonthAR} />}
       {page==="callsheet" && <CallSheetPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="blitz" && <BlitzPage officeFilter={officeFilter} showToast={showToast} />}
-      {page==="tracking" && <TrackingPage />}
+      {page==="tracking" && isAdmin && <TrackingPage />}
       {page==="stages" && <StagesPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="customers" && <CustPage {...shared} />}
       {page==="invoices" && <InvPage {...shared} />}

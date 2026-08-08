@@ -42,6 +42,10 @@ export async function GET(req: NextRequest) {
 
   const role = (session.user as any)?.role;
   const isAdmin = role === 'Admin' || role === 'ADMIN' || role === 'LEADERSHIP';
+  // Entire Tracking tab is admin/leadership only (leaderboard, activity, detail, fail-safe).
+  if (!isAdmin) {
+    return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+  }
 
   // Users with their Dial Pad + FR mappings.
   const users = await prisma.user.findMany({
