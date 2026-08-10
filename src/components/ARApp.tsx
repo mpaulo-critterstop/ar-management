@@ -713,8 +713,8 @@ function RepDetailBlock({title, rows, kind, money, fmtDT, showRep}: any) {
               <tbody>{rows.map((r:any,i:number)=>(<tr key={i} style={{borderTop:"0.5px solid #F1EFE8"}}>{showRep&&<td style={td}>{r.rep}</td>}<td style={td}>{r.customer}</td><td style={{...td,textAlign:"right",fontWeight:600,color:"#1D9E75"}}>{money(r.amount)}</td><td style={td}>{fmtDT(r.date)}</td><td style={td}>{r.source}</td><td style={td}>{r.credited?"✓":<span style={{color:"#B4B2A9"}}>self-serve</span>}</td></tr>))}</tbody>
             </>}
             {kind==="calls" && <>
-              <thead><tr>{showRep&&<th style={th}>Rep</th>}<th style={th}>Number</th><th style={th}>Date</th><th style={th}>Duration</th><th style={th}>State</th></tr></thead>
-              <tbody>{rows.map((r:any,i:number)=>(<tr key={i} style={{borderTop:"0.5px solid #F1EFE8"}}>{showRep&&<td style={td}>{r.rep}</td>}<td style={td}>{r.phone}</td><td style={td}>{fmtDT(r.date)}</td><td style={td}>{Math.floor((r.durationSec||0)/60)}m {(r.durationSec||0)%60}s</td><td style={td}>{r.state}</td></tr>))}</tbody>
+              <thead><tr>{showRep&&<th style={th}>Rep</th>}<th style={th}>Customer</th><th style={th}>Number</th><th style={th}>Date</th><th style={th}>Duration</th><th style={th}>State</th></tr></thead>
+              <tbody>{rows.map((r:any,i:number)=>(<tr key={i} style={{borderTop:"0.5px solid #F1EFE8"}}>{showRep&&<td style={td}>{r.rep}</td>}<td style={td}>{r.customer||"—"}</td><td style={td}>{r.phone}</td><td style={td}>{fmtDT(r.date)}</td><td style={td}>{Math.floor((r.durationSec||0)/60)}m {(r.durationSec||0)%60}s</td><td style={td}>{r.state}</td></tr>))}</tbody>
             </>}
             {kind==="notes" && <>
               <thead><tr>{showRep&&<th style={th}>Rep</th>}<th style={th}>Customer</th><th style={th}>Date</th><th style={th}>Outcome</th><th style={th}>Note</th></tr></thead>

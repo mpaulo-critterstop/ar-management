@@ -73,17 +73,28 @@ export async function GET(req: NextRequest) {
     }
     const uName = new Map(users.map(u => [u.id, u.name]));
 
-    // Calls (outbound) for the scoped reps.
+    // Blitz-member customer phones (normalized) + name lookup, to scope calls and label them.
+    const blitzCustRows = await prisma.$queryRawUnsafe(`
+      SELECT DISTINCT c.phone, c.name
+      FROM invoices i JOIN customers c ON c.id = i."customerId"
+      WHERE i."blitzListedAt" IS NOT NULL AND c.phone IS NOT NULL AND c.phone <> ''
+    `) as any[];
+    const blitzPhoneName = new Map<string, string>();
+    for (const r of blitzCustRows) { const p = digits10(r.phone); if (p.length === 10) blitzPhoneName.set(p, r.name); }
+
+    // Calls (outbound) for the scoped reps — scoped to blitz-customer phone numbers.
     const targetNames = scopeUsers.flatMap(u => [u.name, u.dialpadName].filter(Boolean)) as string[];
     const nameList = targetNames.map(n => `'${n.replace(/'/g, "''")}'`).join(',') || `''`;
-    const calls = await prisma.$queryRawUnsafe(`
+    const callsRaw = await prisma.$queryRawUnsafe(`
       SELECT target_name, external_number, date_started, direction, duration, state
       FROM dialpad_calls
       WHERE direction='outbound' AND target_name IN (${nameList})
+        AND external_number IS NOT NULL AND external_number <> ''
         AND date_started >= ${start.getTime()} AND date_started <= ${now.getTime()}
       ORDER BY date_started DESC
-      LIMIT 500
+      LIMIT 2000
     `) as any[];
+    const calls = callsRaw.filter(c => blitzPhoneName.has(digits10(c.external_number))).slice(0, 500);
 
     // Collections (payments) credited to the scoped reps.
     const fridList = [...fridKeys.keys()];
@@ -111,6 +122,7 @@ export async function GET(req: NextRequest) {
       view, range,
       calls: calls.map(c => ({
         rep: nameKeys.get(String(c.target_name).toLowerCase()) ? uName.get(nameKeys.get(String(c.target_name).toLowerCase())!) : c.target_name,
+        customer: blitzPhoneName.get(digits10(c.external_number)) || '—',
         phone: c.external_number,
         date: new Date(Number(c.date_started)).toISOString(),
         direction: c.direction,
@@ -184,22 +196,32 @@ export async function GET(req: NextRequest) {
   }
 
   // ---- leaderboard ----
-  // Calls made per rep (outbound Dial Pad), matched via dialpadName ?? name.
+  // Blitz-member customer phone numbers (normalized last-10) — calls only count if they were TO a
+  // blitz customer, keeping Calls consistent with Collections (both blitz-scoped).
+  const blitzCusts = await prisma.$queryRawUnsafe(`
+    SELECT DISTINCT c.phone
+    FROM invoices i JOIN customers c ON c.id = i."customerId"
+    WHERE i."blitzListedAt" IS NOT NULL AND c.phone IS NOT NULL AND c.phone <> ''
+  `) as any[];
+  const blitzPhones = new Set(blitzCusts.map(r => digits10(r.phone)).filter(p => p.length === 10));
+
+  // Calls made per rep (outbound Dial Pad), matched via dialpadName ?? name, scoped to blitz phones.
   const nameToUser = new Map<string, string>(); // lowercased dialpad/hub name -> userId
   for (const u of users) {
     nameToUser.set((u.dialpadName || u.name).toLowerCase(), u.id);
     nameToUser.set(u.name.toLowerCase(), u.id);
   }
   const outbound = await prisma.$queryRawUnsafe(`
-    SELECT target_name, COUNT(*)::int AS c FROM dialpad_calls
+    SELECT target_name, external_number FROM dialpad_calls
     WHERE direction = 'outbound' AND target_name IS NOT NULL AND target_name <> ''
+      AND external_number IS NOT NULL AND external_number <> ''
       AND date_started >= ${start.getTime()} AND date_started <= ${now.getTime()}
-    GROUP BY target_name
   `) as any[];
   const callsByUser = new Map<string, number>();
   for (const row of outbound) {
+    if (!blitzPhones.has(digits10(row.external_number))) continue; // only calls to blitz customers
     const uid = nameToUser.get(String(row.target_name).toLowerCase());
-    if (uid) callsByUser.set(uid, (callsByUser.get(uid) || 0) + Number(row.c));
+    if (uid) callsByUser.set(uid, (callsByUser.get(uid) || 0) + 1);
   }
 
   // Collections credited per rep: payments in window whose processedBy maps to one of a user's
