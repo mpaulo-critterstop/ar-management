@@ -595,7 +595,7 @@ function BlitzPage({officeFilter, showToast}: any) {
                   </td>
                   <td style={{padding:"10px 12px",color:"#888780",maxWidth:180}}>
                     {it.arNote && <div style={{fontSize:11,color:"#6B6A64"}} title={it.arNote}>{it.arNote.slice(0,40)}{it.arNote.length>40?"…":""}</div>}
-                    {it.lastNote && <div style={{fontSize:10,color:"#B4B2A9"}} title={it.lastNote.text}>Last call: {new Date(it.lastNote.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>}
+                    {it.lastNote && <div style={{fontSize:10,color:"#B4B2A9"}} title={it.lastNote.text}>Last: {it.lastNote.text ? `${it.lastNote.text.slice(0,35)}${it.lastNote.text.length>35?"…":""} ` : ""}({new Date(it.lastNote.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})})</div>}
                     {!it.arNote && !it.lastNote && <span style={{color:"#C9C7BE",fontSize:11}}>—</span>}
                   </td>
                   <td style={{padding:"10px 12px"}}><button onClick={()=>setCallModal(it)} style={{background:"#0052cc",color:"#fff",border:"none",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>Mark Called</button></td>
