@@ -26,23 +26,26 @@ const OFFICES: Record<string, { key: string; token: string }> = {
   OKC:   { key: process.env.FIELDROUTES_KEY_OKC!,   token: process.env.FIELDROUTES_TOKEN_OKC! },
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT! },
 };
-const BATCH = 200; // ticketIDs per ticket/search call
+const BATCH = 1000; // ticketIDs per ticket/get call (matches the proven sync batch size)
 
 async function frSearchExisting(ticketIds: string[], key: string, token: string): Promise<Set<string>> {
   const existing = new Set<string>();
   for (let i = 0; i < ticketIds.length; i += BATCH) {
     const chunk = ticketIds.slice(i, i + BATCH);
-    const url = `${FR_BASE}/ticket/search?ticketIDs=${chunk.join(',')}&authenticationKey=${key}&authenticationToken=${token}`;
+    // Use ticket/GET (not search): get returns exactly the tickets that exist for the given IDs.
+    // ticket/search treats ticketIDs as a filter and can cap/omit results, which caused false
+    // "deleted" positives (a live ticket like 159385 was missing from a 200-id search batch).
+    const url = `${FR_BASE}/ticket/get?ticketIDs=${chunk.join(',')}&authenticationKey=${key}&authenticationToken=${token}`;
     const res = await fetch(url);
     const data = await res.json();
     if (!data?.success) {
-      // If FR errors on a batch, treat ALL as existing (fail-safe: never void on an API failure).
+      // FAIL-SAFE: on any API error, treat ALL as existing — never void on a hiccup.
       chunk.forEach(id => existing.add(String(id)));
       continue;
     }
-    (data.ticketIDs || []).forEach((id: number) => existing.add(String(id)));
-    // gentle pacing for the 60/min read cap
-    await new Promise(r => setTimeout(r, 150));
+    // ticket/get returns { tickets: [{ ticketID, ... }] }
+    (data.tickets || []).forEach((t: any) => existing.add(String(t.ticketID)));
+    await new Promise(r => setTimeout(r, 200)); // pacing for the 60/min read cap
   }
   return existing;
 }
