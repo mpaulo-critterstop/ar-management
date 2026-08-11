@@ -1,25 +1,68 @@
 {
   "functions": {
-    "src/app/api/sync/auto/route.ts": { "maxDuration": 800 },
-    "src/app/api/sync/appointments/route.ts": { "maxDuration": 800 },
-    "src/app/api/dispatch/sync/route.ts": { "maxDuration": 800 },
-    "src/app/api/cron/sync/route.ts": { "maxDuration": 800 },
-    "src/app/api/field-performance/run/route.ts": { "maxDuration": 300 },
-    "src/app/api/field-performance/week/route.ts": { "maxDuration": 300 },
-    "src/app/api/tc-accountability/run/route.ts": { "maxDuration": 300 },
-    "src/app/api/cron/field-performance/route.ts": { "maxDuration": 300 },
-    "src/app/api/cron/tc-accountability/route.ts": { "maxDuration": 300 },
-    "src/app/api/cron/reliability/route.ts": { "maxDuration": 300 },
-    "src/app/api/cron/bouncie/route.ts": { "maxDuration": 300 },
-    "src/app/api/field-performance/thirtyDayA/route.ts": { "maxDuration": 300 },
-    "src/app/api/field-performance/thirtyDayB/route.ts": { "maxDuration": 300 },
-    "src/app/api/cron/leads-forecast/route.ts": { "maxDuration": 300 },
-    "src/app/api/cron/pestai-followup/route.ts": { "maxDuration": 300 },
-    "src/app/api/cron/idle-report/route.ts": { "maxDuration": 300 },
-    "src/app/api/leads/commissions/finalize/route.ts": { "maxDuration": 300 }
+    "src/app/api/sync/auto/route.ts": {
+      "maxDuration": 800
+    },
+    "src/app/api/sync/appointments/route.ts": {
+      "maxDuration": 800
+    },
+    "src/app/api/dispatch/sync/route.ts": {
+      "maxDuration": 800
+    },
+    "src/app/api/cron/sync/route.ts": {
+      "maxDuration": 800
+    },
+    "src/app/api/field-performance/run/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/field-performance/week/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/tc-accountability/run/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/field-performance/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/tc-accountability/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/reliability/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/bouncie/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/field-performance/thirtyDayA/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/field-performance/thirtyDayB/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/leads-forecast/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/pestai-followup/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/idle-report/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/leads/commissions/finalize/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/reconcile-deleted/route.ts": {
+      "maxDuration": 800
+    }
   },
   "crons": [
-    { "path": "/api/cron/idle-report", "schedule": "0 22 * * 1-5" },
-    { "path": "/api/leads/commissions/finalize", "schedule": "0 6 1 * *" }
+    {
+      "path": "/api/cron/idle-report",
+      "schedule": "0 22 * * 1-5"
+    },
+    {
+      "path": "/api/leads/commissions/finalize",
+      "schedule": "0 6 1 * *"
+    }
   ]
 }
