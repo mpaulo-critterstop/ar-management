@@ -33,10 +33,23 @@ export async function GET(req: NextRequest) {
   const search = await frGet('subscription/search', `customerIDs=${customerId}`, cfg.key, cfg.token);
   const ids: any[] = search?.subscriptionIDs || search?.data || [];
 
-  // 2) fetch full subscription objects
+  // 2) fetch full subscription objects — try a few param variations, since a bare
+  //    subscription/get?subscriptionIDs= can come back empty for some subs.
   let subs: any = null;
+  let subsVariantUsed = '';
   if (ids.length) {
-    subs = await frGet('subscription/get', `subscriptionIDs=${ids.join(',')}`, cfg.key, cfg.token);
+    const idStr = ids.join(',');
+    const variants: Array<[string, string]> = [
+      ['plain', `subscriptionIDs=${idStr}`],
+      ['withOffice', `subscriptionIDs=${idStr}&officeIDs=4`],
+      ['includeInactive', `subscriptionIDs=${idStr}&includeData=1&active=0`],
+      ['activeAll', `subscriptionIDs=${idStr}&active=-1`],
+    ];
+    for (const [label, params] of variants) {
+      const r = await frGet('subscription/get', params, cfg.key, cfg.token);
+      if (r?.count > 0 && (r?.subscriptions?.length || 0) > 0) { subs = r; subsVariantUsed = label; break; }
+      subs = r; subsVariantUsed = label + ' (empty)';
+    }
   }
 
   // Also pull the customer object for context (name, master account, etc.)
@@ -47,6 +60,7 @@ export async function GET(req: NextRequest) {
     customerId,
     subscriptionSearchRaw: search,
     subscriptionIDs: ids,
+    subsVariantUsed,
     subscriptions: subs,
     customer: cust,
   });
