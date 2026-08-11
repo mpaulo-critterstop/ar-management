@@ -23,6 +23,23 @@ export async function GET(req: NextRequest) {
   if (sp.get('token') !== 'critterstop2026') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  // Ticket lookup mode: ?ticketId=219403&office=... — checks if a ticket still exists in FR.
+  const ticketId = sp.get('ticketId');
+  if (ticketId) {
+    const office = sp.get('office') || 'CStat';
+    const cfg = OFFICES[office];
+    if (!cfg?.key) return NextResponse.json({ error: `Unknown office: ${office}` }, { status: 400 });
+    const get = await frGet('ticket/get', `ticketIDs=${ticketId}`, cfg.key, cfg.token);
+    const search = await frGet('ticket/search', `ticketIDs=${ticketId}`, cfg.key, cfg.token);
+    return NextResponse.json({
+      office, ticketId,
+      existsInFR: (get?.count || 0) > 0,
+      ticketGet: get,
+      ticketSearch: search,
+    });
+  }
+
   const customerId = sp.get('customerId');
   const office = sp.get('office') || 'CStat';
   if (!customerId) return NextResponse.json({ error: 'customerId required' }, { status: 400 });
