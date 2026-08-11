@@ -729,7 +729,7 @@ function RepDetailBlock({title, rows, kind, money, fmtDT, showRep}: any) {
 
 function TrackingPage() {
   const [tab,setTab]=useState<"leaderboard"|"activity"|"failsafe">("leaderboard");
-  const [range,setRange]=useState<"today"|"7d"|"30d">("7d");
+  const [range]=useState<"all">("all");
   const [lb,setLb]=useState<any>(null);
   const [fs,setFs]=useState<any>(null);
   const [fsAllowed,setFsAllowed]=useState(false);
@@ -770,11 +770,7 @@ function TrackingPage() {
           <button onClick={()=>setTab("activity")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:tab==="activity"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:tab==="activity"?"#fff":"transparent",color:tab==="activity"?"#2C2C2A":"#888780"}}>Activity Log</button>
           {fsAllowed && <button onClick={()=>setTab("failsafe")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:tab==="failsafe"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:tab==="failsafe"?"#fff":"transparent",color:tab==="failsafe"?"#791F1F":"#888780"}}>Fail-safe audit</button>}
         </div>
-        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3",marginLeft:"auto"}}>
-          {(["today","7d","30d"] as const).map(r=>(
-            <button key={r} onClick={()=>setRange(r)} style={{padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:range===r?"0.5px solid #D3D1C7":"0.5px solid transparent",background:range===r?"#fff":"transparent",color:range===r?"#2C2C2A":"#888780"}}>{r==="today"?"Today":r==="7d"?"7 days":"30 days"}</button>
-          ))}
-        </div>
+        <div style={{marginLeft:"auto",fontSize:11,color:"#B4B2A9"}}>All activity since blitz start</div>
       </div>
 
       {loading ? <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780"}}>Loading…</div> : tab==="leaderboard" ? (

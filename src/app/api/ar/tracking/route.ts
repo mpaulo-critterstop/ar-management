@@ -20,13 +20,17 @@ const isSelfServe = (src: string | null) => {
 };
 const digits10 = (s: string | null) => (s ? s.replace(/\D/g, '').slice(-10) : '');
 
-function windowDates(range: string) {
+// Tracking window = SINCE THE BLITZ STARTED (earliest blitzListedAt) through now. No day filter, no
+// timezone-boundary reset — it accumulates all blitz activity from the moment the list was built.
+async function windowDates(_range: string) {
   const now = new Date();
-  const start = new Date(now);
-  if (range === 'today') start.setHours(0, 0, 0, 0);
-  else if (range === '7d') start.setDate(start.getDate() - 7);
-  else if (range === '30d') start.setDate(start.getDate() - 30);
-  else start.setDate(start.getDate() - 7); // default 7d
+  const first = await prisma.invoice.findFirst({
+    where: { blitzListedAt: { not: null } },
+    orderBy: { blitzListedAt: 'asc' },
+    select: { blitzListedAt: true },
+  });
+  // Fallback: if no blitz members yet, look back 30 days so the page isn't empty.
+  const start = first?.blitzListedAt ?? new Date(now.getTime() - 30 * 86400000);
   return { start, now };
 }
 
@@ -38,7 +42,7 @@ export async function GET(req: NextRequest) {
   }
   const view = req.nextUrl.searchParams.get('view') || 'leaderboard';
   const range = req.nextUrl.searchParams.get('range') || '7d';
-  const { start, now } = windowDates(range);
+  const { start, now } = await windowDates(range);
 
   const role = (session.user as any)?.role;
   const isAdmin = role === 'Admin' || role === 'ADMIN' || role === 'LEADERSHIP';
