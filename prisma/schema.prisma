@@ -762,6 +762,9 @@ model PestSale {
   initialCompletedAt DateTime?                       // FR lastCompleted of the driving service
   commissionMonth   String?                         // 'YYYY-MM' (month initial completed) or null if pending
   chargeChildService String?                        // for bundles: the charge-bearing child service name
+  source            String    @default("fr")         // 'fr' (synced) | 'excel' (historical backfill)
+  commissionAmount  Float?                            // paid commission (from Excel history; computed later for fr)
+  contractType      String?                           // Monthly | Quarterly | Bi-Monthly | etc.
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   @@index([office])
