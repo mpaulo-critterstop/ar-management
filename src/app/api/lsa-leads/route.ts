@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-const STAGES = ['New', 'Replied', 'Awaiting Customer', 'Follow-up Needed', 'Booked', 'Lost'];
+const STAGES = ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Booked', 'Lost'];
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   let messageOpen = 0, followupNeeded = 0;
   for (const l of all) {
     byStage[l.status] = (byStage[l.status] || 0) + 1;
-    if (l.status === 'Follow-up Needed') followupNeeded++;
+    if (l.status === 'Need Follow-up') followupNeeded++;
     if (l.leadType === 'MESSAGE' && !['Booked', 'Lost'].includes(l.status)) messageOpen++;
   }
 
@@ -52,8 +52,9 @@ export async function PATCH(req: NextRequest) {
   if (status !== undefined) {
     if (!STAGES.includes(status)) return NextResponse.json({ error: 'invalid status' }, { status: 400 });
     data.status = status;
-    // Moving a lead off 'Follow-up Needed' manually clears the stale flag so it can re-trigger later.
-    if (status !== 'Follow-up Needed') data.staleFlagged = false;
+    data.manualOverride = true;  // a human hand-set this; auto-derivation will skip it going forward
+    // Moving off 'Need Follow-up' clears the alert flag so it can re-trigger if it goes stale again.
+    if (status !== 'Need Follow-up') data.staleFlagged = false;
   }
   if (followupNote !== undefined) data.followupNote = followupNote;
 

@@ -1,27 +1,20 @@
-// LSA stale-lead check — flips leads with no activity for >= N days (default 2) that are still in an
-// open, awaiting-us stage to 'Follow-up Needed', and posts ONE Slack alert per newly-flagged lead
-// (staleFlagged dedupes so we don't re-alert). Meant to run daily after lsa-sync.
+// LSA stale alerts — the SYNC now derives the stage automatically (Awaiting Customer -> Need Follow-up
+// after 2 days silent). This job's remaining role: send ONE Slack alert per lead that has entered
+// 'Need Follow-up' and hasn't been alerted yet (staleFlagged dedupes). Run daily AFTER lsa-sync.
 //
-//   /api/cron/lsa-stale-check?token=critterstop2026        (default 2 days)
-//   &days=3   &dry=1
+//   /api/cron/lsa-stale-check?token=critterstop2026        &dry=1
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
-// Stages where the ball is on US (so silence = dropped follow-up). Booked/Lost are terminal; Awaiting
-// Customer means we're correctly waiting on them, so it does NOT auto-flag.
-const OPEN_STAGES = new Set(['New', 'Replied', 'Follow-up Needed']);
-
 async function postSlack(text: string) {
   const url = process.env.SLACK_LSA_WEBHOOK_URL;
   if (!url) return false;
   try {
     const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }),
     });
     return res.ok;
   } catch { return false; }
@@ -30,45 +23,32 @@ async function postSlack(text: string) {
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const days = Math.min(Number(sp.get('days')) || 2, 30);
   const dry = sp.get('dry') === '1';
-  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-  // Candidates: open stage, not already stale-flagged, and last activity (or creation) older than cutoff.
-  const candidates = await prisma.lsaLead.findMany({
-    where: {
-      status: { in: [...OPEN_STAGES] },
-      staleFlagged: false,
-    },
+  // Leads the sync has placed in 'Need Follow-up' that we haven't alerted on yet.
+  const toAlert = await prisma.lsaLead.findMany({
+    where: { status: 'Need Follow-up', staleFlagged: false },
+    orderBy: { lastActivityAt: 'asc' },
   });
 
-  const stale = candidates.filter(l => {
-    const last = l.lastActivityAt || l.creationDateTime;
-    return last != null && last < cutoff;
-  });
-
-  const flipped: any[] = [];
   let alerted = 0;
-  for (const l of stale) {
+  const alerts: any[] = [];
+  for (const l of toAlert) {
+    const who = l.contactName || l.contactPhone || `Lead ${l.leadId}`;
+    const kind = l.leadType === 'MESSAGE' ? '💬 Message' : l.leadType === 'PHONE_CALL' ? '📞 Call' : 'Lead';
+    const snippet = l.lastMessageText ? ` — "${l.lastMessageText.slice(0, 80)}"` : '';
     if (!dry) {
-      await prisma.lsaLead.update({
-        where: { id: l.id },
-        data: { status: 'Follow-up Needed', staleFlagged: true },
-      });
-      const who = l.contactName || l.contactPhone || `Lead ${l.leadId}`;
-      const kind = l.leadType === 'MESSAGE' ? '💬 Message' : l.leadType === 'PHONE_CALL' ? '📞 Call' : 'Lead';
-      const snippet = l.lastMessageText ? ` — "${l.lastMessageText.slice(0, 80)}"` : '';
       const ok = await postSlack(
-        `⚠️ *LSA follow-up needed* (${days}+ days no activity)\n${kind}: *${who}*${snippet}\nStage moved to *Follow-up Needed*. Reply in the LSA app.`
+        `⚠️ *LSA follow-up needed* — no customer reply in 2+ days\n${kind}: *${who}*${snippet}\nReply in the LSA app to move this forward.`
       );
-      if (ok) alerted++;
+      if (ok) { await prisma.lsaLead.update({ where: { id: l.id }, data: { staleFlagged: true } }); alerted++; }
     }
-    flipped.push({ leadId: l.leadId, contact: l.contactName || l.contactPhone, leadType: l.leadType, lastActivityAt: l.lastActivityAt });
+    alerts.push({ leadId: l.leadId, contact: who, leadType: l.leadType, lastActivityAt: l.lastActivityAt });
   }
 
   return NextResponse.json({
-    ok: true, dry, days,
+    ok: true, dry,
     slackConfigured: !!process.env.SLACK_LSA_WEBHOOK_URL,
-    candidates: candidates.length, flagged: flipped.length, alerted, flipped,
+    needFollowup: toAlert.length, alerted, alerts,
   });
 }

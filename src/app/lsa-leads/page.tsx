@@ -1,12 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
 
-const STAGES = ['New', 'Replied', 'Awaiting Customer', 'Follow-up Needed', 'Booked', 'Lost'];
+const STAGES = ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Booked', 'Lost'];
 const stageColor: Record<string, { bg: string; fg: string }> = {
   'New': { bg: '#e6f0ff', fg: '#0052cc' },
-  'Replied': { bg: '#e6f7ff', fg: '#0891b2' },
   'Awaiting Customer': { bg: '#fef9e6', fg: '#a16207' },
-  'Follow-up Needed': { bg: '#fee2e2', fg: '#b91c1c' },
+  'Customer Replied': { bg: '#e6f7ff', fg: '#0891b2' },
+  'Need Follow-up': { bg: '#fee2e2', fg: '#b91c1c' },
   'Booked': { bg: '#e6f9ec', fg: '#128a3f' },
   'Lost': { bg: '#f1efe8', fg: '#888780' },
 };
@@ -52,7 +52,7 @@ export default function LsaLeadsPage() {
     <div style={{ padding: '0 24px 24px', maxWidth: 1400, margin: '0 auto' }}>
       <div style={{ paddingTop: 24, marginBottom: 4 }}>
         <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>LSA Leads</h1>
-        <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>Google Local Services Ads leads and follow-up tracking. Message leads that go quiet auto-flag for follow-up.</p>
+        <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>Google Local Services Ads leads. Stages update automatically from message activity — reply in LSA and it moves to Awaiting Customer; 2 days silent flips to Need Follow-up with a Slack alert. You can still override a stage manually.</p>
       </div>
 
       {/* Pipeline header */}
@@ -110,7 +110,7 @@ export default function LsaLeadsPage() {
             ) : leads.map((l: any) => {
               const isMsg = l.leadType === 'MESSAGE';
               return (
-                <tr key={l.id} style={l.status === 'Follow-up Needed' ? { background: '#fef6f6' } : undefined}>
+                <tr key={l.id} style={l.status === 'Need Follow-up' ? { background: '#fef6f6' } : undefined}>
                   <td style={td}>
                     <div style={{ fontWeight: 500 }}>{l.contactName || <span style={{ color: '#B4B2A9' }}>Unknown</span>}</div>
                     {l.contactPhone && <div style={{ fontSize: 11, color: '#888780' }}>{l.contactPhone}</div>}

@@ -793,6 +793,8 @@ model LsaLead {
   lastActivityAt    DateTime?                      // last inbound/outbound conversation timestamp
   lastMessageText   String?                        // most recent message content (for message leads)
   conversationCount Int       @default(0)
+  lastParticipant   String?                        // 'ADVERTISER' (us) | 'CONSUMER' (customer) — last msg sender
+  manualOverride    Boolean   @default(false)      // true = stage was hand-set; auto-derivation skips it
   followupNote      String?                        // our internal follow-up note
   staleFlagged      Boolean   @default(false)      // set when auto-flagged stale (dedupe Slack alerts)
   createdAt         DateTime  @default(now())

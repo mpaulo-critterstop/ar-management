@@ -9,6 +9,7 @@
 //   GOOGLE_ADS_REFRESH_TOKEN, GOOGLE_ADS_LOGIN_CUSTOMER_ID, GOOGLE_ADS_LSA_CUSTOMER_ID
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { deriveLsaStage, normalizePhone } from '@/lib/lsaStage';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -98,6 +99,7 @@ export async function GET(req: NextRequest) {
     const convRows = await gaql(accessToken, customerId, `
       SELECT local_services_lead_conversation.id,
              local_services_lead_conversation.lead,
+             local_services_lead_conversation.participant_type,
              local_services_lead_conversation.conversation_channel,
              local_services_lead_conversation.event_date_time,
              local_services_lead_conversation.message_details.text,
@@ -116,51 +118,84 @@ export async function GET(req: NextRequest) {
       convByLead.get(leadRes)!.push(conv);
     }
 
-    let upserted = 0;
+    // Build a phone -> "has booked appointment" set for the Booked cross-reference. A customer counts as
+    // "booked" if their phone matches AND they have at least one Lead (wildlife inspection = an FR
+    // appointment) OR an Invoice (actual job). Normalized to last-10-digits.
+    const bookedPhones = new Set<string>();
+    const custs = await prisma.customer.findMany({
+      where: { phone: { not: null } },
+      select: { phone: true, _count: { select: { leads: true } } },
+    }).catch(() => [] as any[]);
+    for (const c of custs) {
+      const p = normalizePhone(c.phone);
+      if (p && (c as any)._count?.leads > 0) bookedPhones.add(p);
+    }
+
+    let upserted = 0, autoBooked = 0;
     for (const r of leadRows) {
       const L = r.localServicesLead || {};
       const leadId = String(L.id);
       const leadRes = `customers/${customerId}/localServicesLeads/${leadId}`;
       const convs = convByLead.get(leadRes) || [];
-      // latest activity + latest message text
+      // latest activity + latest message text + who sent the latest event (for stage derivation)
       let lastActivityAt: Date | null = null;
       let lastMessageText: string | null = null;
+      let lastParticipant: string | null = null;
       for (const c of convs) {
         const t = c.eventDateTime ? new Date(c.eventDateTime.replace(' ', 'T')) : null;
         if (t && (!lastActivityAt || t > lastActivityAt)) {
           lastActivityAt = t;
-          lastMessageText = c.messageDetails?.text || lastMessageText;
+          lastMessageText = c.messageDetails?.text || null;
+          lastParticipant = c.participantType || null; // 'ADVERTISER' | 'CONSUMER'
         }
       }
       const contact = L.contactDetails || {};
       const leadType = LEAD_TYPE[L.leadType] || String(L.leadType || 'UNKNOWN');
       const gStatus = LEAD_STATUS[L.leadStatus] || String(L.leadStatus || '');
       const creation = L.creationDateTime ? new Date(L.creationDateTime.replace(' ', 'T')) : null;
+      const phone = contact.phoneNumber || null;
+
+      // Cross-reference Booked: LSA phone matches a customer with a booked appointment (Lead), OR Google
+      // itself says BOOKED.
+      const normPhone = normalizePhone(phone);
+      const isBooked = gStatus === 'BOOKED' || (normPhone ? bookedPhones.has(normPhone) : false);
+
+      // Auto-derive the follow-up stage from conversation activity.
+      const derived = deriveLsaStage({ lastParticipant: lastParticipant as any, lastActivityAt, creationDateTime: creation });
+      const autoStage = isBooked ? 'Booked' : derived;
+
+      const existing = await prisma.lsaLead.findUnique({ where: { leadId }, select: { manualOverride: true, status: true } });
+
+      // Respect manual overrides: if a human hand-set the stage, don't auto-change it (except we still
+      // let auto-Booked win, since a confirmed booking is authoritative). Otherwise use the derived stage.
+      let statusToSet: string = autoStage;
+      if (existing?.manualOverride && !isBooked) statusToSet = existing.status;
+      if (isBooked && !existing?.status?.includes('Lost')) statusToSet = 'Booked';
+      if (isBooked) autoBooked++;
 
       await prisma.lsaLead.upsert({
         where: { leadId },
-        // create: seed our follow-up status as 'New'
         create: {
           leadId, leadType, category: L.categoryId ? String(L.categoryId) : null,
           serviceId: L.serviceId ? String(L.serviceId) : null,
-          status: 'New', googleLeadStatus: gStatus,
-          contactName: contact.consumerName || null, contactPhone: contact.phoneNumber || null,
+          status: statusToSet, googleLeadStatus: gStatus,
+          contactName: contact.consumerName || null, contactPhone: phone,
           leadCharged: L.leadCharged ?? null, note: L.note?.description || null,
-          creationDateTime: creation, lastActivityAt,
+          creationDateTime: creation, lastActivityAt, lastParticipant,
           lastMessageText, conversationCount: convs.length,
         },
-        // update: refresh Google-sourced fields, but NEVER overwrite our follow-up `status`/followupNote.
         update: {
           leadType, googleLeadStatus: gStatus,
-          contactName: contact.consumerName || null, contactPhone: contact.phoneNumber || null,
+          contactName: contact.consumerName || null, contactPhone: phone,
           leadCharged: L.leadCharged ?? null, note: L.note?.description || null,
-          lastActivityAt, lastMessageText, conversationCount: convs.length,
+          lastActivityAt, lastParticipant, lastMessageText, conversationCount: convs.length,
+          status: statusToSet,
         },
       });
       upserted++;
     }
 
-    return NextResponse.json({ ok: true, days, leads: leadRows.length, conversations: convRows.length, upserted });
+    return NextResponse.json({ ok: true, days, leads: leadRows.length, conversations: convRows.length, upserted, autoBooked });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 });
   }
