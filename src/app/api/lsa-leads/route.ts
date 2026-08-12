@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { deriveLsaStage } from '@/lib/lsaStage';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,17 +46,32 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const { leadId, status, followupNote } = body;
+  const { leadId, action, tag, followupNote } = body;
   if (!leadId) return NextResponse.json({ error: 'leadId required' }, { status: 400 });
 
+  const lead = await prisma.lsaLead.findUnique({ where: { leadId } });
+  if (!lead) return NextResponse.json({ error: 'not found' }, { status: 404 });
+
   const data: any = {};
-  if (status !== undefined) {
-    if (!STAGES.includes(status)) return NextResponse.json({ error: 'invalid status' }, { status: 400 });
-    data.status = status;
-    data.manualOverride = true;  // a human hand-set this; auto-derivation will skip it going forward
-    // Moving off 'Need Follow-up' clears the alert flag so it can re-trigger if it goes stale again.
-    if (status !== 'Need Follow-up') data.staleFlagged = false;
+
+  if (action === 'tag') {
+    // Manual Booked/Lost tag — overrides automation.
+    if (tag !== 'Booked' && tag !== 'Lost') return NextResponse.json({ error: 'tag must be Booked or Lost' }, { status: 400 });
+    data.status = tag;
+    data.manualOverride = true;
+    data.staleFlagged = false; // no longer needs follow-up
+  } else if (action === 'untag') {
+    // Release back to automatic: clear override and re-derive the stage from stored activity.
+    const derived = deriveLsaStage({
+      lastParticipant: (lead.lastParticipant as any) ?? null,
+      lastActivityAt: lead.lastActivityAt,
+      creationDateTime: lead.creationDateTime,
+    });
+    data.status = derived;
+    data.manualOverride = false;
+    data.staleFlagged = false;
   }
+
   if (followupNote !== undefined) data.followupNote = followupNote;
 
   const updated = await prisma.lsaLead.update({ where: { leadId }, data });

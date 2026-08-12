@@ -33,11 +33,25 @@ export default function LsaLeadsPage() {
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [status, leadType]);
 
-  async function setLeadStatus(leadId: string, newStatus: string) {
+  const [undoable, setUndoable] = useState<Record<string, string>>({}); // leadId -> prior status, during undo window
+
+  async function tagLead(leadId: string, tag: 'Booked' | 'Lost', priorStatus: string) {
     await fetch('/api/lsa-leads', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ leadId, status: newStatus }),
+      body: JSON.stringify({ leadId, action: 'tag', tag }),
     });
+    // open a ~10s undo window
+    setUndoable(u => ({ ...u, [leadId]: priorStatus }));
+    setTimeout(() => setUndoable(u => { const n = { ...u }; delete n[leadId]; return n; }), 10000);
+    load();
+  }
+
+  async function untagLead(leadId: string) {
+    await fetch('/api/lsa-leads', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId, action: 'untag' }),
+    });
+    setUndoable(u => { const n = { ...u }; delete n[leadId]; return n; });
     load();
   }
 
@@ -100,13 +114,13 @@ export default function LsaLeadsPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr>
             <th style={th}>Contact</th><th style={th}>Type</th><th style={th}>Last Message</th>
-            <th style={th}>Received</th><th style={th}>Last Activity</th><th style={th}>Stage</th>
+            <th style={th}>Received</th><th style={th}>Last Activity</th><th style={th}>Stage</th><th style={th}>Tag</th>
           </tr></thead>
           <tbody>
             {loading ? (
-              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={6}>Loading…</td></tr>
+              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={7}>Loading…</td></tr>
             ) : leads.length === 0 ? (
-              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={6}>No LSA leads for these filters. Run the sync to pull leads.</td></tr>
+              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={7}>No LSA leads for these filters. Run the sync to pull leads.</td></tr>
             ) : leads.map((l: any) => {
               const isMsg = l.leadType === 'MESSAGE';
               return (
@@ -124,11 +138,37 @@ export default function LsaLeadsPage() {
                   <td style={{ ...td, color: '#6B6A64', whiteSpace: 'nowrap' }}>{fmtDate(l.creationDateTime)}</td>
                   <td style={{ ...td, color: '#6B6A64', whiteSpace: 'nowrap' }}>{fmtWhen(l.lastActivityAt)}</td>
                   <td style={td}>
-                    <select value={l.status} onChange={e => setLeadStatus(l.leadId, e.target.value)}
-                      style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: `0.5px solid ${stageColor[l.status]?.fg || '#D3D1C7'}`,
-                        background: stageColor[l.status]?.bg || '#fff', color: stageColor[l.status]?.fg || '#2C2C2A', fontWeight: 500, cursor: 'pointer' }}>
-                      {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6,
+                      background: stageColor[l.status]?.bg || '#f1efe8', color: stageColor[l.status]?.fg || '#6B6A64', whiteSpace: 'nowrap' }}>
+                      {l.status}
+                    </span>
+                  </td>
+                  <td style={td}>
+                    {undoable[l.leadId] !== undefined ? (
+                      <button onClick={() => untagLead(l.leadId)}
+                        style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>
+                        ↶ Undo
+                      </button>
+                    ) : (l.status === 'Booked' || l.status === 'Lost') ? (
+                      // already tagged terminal — offer release back to automatic (only meaningful if manual)
+                      l.manualOverride ? (
+                        <button onClick={() => untagLead(l.leadId)}
+                          style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#B4B2A9', cursor: 'pointer' }}>
+                          × untag
+                        </button>
+                      ) : <span style={{ fontSize: 11, color: '#B4B2A9' }}>auto</span>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button onClick={() => tagLead(l.leadId, 'Booked', l.status)}
+                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #128a3f', background: '#e6f9ec', color: '#128a3f', cursor: 'pointer' }}>
+                          ✓ Booked
+                        </button>
+                        <button onClick={() => tagLead(l.leadId, 'Lost', l.status)}
+                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #B4B2A9', background: '#f1efe8', color: '#888780', cursor: 'pointer' }}>
+                          ✕ Lost
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               );
