@@ -123,21 +123,22 @@ export async function GET(req: NextRequest) {
         months.push({ month: m, source: 'future', empty: true });
       }
     }
-    // Forward-fill cumulative booked revenue for LIVE months: continue from the most recent
-    // known cumulative (history) + each subsequent month's booked revenue.
+    // Forward-fill cumulative booked revenue across history → finalized → live months. Each non-empty
+    // month extends the running cumulative by its booked revenue. History rows may carry an explicit
+    // cumulative (authoritative baseline); finalized and live months accrue from there.
     let runningCum: number | null = null;
     for (const mo of months as any[]) {
       if (mo.empty) continue;
       if (mo.source === 'history') {
-        if (mo.cumulativeBookedRevenue != null) runningCum = mo.cumulativeBookedRevenue;
-      } else if (mo.source === 'live') {
-        if (runningCum != null && mo.totalRevenue != null) {
-          runningCum = runningCum + mo.totalRevenue;
-          mo.cumulativeBookedRevenue = runningCum;
-        } else if (mo.totalRevenue != null) {
-          mo.cumulativeBookedRevenue = mo.totalRevenue; // no prior baseline
-        }
+        // History carries its own cumulative (locked baseline from the legacy tracker).
+        if (mo.cumulativeBookedRevenue != null) { runningCum = mo.cumulativeBookedRevenue; continue; }
+        // If a history row lacks it, fall through to accrual below.
       }
+      // finalized + live (and any history row without an explicit cumulative): accrue by booked revenue.
+      const monthBooked = mo.bookedRevenue ?? mo.totalRevenue ?? null;
+      if (monthBooked == null) continue;
+      runningCum = (runningCum != null ? runningCum : 0) + monthBooked;
+      mo.cumulativeBookedRevenue = runningCum;
     }
 
     rows.push({ pmName, method: methodByPm.get(pmName) ?? 'abr_tiered', months });
