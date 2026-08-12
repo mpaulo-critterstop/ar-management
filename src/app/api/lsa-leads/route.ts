@@ -27,13 +27,15 @@ export async function GET(req: NextRequest) {
     take: 1000,
   });
 
-  // Counts per stage (for the pipeline header) — always full set, ignoring current filter.
+  // Counts per stage (for the pipeline header) — message-pipeline leads only; call leads are excluded
+  // (answered live, not tracked).
   const all = await prisma.lsaLead.findMany({ select: { status: true, leadType: true, staleFlagged: true } });
   const byStage: Record<string, number> = {};
   for (const s of STAGES) byStage[s] = 0;
   let messageOpen = 0, followupNeeded = 0;
   for (const l of all) {
-    byStage[l.status] = (byStage[l.status] || 0) + 1;
+    if (l.leadType === 'PHONE_CALL') continue; // exclude call leads from pipeline counts
+    if (byStage[l.status] !== undefined) byStage[l.status] = (byStage[l.status] || 0) + 1;
     if (l.status === 'Need Follow-up') followupNeeded++;
     if (l.leadType === 'MESSAGE' && !['Booked', 'Lost'].includes(l.status)) messageOpen++;
   }

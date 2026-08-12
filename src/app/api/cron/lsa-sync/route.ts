@@ -155,23 +155,26 @@ export async function GET(req: NextRequest) {
       const creation = L.creationDateTime ? new Date(L.creationDateTime.replace(' ', 'T')) : null;
       const phone = contact.phoneNumber || null;
 
-      // Cross-reference Booked: LSA phone matches a customer with a booked appointment (Lead), OR Google
-      // itself says BOOKED.
+      // Cross-reference Booked: LSA phone matches a customer with a booked appointment, OR Google BOOKED.
       const normPhone = normalizePhone(phone);
       const isBooked = gStatus === 'BOOKED' || (normPhone ? bookedPhones.has(normPhone) : false);
-
-      // Auto-derive the follow-up stage from conversation activity.
-      const derived = deriveLsaStage({ lastParticipant: lastParticipant as any, lastActivityAt, creationDateTime: creation });
-      const autoStage = isBooked ? 'Booked' : derived;
-
       const existing = await prisma.lsaLead.findUnique({ where: { leadId }, select: { manualOverride: true, status: true } });
 
-      // Respect manual overrides: if a human hand-set the stage, don't auto-change it (except we still
-      // let auto-Booked win, since a confirmed booking is authoritative). Otherwise use the derived stage.
-      let statusToSet: string = autoStage;
-      if (existing?.manualOverride && !isBooked) statusToSet = existing.status;
-      if (isBooked && !existing?.status?.includes('Lost')) statusToSet = 'Booked';
-      if (isBooked) autoBooked++;
+      // Phone-call leads are answered live — they don't belong in the message follow-up pipeline.
+      // Fixed non-pipeline status; never derived, never alerted, excluded from counts.
+      let statusToSet: string;
+      if (leadType === 'PHONE_CALL') {
+        statusToSet = 'Call — handled';
+      } else if (isBooked) {
+        autoBooked++;
+        statusToSet = existing?.status?.includes('Lost') ? existing.status : 'Booked';
+      } else if (existing?.manualOverride) {
+        // Respect a human-set stage (Booked/Lost) — don't auto-change it.
+        statusToSet = existing.status;
+      } else {
+        // Auto-derive the follow-up stage from conversation activity (message leads only).
+        statusToSet = deriveLsaStage({ lastParticipant: lastParticipant as any, lastActivityAt, creationDateTime: creation });
+      }
 
       await prisma.lsaLead.upsert({
         where: { leadId },

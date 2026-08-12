@@ -9,6 +9,7 @@ const stageColor: Record<string, { bg: string; fg: string }> = {
   'Need Follow-up': { bg: '#fee2e2', fg: '#b91c1c' },
   'Booked': { bg: '#e6f9ec', fg: '#128a3f' },
   'Lost': { bg: '#f1efe8', fg: '#888780' },
+  'Call — handled': { bg: '#f1efe8', fg: '#B4B2A9' },
 };
 const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 const fmtWhen = (d: string | null) => {
@@ -144,7 +145,9 @@ export default function LsaLeadsPage() {
                     </span>
                   </td>
                   <td style={td}>
-                    {undoable[l.leadId] !== undefined ? (
+                    {l.leadType === 'PHONE_CALL' ? (
+                      <span style={{ fontSize: 11, color: '#B4B2A9' }}>—</span>
+                    ) : undoable[l.leadId] !== undefined ? (
                       <button onClick={() => untagLead(l.leadId)}
                         style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>
                         ↶ Undo
