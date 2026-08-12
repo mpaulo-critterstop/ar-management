@@ -54,13 +54,12 @@ export async function GET(req: NextRequest) {
       select: { finalized: true, pestControlComm: true },
     });
 
-    const entry: any = { pm, month, computed: rounded, byCategory };
-
-    if (existing?.finalized) { entry.action = 'skipped: finalized'; skippedFinalized++; results.push(entry); continue; }
+    if (existing?.finalized) { skippedFinalized++; continue; }
 
     // Pre-live months are frozen display-only history (served from import-history); never create/write them.
-    if (monthDate < LIVE_FROM) { entry.action = 'skipped: frozen history'; skippedHistory++; results.push(entry); continue; }
+    if (monthDate < LIVE_FROM) { skippedHistory++; continue; }
 
+    const entry: any = { pm, month, computed: rounded, byCategory };
     entry.previous = existing?.pestControlComm ?? null;
     entry.action = dry ? (existing ? 'would write' : 'would create') : (existing ? 'written' : 'created');
     if (!dry) {
@@ -75,5 +74,5 @@ export async function GET(req: NextRequest) {
   }
 
   results.sort((a, b) => (a.month < b.month ? 1 : -1) || (a.pm < b.pm ? -1 : 1));
-  return NextResponse.json({ ok: true, dry, groups: groups.size, written, skippedFinalized, skippedHistory, results });
+  return NextResponse.json({ ok: true, dry, groups: groups.size, written, skippedFinalized, skippedHistory, note: 'Only live non-finalized months are shown/written; finalized + pre-live-cutover months are counted but not listed.', results });
 }
