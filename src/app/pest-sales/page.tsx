@@ -19,6 +19,11 @@ export default function PestSalesPage() {
   const [pm, setPm] = useState('All');
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('All');            // All | Serviced | Pending
+  const [saleFrom, setSaleFrom] = useState('');
+  const [saleTo, setSaleTo] = useState('');
+  const [initFrom, setInitFrom] = useState('');
+  const [initTo, setInitTo] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -26,8 +31,21 @@ export default function PestSalesPage() {
       .then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
   }, [office, pm, category]);
 
-  const sales = (data?.sales || []).filter((s: any) =>
-    !search || s.customerName?.toLowerCase().includes(search.toLowerCase()));
+  const inRange = (d: string | null, from: string, to: string) => {
+    if (!d) return !from && !to ? true : false;   // no date: only passes when no range set
+    const day = new Date(d).toISOString().slice(0, 10);
+    if (from && day < from) return false;
+    if (to && day > to) return false;
+    return true;
+  };
+  const sales = (data?.sales || []).filter((s: any) => {
+    if (search && !s.customerName?.toLowerCase().includes(search.toLowerCase())) return false;
+    if (status === 'Serviced' && !s.initialDone) return false;
+    if (status === 'Pending' && s.initialDone) return false;
+    if ((saleFrom || saleTo) && !inRange(s.saleDate, saleFrom, saleTo)) return false;
+    if ((initFrom || initTo) && !inRange(s.initialCompletedAt, initFrom, initTo)) return false;
+    return true;
+  });
   const th: React.CSSProperties = { textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3', textTransform: 'uppercase', letterSpacing: '0.03em' };
   const td: React.CSSProperties = { padding: '9px 12px', fontSize: 13, color: '#2C2C2A', borderBottom: '0.5px solid #F1EFE8' };
 
@@ -58,6 +76,31 @@ export default function PestSalesPage() {
           <option value="All">All PMs</option>
           {(data?.pmNames || []).map((p: string) => <option key={p} value={p}>{p}</option>)}
         </select>
+        <select value={status} onChange={e => setStatus(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+          <option value="All">All statuses</option>
+          <option value="Serviced">Serviced</option>
+          <option value="Pending">Pending initial</option>
+        </select>
+      </div>
+
+      {/* Date-range filters */}
+      <div style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: '#888780' }}>Sale date:</span>
+          <input type="date" value={saleFrom} onChange={e => setSaleFrom(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+          <span style={{ fontSize: 12, color: '#B4B2A9' }}>to</span>
+          <input type="date" value={saleTo} onChange={e => setSaleTo(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: '#888780' }}>Initial service date:</span>
+          <input type="date" value={initFrom} onChange={e => setInitFrom(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+          <span style={{ fontSize: 12, color: '#B4B2A9' }}>to</span>
+          <input type="date" value={initTo} onChange={e => setInitTo(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+        </div>
+        {(saleFrom || saleTo || initFrom || initTo) && (
+          <button onClick={() => { setSaleFrom(''); setSaleTo(''); setInitFrom(''); setInitTo(''); }}
+            style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>Clear dates</button>
+        )}
       </div>
 
       {/* Summary */}
