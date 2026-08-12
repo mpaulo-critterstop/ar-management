@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
     const idStr = ids.join(',');
     const variants: Array<[string, string]> = [
       ['plain', `subscriptionIDs=${idStr}`],
+      ['padded-dup', `subscriptionIDs=${idStr},${idStr}`],        // test single-ID quirk: duplicate the id
       ['withOffice', `subscriptionIDs=${idStr}&officeIDs=4`],
       ['includeInactive', `subscriptionIDs=${idStr}&includeData=1&active=0`],
       ['activeAll', `subscriptionIDs=${idStr}&active=-1`],
