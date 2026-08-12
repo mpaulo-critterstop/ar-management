@@ -65,9 +65,12 @@ async function scanOffice(office: string, since: string, limit: number, empMap: 
 
   const catalog = await loadCatalog(cfg);   // authoritative serviceID -> {name, category}
 
-  const search = await frGet('subscription/search', `dateAdded=${since}`, cfg.key, cfg.token);
+  // FR search: use the operator/range form for dateAdded so we get everything SINCE `since`, not just
+  // rows matching an exact date. (A bare dateAdded=YYYY-MM-DD can match too narrowly.)
+  const range = JSON.stringify({ operator: 'BETWEEN', value: [`${since} 00:00:00`, '2027-12-31 23:59:59'] });
+  const search = await frGet('subscription/search', `dateAdded=${encodeURIComponent(range)}`, cfg.key, cfg.token);
   const ids: number[] = (search?.subscriptionIDs || []).slice(0, limit);
-  if (!ids.length) return { office, sales: [], note: 'no subs in window' };
+  if (!ids.length) return { office, sales: [], note: 'no subs in window', searchCount: search?.count };
 
   // fetch bodies (batch 1000; pad single-id)
   const subs: any[] = [];
@@ -135,7 +138,7 @@ async function scanOffice(office: string, since: string, limit: number, empMap: 
       });
     }
   }
-  return { office, scanned: subs.length, saleCount: sales.length, skippedNonPM, sales };
+  return { office, searchCount: search?.count, scanned: subs.length, saleCount: sales.length, skippedNonPM, sales };
 }
 
 export async function GET(req: NextRequest) {
