@@ -78,6 +78,10 @@ export async function GET(req: NextRequest) {
   try {
     const accessToken = await getAccessToken();
 
+    // Google only supports certain predefined literals with DURING (LAST_30_DAYS etc.) — LAST_90_DAYS is
+    // NOT one of them. Use an explicit start date so any window (incl. 90+) works.
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // YYYY-MM-DD
+
     // 1) Leads
     const leadRows = await gaql(accessToken, customerId, `
       SELECT local_services_lead.id, local_services_lead.lead_type,
@@ -86,7 +90,7 @@ export async function GET(req: NextRequest) {
              local_services_lead.creation_date_time, local_services_lead.lead_charged,
              local_services_lead.note.description
       FROM local_services_lead
-      WHERE local_services_lead.creation_date_time DURING LAST_${days >= 90 ? '90' : '30'}_DAYS
+      WHERE local_services_lead.creation_date_time >= '${startDate} 00:00:00'
       ORDER BY local_services_lead.creation_date_time DESC
     `.replace(/\s+/g, ' ').trim());
 
