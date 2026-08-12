@@ -96,26 +96,40 @@ async function scanOffice(office: string, since: string, limit: number, empMap: 
   const sales: any[] = [];
   let skippedNonPM = 0;
   for (const [customerID, arr] of byCust) {
+    // A BUNDLE = the parent (serviceID -1) + subs sharing its EXACT dateAdded timestamp.
+    // Subs with a different dateAdded are SEPARATE sales (e.g. a Sentricon sold 34 min earlier).
     const parent = arr.find(s => String(s.serviceID) === '-1');
-    if (parent) {
-      const soldByName = empMap.get(String(parent.soldBy)) || `#${parent.soldBy}`;
-      if (!isPM(soldByName)) { skippedNonPM++; continue; }        // PM scope
-      const chargeChild = arr.find(s => Number(s.recurringCharge) > 0);
-      const cv = Number(parent.contractValue);
-      if (cv <= 0) continue;                                       // no value -> skip
-      const commMonth = chargeChild ? monthKey(chargeChild.lastCompleted) : null;
-      sales.push({
-        customerID, category: 'Rodent Bundle', service: 'Bundle (parent -1)',
-        soldBy: soldByName, contractValue: cv,
-        saleDate: (parent.dateAdded || '').slice(0,10),
-        initialDone: !!commMonth,
-        commissionMonth: commMonth || 'PENDING (initial not done)',
-        chargeChildService: chargeChild ? catalog.get(String(chargeChild.serviceID))?.name : null,
-      });
-      continue;
+    const bundleStamp = parent?.dateAdded || null;
+    const bundleMemberIds = new Set<string>();
+    if (parent && bundleStamp) {
+      for (const s of arr) if (s.dateAdded === bundleStamp) bundleMemberIds.add(String(s.subscriptionID));
     }
+
+    if (parent && bundleStamp) {
+      const soldByName = empMap.get(String(parent.soldBy)) || `#${parent.soldBy}`;
+      if (isPM(soldByName)) {
+        const cv = Number(parent.contractValue);
+        if (cv > 0) {
+          // charge-bearing child among BUNDLE MEMBERS only (shared timestamp)
+          const chargeChild = arr.find(s => bundleMemberIds.has(String(s.subscriptionID)) && Number(s.recurringCharge) > 0);
+          const commMonth = chargeChild ? monthKey(chargeChild.lastCompleted) : null;
+          sales.push({
+            customerID, category: 'Rodent Bundle', service: 'Bundle (parent -1)',
+            soldBy: soldByName, contractValue: cv,
+            saleDate: (parent.dateAdded || '').slice(0,10),
+            initialDone: !!commMonth,
+            commissionMonth: commMonth || 'PENDING (initial not done)',
+            chargeChildService: chargeChild ? catalog.get(String(chargeChild.serviceID))?.name : null,
+          });
+        }
+      } else skippedNonPM++;
+    }
+
+    // Evaluate every sub that is NOT part of the bundle as its own potential sale.
     for (const s of arr) {
-      if (EXCLUDE_SERVICEIDS.has(String(s.serviceID))) continue;  // pretreatment etc.
+      if (bundleMemberIds.has(String(s.subscriptionID))) continue;   // already counted in the bundle
+      if (String(s.serviceID) === '-1') continue;                    // stray parent, skip
+      if (EXCLUDE_SERVICEIDS.has(String(s.serviceID))) continue;     // pretreatment etc.
       const cat = catalog.get(String(s.serviceID));
       const category = cat?.category || '';
       const name = cat?.name || s.serviceType || `#${s.serviceID}`;
@@ -124,9 +138,9 @@ async function scanOffice(office: string, since: string, limit: number, empMap: 
       if (!isTermite && !isPest) continue;
       if (EXCLUDE_NAME.test(name)) continue;
       const cv = Number(s.contractValue);
-      if (cv <= 0) continue;                                       // standalone must have value
+      if (cv <= 0) continue;                                         // renewal / no-value line
       const soldByName = empMap.get(String(s.soldBy)) || `#${s.soldBy}`;
-      if (!isPM(soldByName)) { skippedNonPM++; continue; }         // PM scope
+      if (!isPM(soldByName)) { skippedNonPM++; continue; }
       const commMonth = monthKey(s.lastCompleted);
       sales.push({
         customerID, category: isTermite ? 'Termite' : 'Pest Control',
