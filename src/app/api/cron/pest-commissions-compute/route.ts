@@ -21,11 +21,13 @@ export async function GET(req: NextRequest) {
   // Pull all completed, commissionable pest sales (source can be fr OR excel, but commission compute is
   // for going-forward FR sales; history commissions are already frozen in commission_months). We compute
   // from ALL pest_sales rows that have a commissionMonth, then only WRITE to non-finalized months.
-  // ONLY compute from FR-synced sales (going-forward). Excel/history rows are frozen — their commissions
-  // are already accounted for in the finalized Commissions table, so including them here would double-count
-  // (e.g. a sale sold in July but serviced in August would wrongly land in live August commission).
+  // Commission belongs to the month the INITIAL SERVICE completed, regardless of when/where the sale
+  // originated (a sale from any prior month serviced this month counts this month). So compute from ALL
+  // sources. Double-counting is prevented structurally: finalized months are skipped below (already paid),
+  // and a given sale exists once (FR sync only has 8/1+ sales; Excel history has pre-8/1 sales) — no sale
+  // appears in both sources, so summing across sources never counts a sale twice.
   const sales = await prisma.pestSale.findMany({
-    where: { source: 'fr', commissionMonth: onlyMonth ? onlyMonth : { not: null }, initialDone: true },
+    where: { commissionMonth: onlyMonth ? onlyMonth : { not: null }, initialDone: true },
     select: { pmName: true, category: true, contractValue: true, initialCompletedAt: true, commissionMonth: true },
   });
 
