@@ -739,3 +739,33 @@ model KpiHistory {
   @@unique([period, periodKey, scope])
   @@map("kpi_history")
 }
+
+// Pest Control sales tracker (parallel to wildlife Lead). Sourced from FR subscriptions per the
+// verified mapping spec (v2). One row per SALE: a bundle (parent -1 + same-timestamp children) or a
+// standalone pest/termite service. Commission computed only once initial service completes.
+model PestSale {
+  id                String    @id @default(cuid())
+  office            String
+  customerId        String                          // FR customerID
+  customerName      String?
+  externalKey       String    @unique               // office:customerId:subscriptionId (dedupe key)
+  subscriptionId    String                          // FR subscriptionID (bundle parent's, or the standalone sub's)
+  category          String                          // 'Pest Control' | 'Termite' | 'Rodent Bundle'
+  serviceName       String?
+  serviceId         String?
+  pmName            String?                         // resolved soldBy -> PM
+  soldByFrId        String?
+  contractValue     Float     @default(0)
+  recurringCharge   Float     @default(0)
+  saleDate          DateTime?                       // FR dateAdded
+  initialDone       Boolean   @default(false)
+  initialCompletedAt DateTime?                       // FR lastCompleted of the driving service
+  commissionMonth   String?                         // 'YYYY-MM' (month initial completed) or null if pending
+  chargeChildService String?                        // for bundles: the charge-bearing child service name
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  @@index([office])
+  @@index([pmName])
+  @@index([commissionMonth])
+  @@map("pest_sales")
+}

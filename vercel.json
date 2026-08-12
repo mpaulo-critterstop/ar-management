@@ -59,6 +59,9 @@
     },
     "src/app/api/debug/pest-sales-preview/route.ts": {
       "maxDuration": 800
+    },
+    "src/app/api/cron/pest-sales-sync/route.ts": {
+      "maxDuration": 800
     }
   },
   "crons": [
