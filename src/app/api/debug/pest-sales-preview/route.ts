@@ -29,6 +29,7 @@ async function frGet(endpoint: string, params: string, key: string, token: strin
   return res.json();
 }
 const EXCLUDE_NAME = /reservice|call\s*back|callback|\blead\b|inspection|renewal|follow\s*up|removal|reset|rebait|refill|pretreatment/i;
+const EXCLUDE_NAME_TERMITE = /reservice|call\s*back|callback|\blead\b|inspection|follow\s*up/i;
 const EXCLUDE_SERVICEIDS = new Set(['836', '1077']); // Pretreatment (Termite + SubTermites) — not commissionable
 const monthKey = (d: string) => (d && !d.startsWith('0000')) ? d.slice(0, 7) : null;
 
@@ -136,9 +137,11 @@ async function scanOffice(office: string, since: string, limit: number, empMap: 
       const isTermite = category === 'Termite';
       const isPest = category === 'Pest Control';
       if (!isTermite && !isPest) continue;
-      if (EXCLUDE_NAME.test(name)) continue;
+      if (isTermite ? EXCLUDE_NAME_TERMITE.test(name) : EXCLUDE_NAME.test(name)) continue;
       const cv = Number(s.contractValue);
-      if (cv <= 0) continue;                                         // renewal / no-value line
+      const rc = Number(s.recurringCharge);
+      if (isPest && cv <= 0) continue;                               // pest needs contract value
+      if (isTermite && cv <= 0 && rc <= 0) continue;                 // termite: CV or recurring charge
       const soldByName = empMap.get(String(s.soldBy)) || `#${s.soldBy}`;
       if (!isPM(soldByName)) { skippedNonPM++; continue; }
       const commMonth = monthKey(s.lastCompleted);
