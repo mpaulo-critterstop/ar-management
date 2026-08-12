@@ -85,6 +85,17 @@ export default function HomePage() {
       stats: null,
     },
     {
+      module: 'lsa-leads' as ModuleKey,
+      icon: '📍',
+      title: 'LSA Leads',
+      desc: 'Google Local Services Ads leads with follow-up tracking so message leads don\u2019t get lost.',
+      href: '/lsa-leads',
+      accentColor: '#0052cc',
+      main: '—',
+      mainLabel: 'Leads',
+      stats: null,
+    },
+    {
       module: 'dispatch' as ModuleKey,
       icon: '🚛',
       title: 'Dispatcher',

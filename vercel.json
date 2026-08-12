@@ -62,6 +62,9 @@
     },
     "src/app/api/cron/pest-sales-sync/route.ts": {
       "maxDuration": 800
+    },
+    "src/app/api/cron/lsa-sync/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [

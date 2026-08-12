@@ -773,3 +773,32 @@ model PestSale {
   @@index([commissionMonth])
   @@map("pest_sales")
 }
+
+// Google LSA (Local Services Ads) lead follow-up tracker. Pulled from the Google Ads API
+// (local_services_lead + local_services_lead_conversation). Purpose: stop message leads from getting
+// lost — track a follow-up stage on each, auto-flag stale ones.
+model LsaLead {
+  id                String    @id @default(cuid())
+  leadId            String    @unique             // Google LSA lead id (resource id)
+  leadType          String                        // 'PHONE_CALL' | 'MESSAGE' | 'BOOKING' | other
+  category          String?                       // service category id/label
+  serviceId         String?
+  status            String    @default("New")     // follow-up stage (our pipeline, not Google's)
+  googleLeadStatus  String?                       // Google's own lead_status (NEW/ACTIVE/BOOKED/etc.)
+  contactName       String?
+  contactPhone      String?
+  leadCharged       Boolean?                       // whether Google charged for this lead
+  note              String?                        // advertiser note from Google
+  creationDateTime  DateTime?                      // when Google created the lead
+  lastActivityAt    DateTime?                      // last inbound/outbound conversation timestamp
+  lastMessageText   String?                        // most recent message content (for message leads)
+  conversationCount Int       @default(0)
+  followupNote      String?                        // our internal follow-up note
+  staleFlagged      Boolean   @default(false)      // set when auto-flagged stale (dedupe Slack alerts)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  @@index([status])
+  @@index([leadType])
+  @@index([creationDateTime])
+  @@map("lsa_leads")
+}
