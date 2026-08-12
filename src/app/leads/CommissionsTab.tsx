@@ -144,7 +144,9 @@ export function CommissionsTab() {
                         {MONTHS.map((_, i) => {
                           const rec = pm.months[i];
                           const v = cell(rec, rd.key);
-                          const editable = rec && !rec.empty && rec.source === 'live' && (rd.key === 'pestControlComm' || rd.key === 'otherAdjustment');
+                          // pestControlComm is now COMPUTED from pest_sales (not manual). Only
+                          // otherAdjustment remains a manual override.
+                          const editable = rec && !rec.empty && rec.source === 'live' && rd.key === 'otherAdjustment';
                           const cellId = `${pm.pmName}|${i + 1}|${rd.key}`;
                           const isEditing = editCell === cellId;
                           return (

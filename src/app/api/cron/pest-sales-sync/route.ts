@@ -5,6 +5,7 @@
 //   /api/cron/pest-sales-sync?since=2026-01-01&office=All&token=critterstop2026
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { classifyPestCommission } from '@/lib/pestCommission';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 800;
@@ -116,24 +117,25 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
       if (memberIds.has(String(s.subscriptionID)) || String(s.serviceID) === '-1') continue;
       if (EXCLUDE_SERVICEIDS.has(String(s.serviceID))) continue;
       const cat = catalog.get(String(s.serviceID));
-      const category = cat?.category || '';
+      const frCategory = cat?.category || '';
       const name = cat?.name || s.serviceType || `#${s.serviceID}`;
-      const isT = category === 'Termite', isP = category === 'Pest Control';
-      if (!isT && !isP) continue;
-      if (isT ? EXCLUDE_NAME_TERMITE.test(name) : EXCLUDE_NAME.test(name)) continue;
+      // Fine-grained commission category (peels Mosquito/Misting/Bed Bug/Flea-Roach/Bait/Fly/standalone
+      // rodent out of FR "Pest Control"; excludes inspections/reservice/etc.).
+      const commCat = classifyPestCommission(frCategory, name);
+      if (commCat === 'EXCLUDE') continue;
+      const isT = commCat === 'Termite';
       const cv = Number(s.contractValue);
       const rc = Number(s.recurringCharge);
-      // Pest: must have contract value. Termite: count if CV>0 OR recurringCharge>0 (some CSRs leave CV
-      // at 0 and bill the initial via a manual invoice — value backfilled from the Excel history).
-      if (isP && cv <= 0) continue;
-      if (isT && cv <= 0 && rc <= 0) continue;
+      // Termite counts if CV>0 OR recurringCharge>0 (CSR-error cases). Everything else needs CV>0.
+      if (isT) { if (cv <= 0 && rc <= 0) continue; }
+      else if (cv <= 0) continue;
       const pm = getPM(empMap.get(String(s.soldBy)) || `#${s.soldBy}`);
       if (!pm) continue;
       const cm = monthKey(s.lastCompleted);
       rows.push({
         office, customerId: customerID, customerName: custName.get(customerID) || null,
         externalKey: `${office}:${customerID}:${s.subscriptionID}`, subscriptionId: String(s.subscriptionID),
-        category: isT ? 'Termite' : 'Pest Control', serviceName: name, serviceId: String(s.serviceID),
+        category: commCat, serviceName: name, serviceId: String(s.serviceID),
         pmName: pm, soldByFrId: String(s.soldBy), contractValue: cv, recurringCharge: rc,
         saleDate: toDate(s.dateAdded), initialDone: !!cm, initialCompletedAt: toDate(s.lastCompleted),
         commissionMonth: cm, chargeChildService: null,
