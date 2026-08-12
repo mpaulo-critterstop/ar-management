@@ -76,13 +76,13 @@ export default function PestSalesPage() {
           <thead><tr>
             <th style={th}>Customer</th><th style={th}>PM</th><th style={th}>Category</th>
             <th style={th}>Service</th><th style={{ ...th, textAlign: 'right' }}>Contract Value</th>
-            <th style={th}>Sale Date</th><th style={th}>Status</th>
+            <th style={th}>Sale Date</th><th style={th}>Initial Service Date</th><th style={th}>Status</th>
           </tr></thead>
           <tbody>
             {loading ? (
-              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={7}>Loading…</td></tr>
+              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={8}>Loading…</td></tr>
             ) : sales.length === 0 ? (
-              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={7}>No pest sales for these filters.</td></tr>
+              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={8}>No pest sales for these filters.</td></tr>
             ) : sales.map((s: any) => {
               const c = catColor[s.category] || { bg: '#f1efe8', fg: '#888780' };
               return (
@@ -93,9 +93,10 @@ export default function PestSalesPage() {
                   <td style={{ ...td, color: '#6B6A64' }}>{s.category === 'Rodent Bundle' ? (s.chargeChildService ? `Bundle · ${s.chargeChildService}` : 'Bundle') : s.serviceName}</td>
                   <td style={{ ...td, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{money(s.contractValue)}</td>
                   <td style={{ ...td, color: '#6B6A64' }}>{fmtDate(s.saleDate)}</td>
+                  <td style={{ ...td, color: '#6B6A64', fontVariantNumeric: 'tabular-nums' }}>{s.initialDone ? fmtDate(s.initialCompletedAt) : '—'}</td>
                   <td style={td}>
                     {s.initialDone
-                      ? <span style={{ fontSize: 12, color: '#128a3f' }}>Serviced · {s.commissionMonth}</span>
+                      ? <span style={{ fontSize: 12, color: '#128a3f' }}>Serviced</span>
                       : <span style={{ fontSize: 12, color: '#b45309' }}>Pending initial</span>}
                   </td>
                 </tr>
