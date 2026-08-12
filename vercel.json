@@ -56,6 +56,9 @@
     },
     "src/app/api/debug/pest-mapping/route.ts": {
       "maxDuration": 800
+    },
+    "src/app/api/debug/pest-sales-preview/route.ts": {
+      "maxDuration": 800
     }
   },
   "crons": [
