@@ -734,6 +734,7 @@ model KpiHistory {
   avgSale       Float
   bookedPerLead Float
   cashCollected Float?
+  bookedPestCV  Float?   // Booked Pest Control CV (sum of all pest-category contract value) that month
   yoy           Float?   // % Growth YoY (from the tracker, already computed)
   createdAt     DateTime @default(now())
   @@unique([period, periodKey, scope])

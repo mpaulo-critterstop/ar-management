@@ -97,6 +97,7 @@ export function KpiTab() {
   const companyRows = period === 'monthly' ? [
     { label: 'Total Booked Revenue', fn: (m: any) => fmt(m.booked), bold: true },
     { label: 'Total Cash Collected', fn: (m: any) => m.cashCollected != null ? fmt(m.cashCollected) : '—' },
+    { label: 'Booked Pest Control CV', fn: (m: any) => m.bookedPestCV != null ? fmt(m.bookedPestCV) : '—' },
     { label: 'Total Leads', fn: (m: any) => m.totalLeads },
     { label: 'Total Closed', fn: (m: any) => m.totalClosed },
     { label: 'Closing %', fn: (m: any) => pct(m.closingPct) },
@@ -115,6 +116,7 @@ export function KpiTab() {
   const pmRows = period === 'monthly' ? [
     { label: 'Booked', fn: (m: any) => fmt(m.booked), bold: true },
     { label: 'Cash Collected', fn: (m: any) => fmt(m.cashCollected) },
+    { label: 'Booked Pest Control CV', fn: (m: any) => m.bookedPestCV != null ? fmt(m.bookedPestCV) : '—' },
     { label: 'Total Leads', fn: (m: any) => m.totalLeads },
     { label: 'Total Closed', fn: (m: any) => m.totalClosed },
     { label: 'Closing %', fn: (m: any) => pct(m.closingPct) },

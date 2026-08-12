@@ -150,6 +150,7 @@ export async function GET(req: NextRequest) {
       // hardcoded HISTORICAL_BOOKED, then live-computed months in this same window.
       const allHist = await prisma.kpiHistory.findMany({ where: { period: 'monthly', scope: 'company' } }).catch(() => [] as any[]);
       const histBookedByKey = new Map(allHist.map(h => [h.periodKey, h.booked])); // 'YYYY-MM' -> booked
+      const histPestCVByKey = new Map(allHist.filter(h => h.bookedPestCV != null).map(h => [h.periodKey, h.bookedPestCV as number]));
       const priorYearBooked = (year: number, month0: number): number => {
         // 1) kpi_history (periodKey is 1-based YYYY-MM)
         const hk = `${year - 1}-${String(month0 + 1).padStart(2, '0')}`;
@@ -184,6 +185,7 @@ export async function GET(req: NextRequest) {
         return {
           label: new Date(year, month, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
           booked, cashCollected, totalLeads, totalClosed, closingPct, avgSale, bookedPerLead, yoyGrowth,
+          bookedPestCV: histPestCVByKey.get(`${year}-${String(month + 1).padStart(2, '0')}`) ?? null,
         };
       });
 
@@ -202,11 +204,14 @@ export async function GET(req: NextRequest) {
         const pmHistForName = pmHistMap.get(pm.name);
 
         const monthData = months.map(({ year, month, start, end }) => {
+          const pestKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+          const pestCV = pmHistForName?.get(pestKey)?.bookedPestCV ?? null;
           // Pre-2026: use stored history if we have it for this PM.
           if (year < 2026 && pmHistForName) {
-            const h = pmHistForName.get(`${year}-${String(month + 1).padStart(2, '0')}`);
+            const h = pmHistForName.get(pestKey);
             if (h) return { booked: h.booked, cashCollected: h.cashCollected ?? null, totalLeads: h.leads,
-                            totalClosed: h.closed, closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead };
+                            totalClosed: h.closed, closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead,
+                            bookedPestCV: h.bookedPestCV ?? null };
           }
           const monthLeads = pmLeads.filter(l => l.inspectionDate && new Date(l.inspectionDate) >= start && new Date(l.inspectionDate) <= end);
           const totalLeads = monthLeads.length;
@@ -222,7 +227,7 @@ export async function GET(req: NextRequest) {
             .filter(p => p.date && new Date(p.date) >= start && new Date(p.date) <= end)
             .reduce((s, p) => s + Number(p.amount || 0), 0);
 
-          return { booked, cashCollected, totalLeads, totalClosed, closingPct, avgSale, bookedPerLead };
+          return { booked, cashCollected, totalLeads, totalClosed, closingPct, avgSale, bookedPerLead, bookedPestCV: pestCV };
         });
 
         return { pm: pm.name, office: pm.office, months: monthData, cumulative: cumulativeFor(pm.name) };
@@ -244,6 +249,7 @@ export async function GET(req: NextRequest) {
           booked: h.booked, cashCollected: h.cashCollected ?? null, totalLeads: h.leads, totalClosed: h.closed,
           closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead,
           yoyGrowth: yoy,
+          bookedPestCV: h.bookedPestCV ?? m.bookedPestCV ?? null,
         };
       });
 
