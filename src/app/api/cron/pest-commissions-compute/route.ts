@@ -39,36 +39,41 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  const LIVE_FROM = new Date(Date.UTC(2026, 6, 1)); // Jul 1 2026 — only create rows for live months
+
   const results: any[] = [];
-  let written = 0, skippedFinalized = 0, skippedNoRow = 0;
+  let written = 0, skippedFinalized = 0, skippedHistory = 0;
 
   for (const { pm, month, sales: pmSales } of groups.values()) {
     const { total, byCategory } = computePmMonthCommission(pmSales);
     const monthDate = new Date(`${month}-01T00:00:00.000Z`);
+    const rounded = Math.round(total * 100) / 100;
 
-    // Find the commission_months row; only write if it exists and is NOT finalized.
     const existing = await prisma.commissionMonth.findUnique({
       where: { pmName_month: { pmName: pm, month: monthDate } },
       select: { finalized: true, pestControlComm: true },
     });
 
-    const entry: any = { pm, month, computed: Math.round(total * 100) / 100, byCategory };
-    if (!existing) { entry.action = 'skipped: no commission_months row'; skippedNoRow++; }
-    else if (existing.finalized) { entry.action = 'skipped: finalized'; skippedFinalized++; }
-    else {
-      entry.action = dry ? 'would write' : 'written';
-      entry.previous = existing.pestControlComm;
-      if (!dry) {
-        await prisma.commissionMonth.update({
-          where: { pmName_month: { pmName: pm, month: monthDate } },
-          data: { pestControlComm: Math.round(total * 100) / 100 },
-        });
-        written++;
-      }
+    const entry: any = { pm, month, computed: rounded, byCategory };
+
+    if (existing?.finalized) { entry.action = 'skipped: finalized'; skippedFinalized++; results.push(entry); continue; }
+
+    // Pre-live months are frozen display-only history (served from import-history); never create/write them.
+    if (monthDate < LIVE_FROM) { entry.action = 'skipped: frozen history'; skippedHistory++; results.push(entry); continue; }
+
+    entry.previous = existing?.pestControlComm ?? null;
+    entry.action = dry ? (existing ? 'would write' : 'would create') : (existing ? 'written' : 'created');
+    if (!dry) {
+      await prisma.commissionMonth.upsert({
+        where: { pmName_month: { pmName: pm, month: monthDate } },
+        create: { pmName: pm, month: monthDate, pestControlComm: rounded },
+        update: { pestControlComm: rounded },
+      });
+      written++;
     }
     results.push(entry);
   }
 
   results.sort((a, b) => (a.month < b.month ? 1 : -1) || (a.pm < b.pm ? -1 : 1));
-  return NextResponse.json({ ok: true, dry, groups: groups.size, written, skippedFinalized, skippedNoRow, results });
+  return NextResponse.json({ ok: true, dry, groups: groups.size, written, skippedFinalized, skippedHistory, results });
 }
