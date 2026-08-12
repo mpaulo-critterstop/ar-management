@@ -78,6 +78,42 @@ export async function GET(req: NextRequest) {
     results.push(entry);
   }
 
+  // ---- Booked Pest Control CV (KPI) — sum of CV of ALL pest sales (every category) whose initial
+  // service completed that month, per PM + company. Same initial-service-date basis as commissions.
+  // Computed for LIVE months only (>= Aug 2026 per Mark); Jul and earlier keep their Excel backfill values.
+  const CV_LIVE_FROM = new Date(Date.UTC(2026, 7, 1)); // Aug 1 2026
+  const cvByPmMonth = new Map<string, number>();   // 'pm||YYYY-MM' -> cv sum
+  const cvByCompanyMonth = new Map<string, number>(); // 'YYYY-MM' -> cv sum
+  for (const s of sales) {
+    if (!s.pmName || !s.commissionMonth) continue;
+    const monthDate = new Date(`${s.commissionMonth}-01T00:00:00.000Z`);
+    if (monthDate < CV_LIVE_FROM) continue;          // Aug+ only; Jul & history stay from Excel
+    const cv = s.contractValue || 0;
+    cvByPmMonth.set(`${s.pmName}||${s.commissionMonth}`, (cvByPmMonth.get(`${s.pmName}||${s.commissionMonth}`) || 0) + cv);
+    cvByCompanyMonth.set(s.commissionMonth, (cvByCompanyMonth.get(s.commissionMonth) || 0) + cv);
+  }
+  let cvWritten = 0;
+  const upsertCV = async (scope: string, monthKey: string, cv: number) => {
+    if (dry) return;
+    await prisma.kpiHistory.upsert({
+      where: { period_periodKey_scope: { period: 'monthly', periodKey: monthKey, scope } },
+      create: { period: 'monthly', periodKey: monthKey, scope, booked: 0, leads: 0, closed: 0, closingPct: 0, avgSale: 0, bookedPerLead: 0, bookedPestCV: Math.round(cv * 100) / 100 },
+      update: { bookedPestCV: Math.round(cv * 100) / 100 },
+    });
+    cvWritten++;
+  };
+  const cvResults: any[] = [];
+  for (const [key, cv] of cvByPmMonth) {
+    const [pm, monthKey] = key.split('||');
+    await upsertCV(pm, monthKey, cv);
+    cvResults.push({ scope: pm, month: monthKey, bookedPestCV: Math.round(cv * 100) / 100 });
+  }
+  for (const [monthKey, cv] of cvByCompanyMonth) {
+    await upsertCV('company', monthKey, cv);
+    cvResults.push({ scope: 'company', month: monthKey, bookedPestCV: Math.round(cv * 100) / 100 });
+  }
+
   results.sort((a, b) => (a.month < b.month ? 1 : -1) || (a.pm < b.pm ? -1 : 1));
-  return NextResponse.json({ ok: true, dry, groups: groups.size, written, skippedFinalized, skippedHistory, note: 'Only live non-finalized months are shown/written; finalized + pre-live-cutover months are counted but not listed.', results });
+  cvResults.sort((a, b) => (a.month < b.month ? 1 : -1) || (a.scope < b.scope ? -1 : 1));
+  return NextResponse.json({ ok: true, dry, groups: groups.size, written, cvWritten, skippedFinalized, skippedHistory, note: 'Commissions: live non-finalized months only. Booked Pest CV: all live months (>= Jul 2026), per PM + company; pre-live months keep Excel history.', results, bookedPestCV: cvResults });
 }
