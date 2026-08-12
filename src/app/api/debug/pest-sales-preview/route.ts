@@ -13,7 +13,9 @@
 //    completed => "pending" (no commission).
 //  - Fetch fix: pad single-ID subscription/get (duplicate the id).
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
 export const maxDuration = 800;
 const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
 const OFFICES: Record<string, { key: string; token: string; officeId: string }> = {
@@ -26,8 +28,23 @@ async function frGet(endpoint: string, params: string, key: string, token: strin
   const res = await fetch(`${FR_BASE}/${endpoint}?${params}&authenticationKey=${key}&authenticationToken=${token}`);
   return res.json();
 }
-const EXCLUDE_NAME = /reservice|call\s*back|callback|\blead\b|inspection|renewal|follow\s*up|removal|reset|rebait|refill/i;
+const EXCLUDE_NAME = /reservice|call\s*back|callback|\blead\b|inspection|renewal|follow\s*up|removal|reset|rebait|refill|pretreatment/i;
+const EXCLUDE_SERVICEIDS = new Set(['836', '1077']); // Pretreatment (Termite + SubTermites) — not commissionable
 const monthKey = (d: string) => (d && !d.startsWith('0000')) ? d.slice(0, 7) : null;
+
+// PM scoping: only count sales sold by an actual PM (same list the commission tables use).
+// Match on last name too, since FR soldBy names may differ slightly from commission_plans pmName.
+function pmMatcher(pmNames: string[]) {
+  const full = new Set(pmNames.map(n => n.toLowerCase().trim()));
+  const last = new Set(pmNames.map(n => n.toLowerCase().trim().split(/\s+/).pop()!));
+  return (soldByName: string) => {
+    const n = (soldByName || '').toLowerCase().trim();
+    if (!n || n.startsWith('#')) return false;
+    if (full.has(n)) return true;
+    const ln = n.split(/\s+/).pop()!;
+    return last.has(ln) && ln.length > 2;
+  };
+}
 
 async function loadCatalog(cfg: {key:string;token:string;officeId:string}): Promise<Map<string,{name:string;category:string}>> {
   const m = new Map<string,{name:string;category:string}>();
@@ -42,7 +59,7 @@ async function loadCatalog(cfg: {key:string;token:string;officeId:string}): Prom
   return m;
 }
 
-async function scanOffice(office: string, since: string, limit: number, empMap: Map<string,string>) {
+async function scanOffice(office: string, since: string, limit: number, empMap: Map<string,string>, isPM: (n:string)=>boolean) {
   const cfg = OFFICES[office];
   if (!cfg?.key) return { office, error: 'unconfigured' };
 
@@ -62,7 +79,6 @@ async function scanOffice(office: string, since: string, limit: number, empMap: 
     await new Promise(res => setTimeout(res, 150));
   }
 
-  // group by customer to detect bundles (parent serviceID -1)
   const byCust = new Map<string, any[]>();
   for (const s of subs) { const c = String(s.customerID); if (!byCust.has(c)) byCust.set(c, []); byCust.get(c)!.push(s); }
 
@@ -75,50 +91,51 @@ async function scanOffice(office: string, since: string, limit: number, empMap: 
   }
 
   const sales: any[] = [];
+  let skippedNonPM = 0;
   for (const [customerID, arr] of byCust) {
     const parent = arr.find(s => String(s.serviceID) === '-1');
     if (parent) {
-      // BUNDLE: one Rodent Bundle sale. CV from parent. Charge-bearing child drives commission month.
+      const soldByName = empMap.get(String(parent.soldBy)) || `#${parent.soldBy}`;
+      if (!isPM(soldByName)) { skippedNonPM++; continue; }        // PM scope
       const chargeChild = arr.find(s => Number(s.recurringCharge) > 0);
       const cv = Number(parent.contractValue);
+      if (cv <= 0) continue;                                       // no value -> skip
       const commMonth = chargeChild ? monthKey(chargeChild.lastCompleted) : null;
       sales.push({
-        customerID, category: 'Rodent Bundle',
-        service: 'Bundle (parent -1)',
-        soldBy: empMap.get(String(parent.soldBy)) || `#${parent.soldBy}`,
-        contractValue: cv,
-        saleDate: parent.dateAdded?.slice(0,10),
+        customerID, category: 'Rodent Bundle', service: 'Bundle (parent -1)',
+        soldBy: soldByName, contractValue: cv,
+        saleDate: (parent.dateAdded || '').slice(0,10),
         initialDone: !!commMonth,
         commissionMonth: commMonth || 'PENDING (initial not done)',
         chargeChildService: chargeChild ? catalog.get(String(chargeChild.serviceID))?.name : null,
       });
       continue;
     }
-    // Non-bundle subs: evaluate each using the AUTHORITATIVE catalog category
     for (const s of arr) {
+      if (EXCLUDE_SERVICEIDS.has(String(s.serviceID))) continue;  // pretreatment etc.
       const cat = catalog.get(String(s.serviceID));
       const category = cat?.category || '';
       const name = cat?.name || s.serviceType || `#${s.serviceID}`;
       const isTermite = category === 'Termite';
       const isPest = category === 'Pest Control';
-      if (!isTermite && !isPest) continue;                       // wildlife/subtermites/general/blank -> skip
-      if (EXCLUDE_NAME.test(name)) continue;                     // reservice/callback/lead/inspection/renewal
+      if (!isTermite && !isPest) continue;
+      if (EXCLUDE_NAME.test(name)) continue;
       const cv = Number(s.contractValue);
-      if (isTermite && cv <= 0) continue;                        // termite renewal -> skip
+      if (cv <= 0) continue;                                       // standalone must have value
+      const soldByName = empMap.get(String(s.soldBy)) || `#${s.soldBy}`;
+      if (!isPM(soldByName)) { skippedNonPM++; continue; }         // PM scope
       const commMonth = monthKey(s.lastCompleted);
       sales.push({
         customerID, category: isTermite ? 'Termite' : 'Pest Control',
-        service: name, serviceID: s.serviceID,
-        soldBy: empMap.get(String(s.soldBy)) || `#${s.soldBy}`,
-        contractValue: cv,
-        recurringCharge: Number(s.recurringCharge),
-        saleDate: s.dateAdded?.slice(0,10),
+        service: name, serviceID: s.serviceID, soldBy: soldByName,
+        contractValue: cv, recurringCharge: Number(s.recurringCharge),
+        saleDate: (s.dateAdded || '').slice(0,10),
         initialDone: !!commMonth,
         commissionMonth: commMonth || 'PENDING (initial not done)',
       });
     }
   }
-  return { office, scanned: subs.length, saleCount: sales.length, sales };
+  return { office, scanned: subs.length, saleCount: sales.length, skippedNonPM, sales };
 }
 
 export async function GET(req: NextRequest) {
@@ -129,7 +146,11 @@ export async function GET(req: NextRequest) {
   const officeParam = sp.get('office') || 'All';
   const offices = officeParam === 'All' ? Object.keys(OFFICES) : [officeParam];
   const empMap = new Map<string,string>();
+  // Canonical PM list = distinct pmName from commission_plans (same list the commission tables use).
+  const plans = await prisma.commissionPlan.findMany({ select: { pmName: true }, distinct: ['pmName'] });
+  const pmNames = plans.map(p => p.pmName);
+  const isPM = pmMatcher(pmNames);
   const results = [];
-  for (const o of offices) results.push(await scanOffice(o, since, limit, empMap));
-  return NextResponse.json({ since, spec: 'v1', offices: results });
+  for (const o of offices) results.push(await scanOffice(o, since, limit, empMap, isPM));
+  return NextResponse.json({ since, spec: 'v2', pmCount: pmNames.length, pmNames, offices: results });
 }
