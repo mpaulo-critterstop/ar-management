@@ -21,6 +21,9 @@ async function frGet(endpoint: string, params: string, key: string, token: strin
   return res.json();
 }
 const EXCLUDE_NAME = /reservice|call\s*back|callback|\blead\b|inspection|renewal|follow\s*up|removal|reset|rebait|refill|pretreatment/i;
+// Termite product names legitimately contain "renewal", "removal", "monitoring" — so termite uses a
+// REDUCED exclusion (only genuine non-sales: inspection, follow-up, reservice, callback, lead).
+const EXCLUDE_NAME_TERMITE = /reservice|call\s*back|callback|\blead\b|inspection|follow\s*up/i;
 const EXCLUDE_SERVICEIDS = new Set(['836', '1077']);
 const monthKey = (d: string) => (d && !d.startsWith('0000')) ? d.slice(0, 7) : null;
 const toDate = (d: string) => (d && !d.startsWith('0000')) ? new Date(d) : null;
@@ -117,9 +120,13 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
       const name = cat?.name || s.serviceType || `#${s.serviceID}`;
       const isT = category === 'Termite', isP = category === 'Pest Control';
       if (!isT && !isP) continue;
-      if (EXCLUDE_NAME.test(name)) continue;
+      if (isT ? EXCLUDE_NAME_TERMITE.test(name) : EXCLUDE_NAME.test(name)) continue;
       const cv = Number(s.contractValue);
-      if (cv <= 0) continue;
+      const rc = Number(s.recurringCharge);
+      // Pest: must have contract value. Termite: count if CV>0 OR recurringCharge>0 (some CSRs leave CV
+      // at 0 and bill the initial via a manual invoice — value backfilled from the Excel history).
+      if (isP && cv <= 0) continue;
+      if (isT && cv <= 0 && rc <= 0) continue;
       const pm = getPM(empMap.get(String(s.soldBy)) || `#${s.soldBy}`);
       if (!pm) continue;
       const cm = monthKey(s.lastCompleted);
@@ -127,7 +134,7 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
         office, customerId: customerID, customerName: custName.get(customerID) || null,
         externalKey: `${office}:${customerID}:${s.subscriptionID}`, subscriptionId: String(s.subscriptionID),
         category: isT ? 'Termite' : 'Pest Control', serviceName: name, serviceId: String(s.serviceID),
-        pmName: pm, soldByFrId: String(s.soldBy), contractValue: cv, recurringCharge: Number(s.recurringCharge),
+        pmName: pm, soldByFrId: String(s.soldBy), contractValue: cv, recurringCharge: rc,
         saleDate: toDate(s.dateAdded), initialDone: !!cm, initialCompletedAt: toDate(s.lastCompleted),
         commissionMonth: cm, chargeChildService: null,
       });
@@ -145,7 +152,7 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const since = sp.get('since') || '2026-01-01';
+  const since = sp.get('since') || '2026-08-01';
   const officeParam = sp.get('office') || 'All';
   const offices = officeParam === 'All' ? Object.keys(OFFICES) : [officeParam];
 
