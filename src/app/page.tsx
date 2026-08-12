@@ -74,6 +74,17 @@ export default function HomePage() {
       ] : null,
     },
     {
+      module: 'pest-sales' as ModuleKey,
+      icon: '🐜',
+      title: 'Pest Control Sales',
+      desc: 'Track PM pest, rodent bundle, and termite sales, and initial-service status.',
+      href: '/pest-sales',
+      accentColor: '#b45309',
+      main: '—',
+      mainLabel: 'Sales',
+      stats: null,
+    },
+    {
       module: 'dispatch' as ModuleKey,
       icon: '🚛',
       title: 'Dispatcher',
