@@ -797,6 +797,7 @@ model LsaLead {
   manualOverride    Boolean   @default(false)      // true = stage was hand-set; auto-derivation skips it
   followupNote      String?                        // our internal follow-up note
   staleFlagged      Boolean   @default(false)      // set when auto-flagged stale (dedupe Slack alerts)
+  replyAlerted      Boolean   @default(false)      // set when we've Slack-alerted this customer reply (dedupe)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   @@index([status])

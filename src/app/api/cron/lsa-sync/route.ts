@@ -14,6 +14,15 @@ import { deriveLsaStage, normalizePhone } from '@/lib/lsaStage';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
+async function postSlack(text: string): Promise<boolean> {
+  const url = process.env.SLACK_LSA_WEBHOOK_URL;
+  if (!url) return false;
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+    return res.ok;
+  } catch { return false; }
+}
+
 const API_VERSION = 'v22';
 const clean = (id: string | undefined) => (id || '').replace(/-/g, ''); // customer IDs: no dashes in API
 
@@ -131,7 +140,7 @@ export async function GET(req: NextRequest) {
       if (p && (c as any)._count?.leads > 0) bookedPhones.add(p);
     }
 
-    let upserted = 0, autoBooked = 0;
+    let upserted = 0, autoBooked = 0, replyCustomerAlerts = 0;
     for (const r of leadRows) {
       const L = r.localServicesLead || {};
       const leadId = String(L.id);
@@ -158,10 +167,11 @@ export async function GET(req: NextRequest) {
       // Cross-reference Booked: LSA phone matches a customer with a booked appointment, OR Google BOOKED.
       const normPhone = normalizePhone(phone);
       const isBooked = gStatus === 'BOOKED' || (normPhone ? bookedPhones.has(normPhone) : false);
-      const existing = await prisma.lsaLead.findUnique({ where: { leadId }, select: { manualOverride: true, status: true } });
+      const existing = await prisma.lsaLead.findUnique({
+        where: { leadId }, select: { manualOverride: true, status: true, replyAlerted: true },
+      });
 
       // Phone-call leads are answered live — they don't belong in the message follow-up pipeline.
-      // Fixed non-pipeline status; never derived, never alerted, excluded from counts.
       let statusToSet: string;
       if (leadType === 'PHONE_CALL') {
         statusToSet = 'Call — handled';
@@ -169,11 +179,35 @@ export async function GET(req: NextRequest) {
         autoBooked++;
         statusToSet = existing?.status?.includes('Lost') ? existing.status : 'Booked';
       } else if (existing?.manualOverride) {
-        // Respect a human-set stage (Booked/Lost) — don't auto-change it.
         statusToSet = existing.status;
       } else {
-        // Auto-derive the follow-up stage from conversation activity (message leads only).
         statusToSet = deriveLsaStage({ lastParticipant: lastParticipant as any, lastActivityAt, creationDateTime: creation });
+      }
+
+      // ---- Customer-reply Slack alert ----
+      // Alert only on a genuine TRANSITION into 'Customer Replied' (prior stored status was something
+      // else) AND not already alerted — this prevents the first post-deploy sync from flooding alerts for
+      // leads already sitting in 'Customer Replied'. Reset the flag when we've replied (Awaiting Customer)
+      // so the next inbound reply re-alerts. Never for call leads.
+      let replyAlerted = existing?.replyAlerted ?? false;
+      if (leadType !== 'PHONE_CALL') {
+        const wasAlready = existing?.status === 'Customer Replied';
+        if (statusToSet === 'Customer Replied' && !replyAlerted && !wasAlready) {
+          const who = contact.consumerName || phone || `Lead ${leadId}`;
+          const snippet = lastMessageText ? ` — "${lastMessageText.slice(0, 100)}"` : '';
+          const ok = await postSlack(
+            `💬 *New LSA customer reply — needs response*\n*${who}*${snippet}\nReply in the LSA app.`
+          );
+          if (ok) replyAlerted = true;
+          replyCustomerAlerts++;
+        } else if (statusToSet === 'Customer Replied' && wasAlready) {
+          // Already sitting in Customer Replied from a prior sync — mark alerted so we don't spam, but
+          // don't send (it was surfaced before / is part of the pre-existing backlog).
+          replyAlerted = true;
+        } else if (statusToSet === 'Awaiting Customer') {
+          // We replied — clear the flag so the next inbound reply triggers a fresh alert.
+          replyAlerted = false;
+        }
       }
 
       await prisma.lsaLead.upsert({
@@ -185,20 +219,20 @@ export async function GET(req: NextRequest) {
           contactName: contact.consumerName || null, contactPhone: phone,
           leadCharged: L.leadCharged ?? null, note: L.note?.description || null,
           creationDateTime: creation, lastActivityAt, lastParticipant,
-          lastMessageText, conversationCount: convs.length,
+          lastMessageText, conversationCount: convs.length, replyAlerted,
         },
         update: {
           leadType, googleLeadStatus: gStatus,
           contactName: contact.consumerName || null, contactPhone: phone,
           leadCharged: L.leadCharged ?? null, note: L.note?.description || null,
           lastActivityAt, lastParticipant, lastMessageText, conversationCount: convs.length,
-          status: statusToSet,
+          status: statusToSet, replyAlerted,
         },
       });
       upserted++;
     }
 
-    return NextResponse.json({ ok: true, days, leads: leadRows.length, conversations: convRows.length, upserted, autoBooked });
+    return NextResponse.json({ ok: true, days, leads: leadRows.length, conversations: convRows.length, upserted, autoBooked, replyCustomerAlerts });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 });
   }
