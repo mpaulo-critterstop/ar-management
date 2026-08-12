@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
   const missing = required.filter(k => !process.env[k]);
   if (missing.length) return NextResponse.json({ error: 'Missing env vars', missing }, { status: 400 });
 
-  const days = Math.min(Number(sp.get('days')) || 90, 730);
+  const days = Math.min(Number(sp.get('days')) || 7, 730); // default 7d (lightweight); pass ?days=90 for a full backfill
   const customerId = clean(process.env.GOOGLE_ADS_LSA_CUSTOMER_ID);
 
   try {
