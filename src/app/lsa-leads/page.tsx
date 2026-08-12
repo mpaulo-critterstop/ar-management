@@ -26,6 +26,7 @@ export default function LsaLeadsPage() {
   const [status, setStatus] = useState('All');
   const [leadType, setLeadType] = useState('All');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
 
   function load() {
     setLoading(true);
@@ -59,6 +60,14 @@ export default function LsaLeadsPage() {
   const leads = (data?.leads || []).filter((l: any) =>
     !search || (l.contactName || '').toLowerCase().includes(search.toLowerCase())
     || (l.contactPhone || '').includes(search));
+
+  // Pagination (client-side over filtered data).
+  const PAGE_SIZE = 25;
+  const totalPages = Math.max(1, Math.ceil(leads.length / PAGE_SIZE));
+  const pageLeads = leads.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // Reset to page 1 whenever filters/search change the result set out from under the current page.
+  useEffect(() => { setPage(1); }, [status, leadType, search]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages, page]);
 
   const th: React.CSSProperties = { textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3', textTransform: 'uppercase', letterSpacing: '0.03em' };
   const td: React.CSSProperties = { padding: '9px 12px', fontSize: 13, color: '#2C2C2A', borderBottom: '0.5px solid #F1EFE8', verticalAlign: 'top' };
@@ -122,7 +131,7 @@ export default function LsaLeadsPage() {
               <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={7}>Loading…</td></tr>
             ) : leads.length === 0 ? (
               <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={7}>No LSA leads for these filters. Run the sync to pull leads.</td></tr>
-            ) : leads.map((l: any) => {
+            ) : pageLeads.map((l: any) => {
               const isMsg = l.leadType === 'MESSAGE';
               return (
                 <tr key={l.id} style={l.status === 'Need Follow-up' ? { background: '#fef6f6' } : undefined}>
@@ -179,6 +188,26 @@ export default function LsaLeadsPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {!loading && leads.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, fontSize: 12, color: '#888780' }}>
+          <span>
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, leads.length)} of {leads.length}
+          </span>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button onClick={() => setPage(1)} disabled={page === 1}
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: page === 1 ? '#D3D1C7' : '#2C2C2A', cursor: page === 1 ? 'default' : 'pointer' }}>« First</button>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: page === 1 ? '#D3D1C7' : '#2C2C2A', cursor: page === 1 ? 'default' : 'pointer' }}>‹ Prev</button>
+            <span style={{ padding: '0 8px' }}>Page {page} of {totalPages}</span>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: page === totalPages ? '#D3D1C7' : '#2C2C2A', cursor: page === totalPages ? 'default' : 'pointer' }}>Next ›</button>
+            <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: page === totalPages ? '#D3D1C7' : '#2C2C2A', cursor: page === totalPages ? 'default' : 'pointer' }}>Last »</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
