@@ -96,6 +96,17 @@ export default function HomePage() {
       stats: null,
     },
     {
+      module: 'lsa-lag-report' as ModuleKey,
+      icon: '⏱️',
+      title: 'LSA Lag Report',
+      desc: 'Follow-up responsiveness on LSA message leads \u2014 reply speed and thread depth, by month and week.',
+      href: '/lsa-lag-report',
+      accentColor: '#0052cc',
+      main: '—',
+      mainLabel: 'Report',
+      stats: null,
+    },
+    {
       module: 'dispatch' as ModuleKey,
       icon: '🚛',
       title: 'Dispatcher',

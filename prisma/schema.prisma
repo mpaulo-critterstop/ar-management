@@ -791,6 +791,8 @@ model LsaLead {
   note              String?                        // advertiser note from Google
   creationDateTime  DateTime?                      // when Google created the lead
   lastActivityAt    DateTime?                      // last inbound/outbound conversation timestamp
+  firstReplyAt      DateTime?                      // timestamp of our FIRST outbound (ADVERTISER) message — for time-to-first-reply
+  outboundCount     Int       @default(0)          // # of our outbound (ADVERTISER) messages — for follow-up depth
   lastMessageText   String?                        // most recent message content (for message leads)
   conversationCount Int       @default(0)
   lastParticipant   String?                        // 'ADVERTISER' (us) | 'CONSUMER' (customer) — last msg sender

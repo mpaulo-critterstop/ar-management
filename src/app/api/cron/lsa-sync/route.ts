@@ -159,16 +159,23 @@ async function runSync(days: number, customerId: string) {
       const leadId = String(L.id);
       const leadRes = `customers/${customerId}/localServicesLeads/${leadId}`;
       const convs = convByLead.get(leadRes) || [];
-      // latest activity + latest message text + who sent the latest event (for stage derivation)
+      // latest activity + latest message text + who sent the latest event (for stage derivation),
+      // plus first outbound reply time and outbound count (for the lag report).
       let lastActivityAt: Date | null = null;
       let lastMessageText: string | null = null;
       let lastParticipant: string | null = null;
+      let firstReplyAt: Date | null = null;
+      let outboundCount = 0;
       for (const c of convs) {
         const t = c.eventDateTime ? new Date(c.eventDateTime.replace(' ', 'T')) : null;
         if (t && (!lastActivityAt || t > lastActivityAt)) {
           lastActivityAt = t;
           lastMessageText = c.messageDetails?.text || null;
           lastParticipant = c.participantType || null; // 'ADVERTISER' | 'CONSUMER'
+        }
+        if (c.participantType === 'ADVERTISER') {
+          outboundCount++;
+          if (t && (!firstReplyAt || t < firstReplyAt)) firstReplyAt = t; // earliest outbound = first reply
         }
       }
       const contact = L.contactDetails || {};
@@ -251,6 +258,7 @@ async function runSync(days: number, customerId: string) {
           leadCharged: L.leadCharged ?? null, note: L.note?.description || null,
           creationDateTime: creation, lastActivityAt, lastParticipant,
           lastMessageText, conversationCount: convs.length, replyAlerted, newLeadAlerted,
+          firstReplyAt, outboundCount,
         },
         update: {
           leadType, googleLeadStatus: gStatus,
@@ -258,6 +266,7 @@ async function runSync(days: number, customerId: string) {
           leadCharged: L.leadCharged ?? null, note: L.note?.description || null,
           lastActivityAt, lastParticipant, lastMessageText, conversationCount: convs.length,
           status: statusToSet, replyAlerted, newLeadAlerted,
+          firstReplyAt, outboundCount,
           ...(clearEscalation ? { lastEscalatedAt: null } : {}),
         },
       });
