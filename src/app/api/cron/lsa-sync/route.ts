@@ -153,7 +153,7 @@ async function runSync(days: number, customerId: string) {
       if (p && (c as any)._count?.leads > 0) bookedPhones.add(p);
     }
 
-    let upserted = 0, autoBooked = 0, replyCustomerAlerts = 0;
+    let upserted = 0, autoBooked = 0, replyCustomerAlerts = 0, newLeadAlerts = 0;
     for (const r of leadRows) {
       const L = r.localServicesLead || {};
       const leadId = String(L.id);
@@ -181,7 +181,7 @@ async function runSync(days: number, customerId: string) {
       const normPhone = normalizePhone(phone);
       const isBooked = gStatus === 'BOOKED' || (normPhone ? bookedPhones.has(normPhone) : false);
       const existing = await prisma.lsaLead.findUnique({
-        where: { leadId }, select: { manualOverride: true, status: true, replyAlerted: true },
+        where: { leadId }, select: { manualOverride: true, status: true, replyAlerted: true, newLeadAlerted: true },
       });
 
       // Phone-call leads are answered live — they don't belong in the message follow-up pipeline.
@@ -223,6 +223,22 @@ async function runSync(days: number, customerId: string) {
         }
       }
 
+      // ---- New incoming message-lead Slack alert ----
+      // Fires ONCE when a brand-new (never-synced) MESSAGE lead comes in unanswered ('New' stage). Because
+      // it only fires when there's no existing record, historical leads never alert and the first sync
+      // after deploy can't flood (all current leads already have records). Call leads and already-known
+      // leads are excluded.
+      let newLeadAlerted = existing?.newLeadAlerted ?? false;
+      if (!existing && leadType === 'MESSAGE' && statusToSet === 'New') {
+        const who = contact.consumerName || phone || `Lead ${leadId}`;
+        const snippet = lastMessageText ? ` — "${lastMessageText.slice(0, 100)}"` : '';
+        const ok = await postSlack(
+          `🆕 *New LSA message lead — no reply yet*\n*${who}*${snippet}\nReply in the LSA app.`
+        );
+        if (ok) newLeadAlerted = true;
+        newLeadAlerts++;
+      }
+
       await prisma.lsaLead.upsert({
         where: { leadId },
         create: {
@@ -232,20 +248,20 @@ async function runSync(days: number, customerId: string) {
           contactName: contact.consumerName || null, contactPhone: phone,
           leadCharged: L.leadCharged ?? null, note: L.note?.description || null,
           creationDateTime: creation, lastActivityAt, lastParticipant,
-          lastMessageText, conversationCount: convs.length, replyAlerted,
+          lastMessageText, conversationCount: convs.length, replyAlerted, newLeadAlerted,
         },
         update: {
           leadType, googleLeadStatus: gStatus,
           contactName: contact.consumerName || null, contactPhone: phone,
           leadCharged: L.leadCharged ?? null, note: L.note?.description || null,
           lastActivityAt, lastParticipant, lastMessageText, conversationCount: convs.length,
-          status: statusToSet, replyAlerted,
+          status: statusToSet, replyAlerted, newLeadAlerted,
         },
       });
       upserted++;
     }
 
-    return { ok: true, days, leads: leadRows.length, conversations: convRows.length, upserted, autoBooked, replyCustomerAlerts };
+    return { ok: true, days, leads: leadRows.length, conversations: convRows.length, upserted, autoBooked, replyCustomerAlerts, newLeadAlerts };
   } catch (e: any) {
     return { ok: false, error: String(e?.message || e) };
   }
