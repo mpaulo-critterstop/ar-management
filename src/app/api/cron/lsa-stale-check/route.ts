@@ -25,6 +25,18 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const dry = sp.get('dry') === '1';
+  const seed = sp.get('seed') === '1';
+
+  // ?seed=1 → ONE-TIME: mark all current 'Need Follow-up' leads as already-alerted WITHOUT sending any
+  // Slack messages. Run this once before enabling the live job so the historical backlog (395 leads)
+  // doesn't flood Slack. After seeding, only leads that NEWLY go stale will alert.
+  if (seed) {
+    const res = await prisma.lsaLead.updateMany({
+      where: { status: 'Need Follow-up', staleFlagged: false },
+      data: { staleFlagged: true },
+    });
+    return NextResponse.json({ ok: true, seeded: res.count, note: 'Backlog marked as alerted silently. Future newly-stale leads will alert normally.' });
+  }
 
   // Dry run stays inline so you can see the count. Live run is fire-and-forget (waitUntil keeps it alive).
   if (dry) {
