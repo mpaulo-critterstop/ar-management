@@ -66,7 +66,7 @@ export default function CsrPestSalesPage() {
     <div style={{ padding: '0 24px 40px', maxWidth: 1400, margin: '0 auto' }}>
       <div style={{ paddingTop: 24 }}>
         <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>CSR Pest Sales</h1>
-        <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>Pest, rodent bundle, and termite sales made by CSRs (non-PM). Tracking only \u2014 no commissions.</p>
+        <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>Pest, rodent bundle, and termite sales made by CSRs.</p>
       </div>
 
       {/* Tabs */}
