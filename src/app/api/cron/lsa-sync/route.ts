@@ -15,7 +15,8 @@ import { waitUntil } from '@vercel/functions';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-async function postSlack(text: string): Promise<boolean> {
+async function postSlack(text: string, silent = false): Promise<boolean> {
+  if (silent) return true; // silent mode: pretend success so dedupe flags still get set, but send nothing
   const url = process.env.SLACK_LSA_WEBHOOK_URL;
   if (!url) return false;
   try {
@@ -95,6 +96,7 @@ export async function GET(req: NextRequest) {
 
   const days = Math.min(Number(sp.get('days')) || 7, 730); // default 7d (lightweight); pass ?days=90 for a full backfill
   const only = sp.get('location'); // optional: sync just one location
+  const silent = sp.get('silent') === '1'; // suppress all Slack sends (for backfill/seeding)
 
   // Resolve the LSA accounts to sync. Prefer the JSON map GOOGLE_ADS_LSA_ACCOUNTS
   // ({"Southlake":"123...","Oklahoma City":"..."}); fall back to the single legacy env var (Southlake).
@@ -116,19 +118,19 @@ export async function GET(req: NextRequest) {
 
   // ?wait=1 → run inline and return the full result (useful for manual/debug runs).
   if (sp.get('wait') === '1') {
-    const result = await runAllAccounts(days, accounts);
+    const result = await runAllAccounts(days, accounts, silent);
     return NextResponse.json(result, { status: result.ok ? 200 : 500 });
   }
-  waitUntil(runAllAccounts(days, accounts).catch(e => { console.error('lsa-sync background error:', e); }));
-  return NextResponse.json({ ok: true, started: true, days, accounts: accounts.map(a => a.location), note: 'Sync running in background (fire-and-forget). Use ?wait=1 for inline result.' });
+  waitUntil(runAllAccounts(days, accounts, silent).catch(e => { console.error('lsa-sync background error:', e); }));
+  return NextResponse.json({ ok: true, started: true, days, silent, accounts: accounts.map(a => a.location), note: 'Sync running in background (fire-and-forget). Use ?wait=1 for inline result.' });
 }
 
 // Sync every configured account in turn; aggregate the per-account results.
-async function runAllAccounts(days: number, accounts: { location: string; customerId: string }[]) {
+async function runAllAccounts(days: number, accounts: { location: string; customerId: string }[], silent = false) {
   const results: any[] = [];
   let ok = true;
   for (const acct of accounts) {
-    const r = await runSync(days, acct.customerId, acct.location);
+    const r = await runSync(days, acct.customerId, acct.location, silent);
     results.push({ location: acct.location, ...r });
     if (!r.ok) ok = false;
   }
@@ -141,7 +143,7 @@ async function runAllAccounts(days: number, accounts: { location: string; custom
   };
 }
 
-async function runSync(days: number, customerId: string, location: string) {
+async function runSync(days: number, customerId: string, location: string, silent = false) {
   try {
     const accessToken = await getAccessToken();
 
@@ -261,7 +263,7 @@ async function runSync(days: number, customerId: string, location: string) {
           const who = contact.consumerName || phone || `Lead ${leadId}`;
           const snippet = lastMessageText ? ` — "${lastMessageText.slice(0, 100)}"` : '';
           const ok = await postSlack(
-            `💬 *New LSA customer reply — needs response* [${location}]\n*${who}*${snippet}\nReply in the LSA app.`
+            `💬 *New LSA customer reply — needs response* [${location}]\n*${who}*${snippet}\nReply in the LSA app.`, silent
           );
           if (ok) replyAlerted = true;
           replyCustomerAlerts++;
@@ -279,7 +281,7 @@ async function runSync(days: number, customerId: string, location: string) {
         const who = contact.consumerName || phone || `Lead ${leadId}`;
         const snippet = lastMessageText ? ` — "${lastMessageText.slice(0, 100)}"` : '';
         const ok = await postSlack(
-          `🆕 *New LSA message lead — no reply yet* [${location}]\n*${who}*${snippet}\nReply in the LSA app.`
+          `🆕 *New LSA message lead — no reply yet* [${location}]\n*${who}*${snippet}\nReply in the LSA app.`, silent
         );
         if (ok) newLeadAlerted = true;
         newLeadAlerts++;
@@ -338,7 +340,7 @@ async function runSync(days: number, customerId: string, location: string) {
         const hrs = Math.floor((now - since) / (60 * 60 * 1000));
         const snippet = l.lastMessageText ? ` — "${l.lastMessageText.slice(0, 100)}"` : '';
         const ok = await postSlack(
-          `⏰ *LSA reply overdue — ${hrs}h unanswered* [${location}]\n*${who}*${snippet}\nCustomer is waiting. Reply in the LSA app.`
+          `⏰ *LSA reply overdue — ${hrs}h unanswered* [${location}]\n*${who}*${snippet}\nCustomer is waiting. Reply in the LSA app.`, silent
         );
         if (ok) { await prisma.lsaLead.update({ where: { id: l.id }, data: { lastEscalatedAt: new Date() } }); escalated++; }
       }
