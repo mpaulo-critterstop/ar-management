@@ -7,13 +7,12 @@ type Seg = 'All' | 'Wildlife' | 'Pest';
 
 const pct = (n: number, d: number) => d > 0 ? `${((n / d) * 100).toFixed(1)}%` : '—';
 
-export default function LsaLagReportPage() {
+export default function LagReportView({ location }: { location: string }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'month' | 'week'>('month');
   const [seg, setSeg] = useState<Seg>('All');
   const [metric, setMetric] = useState<'firstReply' | 'depth'>('firstReply');
-  const [location, setLocation] = useState('Southlake');
 
   useEffect(() => {
     fetch(`/api/lsa-lag-report?location=${encodeURIComponent(location)}`).then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
@@ -108,34 +107,20 @@ export default function LsaLagReportPage() {
   }, { '0': 0, '1': 0, '2': 0, '3': 0, '4+': 0, noReply: 0, total: 0 } as any);
 
   return (
-    <div style={{ padding: '0 24px 40px', maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>LSA Follow-Up Lag Report</h1>
-          <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0', maxWidth: 620 }}>
-            Follow-up responsiveness on Google LSA message leads, from real message-level data. Two measures:
-            how fast we send the first reply, and how long threads stay active.
-          </p>
-        </div>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
+        <p style={{ fontSize: 12, color: '#888780', margin: 0, maxWidth: 620 }}>
+          Follow-up responsiveness on this location&apos;s LSA message leads, from real message-level data:
+          how fast we send the first reply, and how long threads stay active.
+        </p>
         <button onClick={downloadExcel} disabled={!data}
           style={{ fontSize: 13, fontWeight: 500, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #2C2C2A', background: '#2C2C2A', color: '#fff', cursor: data ? 'pointer' : 'default' }}>
           ↓ Download Excel
         </button>
       </div>
 
-      {/* Location selector */}
-      <div style={{ display: 'flex', gap: 4, marginTop: 16, background: '#f1efe8', borderRadius: 8, padding: 3, flexWrap: 'wrap', width: 'fit-content' }}>
-        {(data?.locations || ['Southlake']).map((loc: string) => (
-          <button key={loc} onClick={() => setLocation(loc)}
-            style={{ fontSize: 12, padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
-              background: location === loc ? '#fff' : 'transparent', color: location === loc ? '#2C2C2A' : '#888780', fontWeight: location === loc ? 600 : 400 }}>
-            {loc}
-          </button>
-        ))}
-      </div>
-
       {/* Metric selector — the two clearly-labeled measures */}
-      <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
         <button onClick={() => setMetric('firstReply')}
           style={{ flex: 1, textAlign: 'left', padding: '12px 16px', borderRadius: 10, cursor: 'pointer',
             background: isFR ? '#eef4ff' : '#fff', border: `0.5px solid ${isFR ? '#0052cc' : '#E8E7E3'}` }}>

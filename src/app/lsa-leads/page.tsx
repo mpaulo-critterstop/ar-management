@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import LagReportView from './LagReportView';
 
 const STAGES = ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Booked', 'Lost'];
 const stageColor: Record<string, { bg: string; fg: string }> = {
@@ -28,6 +29,7 @@ export default function LsaLeadsPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [location, setLocation] = useState('Southlake');
+  const [tab, setTab] = useState<'leads' | 'report'>('leads');
 
   function load() {
     setLoading(true);
@@ -91,6 +93,22 @@ export default function LsaLeadsPage() {
         ))}
       </div>
 
+      {/* Tabs: Leads tracker vs. Lag Report (both scoped to the selected location) */}
+      <div style={{ display: 'flex', gap: 24, marginTop: 20, borderBottom: '0.5px solid #E8E7E3' }}>
+        {([['leads', 'Leads'], ['report', 'Lag Report']] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k)}
+            style={{ fontSize: 14, fontWeight: tab === k ? 600 : 400, color: tab === k ? '#2C2C2A' : '#888780',
+              background: 'none', border: 'none', borderBottom: `2px solid ${tab === k ? '#2C2C2A' : 'transparent'}`,
+              padding: '0 0 10px', marginBottom: -0.5, cursor: 'pointer' }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'report' ? (
+        <div style={{ marginTop: 16 }}><LagReportView location={location} /></div>
+      ) : (
+      <>
       {/* Pipeline header */}
       <div style={{ display: 'flex', gap: 8, marginTop: 20, marginBottom: 16, flexWrap: 'wrap' }}>
         {STAGES.map(s => {
@@ -219,6 +237,8 @@ export default function LsaLeadsPage() {
               style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: page === totalPages ? '#D3D1C7' : '#2C2C2A', cursor: page === totalPages ? 'default' : 'pointer' }}>Last »</button>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );
