@@ -17,14 +17,14 @@ export interface DeriveInput {
   lastParticipant: 'ADVERTISER' | 'CONSUMER' | null; // sender of the most recent conversation event
   lastActivityAt: Date | null;
   creationDateTime: Date | null;
-  staleDays?: number; // default 2
+  staleDays?: number; // default 1
   now?: Date;
 }
 
 // Returns the auto-derived stage for the follow-up loop (does NOT decide Booked/Lost — those are set
 // by the caller from cross-reference / manual action).
 export function deriveLsaStage(input: DeriveInput): LsaStage {
-  const staleDays = input.staleDays ?? 2;
+  const staleDays = input.staleDays ?? 1;
   const now = input.now ?? new Date();
   const last = input.lastActivityAt || input.creationDateTime;
 

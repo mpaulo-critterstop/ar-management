@@ -1,5 +1,5 @@
 // LSA stale alerts — the SYNC now derives the stage automatically (Awaiting Customer -> Need Follow-up
-// after 2 days silent). This job's remaining role: send ONE Slack alert per lead that has entered
+// after 1 day silent). This job's remaining role: send ONE Slack alert per lead that has entered
 // 'Need Follow-up' and hasn't been alerted yet (staleFlagged dedupes). Run daily AFTER lsa-sync.
 //
 //   /api/cron/lsa-stale-check?token=critterstop2026        &dry=1
