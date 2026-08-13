@@ -54,6 +54,10 @@ async function loadCatalog(cfg: any): Promise<Map<string, { name: string; catego
 }
 
 async function syncOffice(office: string, since: string, empMap: Map<string, string>, getPM: (n: string) => string | null, getCSR: (n: string) => string | null) {
+  // PM sales before this date are owned by the Excel history backfill (source='excel'); pulling them from
+  // FR would create duplicate 'fr' rows for the same sale → double-count in PM commissions/KPI. So we skip
+  // PM sales dated before the boundary. CSR sales have NO Excel history, so they're pulled for the full range.
+  const PM_FR_BOUNDARY = new Date(Date.UTC(2026, 7, 1)); // Aug 1 2026
   const cfg = OFFICES[office];
   if (!cfg?.key) return { office, error: 'unconfigured' };
   const catalog = await loadCatalog(cfg);
@@ -103,6 +107,9 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
       const csr = pm ? null : getCSR(soldByName);   // PM takes precedence; else try CSR
       const seller = pm || csr;
       const cv = Number(parent.contractValue);
+      const saleDt = toDate(parent.dateAdded);
+      // Skip PM sales before the Excel/FR boundary (avoid double-count). CSR sales are fine any time.
+      if (pm && saleDt && saleDt < PM_FR_BOUNDARY) continue;
       if (seller && cv > 0) {
         const child = arr.find(s => memberIds.has(String(s.subscriptionID)) && Number(s.recurringCharge) > 0);
         const cm = child ? monthKey(child.lastCompleted) : null;
@@ -138,6 +145,9 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
       const csr = pm ? null : getCSR(soldByName);   // PM precedence; else CSR
       const seller = pm || csr;
       if (!seller) continue;
+      // Skip PM sales before the Excel/FR boundary (avoid double-count). CSR sales are fine any time.
+      const saleDt = toDate(s.dateAdded);
+      if (pm && saleDt && saleDt < PM_FR_BOUNDARY) continue;
       const cm = monthKey(s.lastCompleted);
       rows.push({
         office, customerId: customerID, customerName: custName.get(customerID) || null,
