@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 const catColor: Record<string, { bg: string; fg: string }> = {
   'Pest Control': { bg: '#e6f0ff', fg: '#0052cc' },
   'Rodent Bundle': { bg: '#fef0e6', fg: '#b45309' },
@@ -26,11 +28,16 @@ export default function CsrPestSalesPage() {
   const [saleTo, setSaleTo] = useState('');
   const [initFrom, setInitFrom] = useState('');
   const [initTo, setInitTo] = useState('');
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  const [selYear, setSelYear] = useState(currentYear);
+  const [selMonth, setSelMonth] = useState<number | null>(null); // null = whole year
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/csr-pest-sales?office=${office}`).then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
-  }, [office]);
+    const mParam = selMonth == null ? '' : `&month=${selMonth}`;
+    fetch(`/api/csr-pest-sales?office=${office}&year=${selYear}${mParam}`).then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
+  }, [office, selYear, selMonth]);
 
   const inRange = (d: string | null, from: string, to: string) => {
     if (!d) return !from && !to;
@@ -86,6 +93,32 @@ export default function CsrPestSalesPage() {
           </select>
         </>}
       </div>
+
+      {/* Year + Month selector (By CSR rollup only) */}
+      {tab === 'byCsr' && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            {(data?.years?.length ? data.years : [currentYear]).map((y: number) => (
+              <button key={y} onClick={() => setSelYear(y)}
+                style={{ padding: '5px 16px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', cursor: 'pointer', fontWeight: 500,
+                  background: selYear === y ? '#0891b2' : '#fff', color: selYear === y ? '#fff' : '#444441' }}>{y}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            <button onClick={() => setSelMonth(null)}
+              style={{ padding: '4px 12px', fontSize: 12, borderRadius: 6, border: '0.5px solid #D3D1C7', cursor: 'pointer',
+                background: selMonth == null ? '#2C2C2A' : '#fff', color: selMonth == null ? '#fff' : '#888780', fontWeight: selMonth == null ? 600 : 400 }}>Full year</button>
+            {MONTHS.map((m, idx) => {
+              const isFuture = selYear === currentYear && idx > currentMonth;
+              return (
+                <button key={m} disabled={isFuture} onClick={() => setSelMonth(idx)}
+                  style={{ padding: '4px 12px', fontSize: 12, borderRadius: 6, border: '0.5px solid #D3D1C7', cursor: isFuture ? 'default' : 'pointer',
+                    background: selMonth === idx ? '#0891b2' : '#fff', color: isFuture ? '#D3D1C7' : selMonth === idx ? '#fff' : '#888780', fontWeight: selMonth === idx ? 600 : 400 }}>{m}</button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {tab === 'sales' && (
         <div style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>

@@ -168,8 +168,8 @@ export async function GET(req: NextRequest) {
 
   const plans = await prisma.commissionPlan.findMany({ select: { pmName: true }, distinct: ['pmName'] });
   const getPM = pmMatcher(plans.map(p => p.pmName));
-  // CSR roster (active isCsr) — matched by NAME (FR IDs are unreliable across offices / ghost accounts).
-  const csrs = await prisma.csrEmployee.findMany({ where: { isCsr: true }, select: { name: true }, distinct: ['name'] });
+  // CSR roster (active isCsr only) — matched by NAME (FR IDs are unreliable across offices / ghost accounts).
+  const csrs = await prisma.csrEmployee.findMany({ where: { isCsr: true, active: true }, select: { name: true }, distinct: ['name'] });
   const getCSR = pmMatcher([...new Set(csrs.map(c => c.name))]);
   const empMap = new Map<string, string>();
   const results = [];
