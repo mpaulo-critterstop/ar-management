@@ -85,6 +85,17 @@ export default function HomePage() {
       stats: null,
     },
     {
+      module: 'csr-pest-sales' as ModuleKey,
+      icon: '🎧',
+      title: 'CSR Pest Sales',
+      desc: 'Pest, rodent, and termite sales made by CSRs (non-PM) \u2014 sales list and per-CSR rollup.',
+      href: '/csr-pest-sales',
+      accentColor: '#0891b2',
+      main: '—',
+      mainLabel: 'Sales',
+      stats: null,
+    },
+    {
       module: 'lsa-leads' as ModuleKey,
       icon: '📍',
       title: 'LSA Leads',

@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   // and a given sale exists once (FR sync only has 8/1+ sales; Excel history has pre-8/1 sales) — no sale
   // appears in both sources, so summing across sources never counts a sale twice.
   const sales = await prisma.pestSale.findMany({
-    where: { commissionMonth: onlyMonth ? onlyMonth : { not: null }, initialDone: true },
+    where: { sellerType: 'pm', commissionMonth: onlyMonth ? onlyMonth : { not: null }, initialDone: true },
     select: { pmName: true, category: true, contractValue: true, initialCompletedAt: true, commissionMonth: true },
   });
 

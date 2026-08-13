@@ -53,7 +53,7 @@ async function loadCatalog(cfg: any): Promise<Map<string, { name: string; catego
   return m;
 }
 
-async function syncOffice(office: string, since: string, empMap: Map<string, string>, getPM: (n: string) => string | null) {
+async function syncOffice(office: string, since: string, empMap: Map<string, string>, getPM: (n: string) => string | null, getCSR: (n: string) => string | null) {
   const cfg = OFFICES[office];
   if (!cfg?.key) return { office, error: 'unconfigured' };
   const catalog = await loadCatalog(cfg);
@@ -98,16 +98,20 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
     if (parent && bundleStamp) for (const s of arr) if (s.dateAdded === bundleStamp) memberIds.add(String(s.subscriptionID));
 
     if (parent && bundleStamp) {
-      const pm = getPM(empMap.get(String(parent.soldBy)) || `#${parent.soldBy}`);
+      const soldByName = empMap.get(String(parent.soldBy)) || `#${parent.soldBy}`;
+      const pm = getPM(soldByName);
+      const csr = pm ? null : getCSR(soldByName);   // PM takes precedence; else try CSR
+      const seller = pm || csr;
       const cv = Number(parent.contractValue);
-      if (pm && cv > 0) {
+      if (seller && cv > 0) {
         const child = arr.find(s => memberIds.has(String(s.subscriptionID)) && Number(s.recurringCharge) > 0);
         const cm = child ? monthKey(child.lastCompleted) : null;
         rows.push({
           office, customerId: customerID, customerName: custName.get(customerID) || null,
           externalKey: `${office}:${customerID}:${parent.subscriptionID}`, subscriptionId: String(parent.subscriptionID),
           category: 'Rodent Bundle', serviceName: 'Bundle', serviceId: '-1',
-          pmName: pm, soldByFrId: String(parent.soldBy), contractValue: cv, recurringCharge: child ? Number(child.recurringCharge) : 0,
+          pmName: pm, sellerType: pm ? 'pm' : 'csr', sellerName: seller,
+          soldByFrId: String(parent.soldBy), contractValue: cv, recurringCharge: child ? Number(child.recurringCharge) : 0,
           saleDate: toDate(parent.dateAdded), initialDone: !!cm, initialCompletedAt: child ? toDate(child.lastCompleted) : null,
           commissionMonth: cm, chargeChildService: child ? catalog.get(String(child.serviceID))?.name : null,
         });
@@ -129,14 +133,18 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
       // Termite counts if CV>0 OR recurringCharge>0 (CSR-error cases). Everything else needs CV>0.
       if (isT) { if (cv <= 0 && rc <= 0) continue; }
       else if (cv <= 0) continue;
-      const pm = getPM(empMap.get(String(s.soldBy)) || `#${s.soldBy}`);
-      if (!pm) continue;
+      const soldByName = empMap.get(String(s.soldBy)) || `#${s.soldBy}`;
+      const pm = getPM(soldByName);
+      const csr = pm ? null : getCSR(soldByName);   // PM precedence; else CSR
+      const seller = pm || csr;
+      if (!seller) continue;
       const cm = monthKey(s.lastCompleted);
       rows.push({
         office, customerId: customerID, customerName: custName.get(customerID) || null,
         externalKey: `${office}:${customerID}:${s.subscriptionID}`, subscriptionId: String(s.subscriptionID),
         category: commCat, serviceName: name, serviceId: String(s.serviceID),
-        pmName: pm, soldByFrId: String(s.soldBy), contractValue: cv, recurringCharge: rc,
+        pmName: pm, sellerType: pm ? 'pm' : 'csr', sellerName: seller,
+        soldByFrId: String(s.soldBy), contractValue: cv, recurringCharge: rc,
         saleDate: toDate(s.dateAdded), initialDone: !!cm, initialCompletedAt: toDate(s.lastCompleted),
         commissionMonth: cm, chargeChildService: null,
       });
@@ -160,8 +168,11 @@ export async function GET(req: NextRequest) {
 
   const plans = await prisma.commissionPlan.findMany({ select: { pmName: true }, distinct: ['pmName'] });
   const getPM = pmMatcher(plans.map(p => p.pmName));
+  // CSR roster (active isCsr) — matched by NAME (FR IDs are unreliable across offices / ghost accounts).
+  const csrs = await prisma.csrEmployee.findMany({ where: { isCsr: true }, select: { name: true }, distinct: ['name'] });
+  const getCSR = pmMatcher([...new Set(csrs.map(c => c.name))]);
   const empMap = new Map<string, string>();
   const results = [];
-  for (const o of offices) results.push(await syncOffice(o, since, empMap, getPM));
+  for (const o of offices) results.push(await syncOffice(o, since, empMap, getPM, getCSR));
   return NextResponse.json({ ok: true, since, results });
 }

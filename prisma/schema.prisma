@@ -754,7 +754,9 @@ model PestSale {
   category          String                          // 'Pest Control' | 'Termite' | 'Rodent Bundle'
   serviceName       String?
   serviceId         String?
-  pmName            String?                         // resolved soldBy -> PM
+  pmName            String?                         // resolved soldBy -> PM (for PM sales)
+  sellerType        String    @default("pm")         // 'pm' | 'csr' — who made the sale
+  sellerName        String?                          // seller display name (PM name or CSR name)
   soldByFrId        String?
   contractValue     Float     @default(0)
   recurringCharge   Float     @default(0)
@@ -770,6 +772,7 @@ model PestSale {
   updatedAt         DateTime  @updatedAt
   @@index([office])
   @@index([pmName])
+  @@index([sellerType])
   @@index([commissionMonth])
   @@map("pest_sales")
 }
