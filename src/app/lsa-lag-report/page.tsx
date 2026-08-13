@@ -13,10 +13,11 @@ export default function LsaLagReportPage() {
   const [view, setView] = useState<'month' | 'week'>('month');
   const [seg, setSeg] = useState<Seg>('All');
   const [metric, setMetric] = useState<'firstReply' | 'depth'>('firstReply');
+  const [location, setLocation] = useState('Southlake');
 
   useEffect(() => {
-    fetch('/api/lsa-lag-report').then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
+    fetch(`/api/lsa-lag-report?location=${encodeURIComponent(location)}`).then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
+  }, [location]);
 
   const periods: Period[] = data ? (view === 'month' ? data.monthly : data.weekly)[seg] || [] : [];
 
@@ -120,6 +121,17 @@ export default function LsaLagReportPage() {
           style={{ fontSize: 13, fontWeight: 500, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #2C2C2A', background: '#2C2C2A', color: '#fff', cursor: data ? 'pointer' : 'default' }}>
           ↓ Download Excel
         </button>
+      </div>
+
+      {/* Location selector */}
+      <div style={{ display: 'flex', gap: 4, marginTop: 16, background: '#f1efe8', borderRadius: 8, padding: 3, flexWrap: 'wrap', width: 'fit-content' }}>
+        {(data?.locations || ['Southlake']).map((loc: string) => (
+          <button key={loc} onClick={() => setLocation(loc)}
+            style={{ fontSize: 12, padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
+              background: location === loc ? '#fff' : 'transparent', color: location === loc ? '#2C2C2A' : '#888780', fontWeight: location === loc ? 600 : 400 }}>
+            {loc}
+          </button>
+        ))}
       </div>
 
       {/* Metric selector — the two clearly-labeled measures */}

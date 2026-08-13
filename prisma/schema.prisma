@@ -780,6 +780,7 @@ model PestSale {
 model LsaLead {
   id                String    @id @default(cuid())
   leadId            String    @unique             // Google LSA lead id (resource id)
+  location          String    @default("Southlake") // which LSA account/location this lead came from
   leadType          String                        // 'PHONE_CALL' | 'MESSAGE' | 'BOOKING' | other
   category          String?                       // service category id/label
   serviceId         String?
@@ -806,6 +807,7 @@ model LsaLead {
   updatedAt         DateTime  @updatedAt
   @@index([status])
   @@index([leadType])
+  @@index([location])
   @@index([creationDateTime])
   @@map("lsa_leads")
 }

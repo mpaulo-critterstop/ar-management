@@ -27,13 +27,14 @@ export default function LsaLeadsPage() {
   const [leadType, setLeadType] = useState('All');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [location, setLocation] = useState('Southlake');
 
   function load() {
     setLoading(true);
-    fetch(`/api/lsa-leads?status=${encodeURIComponent(status)}&leadType=${encodeURIComponent(leadType)}`)
+    fetch(`/api/lsa-leads?status=${encodeURIComponent(status)}&leadType=${encodeURIComponent(leadType)}&location=${encodeURIComponent(location)}`)
       .then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
   }
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [status, leadType]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [status, leadType, location]);
 
   const [undoable, setUndoable] = useState<Record<string, string>>({}); // leadId -> prior status, during undo window
 
@@ -77,6 +78,17 @@ export default function LsaLeadsPage() {
       <div style={{ paddingTop: 24, marginBottom: 4 }}>
         <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>LSA Leads</h1>
         <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>Google Local Services Ads leads. Stages update automatically from message activity — reply in LSA and it moves to Awaiting Customer; 2 days silent flips to Need Follow-up with a Slack alert. You can still override a stage manually.</p>
+      </div>
+
+      {/* Location selector — one account/office at a time */}
+      <div style={{ display: 'flex', gap: 4, marginTop: 16, background: '#f1efe8', borderRadius: 8, padding: 3, flexWrap: 'wrap', width: 'fit-content' }}>
+        {(data?.locations || ['Southlake']).map((loc: string) => (
+          <button key={loc} onClick={() => setLocation(loc)}
+            style={{ fontSize: 12, padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
+              background: location === loc ? '#fff' : 'transparent', color: location === loc ? '#2C2C2A' : '#888780', fontWeight: location === loc ? 600 : 400 }}>
+            {loc}
+          </button>
+        ))}
       </div>
 
       {/* Pipeline header */}

@@ -16,10 +16,12 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const status = sp.get('status');
   const leadType = sp.get('leadType');
+  const location = sp.get('location');
 
   const where: any = {};
   if (status && status !== 'All') where.status = status;
   if (leadType && leadType !== 'All') where.leadType = leadType;
+  if (location && location !== 'All') where.location = location;
 
   const leads = await prisma.lsaLead.findMany({
     where,
@@ -27,9 +29,13 @@ export async function GET(req: NextRequest) {
     take: 1000,
   });
 
-  // Counts per stage (for the pipeline header) — message-pipeline leads only; call leads are excluded
-  // (answered live, not tracked).
-  const all = await prisma.lsaLead.findMany({ select: { status: true, leadType: true, staleFlagged: true } });
+  // Counts per stage (message-pipeline leads only; call leads excluded), scoped to the selected location.
+  const countWhere: any = {};
+  if (location && location !== 'All') countWhere.location = location;
+  const all = await prisma.lsaLead.findMany({ where: countWhere, select: { status: true, leadType: true, staleFlagged: true } });
+  // Distinct locations for the selector.
+  const locRows = await prisma.lsaLead.findMany({ select: { location: true }, distinct: ['location'], orderBy: { location: 'asc' } });
+  const locations = locRows.map(r => r.location);
   const byStage: Record<string, number> = {};
   for (const s of STAGES) byStage[s] = 0;
   let messageOpen = 0, followupNeeded = 0;
@@ -40,7 +46,7 @@ export async function GET(req: NextRequest) {
     if (l.leadType === 'MESSAGE' && !['Booked', 'Lost'].includes(l.status)) messageOpen++;
   }
 
-  return NextResponse.json({ leads, stages: STAGES, byStage, messageOpen, followupNeeded, total: all.length });
+  return NextResponse.json({ leads, stages: STAGES, byStage, messageOpen, followupNeeded, total: all.length, locations });
 }
 
 export async function PATCH(req: NextRequest) {

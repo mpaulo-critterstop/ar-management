@@ -94,20 +94,54 @@ export async function GET(req: NextRequest) {
   }
 
   const days = Math.min(Number(sp.get('days')) || 7, 730); // default 7d (lightweight); pass ?days=90 for a full backfill
-  const customerId = clean(process.env.GOOGLE_ADS_LSA_CUSTOMER_ID);
+  const only = sp.get('location'); // optional: sync just one location
+
+  // Resolve the LSA accounts to sync. Prefer the JSON map GOOGLE_ADS_LSA_ACCOUNTS
+  // ({"Southlake":"123...","Oklahoma City":"..."}); fall back to the single legacy env var (Southlake).
+  let accounts: { location: string; customerId: string }[] = [];
+  try {
+    const raw = process.env.GOOGLE_ADS_LSA_ACCOUNTS;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      accounts = Object.entries(parsed).map(([location, id]) => ({ location, customerId: clean(String(id)) }));
+    }
+  } catch (e) {
+    return NextResponse.json({ error: 'GOOGLE_ADS_LSA_ACCOUNTS is not valid JSON', detail: String(e) }, { status: 400 });
+  }
+  if (accounts.length === 0 && process.env.GOOGLE_ADS_LSA_CUSTOMER_ID) {
+    accounts = [{ location: 'Southlake', customerId: clean(process.env.GOOGLE_ADS_LSA_CUSTOMER_ID) }];
+  }
+  if (only) accounts = accounts.filter(a => a.location.toLowerCase() === only.toLowerCase());
+  if (accounts.length === 0) return NextResponse.json({ error: 'No LSA accounts configured', hint: 'Set GOOGLE_ADS_LSA_ACCOUNTS (JSON) or GOOGLE_ADS_LSA_CUSTOMER_ID' }, { status: 400 });
 
   // ?wait=1 → run inline and return the full result (useful for manual/debug runs).
-  // Default → fire-and-forget: respond immediately, but waitUntil keeps the work alive to completion
-  // (so cron-job.org never hits the 30s timeout, and the sync still finishes reliably on Vercel).
   if (sp.get('wait') === '1') {
-    const result = await runSync(days, customerId);
+    const result = await runAllAccounts(days, accounts);
     return NextResponse.json(result, { status: result.ok ? 200 : 500 });
   }
-  waitUntil(runSync(days, customerId).catch(e => { console.error('lsa-sync background error:', e); }));
-  return NextResponse.json({ ok: true, started: true, days, note: 'Sync running in background (fire-and-forget). Use ?wait=1 to get the full result inline.' });
+  waitUntil(runAllAccounts(days, accounts).catch(e => { console.error('lsa-sync background error:', e); }));
+  return NextResponse.json({ ok: true, started: true, days, accounts: accounts.map(a => a.location), note: 'Sync running in background (fire-and-forget). Use ?wait=1 for inline result.' });
 }
 
-async function runSync(days: number, customerId: string) {
+// Sync every configured account in turn; aggregate the per-account results.
+async function runAllAccounts(days: number, accounts: { location: string; customerId: string }[]) {
+  const results: any[] = [];
+  let ok = true;
+  for (const acct of accounts) {
+    const r = await runSync(days, acct.customerId, acct.location);
+    results.push({ location: acct.location, ...r });
+    if (!r.ok) ok = false;
+  }
+  const sum = (k: string) => results.reduce((s, r) => s + (r[k] || 0), 0);
+  return {
+    ok, accounts: accounts.length,
+    leads: sum('leads'), upserted: sum('upserted'), autoBooked: sum('autoBooked'),
+    replyCustomerAlerts: sum('replyCustomerAlerts'), newLeadAlerts: sum('newLeadAlerts'), escalated: sum('escalated'),
+    perAccount: results,
+  };
+}
+
+async function runSync(days: number, customerId: string, location: string) {
   try {
     const accessToken = await getAccessToken();
 
@@ -227,32 +261,25 @@ async function runSync(days: number, customerId: string) {
           const who = contact.consumerName || phone || `Lead ${leadId}`;
           const snippet = lastMessageText ? ` — "${lastMessageText.slice(0, 100)}"` : '';
           const ok = await postSlack(
-            `💬 *New LSA customer reply — needs response*\n*${who}*${snippet}\nReply in the LSA app.`
+            `💬 *New LSA customer reply — needs response* [${location}]\n*${who}*${snippet}\nReply in the LSA app.`
           );
           if (ok) replyAlerted = true;
           replyCustomerAlerts++;
         } else if (statusToSet === 'Customer Replied' && wasAlready) {
-          // Already sitting in Customer Replied from a prior sync — mark alerted so we don't spam, but
-          // don't send (it was surfaced before / is part of the pre-existing backlog).
           replyAlerted = true;
         } else if (statusToSet === 'Awaiting Customer') {
-          // We replied — clear the reply flag AND escalation timer so the next inbound reply starts fresh.
           replyAlerted = false;
           clearEscalation = true;
         }
       }
 
       // ---- New incoming message-lead Slack alert ----
-      // Fires ONCE when a brand-new (never-synced) MESSAGE lead comes in unanswered ('New' stage). Because
-      // it only fires when there's no existing record, historical leads never alert and the first sync
-      // after deploy can't flood (all current leads already have records). Call leads and already-known
-      // leads are excluded.
       let newLeadAlerted = existing?.newLeadAlerted ?? false;
       if (!existing && leadType === 'MESSAGE' && statusToSet === 'New') {
         const who = contact.consumerName || phone || `Lead ${leadId}`;
         const snippet = lastMessageText ? ` — "${lastMessageText.slice(0, 100)}"` : '';
         const ok = await postSlack(
-          `🆕 *New LSA message lead — no reply yet*\n*${who}*${snippet}\nReply in the LSA app.`
+          `🆕 *New LSA message lead — no reply yet* [${location}]\n*${who}*${snippet}\nReply in the LSA app.`
         );
         if (ok) newLeadAlerted = true;
         newLeadAlerts++;
@@ -261,7 +288,7 @@ async function runSync(days: number, customerId: string) {
       await prisma.lsaLead.upsert({
         where: { leadId },
         create: {
-          leadId, leadType, category: L.categoryId ? String(L.categoryId) : null,
+          leadId, location, leadType, category: L.categoryId ? String(L.categoryId) : null,
           serviceId: L.serviceId ? String(L.serviceId) : null,
           status: statusToSet, googleLeadStatus: gStatus,
           contactName: contact.consumerName || null, contactPhone: phone,
@@ -271,7 +298,7 @@ async function runSync(days: number, customerId: string) {
           firstReplyAt, outboundCount,
         },
         update: {
-          leadType, googleLeadStatus: gStatus,
+          location, leadType, googleLeadStatus: gStatus,
           contactName: contact.consumerName || null, contactPhone: phone,
           leadCharged: L.leadCharged ?? null, note: L.note?.description || null,
           lastActivityAt, lastParticipant, lastMessageText, conversationCount: convs.length,
@@ -296,7 +323,7 @@ async function runSync(days: number, customerId: string) {
       const RENAG = 3 * 60 * 60 * 1000;
       const MAX_AGE = 24 * 60 * 60 * 1000; // only escalate replies < 1 day old; older belong to the daily stale-check
       const waiting = await prisma.lsaLead.findMany({
-        where: { status: 'Customer Replied', leadType: { not: 'PHONE_CALL' } },
+        where: { status: 'Customer Replied', leadType: { not: 'PHONE_CALL' }, location },
         orderBy: { lastActivityAt: 'desc' },
       });
       for (const l of waiting) {
@@ -311,7 +338,7 @@ async function runSync(days: number, customerId: string) {
         const hrs = Math.floor((now - since) / (60 * 60 * 1000));
         const snippet = l.lastMessageText ? ` — "${l.lastMessageText.slice(0, 100)}"` : '';
         const ok = await postSlack(
-          `⏰ *LSA reply overdue — ${hrs}h unanswered*\n*${who}*${snippet}\nCustomer is waiting. Reply in the LSA app.`
+          `⏰ *LSA reply overdue — ${hrs}h unanswered* [${location}]\n*${who}*${snippet}\nCustomer is waiting. Reply in the LSA app.`
         );
         if (ok) { await prisma.lsaLead.update({ where: { id: l.id }, data: { lastEscalatedAt: new Date() } }); escalated++; }
       }
