@@ -83,6 +83,16 @@ export async function GET(req: NextRequest) {
   const missing = required.filter(k => !process.env[k]);
   if (missing.length) return NextResponse.json({ error: 'Missing env vars', missing }, { status: 400 });
 
+  // ?seedEscalation=1 → ONE-TIME: stamp lastEscalatedAt=now on all current 'Customer Replied' leads WITHOUT
+  // sending Slack, so the 2h escalation doesn't re-blast the existing backlog. Run once after a flood.
+  if (sp.get('seedEscalation') === '1') {
+    const res = await prisma.lsaLead.updateMany({
+      where: { status: 'Customer Replied', lastEscalatedAt: null },
+      data: { lastEscalatedAt: new Date() },
+    });
+    return NextResponse.json({ ok: true, seededEscalation: res.count, note: 'Escalation backlog stamped silently. Future overdue replies escalate normally (capped).' });
+  }
+
   const days = Math.min(Number(sp.get('days')) || 7, 730); // default 7d (lightweight); pass ?days=90 for a full backfill
   const customerId = clean(process.env.GOOGLE_ADS_LSA_CUSTOMER_ID);
 
@@ -277,21 +287,25 @@ async function runSync(days: number, customerId: string) {
     // For leads in 'Customer Replied' where the customer's message is 2+ hours old, re-nag Slack every
     // 3 hours until we reply. Business hours only (7am–10pm Central). This is separate from the per-lead
     // reply alert above — it catches replies that slipped through and are aging on our side.
+    // GUARDS against flooding: only replies < 24h old (fresh, actionable), and a hard per-run cap.
     let escalated = 0;
+    const MAX_ESCALATIONS_PER_RUN = 8; // safety cap — a scheduled run can never blast the channel
     if (isBusinessHoursCentral()) {
       const now = Date.now();
       const TWO_HOURS = 2 * 60 * 60 * 1000;
       const RENAG = 3 * 60 * 60 * 1000;
-      const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
+      const MAX_AGE = 24 * 60 * 60 * 1000; // only escalate replies < 1 day old; older belong to the daily stale-check
       const waiting = await prisma.lsaLead.findMany({
         where: { status: 'Customer Replied', leadType: { not: 'PHONE_CALL' } },
+        orderBy: { lastActivityAt: 'desc' },
       });
       for (const l of waiting) {
+        if (escalated >= MAX_ESCALATIONS_PER_RUN) break;              // hard cap — never flood
         const since = l.lastActivityAt?.getTime();
         if (!since) continue;
         const age = now - since;
         if (age < TWO_HOURS) continue;                                // not yet 2h old
-        if (age > TWO_DAYS) continue;                                 // too old for the 2h track — daily stale-check owns these; also avoids flooding the historical backlog
+        if (age > MAX_AGE) continue;                                  // too old for the 2h track
         if (l.lastEscalatedAt && now - l.lastEscalatedAt.getTime() < RENAG) continue; // nagged recently
         const who = l.contactName || l.contactPhone || `Lead ${l.leadId}`;
         const hrs = Math.floor((now - since) / (60 * 60 * 1000));
