@@ -799,6 +799,7 @@ model LsaLead {
   staleFlagged      Boolean   @default(false)      // set when auto-flagged stale (dedupe Slack alerts)
   replyAlerted      Boolean   @default(false)      // set when we've Slack-alerted this customer reply (dedupe)
   newLeadAlerted    Boolean   @default(false)      // set when we've Slack-alerted this as a new incoming lead (dedupe)
+  lastEscalatedAt   DateTime?                       // last time we sent a 2h "still unanswered" escalation (re-nag cadence)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   @@index([status])

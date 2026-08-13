@@ -9,7 +9,7 @@
 //   GOOGLE_ADS_REFRESH_TOKEN, GOOGLE_ADS_LOGIN_CUSTOMER_ID, GOOGLE_ADS_LSA_CUSTOMER_ID
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { deriveLsaStage, normalizePhone } from '@/lib/lsaStage';
+import { deriveLsaStage, normalizePhone, isBusinessHoursCentral } from '@/lib/lsaStage';
 import { waitUntil } from '@vercel/functions';
 
 export const dynamic = 'force-dynamic';
@@ -203,6 +203,7 @@ async function runSync(days: number, customerId: string) {
       // leads already sitting in 'Customer Replied'. Reset the flag when we've replied (Awaiting Customer)
       // so the next inbound reply re-alerts. Never for call leads.
       let replyAlerted = existing?.replyAlerted ?? false;
+      let clearEscalation = false;
       if (leadType !== 'PHONE_CALL') {
         const wasAlready = existing?.status === 'Customer Replied';
         if (statusToSet === 'Customer Replied' && !replyAlerted && !wasAlready) {
@@ -218,8 +219,9 @@ async function runSync(days: number, customerId: string) {
           // don't send (it was surfaced before / is part of the pre-existing backlog).
           replyAlerted = true;
         } else if (statusToSet === 'Awaiting Customer') {
-          // We replied — clear the flag so the next inbound reply triggers a fresh alert.
+          // We replied — clear the reply flag AND escalation timer so the next inbound reply starts fresh.
           replyAlerted = false;
+          clearEscalation = true;
         }
       }
 
@@ -256,12 +258,43 @@ async function runSync(days: number, customerId: string) {
           leadCharged: L.leadCharged ?? null, note: L.note?.description || null,
           lastActivityAt, lastParticipant, lastMessageText, conversationCount: convs.length,
           status: statusToSet, replyAlerted, newLeadAlerted,
+          ...(clearEscalation ? { lastEscalatedAt: null } : {}),
         },
       });
       upserted++;
     }
 
-    return { ok: true, days, leads: leadRows.length, conversations: convRows.length, upserted, autoBooked, replyCustomerAlerts, newLeadAlerts };
+    // ---- 2-hour escalation: leads we still haven't replied to ----
+    // For leads in 'Customer Replied' where the customer's message is 2+ hours old, re-nag Slack every
+    // 3 hours until we reply. Business hours only (7am–10pm Central). This is separate from the per-lead
+    // reply alert above — it catches replies that slipped through and are aging on our side.
+    let escalated = 0;
+    if (isBusinessHoursCentral()) {
+      const now = Date.now();
+      const TWO_HOURS = 2 * 60 * 60 * 1000;
+      const RENAG = 3 * 60 * 60 * 1000;
+      const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
+      const waiting = await prisma.lsaLead.findMany({
+        where: { status: 'Customer Replied', leadType: { not: 'PHONE_CALL' } },
+      });
+      for (const l of waiting) {
+        const since = l.lastActivityAt?.getTime();
+        if (!since) continue;
+        const age = now - since;
+        if (age < TWO_HOURS) continue;                                // not yet 2h old
+        if (age > TWO_DAYS) continue;                                 // too old for the 2h track — daily stale-check owns these; also avoids flooding the historical backlog
+        if (l.lastEscalatedAt && now - l.lastEscalatedAt.getTime() < RENAG) continue; // nagged recently
+        const who = l.contactName || l.contactPhone || `Lead ${l.leadId}`;
+        const hrs = Math.floor((now - since) / (60 * 60 * 1000));
+        const snippet = l.lastMessageText ? ` — "${l.lastMessageText.slice(0, 100)}"` : '';
+        const ok = await postSlack(
+          `⏰ *LSA reply overdue — ${hrs}h unanswered*\n*${who}*${snippet}\nCustomer is waiting. Reply in the LSA app.`
+        );
+        if (ok) { await prisma.lsaLead.update({ where: { id: l.id }, data: { lastEscalatedAt: new Date() } }); escalated++; }
+      }
+    }
+
+    return { ok: true, days, leads: leadRows.length, conversations: convRows.length, upserted, autoBooked, replyCustomerAlerts, newLeadAlerts, escalated };
   } catch (e: any) {
     return { ok: false, error: String(e?.message || e) };
   }

@@ -51,3 +51,15 @@ export function normalizePhone(p: string | null | undefined): string | null {
   if (digits.length < 10) return null;
   return digits.slice(-10);
 }
+
+// Is `now` within business hours (default 7am–10pm) in US Central time? Used to gate escalation alerts
+// so the team isn't pinged overnight.
+export function isBusinessHoursCentral(now: Date = new Date(), startHour = 7, endHour = 22): boolean {
+  // Get the current hour in America/Chicago regardless of server TZ.
+  const hourStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago', hour: 'numeric', hour12: false,
+  }).format(now);
+  let hour = parseInt(hourStr, 10);
+  if (hour === 24) hour = 0; // some environments render midnight as 24
+  return hour >= startHour && hour < endHour;
+}
