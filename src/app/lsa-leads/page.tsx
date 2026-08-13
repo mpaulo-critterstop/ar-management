@@ -39,6 +39,7 @@ export default function LsaLeadsPage() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [status, leadType, location]);
 
   const [undoable, setUndoable] = useState<Record<string, string>>({}); // leadId -> prior status, during undo window
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   async function tagLead(leadId: string, tag: 'Booked' | 'Lost', priorStatus: string) {
     await fetch('/api/lsa-leads', {
@@ -62,7 +63,8 @@ export default function LsaLeadsPage() {
 
   const leads = (data?.leads || []).filter((l: any) =>
     !search || (l.contactName || '').toLowerCase().includes(search.toLowerCase())
-    || (l.contactPhone || '').includes(search));
+    || (l.contactPhone || '').includes(search)
+    || (l.leadId || '').includes(search));
 
   // Pagination (client-side over filtered data).
   const PAGE_SIZE = 25;
@@ -153,18 +155,24 @@ export default function LsaLeadsPage() {
       <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr>
-            <th style={th}>Contact</th><th style={th}>Type</th><th style={th}>Last Message</th>
+            <th style={th}>Lead ID</th><th style={th}>Contact</th><th style={th}>Type</th><th style={th}>Last Message</th>
             <th style={th}>Received</th><th style={th}>Last Activity</th><th style={th}>Stage</th><th style={th}>Tag</th>
           </tr></thead>
           <tbody>
             {loading ? (
-              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={7}>Loading…</td></tr>
+              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={8}>Loading…</td></tr>
             ) : leads.length === 0 ? (
-              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={7}>No LSA leads for these filters. Run the sync to pull leads.</td></tr>
+              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={8}>No LSA leads for these filters. Run the sync to pull leads.</td></tr>
             ) : pageLeads.map((l: any) => {
               const isMsg = l.leadType === 'MESSAGE';
               return (
                 <tr key={l.id} style={l.status === 'Need Follow-up' ? { background: '#fef6f6' } : undefined}>
+                  <td style={td}>
+                    <button title="Click to copy Lead ID" onClick={() => { navigator.clipboard?.writeText(l.leadId); setCopiedId(l.leadId); setTimeout(() => setCopiedId(c => c === l.leadId ? null : c), 1500); }}
+                      style={{ fontSize: 11, fontFamily: 'ui-monospace, monospace', color: copiedId === l.leadId ? '#128a3f' : '#6B6A64', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
+                      {copiedId === l.leadId ? '✓ copied' : l.leadId}
+                    </button>
+                  </td>
                   <td style={td}>
                     <div style={{ fontWeight: 500 }}>{l.contactName || <span style={{ color: '#B4B2A9' }}>Unknown</span>}</div>
                     {l.contactPhone && <div style={{ fontSize: 11, color: '#888780' }}>{l.contactPhone}</div>}
