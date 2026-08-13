@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { deriveLsaStage, normalizePhone } from '@/lib/lsaStage';
+import { waitUntil } from '@vercel/functions';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -85,6 +86,18 @@ export async function GET(req: NextRequest) {
   const days = Math.min(Number(sp.get('days')) || 7, 730); // default 7d (lightweight); pass ?days=90 for a full backfill
   const customerId = clean(process.env.GOOGLE_ADS_LSA_CUSTOMER_ID);
 
+  // ?wait=1 → run inline and return the full result (useful for manual/debug runs).
+  // Default → fire-and-forget: respond immediately, but waitUntil keeps the work alive to completion
+  // (so cron-job.org never hits the 30s timeout, and the sync still finishes reliably on Vercel).
+  if (sp.get('wait') === '1') {
+    const result = await runSync(days, customerId);
+    return NextResponse.json(result, { status: result.ok ? 200 : 500 });
+  }
+  waitUntil(runSync(days, customerId).catch(e => { console.error('lsa-sync background error:', e); }));
+  return NextResponse.json({ ok: true, started: true, days, note: 'Sync running in background (fire-and-forget). Use ?wait=1 to get the full result inline.' });
+}
+
+async function runSync(days: number, customerId: string) {
   try {
     const accessToken = await getAccessToken();
 
@@ -232,8 +245,8 @@ export async function GET(req: NextRequest) {
       upserted++;
     }
 
-    return NextResponse.json({ ok: true, days, leads: leadRows.length, conversations: convRows.length, upserted, autoBooked, replyCustomerAlerts });
+    return { ok: true, days, leads: leadRows.length, conversations: convRows.length, upserted, autoBooked, replyCustomerAlerts };
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 });
+    return { ok: false, error: String(e?.message || e) };
   }
 }

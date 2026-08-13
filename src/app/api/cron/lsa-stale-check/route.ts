@@ -5,6 +5,7 @@
 //   /api/cron/lsa-stale-check?token=critterstop2026        &dry=1
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { waitUntil } from '@vercel/functions';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -25,6 +26,16 @@ export async function GET(req: NextRequest) {
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const dry = sp.get('dry') === '1';
 
+  // Dry run stays inline so you can see the count. Live run is fire-and-forget (waitUntil keeps it alive).
+  if (dry) {
+    const result = await runStaleCheck(true);
+    return NextResponse.json(result);
+  }
+  waitUntil(runStaleCheck(false).catch(e => { console.error('lsa-stale-check background error:', e); }));
+  return NextResponse.json({ ok: true, started: true, note: 'Stale check running in background. Use ?dry=1 for an inline preview.' });
+}
+
+async function runStaleCheck(dry: boolean) {
   // Leads the sync has placed in 'Need Follow-up' that we haven't alerted on yet.
   const toAlert = await prisma.lsaLead.findMany({
     where: { status: 'Need Follow-up', staleFlagged: false },
@@ -46,9 +57,9 @@ export async function GET(req: NextRequest) {
     alerts.push({ leadId: l.leadId, contact: who, leadType: l.leadType, lastActivityAt: l.lastActivityAt });
   }
 
-  return NextResponse.json({
+  return {
     ok: true, dry,
     slackConfigured: !!process.env.SLACK_LSA_WEBHOOK_URL,
     needFollowup: toAlert.length, alerted, alerts,
-  });
+  };
 }
