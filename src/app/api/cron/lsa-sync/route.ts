@@ -210,6 +210,7 @@ async function runSync(days: number, customerId: string, location: string, silen
       let lastActivityAt: Date | null = null;
       let lastMessageText: string | null = null;
       let lastParticipant: string | null = null;
+      let lastChannel: string | null = null; // channel of the most recent event: 'PHONE_CALL' | 'MESSAGE' | etc.
       let firstReplyAt: Date | null = null;
       let outboundCount = 0;
       for (const c of convs) {
@@ -218,6 +219,7 @@ async function runSync(days: number, customerId: string, location: string, silen
           lastActivityAt = t;
           lastMessageText = c.messageDetails?.text || null;
           lastParticipant = c.participantType || null; // 'ADVERTISER' | 'CONSUMER'
+          lastChannel = c.conversationChannel || null;  // 'PHONE_CALL' | 'MESSAGE' | 'EMAIL' etc.
         }
         if (c.participantType === 'ADVERTISER') {
           outboundCount++;
@@ -238,6 +240,11 @@ async function runSync(days: number, customerId: string, location: string, silen
       });
 
       // Phone-call leads are answered live — they don't belong in the message follow-up pipeline.
+      // conversation_channel is a ConversationType enum: EMAIL/MESSAGE/PHONE_CALL/SMS. The searchStream JSON
+      // usually returns it as a string (like participant_type does), but guard for a numeric enum too
+      // (PHONE_CALL = 3 in the proto). Only a CUSTOMER-initiated call counts as "handled live".
+      const chan = lastChannel != null ? String(lastChannel).toUpperCase() : '';
+      const lastEventWasCustomerCall = (chan === 'PHONE_CALL' || chan === '3') && lastParticipant === 'CONSUMER';
       let statusToSet: string;
       if (leadType === 'PHONE_CALL') {
         statusToSet = 'Call — handled';
@@ -246,6 +253,10 @@ async function runSync(days: number, customerId: string, location: string, silen
         statusToSet = existing?.status?.includes('Lost') ? existing.status : 'Booked';
       } else if (existing?.manualOverride) {
         statusToSet = existing.status;
+      } else if (lastEventWasCustomerCall) {
+        // Message lead whose most recent activity is the customer CALLING us — that's answered live, so it
+        // shouldn't sit in 'Customer Replied' as if a text is waiting. Treat as handled.
+        statusToSet = 'Call — handled';
       } else {
         statusToSet = deriveLsaStage({ lastParticipant: lastParticipant as any, lastActivityAt, creationDateTime: creation });
       }
