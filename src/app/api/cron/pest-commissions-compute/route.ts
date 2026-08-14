@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { computePmMonthCommission, PestCommCategory } from '@/lib/pestCommission';
+import { waitUntil } from '@vercel/functions';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -17,6 +18,17 @@ export async function GET(req: NextRequest) {
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const onlyMonth = sp.get('month'); // 'YYYY-MM'
   const dry = sp.get('dry') === '1';
+
+  // dry runs inline (need to see the preview). ?wait=1 also inline. Otherwise fire-and-forget via waitUntil.
+  if (dry || sp.get('wait') === '1') {
+    const result = await runCompute(onlyMonth, dry);
+    return NextResponse.json(result);
+  }
+  waitUntil(runCompute(onlyMonth, false).catch(e => { console.error('pest-commissions-compute background error:', e); }));
+  return NextResponse.json({ ok: true, started: true, month: onlyMonth || 'all-open', note: 'Compute running in background. Use ?dry=1 or ?wait=1 for inline result.' });
+}
+
+async function runCompute(onlyMonth: string | null, dry: boolean) {
 
   // Pull all completed, commissionable pest sales (source can be fr OR excel, but commission compute is
   // for going-forward FR sales; history commissions are already frozen in commission_months). We compute
@@ -115,5 +127,5 @@ export async function GET(req: NextRequest) {
 
   results.sort((a, b) => (a.month < b.month ? 1 : -1) || (a.pm < b.pm ? -1 : 1));
   cvResults.sort((a, b) => (a.month < b.month ? 1 : -1) || (a.scope < b.scope ? -1 : 1));
-  return NextResponse.json({ ok: true, dry, groups: groups.size, written, cvWritten, skippedFinalized, skippedHistory, note: 'Commissions: live non-finalized months only. Booked Pest CV: all live months (>= Jul 2026), per PM + company; pre-live months keep Excel history.', results, bookedPestCV: cvResults });
+  return { ok: true, dry, groups: groups.size, written, cvWritten, skippedFinalized, skippedHistory, note: 'Commissions: live non-finalized months only. Booked Pest CV: all live months (>= Jul 2026), per PM + company; pre-live months keep Excel history.', results, bookedPestCV: cvResults };
 }

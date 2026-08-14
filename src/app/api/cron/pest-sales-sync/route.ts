@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { classifyPestCommission } from '@/lib/pestCommission';
+import { waitUntil } from '@vercel/functions';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 800;
@@ -176,6 +177,17 @@ export async function GET(req: NextRequest) {
   const officeParam = sp.get('office') || 'All';
   const offices = officeParam === 'All' ? Object.keys(OFFICES) : [officeParam];
 
+  // ?wait=1 → run inline and return full result (manual/debug). Default → fire-and-forget via waitUntil
+  // (returns instantly so cron-job.org never hits the 30s timeout; work completes in the background).
+  if (sp.get('wait') === '1') {
+    const result = await runPestSync(since, offices);
+    return NextResponse.json(result);
+  }
+  waitUntil(runPestSync(since, offices).catch(e => { console.error('pest-sales-sync background error:', e); }));
+  return NextResponse.json({ ok: true, started: true, since, offices, note: 'Sync running in background. Use ?wait=1 for inline result.' });
+}
+
+async function runPestSync(since: string, offices: string[]) {
   const plans = await prisma.commissionPlan.findMany({ select: { pmName: true }, distinct: ['pmName'] });
   const getPM = pmMatcher(plans.map(p => p.pmName));
   // CSR roster (active isCsr only) — matched by NAME (FR IDs are unreliable across offices / ghost accounts).
@@ -184,5 +196,5 @@ export async function GET(req: NextRequest) {
   const empMap = new Map<string, string>();
   const results = [];
   for (const o of offices) results.push(await syncOffice(o, since, empMap, getPM, getCSR));
-  return NextResponse.json({ ok: true, since, results });
+  return { ok: true, since, results };
 }
