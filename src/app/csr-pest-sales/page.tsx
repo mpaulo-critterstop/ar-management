@@ -13,6 +13,7 @@ const catColor: Record<string, { bg: string; fg: string }> = {
   'Flea & German Roaches': { bg: '#fef9e6', fg: '#a16207' },
   'Bait Station': { bg: '#f1efe8', fg: '#6b6a64' },
   'Fly Control': { bg: '#f1efe8', fg: '#6b6a64' },
+  'Mole/OLT': { bg: '#eef2e6', fg: '#5a7302' },
 };
 const money = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';

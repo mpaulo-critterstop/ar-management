@@ -27,6 +27,9 @@ const EXCLUDE_NAME = /reservice|call\s*back|callback|\blead\b|inspection|renewal
 // REDUCED exclusion (only genuine non-sales: inspection, follow-up, reservice, callback, lead).
 const EXCLUDE_NAME_TERMITE = /reservice|call\s*back|callback|\blead\b|inspection|follow\s*up/i;
 const EXCLUDE_SERVICEIDS = new Set(['836', '1077']);
+// Wildlife service types that are normally excluded, but should be TRACKED as CSR pest sales under the
+// 'Mole/OLT' category (CSR-only — never PM commission). Per Mark.
+const MOLE_OLT_SERVICEIDS = new Set(['683', '631', '526', '489', '685', '691', '684']);
 const monthKey = (d: string) => (d && !d.startsWith('0000')) ? d.slice(0, 7) : null;
 const toDate = (d: string) => (d && !d.startsWith('0000')) ? new Date(d) : null;
 
@@ -131,9 +134,12 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
       const cat = catalog.get(String(s.serviceID));
       const frCategory = cat?.category || '';
       const name = cat?.name || s.serviceType || `#${s.serviceID}`;
+      const isMoleOlt = MOLE_OLT_SERVICEIDS.has(String(s.serviceID));
       // Fine-grained commission category (peels Mosquito/Misting/Bed Bug/Flea-Roach/Bait/Fly/standalone
       // rodent out of FR "Pest Control"; excludes inspections/reservice/etc.).
-      const commCat = classifyPestCommission(frCategory, name);
+      // Mole/OLT service IDs are Wildlife (normally excluded) but should be TRACKED as CSR sales under a
+      // dedicated 'Mole/OLT' category — never as PM commission (handled below by dropping PM sellers).
+      const commCat = isMoleOlt ? 'Mole/OLT' : classifyPestCommission(frCategory, name);
       if (commCat === 'EXCLUDE') continue;
       const isT = commCat === 'Termite';
       const cv = Number(s.contractValue);
@@ -146,6 +152,8 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
       const csr = pm ? null : getCSR(soldByName);   // PM precedence; else CSR
       const seller = pm || csr;
       if (!seller) continue;
+      // Mole/OLT is CSR-tracking only — if a PM somehow sold it, don't record it (no PM commission).
+      if (isMoleOlt && pm) continue;
       // Skip PM sales before the Excel/FR boundary (avoid double-count). CSR sales are fine any time.
       const saleDt = toDate(s.dateAdded);
       if (pm && saleDt && saleDt < PM_FR_BOUNDARY) continue;
