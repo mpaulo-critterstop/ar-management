@@ -179,7 +179,7 @@ export default function HomePage() {
   ];
 
   // Show only modules this user can access.
-  const cards = allCards.filter(c => canAccessModule(user, c.module));
+  const cards = allCards.filter(c => canAccessModule(user, c.module)).sort((a, b) => a.title.localeCompare(b.title));
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto' }}>
