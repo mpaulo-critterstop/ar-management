@@ -4,8 +4,11 @@
 export const ALL_MODULES = ['ar', 'dispatch', 'leads', 'csr', 'field-performance', 'dialpad', 'kpi', 'pest-sales', 'lsa-leads', 'csr-pest-sales'] as const;
 export type ModuleKey = typeof ALL_MODULES[number];
 
-// Roles that see everything regardless of the module allowlist (bypass). Admin only.
-const FULL_ACCESS_ROLES = ['Admin'];
+// Roles that see every MODULE regardless of the allowlist. Admin and Manager both get all modules;
+// the Users admin page is separately gated to Admin-only (see /admin/users), so Managers still can't
+// manage users. Keeping Manager here means new modules are visible to managers automatically — no need
+// to update a hardcoded list each time a module is added.
+const FULL_ACCESS_ROLES = ['Admin', 'Manager'];
 
 export interface AccessUser {
   role?: string;
