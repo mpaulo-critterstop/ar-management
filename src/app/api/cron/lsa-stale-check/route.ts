@@ -62,7 +62,7 @@ async function runStaleCheck(dry: boolean) {
     const snippet = l.lastMessageText ? ` — "${l.lastMessageText.slice(0, 80)}"` : '';
     if (!dry) {
       const ok = await postSlack(
-        `⚠️ *LSA follow-up needed* — no customer reply in 2+ days [${l.location}]\n${kind}: *${who}*${snippet}\nReply in the LSA app to move this forward.`
+        `⚠️ *LSA follow-up needed* — no customer reply in 1+ day [${l.location}]\n${kind}: *${who}*${snippet}\nReply in the LSA app to move this forward.`
       );
       if (ok) { await prisma.lsaLead.update({ where: { id: l.id }, data: { staleFlagged: true } }); alerted++; }
     }

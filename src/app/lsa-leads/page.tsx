@@ -81,7 +81,7 @@ export default function LsaLeadsPage() {
     <div style={{ padding: '0 24px 24px', maxWidth: 1400, margin: '0 auto' }}>
       <div style={{ paddingTop: 24, marginBottom: 4 }}>
         <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>LSA Leads</h1>
-        <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>Google Local Services Ads leads. Stages update automatically from message activity — reply in LSA and it moves to Awaiting Customer; 2 days silent flips to Need Follow-up with a Slack alert. You can still override a stage manually.</p>
+        <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>Google Local Services Ads leads. Stages update automatically from message activity — reply in LSA and it moves to Awaiting Customer; 1 day silent flips to Need Follow-up with a Slack alert. You can still override a stage manually.</p>
       </div>
 
       {/* Location selector — one account/office at a time */}
