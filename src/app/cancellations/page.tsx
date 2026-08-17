@@ -11,7 +11,7 @@ const reasonColor: Record<string, string> = {
   'No Longer Needed': '#0891b2', 'Going with Competitor': '#7c3aed', 'Deceased / Health': '#6b7280',
   'Non-Payment / Billing': '#a16207', 'Duplicate / Admin': '#9ca3af', 'Renter / Moved Out': '#6b7280',
   'Bundle Cascade': '#9ca3af', 'Contract Expired': '#0f766e', 'Non-Renewal': '#c2410c',
-  'DIY / Self-Service': '#7c3aed', 'Other': '#6b6a64', 'No Reason Given': '#b4b2a9',
+  'DIY / Self-Service': '#7c3aed', 'As-Needed / Paused': '#128a3f', 'Other': '#6b6a64', 'No Reason Given': '#b4b2a9',
 };
 
 export default function CancellationsPage() {

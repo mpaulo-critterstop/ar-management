@@ -12,13 +12,14 @@ const RULES: { bucket: string; re: RegExp }[] = [
   { bucket: 'Non-Renewal',         re: /\b(do not (wish to )?renew|don'?t (wish to )?renew|not renew(ing)?|done with (the )?contract|end of (the )?(agreement|contract|term)|complete(d)? (the )?(agreement|contract))\b/i },
   { bucket: 'Duplicate / Admin',   re: /\b(duplicate|2 accounts|two accounts|error|mistake|wrong|test|admin|re.?enter|resign|re.?sign|transfer|never agreed|created a new sub)\b/i },
   // Customer-decision cancels.
-  { bucket: 'DIY / Self-Service',  re: /\b(themselves|in.?house|do (the )?treatment|own (their|the) (pest|treatment)|self)\b/i },
-  { bucket: 'Moved / Relocated',   re: /\b(moved|moving|relocat|out of state|out of the area|sold (the )?(house|home)|new (house|home|address)|no longer (live|reside))\b/i },
+  { bucket: 'DIY / Self-Service',  re: /\b(themselves|in.?house|do (the )?treatment|own (their|the) (pest|treatment)|self|treat (exterior|it) (on (their|her|his) own))\b/i },
+  { bucket: 'As-Needed / Paused',  re: /\b(as.?needed|on hold|check back|hold (off|till|until)|pause|for now|reaches? out|call (us )?back|when (they|she|he) )\b/i },
+  { bucket: 'Moved / Relocated',   re: /\b(moved|moving|relocat|out of state|out of the area|sold (the )?(house|home)|new (house|home|address)|new owner|no longer (live|reside)|occupying)\b/i },
   { bucket: 'Price / Cost',        re: /\b(price|pricing|cost|expensive|afford|budget|too much|money|charge too|rate|financial|hardship)\b/i },
-  { bucket: 'Dissatisfied / Service Quality', re: /\b(unhappy|dissatisf|not happy|not interested|poor service|bad service|complaint|frustrat|lack of communication|no communication|not communicat|scheduling conflict|not working|didn'?t work|ineffective|still (have|seeing)|bugs? (are )?back|not satisf|damaged|not contact|never (came|showed))\b/i },
-  { bucket: 'No Longer Needed',    re: /\b(no longer need|don'?t need|not need|no issues?|problem (is )?(gone|resolved)|no more (bugs?|pests?)|seasonal)\b/i },
-  { bucket: 'Going with Competitor', re: /\b(competitor|another (company|provider)|switch(ing|ed)?|different (company|provider)|found (someone|another)|cheaper elsewhere)\b/i },
-  { bucket: 'Deceased / Health',   re: /\b(deceased|passed away|died|health|hospital|nursing home|elderly)\b/i },
+  { bucket: 'Dissatisfied / Service Quality', re: /\b(unhappy|dissatisf|not happy|not interested|poor service|bad service|complaint|frustrat|lack of communication|no communication|not communicat|scheduling (issue|conflict)|not adequate|inadequate|not working|didn'?t work|ineffective|still (have|seeing)|bugs? (are )?back|not satisf|damaged|not contact|never (came|showed)|will not confirm|cannot go)\b/i },
+  { bucket: 'No Longer Needed',    re: /\b(no longer need|don'?t need|not need|no (more )?service|does not want service|doesn'?t want service|not want (the )?service|no issues?|problem (is )?(gone|resolved)|no more (bugs?|pests?)|seasonal)\b/i },
+  { bucket: 'Going with Competitor', re: /\b(competitor|another (company|provider|pc|pest)|new (company|pc|provider)|other company|other (pest )?provider|switch(ing|ed)?|different (company|provider)|found (someone|another)|cheaper elsewhere|conflict of interest|gone with|going with|offers? (sealing|more))\b/i },
+  { bucket: 'Deceased / Health',   re: /\b(deceased|passed away|died|health|hospital|nursing home|elderly|heart (issue|condition|problem)|medical)\b/i },
   { bucket: 'Non-Payment / Billing', re: /\b(non.?payment|didn'?t pay|not pay|billing|payment issue|declined|collections|delinquent)\b/i },
   { bucket: 'Renter / Moved Out',  re: /\b(renter|tenant|landlord|lease|rental)\b/i },
 ];
@@ -54,7 +55,7 @@ export function bucketCancelReason(raw: string | null | undefined): ReasonResult
 // All buckets (for report scaffolding / ordering).
 export const REASON_BUCKETS = [
   'Bundle Cascade', 'Contract Expired', 'Non-Renewal', 'Duplicate / Admin', 'DIY / Self-Service',
-  'Moved / Relocated', 'Price / Cost', 'Dissatisfied / Service Quality', 'No Longer Needed',
-  'Going with Competitor', 'Deceased / Health', 'Non-Payment / Billing', 'Renter / Moved Out',
-  'Other', 'No Reason Given',
+  'As-Needed / Paused', 'Moved / Relocated', 'Price / Cost', 'Dissatisfied / Service Quality',
+  'No Longer Needed', 'Going with Competitor', 'Deceased / Health', 'Non-Payment / Billing',
+  'Renter / Moved Out', 'Other', 'No Reason Given',
 ];
