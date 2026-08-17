@@ -19,7 +19,6 @@ const OFFICES: Record<string, { key: string; token: string; officeId: string }> 
   OKC:   { key: process.env.FIELDROUTES_KEY_OKC!,   token: process.env.FIELDROUTES_TOKEN_OKC!,   officeId: '3' },
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: '4' },
 };
-const MOLE_OLT_SERVICEIDS = new Set(['683', '631', '526', '489', '685', '691', '684', '690']);
 const EXCLUDE_SERVICEIDS = new Set(['836', '1077']);
 
 async function frGet(endpoint: string, params: string, key: string, token: string) {
@@ -85,8 +84,9 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
     const cat = catalog.get(sid);
     const frCategory = cat?.category || '';
     const name = cat?.name || s.serviceType || `#${sid}`;
-    // Pest-only: same classifier as pest sales. Mole/OLT (wildlife) IDs also count as pest here.
-    const commCat = MOLE_OLT_SERVICEIDS.has(sid) ? 'Mole/OLT' : classifyPestCommission(frCategory, name);
+    // Pest-only. Mole/OLT (Wildlife, no-contract, one-time) are NOT pest churn — skip them here (they
+    // classify as EXCLUDE via the pest classifier since Wildlife isn't Pest Control/Termite).
+    const commCat = classifyPestCommission(frCategory, name);
     if (commCat === 'EXCLUDE') { skippedNonPest++; continue; }
 
     const dAdded = toDate(s.dateAdded);
