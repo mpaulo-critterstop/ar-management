@@ -28,6 +28,23 @@ async function postSlack(text: string, silent = false): Promise<boolean> {
 const API_VERSION = 'v22';
 const clean = (id: string | undefined) => (id || '').replace(/-/g, ''); // customer IDs: no dashes in API
 
+// Google Ads returns lead/conversation timestamps as 'YYYY-MM-DD HH:MM:SS' in the ACCOUNT's local timezone
+// (US Central for these), with NO offset. new Date() on a UTC server would misread them as UTC — a ~5-6h
+// error that made brand-new leads look hours old. Parse them explicitly as America/Chicago.
+function parseCentral(s: string | null | undefined): Date | null {
+  if (!s) return null;
+  const m = s.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if (!m) { const d = new Date(s); return isNaN(d.getTime()) ? null : d; }
+  const [, y, mo, d, h, mi, se] = m.map(Number) as any;
+  // Determine the Central offset (CDT -05:00 / CST -06:00) for this date by probing the zone.
+  const probe = new Date(Date.UTC(y, mo - 1, d, h, mi, se));
+  const tzName = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', timeZoneName: 'short' })
+    .formatToParts(probe).find(p => p.type === 'timeZoneName')?.value || 'CST';
+  const offsetHours = tzName.includes('DT') ? 5 : 6; // CDT=-5, CST=-6
+  // The wall-clock time is Central; convert to a true UTC instant by adding the offset.
+  return new Date(Date.UTC(y, mo - 1, d, h + offsetHours, mi, se));
+}
+
 async function getAccessToken(): Promise<string> {
   const body = new URLSearchParams({
     client_id: process.env.GOOGLE_ADS_CLIENT_ID || '',
@@ -214,7 +231,7 @@ async function runSync(days: number, customerId: string, location: string, silen
       let firstReplyAt: Date | null = null;
       let outboundCount = 0;
       for (const c of convs) {
-        const t = c.eventDateTime ? new Date(c.eventDateTime.replace(' ', 'T')) : null;
+        const t = parseCentral(c.eventDateTime);
         if (t && (!lastActivityAt || t > lastActivityAt)) {
           lastActivityAt = t;
           lastMessageText = c.messageDetails?.text || null;
@@ -229,7 +246,7 @@ async function runSync(days: number, customerId: string, location: string, silen
       const contact = L.contactDetails || {};
       const leadType = LEAD_TYPE[L.leadType] || String(L.leadType || 'UNKNOWN');
       const gStatus = LEAD_STATUS[L.leadStatus] || String(L.leadStatus || '');
-      const creation = L.creationDateTime ? new Date(L.creationDateTime.replace(' ', 'T')) : null;
+      const creation = parseCentral(L.creationDateTime);
       const phone = contact.phoneNumber || null;
 
       // Cross-reference Booked: LSA phone matches a customer with a booked appointment, OR Google BOOKED.
