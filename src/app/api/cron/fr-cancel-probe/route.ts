@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     for (const s of subs) Object.keys(s).forEach(k => allKeys.add(k));
     out.allFieldNames = [...allKeys].sort();
     // Highlight the cancellation-relevant fields if present.
-    const CANCEL_HINTS = [...allKeys].filter(k => /cancel|active|status|reason|dateUpdated|inactive|hold/i.test(k));
+    const CANCEL_HINTS = [...allKeys].filter(k => /cancel|cxl|active|status|reason|note|dateUpdated|inactive|hold|expir|renewal/i.test(k));
     out.cancellationRelevantFields = CANCEL_HINTS;
     out.rawSample = subs.map((s: any) => {
       const picked: any = {};
@@ -74,6 +74,23 @@ export async function GET(req: NextRequest) {
       return picked;
     });
     out.fullFirstRecord = subs[0] || null; // entire raw object of the first, to catch anything we didn't anticipate
+  }
+
+  // Reason fill-rate: pull a larger batch and measure how often cxlNotes is populated (tells us whether
+  // churn-BY-REASON is viable, or only churn counts/values).
+  if (ids.length > 0) {
+    const batch = ids.slice(0, Math.min(ids.length, 100));
+    const idParam = encodeURIComponent(JSON.stringify(batch));
+    const got = await frGet('subscription/get', `subscriptionIDs=${idParam}`, cfg.key, cfg.token);
+    const subs = got.body?.subscriptions || [];
+    let withNotes = 0;
+    const sampleNotes: string[] = [];
+    for (const s of subs) {
+      const note = (s.cxlNotes || '').toString().trim();
+      if (note) { withNotes++; if (sampleNotes.length < 8) sampleNotes.push(note.slice(0, 80)); }
+    }
+    out.reasonFillRate = { checked: subs.length, withCxlNotes: withNotes,
+      pct: subs.length ? Math.round((withNotes / subs.length) * 100) : 0, sampleNotes };
   }
 
   return NextResponse.json(out);
