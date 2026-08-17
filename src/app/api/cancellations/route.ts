@@ -52,9 +52,9 @@ export async function GET(req: NextRequest) {
   };
 
   // ---- Win-back list ----
-  // Actionable cancels: exclude clearly-unwinnable reasons (moved, deceased). Most recent first, with the
-  // info the team needs to re-engage. Cap the payload; the UI paginates.
-  const UNWINNABLE = new Set(['Moved / Relocated', 'Deceased / Health']);
+  // Actionable cancels: exclude clearly-unwinnable or non-decision reasons (moved, deceased, bundle
+  // cascade, duplicates). Contract Expired stays IN — an expired contract is a prime re-sign target.
+  const UNWINNABLE = new Set(['Moved / Relocated', 'Deceased / Health', 'Bundle Cascade', 'Duplicate / Admin']);
   const winback = rows
     .filter(r => !UNWINNABLE.has(r.cancelReasonBucket || ''))
     .map(r => ({

@@ -10,7 +10,8 @@ const reasonColor: Record<string, string> = {
   'Moved / Relocated': '#6b7280', 'Price / Cost': '#b45309', 'Dissatisfied / Service Quality': '#b91c1c',
   'No Longer Needed': '#0891b2', 'Going with Competitor': '#7c3aed', 'Deceased / Health': '#6b7280',
   'Non-Payment / Billing': '#a16207', 'Duplicate / Admin': '#9ca3af', 'Renter / Moved Out': '#6b7280',
-  'Other': '#6b6a64', 'No Reason Given': '#b4b2a9',
+  'Bundle Cascade': '#9ca3af', 'Contract Expired': '#0f766e', 'Non-Renewal': '#c2410c',
+  'DIY / Self-Service': '#7c3aed', 'Other': '#6b6a64', 'No Reason Given': '#b4b2a9',
 };
 
 export default function CancellationsPage() {
