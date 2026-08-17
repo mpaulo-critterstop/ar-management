@@ -1,7 +1,7 @@
 // Shared access-control logic (feature #5). Used server-side (API gating) and client-side (nav hiding).
 // Broad tiers via `role`; fine-grained via `modules` allowlist + `permissions` sub-flags + identity links.
 
-export const ALL_MODULES = ['ar', 'dispatch', 'leads', 'csr', 'field-performance', 'dialpad', 'kpi', 'pest-sales', 'lsa-leads', 'csr-pest-sales'] as const;
+export const ALL_MODULES = ['ar', 'dispatch', 'leads', 'csr', 'field-performance', 'dialpad', 'kpi', 'pest-sales', 'lsa-leads', 'csr-pest-sales', 'cancellations'] as const;
 export type ModuleKey = typeof ALL_MODULES[number];
 
 // Roles that see every MODULE regardless of the allowlist. Admin and Manager both get all modules;

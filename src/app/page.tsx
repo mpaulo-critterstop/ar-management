@@ -96,6 +96,17 @@ export default function HomePage() {
       stats: null,
     },
     {
+      module: 'cancellations' as ModuleKey,
+      icon: '📉',
+      title: 'Pest Cancellations',
+      desc: 'Canceled pest subscriptions \u2014 churn analysis by reason and a win-back list for re-engagement.',
+      href: '/cancellations',
+      accentColor: '#b91c1c',
+      main: '—',
+      mainLabel: 'Churn',
+      stats: null,
+    },
+    {
       module: 'lsa-leads' as ModuleKey,
       icon: '📍',
       title: 'LSA Leads',
