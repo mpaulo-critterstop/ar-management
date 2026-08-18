@@ -31,7 +31,20 @@ const EXCLUDE_SERVICEIDS = new Set(['836', '1077']);
 // 'Mole/OLT' category (CSR-only — never PM commission). Per Mark.
 const MOLE_OLT_SERVICEIDS = new Set(['683', '631', '526', '489', '685', '691', '684', '690']);
 const monthKey = (d: string | null | undefined) => (d && !d.startsWith('0000')) ? d.slice(0, 7) : null;
-const toDate = (d: string | null | undefined) => (d && !d.startsWith('0000')) ? new Date(d) : null;
+// FR returns dates as 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS' in the office's LOCAL time (US Central), with no
+// offset. new Date() on a UTC server misreads them (a 5-6h shift that can move a sale to the prior day/month).
+// Parse explicitly as America/Chicago.
+const toDate = (d: string | null | undefined): Date | null => {
+  if (!d || d.startsWith('0000')) return null;
+  const m = d.match(/(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2}))?/);
+  if (!m) { const dd = new Date(d); return isNaN(dd.getTime()) ? null : dd; }
+  const [, y, mo, day, h, mi, se] = m.map((v, i) => i === 0 ? v : Number(v)) as any;
+  const probe = new Date(Date.UTC(y, mo - 1, day, h || 0, mi || 0, se || 0));
+  const tzName = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', timeZoneName: 'short' })
+    .formatToParts(probe).find(p => p.type === 'timeZoneName')?.value || 'CST';
+  const offsetHours = tzName.includes('DT') ? 5 : 6; // CDT=-5, CST=-6
+  return new Date(Date.UTC(y, mo - 1, day, (h || 0) + offsetHours, mi || 0, se || 0));
+};
 
 function pmMatcher(pmNames: string[]) {
   const full = new Set(pmNames.map(n => n.toLowerCase().trim()));
