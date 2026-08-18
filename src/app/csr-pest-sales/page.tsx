@@ -51,8 +51,8 @@ export default function CsrPestSalesPage() {
     if (search && !(s.customerName || '').toLowerCase().includes(search.toLowerCase()) && !(s.sellerName || '').toLowerCase().includes(search.toLowerCase())) return false;
     if (status === 'Serviced' && !s.initialDone) return false;
     if (status === 'Pending' && s.initialDone) return false;
-    if ((saleFrom || saleTo) && !inRange(s.saleDate, saleFrom, saleTo)) return false;
-    if ((initFrom || initTo) && !inRange(s.initialCompletedAt, initFrom, initTo)) return false;
+    if ((saleFrom && saleTo) && !inRange(s.saleDate, saleFrom, saleTo)) return false;
+    if ((initFrom && initTo) && !inRange(s.initialCompletedAt, initFrom, initTo)) return false;
     return true;
   });
   const rollup = data?.rollup || [];
@@ -148,7 +148,7 @@ export default function CsrPestSalesPage() {
           <span><strong>{money(sales.reduce((a: number, s: any) => a + (s.contractValue || 0), 0))}</strong> contract value</span>
           <span style={{ color: '#128a3f' }}><strong>{sales.filter((s: any) => s.initialDone).length}</strong> serviced</span>
           <span style={{ color: '#b45309' }}><strong>{sales.filter((s: any) => !s.initialDone).length}</strong> pending initial</span>
-          {(saleFrom || saleTo || initFrom || initTo) && <span style={{ color: '#888780' }}>(filtered)</span>}
+          {((saleFrom && saleTo) || (initFrom && initTo)) && <span style={{ color: '#888780' }}>(filtered)</span>}
         </div>
       )}
 

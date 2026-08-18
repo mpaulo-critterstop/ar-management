@@ -125,10 +125,17 @@ async function syncOffice(office: string, horizonDays: number) {
       const commCat = classifyPestCommission(cat?.category || '', cat?.name || s.serviceType || '');
       if (commCat === 'EXCLUDE') continue;                          // pest + termite only (classifier)
       const freq = Number(s.frequency) || 0;
-      const last = toCentral(s.lastCompleted);
-      if (!last || freq <= 0) continue;                             // need both to compute a due date
-      const due = new Date(last.getTime() + freq * 86400000);
-      const daysOverdue = Math.floor((today.getTime() - due.getTime()) / 86400000);
+      // lastCompleted from FR is a Central calendar date. Compute the due date as pure calendar arithmetic
+      // anchored at NOON UTC, so no ±TZ display shift can move it to the previous/next day.
+      const lastRaw = s.lastCompleted && !String(s.lastCompleted).startsWith('0000') ? String(s.lastCompleted) : null;
+      if (!lastRaw || freq <= 0) continue;                          // need both to compute a due date
+      const lm = lastRaw.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (!lm) continue;
+      const last = new Date(Date.UTC(+lm[1], +lm[2] - 1, +lm[3], 12, 0, 0)); // noon UTC on the last-service date
+      const due = new Date(last.getTime() + freq * 86400000);        // + frequency whole days, still noon UTC
+      // daysOverdue: compare calendar dates at noon UTC (today at noon UTC vs due).
+      const nowNoon = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 12, 0, 0));
+      const daysOverdue = Math.round((nowNoon.getTime() - due.getTime()) / 86400000);
       staged.push({ s, sid, cat, commCat, freq, last, due, daysOverdue });
       custIdsNeeded.add(String(s.customerID));
     }

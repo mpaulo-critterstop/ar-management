@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 
 const money = (n: number) => (n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : '—';
 
 export default function ServicePoolPage() {
   const [data, setData] = useState<any>(null);
@@ -14,9 +14,14 @@ export default function ServicePoolPage() {
   useEffect(() => {
     setLoading(true);
     const qs = new URLSearchParams({ office });
-    if (from) qs.set('from', from);
-    if (to) qs.set('to', to);
-    fetch(`/api/service-pool?${qs}`).then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
+    // Only apply a date window when BOTH ends are set — avoids filtering the instant one date is picked.
+    const bothOrNeither = (!!from && !!to) || (!from && !to);
+    if (from && to) { qs.set('from', from); qs.set('to', to); }
+    if (bothOrNeither) {
+      fetch(`/api/service-pool?${qs}`).then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
+    } else {
+      setLoading(false); // one date picked, waiting for the other — don't refetch yet
+    }
   }, [office, from, to]);
 
   const overdue = data?.overdue || [];
