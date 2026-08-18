@@ -30,6 +30,16 @@ export async function GET(req: NextRequest) {
 
   const out: any = {
     subscriptionID: s.subscriptionID, dateAdded: s.dateAdded, lastCompleted: s.lastCompleted,
+    frequency: s.frequency,
+    // FR's own next-service fields — compare against our formula (lastCompleted + frequency).
+    nextService: s.nextService, nextAppointmentDueDate: s.nextAppointmentDueDate, renewalDate: s.renewalDate,
+    ourComputedDue: (() => {
+      const lm = String(s.lastCompleted || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+      const f = Number(s.frequency) || 0;
+      if (!lm || !f) return null;
+      const base = new Date(Date.UTC(+lm[1], +lm[2] - 1, +lm[3], 12));
+      return new Date(base.getTime() + f * 86400000).toISOString().slice(0, 10);
+    })(),
     initialAppointmentID: s.initialAppointmentID, initialStatus: s.initialStatus, initialStatusText: s.initialStatusText,
     serviceType: s.serviceType,
     appointmentIDs_first5: (s.appointmentIDs || '').split(',').slice(0, 5),
