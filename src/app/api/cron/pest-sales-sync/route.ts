@@ -99,6 +99,7 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
   }
 
   const rows: any[] = [];
+  let staleCsrCleaned = 0;
   for (const [customerID, arr] of byCust) {
     const parent = arr.find(s => String(s.serviceID) === '-1');
     const bundleStamp = parent?.dateAdded || null;
@@ -113,7 +114,13 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
       const cv = Number(parent.contractValue);
       const saleDt = toDate(parent.dateAdded);
       // Skip PM sales before the Excel/FR boundary (avoid double-count). CSR sales are fine any time.
-      if (pm && saleDt && saleDt < PM_FR_BOUNDARY) continue;
+      // But if this sub was previously mis-tagged CSR and has since been corrected to a PM in FR, remove
+      // the stale CSR row (it can't become a PM row here due to the guard, so just delete it).
+      if (pm && saleDt && saleDt < PM_FR_BOUNDARY) {
+        const del = await prisma.pestSale.deleteMany({ where: { externalKey: `${office}:${customerID}:${parent.subscriptionID}`, sellerType: 'csr' } });
+        staleCsrCleaned += del.count;
+        continue;
+      }
       if (seller && cv > 0) {
         const child = arr.find(s => memberIds.has(String(s.subscriptionID)) && Number(s.recurringCharge) > 0);
         const cm = child ? monthKey(child.lastCompleted) : null;
@@ -156,7 +163,12 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
       if (isMoleOlt && pm) continue;
       // Skip PM sales before the Excel/FR boundary (avoid double-count). CSR sales are fine any time.
       const saleDt = toDate(s.dateAdded);
-      if (pm && saleDt && saleDt < PM_FR_BOUNDARY) continue;
+      if (pm && saleDt && saleDt < PM_FR_BOUNDARY) {
+        // Corrected mis-tag: sub is now PM-owned but pre-boundary — remove any stale CSR row for it.
+        const del = await prisma.pestSale.deleteMany({ where: { externalKey: `${office}:${customerID}:${s.subscriptionID}`, sellerType: 'csr' } });
+        staleCsrCleaned += del.count;
+        continue;
+      }
       const cm = monthKey(s.lastCompleted);
       rows.push({
         office, customerId: customerID, customerName: custName.get(customerID) || null,
@@ -175,7 +187,7 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
     await prisma.pestSale.upsert({ where: { externalKey: r.externalKey }, create: r, update: r });
     upserted++;
   }
-  return { office, subsScanned: subs.length, upserted };
+  return { office, subsScanned: subs.length, upserted, staleCsrCleaned };
 }
 
 export async function GET(req: NextRequest) {
