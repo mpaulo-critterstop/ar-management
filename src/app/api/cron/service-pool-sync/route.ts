@@ -56,6 +56,7 @@ async function syncOffice(office: string, horizonDays: number) {
   const apptRange = JSON.stringify({ operator: 'BETWEEN', value: [todayStr, '2027-12-31'] });
   const apptSearch = await frGet('appointment/search', `date=${encodeURIComponent(apptRange)}&status=0`, cfg.key, cfg.token);
   const apptIds: number[] = apptSearch?.appointmentIDs || [];
+  const apptSearchCount = apptIds.length; // diagnostic: how many appts the search returned
   const scheduledSubs = new Set<string>();
   for (let i = 0; i < apptIds.length; i += 1000) {
     const got = await frGet('appointment/get', `appointmentIDs=${apptIds.slice(i, i + 1000).join(',')}`, cfg.key, cfg.token);
@@ -125,7 +126,7 @@ async function syncOffice(office: string, horizonDays: number) {
   for (let i = 0; i < rows.length; i += 200) {
     await prisma.servicePoolItem.createMany({ data: rows.slice(i, i + 200), skipDuplicates: true });
   }
-  return { office, activeSubsScanned: subIds.length, scheduled: scheduledSubs.size, pooled: rows.length,
+  return { office, activeSubsScanned: subIds.length, apptSearchCount, scheduled: scheduledSubs.size, pooled: rows.length,
     overdue: rows.filter(r => r.isOverdue).length };
 }
 
