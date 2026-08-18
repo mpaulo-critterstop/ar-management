@@ -811,6 +811,35 @@ model PestCancellation {
   @@map("pest_cancellations")
 }
 
+// Active pest/termite subscriptions that are DUE for service (lastCompleted + frequency) but have NO
+// pending future appointment scheduled in FR. The "falling through the cracks" work queue. Refreshed by
+// the service-pool-sync cron.
+model ServicePoolItem {
+  id                 String    @id @default(cuid())
+  office             String
+  subscriptionId     String
+  externalKey        String    @unique              // office:subscriptionId
+  customerId         String
+  customerName       String?
+  customerPhone      String?
+  serviceId          String?
+  serviceType        String?
+  category           String?
+  frequencyDays      Int?                             // FR subscription 'frequency' in days
+  lastCompleted      DateTime?
+  dueDate            DateTime?                        // lastCompleted + frequencyDays
+  daysOverdue        Int?                             // (today - dueDate) in days; negative = not yet due
+  isOverdue          Boolean   @default(false)
+  contractValue      Float     @default(0)
+  recurringCharge    Float     @default(0)
+  pmName             String?                          // soldBy / assigned, for context
+  syncedAt           DateTime  @default(now())
+  @@index([office])
+  @@index([dueDate])
+  @@index([isOverdue])
+  @@map("service_pool")
+}
+
 // Google LSA (Local Services Ads) lead follow-up tracker. Pulled from the Google Ads API
 // (local_services_lead + local_services_lead_conversation). Purpose: stop message leads from getting
 // lost — track a follow-up stage on each, auto-flag stale ones.

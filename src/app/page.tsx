@@ -107,6 +107,17 @@ export default function HomePage() {
       stats: null,
     },
     {
+      module: 'service-pool' as ModuleKey,
+      icon: '🗓️',
+      title: 'Service Pool',
+      desc: 'Pest &amp; termite subscriptions due for service but not yet scheduled \u2014 overdue flagged.',
+      href: '/service-pool',
+      accentColor: '#c2410c',
+      main: '—',
+      mainLabel: 'Due',
+      stats: null,
+    },
+    {
       module: 'lsa-leads' as ModuleKey,
       icon: '📍',
       title: 'LSA Leads',
