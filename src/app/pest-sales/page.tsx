@@ -103,13 +103,14 @@ export default function PestSalesPage() {
         )}
       </div>
 
-      {/* Summary */}
-      {data?.totals && (
-        <div style={{ display: 'flex', gap: 20, marginBottom: 16, fontSize: 13, color: '#2C2C2A' }}>
-          <span><strong>{data.totals.count}</strong> sales</span>
-          <span><strong>{money(data.totals.contractValue)}</strong> contract value</span>
-          <span style={{ color: '#128a3f' }}><strong>{data.totals.done}</strong> serviced</span>
-          <span style={{ color: '#b45309' }}><strong>{data.totals.pending}</strong> pending initial</span>
+      {/* Summary — computed from the currently-filtered rows so it respects date/other filters */}
+      {!loading && (
+        <div style={{ display: 'flex', gap: 20, marginBottom: 16, fontSize: 13, color: '#2C2C2A', flexWrap: 'wrap' }}>
+          <span><strong>{sales.length}</strong> sales</span>
+          <span><strong>{money(sales.reduce((a: number, s: any) => a + (s.contractValue || 0), 0))}</strong> contract value</span>
+          <span style={{ color: '#128a3f' }}><strong>{sales.filter((s: any) => s.initialDone).length}</strong> serviced</span>
+          <span style={{ color: '#b45309' }}><strong>{sales.filter((s: any) => !s.initialDone).length}</strong> pending initial</span>
+          {(saleFrom || saleTo || initFrom || initTo) && <span style={{ color: '#888780' }}>(filtered)</span>}
         </div>
       )}
 

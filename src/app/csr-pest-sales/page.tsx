@@ -141,6 +141,17 @@ export default function CsrPestSalesPage() {
         </div>
       )}
 
+      {/* Sales-tab summary — respects the current office/status/date filters */}
+      {!loading && tab === 'sales' && (
+        <div style={{ display: 'flex', gap: 20, marginBottom: 12, fontSize: 13, color: '#2C2C2A', flexWrap: 'wrap' }}>
+          <span><strong>{sales.length}</strong> sales</span>
+          <span><strong>{money(sales.reduce((a: number, s: any) => a + (s.contractValue || 0), 0))}</strong> contract value</span>
+          <span style={{ color: '#128a3f' }}><strong>{sales.filter((s: any) => s.initialDone).length}</strong> serviced</span>
+          <span style={{ color: '#b45309' }}><strong>{sales.filter((s: any) => !s.initialDone).length}</strong> pending initial</span>
+          {(saleFrom || saleTo || initFrom || initTo) && <span style={{ color: '#888780' }}>(filtered)</span>}
+        </div>
+      )}
+
       {loading ? <p style={{ color: '#888780', fontSize: 13, padding: 30, textAlign: 'center' }}>Loading…</p> : (
         <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff' }}>
           {tab === 'sales' ? (
