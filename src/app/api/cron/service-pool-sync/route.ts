@@ -66,8 +66,10 @@ async function syncOffice(office: string, horizonDays: number) {
   }
 
   // 2) Active subscriptions (dateCancelled empty => active). Search a wide dateAdded range to get all.
-  const addedRange = JSON.stringify({ operator: 'GREATER_THAN', value: '2015-01-01 00:00:00' });
-  const subSearch = await frGet('subscription/search', `dateAdded=${encodeURIComponent(addedRange)}&active=1`, cfg.key, cfg.token);
+  // Active subscriptions: use the proven BETWEEN dateAdded search (no 'active' search param — we filter
+  // active in-code below by active flag + empty dateCancelled). Wide range to capture all.
+  const addedRange = JSON.stringify({ operator: 'BETWEEN', value: ['2015-01-01 00:00:00', '2027-12-31 23:59:59'] });
+  const subSearch = await frGet('subscription/search', `dateAdded=${encodeURIComponent(addedRange)}`, cfg.key, cfg.token);
   const subIds: number[] = subSearch?.subscriptionIDs || [];
 
   const rows: any[] = [];
