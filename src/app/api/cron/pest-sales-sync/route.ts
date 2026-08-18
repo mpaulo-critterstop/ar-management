@@ -83,6 +83,24 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
   const byCust = new Map<string, any[]>();
   for (const s of subs) { const c = String(s.customerID); if (!byCust.has(c)) byCust.set(c, []); byCust.get(c)!.push(s); }
 
+  // TRUE initial-service date: the completion date of each sub's INITIAL appointment (not lastCompleted,
+  // which is the most recent service). Fetch those appointments and map initialAppointmentID -> completedOn.
+  const apptIds = [...new Set(subs.map(s => String(s.initialAppointmentID)).filter(x => x && x !== '0'))];
+  const initApptDone = new Map<string, string | null>(); // apptID -> completed date (or null if not completed)
+  for (let i = 0; i < apptIds.length; i += 1000) {
+    const chunk = apptIds.slice(i, i + 1000);
+    const idParam = chunk.length === 1 ? `${chunk[0]},${chunk[0]}` : chunk.join(',');
+    const r = await frGet('appointment/get', `appointmentIDs=${idParam}`, cfg.key, cfg.token);
+    for (const a of (r?.appointments || [])) {
+      // FR appointment: status 1/"Completed"; dateCompleted holds the completion timestamp.
+      const done = (String(a.status) === '1' || /complete/i.test(a.statusText || '')) ? (a.dateCompleted || a.checkOut || a.start || null) : null;
+      initApptDone.set(String(a.appointmentID), done && !String(done).startsWith('0000') ? done : null);
+    }
+    await new Promise(res => setTimeout(res, 120));
+  }
+  // Helper: given a subscription, return its true initial-service completion date (or null if not done).
+  const initialDateOf = (sub: any): string | null => initApptDone.get(String(sub.initialAppointmentID)) || null;
+
   const soldByIds = [...new Set(subs.map(s => String(s.soldBy)).filter(x => x && x !== '0'))].filter(id => !empMap.has(id));
   if (soldByIds.length) {
     const r = await frGet('employee/get', `employeeIDs=${soldByIds.join(',')}`, cfg.key, cfg.token);
@@ -123,14 +141,15 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
       }
       if (seller && cv > 0) {
         const child = arr.find(s => memberIds.has(String(s.subscriptionID)) && Number(s.recurringCharge) > 0);
-        const cm = child ? monthKey(child.lastCompleted) : null;
+        const childInit = child ? initialDateOf(child) : null;
+        const cm = childInit ? monthKey(childInit) : null;
         rows.push({
           office, customerId: customerID, customerName: custName.get(customerID) || null,
           externalKey: `${office}:${customerID}:${parent.subscriptionID}`, subscriptionId: String(parent.subscriptionID),
           category: 'Rodent Bundle', serviceName: 'Bundle', serviceId: '-1',
           pmName: pm, sellerType: pm ? 'pm' : 'csr', sellerName: seller,
           soldByFrId: String(parent.soldBy), contractValue: cv, recurringCharge: child ? Number(child.recurringCharge) : 0,
-          saleDate: toDate(parent.dateAdded), initialDone: !!cm, initialCompletedAt: child ? toDate(child.lastCompleted) : null,
+          saleDate: toDate(parent.dateAdded), initialDone: !!cm, initialCompletedAt: toDate(childInit),
           commissionMonth: cm, chargeChildService: child ? catalog.get(String(child.serviceID))?.name : null,
         });
       }
@@ -169,14 +188,15 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
         staleCsrCleaned += del.count;
         continue;
       }
-      const cm = monthKey(s.lastCompleted);
+      const initDate = initialDateOf(s);
+      const cm = monthKey(initDate);
       rows.push({
         office, customerId: customerID, customerName: custName.get(customerID) || null,
         externalKey: `${office}:${customerID}:${s.subscriptionID}`, subscriptionId: String(s.subscriptionID),
         category: commCat, serviceName: name, serviceId: String(s.serviceID),
         pmName: pm, sellerType: pm ? 'pm' : 'csr', sellerName: seller,
         soldByFrId: String(s.soldBy), contractValue: cv, recurringCharge: rc,
-        saleDate: toDate(s.dateAdded), initialDone: !!cm, initialCompletedAt: toDate(s.lastCompleted),
+        saleDate: toDate(s.dateAdded), initialDone: !!cm, initialCompletedAt: toDate(initDate),
         commissionMonth: cm, chargeChildService: null,
       });
     }
