@@ -31,7 +31,7 @@ const EXCLUDE_SERVICEIDS = new Set(['836', '1077']);
 // 'Mole/OLT' category (CSR-only — never PM commission). Per Mark.
 const MOLE_OLT_SERVICEIDS = new Set(['683', '631', '526', '489', '685', '691', '684', '690']);
 const monthKey = (d: string) => (d && !d.startsWith('0000')) ? d.slice(0, 7) : null;
-const toDate = (d: string) => (d && !d.startsWith('0000')) ? new Date(d) : null;
+const toDate = (d: string | null | undefined) => (d && !d.startsWith('0000')) ? new Date(d) : null;
 
 function pmMatcher(pmNames: string[]) {
   const full = new Set(pmNames.map(n => n.toLowerCase().trim()));
