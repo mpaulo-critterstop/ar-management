@@ -87,6 +87,12 @@ async function syncOffice(office: string, horizonDays: number) {
   const addedRange = JSON.stringify({ operator: 'BETWEEN', value: ['2015-01-01 00:00:00', '2027-12-31 23:59:59'] });
   const subSearch = await frGet('subscription/search', `dateAdded=${encodeURIComponent(addedRange)}`, cfg.key, cfg.token);
   const subIds: number[] = subSearch?.subscriptionIDs || [];
+  // If the subscription search came back empty, capture WHY (rate limit / error) rather than silently
+  // proceeding with an empty pool.
+  const subSearchDiag = subIds.length === 0 ? {
+    success: subSearch?.success, errorMessage: subSearch?.errorMessage || subSearch?.error || null,
+    tokenUsage: subSearch?.tokenUsage, keys: subSearch && typeof subSearch === 'object' ? Object.keys(subSearch) : null,
+  } : null;
 
   const rows: any[] = [];
   const custIdsNeeded = new Set<string>();
@@ -144,7 +150,7 @@ async function syncOffice(office: string, horizonDays: number) {
     await prisma.servicePoolItem.createMany({ data: rows.slice(i, i + 200), skipDuplicates: true });
   }
   return { office, activeSubsScanned: subIds.length, apptSearchCount, scheduled: scheduledSubs.size, onHoldSkipped, pooled: rows.length,
-    overdue: rows.filter(r => r.isOverdue).length, chunkDiag };
+    overdue: rows.filter(r => r.isOverdue).length, chunkDiag, ...(subSearchDiag ? { subSearchDiag } : {}) };
 }
 
 export async function GET(req: NextRequest) {
