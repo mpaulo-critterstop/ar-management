@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const pm = sp.get('pm');
   const category = sp.get('category');
 
-  const where: any = {};
+  const where: any = { sellerType: 'pm' }; // PM module shows PM sales only; CSR sales live in /csr-pest-sales
   if (office && office !== 'All') where.office = office;
   if (pm && pm !== 'All') where.pmName = pm;
   if (category && category !== 'All') where.category = category;
