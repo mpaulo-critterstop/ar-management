@@ -58,17 +58,21 @@ async function syncOffice(office: string, horizonDays: number) {
   // search stays under the cap.
   const scheduledSubs = new Set<string>();
   let apptSearchCount = 0;
-  const horizonEnd = new Date(today.getTime() + 400 * 86400000); // ~13 months of scheduling horizon
+  const chunkDiag: any[] = [];
+  const horizonEnd = new Date(today.getTime() + 400 * 86400000);
   for (let ws = new Date(today); ws < horizonEnd; ws = new Date(ws.getTime() + 21 * 86400000)) {
     const we = new Date(Math.min(ws.getTime() + 21 * 86400000, horizonEnd.getTime()));
-    const chunk = JSON.stringify({ operator: 'BETWEEN', value: [ws.toISOString().slice(0, 10), we.toISOString().slice(0, 10)] });
-    const srch = await frGet('appointment/search', `date=${encodeURIComponent(chunk)}&status=0`, cfg.key, cfg.token);
+    const fromS = ws.toISOString().slice(0, 10), toS = we.toISOString().slice(0, 10);
+    const chunk = JSON.stringify({ operator: 'BETWEEN', value: [fromS, toS] });
+    // NOTE: don't pass status as a search param (FR may ignore/mishandle it) — filter status in-code.
+    const srch = await frGet('appointment/search', `date=${encodeURIComponent(chunk)}`, cfg.key, cfg.token);
     const chunkIds: number[] = srch?.appointmentIDs || [];
     apptSearchCount += chunkIds.length;
+    chunkDiag.push({ from: fromS, to: toS, count: chunkIds.length });
     for (let i = 0; i < chunkIds.length; i += 1000) {
       const got = await frGet('appointment/get', `appointmentIDs=${chunkIds.slice(i, i + 1000).join(',')}`, cfg.key, cfg.token);
       for (const a of (got?.appointments || [])) {
-        if (String(a.status) === '0') scheduledSubs.add(String(a.subscriptionID)); // pending = scheduled
+        if (String(a.status) === '0') scheduledSubs.add(String(a.subscriptionID)); // pending = scheduled (in-code)
       }
       await new Promise(r => setTimeout(r, 100));
     }
@@ -135,7 +139,7 @@ async function syncOffice(office: string, horizonDays: number) {
     await prisma.servicePoolItem.createMany({ data: rows.slice(i, i + 200), skipDuplicates: true });
   }
   return { office, activeSubsScanned: subIds.length, apptSearchCount, scheduled: scheduledSubs.size, pooled: rows.length,
-    overdue: rows.filter(r => r.isOverdue).length };
+    overdue: rows.filter(r => r.isOverdue).length, chunkDiag };
 }
 
 export async function GET(req: NextRequest) {
