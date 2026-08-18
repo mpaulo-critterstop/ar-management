@@ -60,21 +60,24 @@ async function syncOffice(office: string, horizonDays: number) {
   let apptSearchCount = 0;
   const chunkDiag: any[] = [];
   const horizonEnd = new Date(today.getTime() + 400 * 86400000);
-  for (let ws = new Date(today); ws < horizonEnd; ws = new Date(ws.getTime() + 21 * 86400000)) {
-    const we = new Date(Math.min(ws.getTime() + 21 * 86400000, horizonEnd.getTime()));
+  // Appointments cluster heavily in the next ~4 weeks (FR generates ~a month out) and a single 3-week
+  // window already exceeds FR's ~1000 search cap. So chunk by 7 days — small enough to stay under the cap
+  // where density is high; sparse far-future windows are cheap.
+  const STEP = 7 * 86400000;
+  for (let ws = new Date(today); ws < horizonEnd; ws = new Date(ws.getTime() + STEP)) {
+    const we = new Date(Math.min(ws.getTime() + STEP, horizonEnd.getTime()));
     const fromS = ws.toISOString().slice(0, 10), toS = we.toISOString().slice(0, 10);
     const chunk = JSON.stringify({ operator: 'BETWEEN', value: [fromS, toS] });
-    // NOTE: don't pass status as a search param (FR may ignore/mishandle it) — filter status in-code.
     const srch = await frGet('appointment/search', `date=${encodeURIComponent(chunk)}`, cfg.key, cfg.token);
     const chunkIds: number[] = srch?.appointmentIDs || [];
     apptSearchCount += chunkIds.length;
-    chunkDiag.push({ from: fromS, to: toS, count: chunkIds.length });
+    if (chunkIds.length >= 1000) chunkDiag.push({ from: fromS, to: toS, count: chunkIds.length, CAPPED: true });
     for (let i = 0; i < chunkIds.length; i += 1000) {
       const got = await frGet('appointment/get', `appointmentIDs=${chunkIds.slice(i, i + 1000).join(',')}`, cfg.key, cfg.token);
       for (const a of (got?.appointments || [])) {
-        if (String(a.status) === '0') scheduledSubs.add(String(a.subscriptionID)); // pending = scheduled (in-code)
+        if (String(a.status) === '0') scheduledSubs.add(String(a.subscriptionID));
       }
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 80));
     }
   }
 
@@ -88,10 +91,12 @@ async function syncOffice(office: string, horizonDays: number) {
   const rows: any[] = [];
   const custIdsNeeded = new Set<string>();
   const staged: any[] = [];
+  let onHoldSkipped = 0;
   for (let i = 0; i < subIds.length; i += 1000) {
     const got = await frGet('subscription/get', `subscriptionIDs=${subIds.slice(i, i + 1000).join(',')}`, cfg.key, cfg.token);
     for (const s of (got?.subscriptions || [])) {
       if (String(s.active) !== '1') continue;                       // active only
+      if (String(s.onHold) === '1') { onHoldSkipped++; continue; }  // on-hold = intentionally paused, not "due"
       if (s.dateCancelled && !String(s.dateCancelled).startsWith('0000')) continue;
       if (scheduledSubs.has(String(s.subscriptionID))) continue;    // already scheduled -> not in pool
       const sid = String(s.serviceID);
@@ -138,7 +143,7 @@ async function syncOffice(office: string, horizonDays: number) {
   for (let i = 0; i < rows.length; i += 200) {
     await prisma.servicePoolItem.createMany({ data: rows.slice(i, i + 200), skipDuplicates: true });
   }
-  return { office, activeSubsScanned: subIds.length, apptSearchCount, scheduled: scheduledSubs.size, pooled: rows.length,
+  return { office, activeSubsScanned: subIds.length, apptSearchCount, scheduled: scheduledSubs.size, onHoldSkipped, pooled: rows.length,
     overdue: rows.filter(r => r.isOverdue).length, chunkDiag };
 }
 
