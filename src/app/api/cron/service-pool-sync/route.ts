@@ -18,9 +18,23 @@ const OFFICES: Record<string, { key: string; token: string; officeId: string }> 
 };
 const EXCLUDE_SERVICEIDS = new Set(['836', '1077']);
 
+// FR allows 60 read requests/minute. This sync is call-heavy (appointments + subs + customers across a
+// whole office), so we throttle every FR call to ~1.1s apart (~54/min) to stay safely under the limit.
+let lastFrCall = 0;
 async function frGet(ep: string, params: string, key: string, token: string) {
+  const wait = 1100 - (Date.now() - lastFrCall);
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  lastFrCall = Date.now();
   const r = await fetch(`${FR_BASE}/${ep}?${params}&authenticationKey=${key}&authenticationToken=${token}`);
-  return r.json();
+  const j = await r.json();
+  // If we still get rate-limited, back off a full minute and retry once.
+  if (j?.success === false && /maximum number of read requests/i.test(j?.errorMessage || '')) {
+    await new Promise(r2 => setTimeout(r2, 61000));
+    lastFrCall = Date.now();
+    const r2 = await fetch(`${FR_BASE}/${ep}?${params}&authenticationKey=${key}&authenticationToken=${token}`);
+    return r2.json();
+  }
+  return j;
 }
 // FR dates are Central-local; parse to a UTC instant correctly (CST/CDT aware).
 function toCentral(d: string | null | undefined): Date | null {
