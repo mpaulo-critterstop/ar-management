@@ -30,7 +30,7 @@ const EXCLUDE_SERVICEIDS = new Set(['836', '1077']);
 // Wildlife service types that are normally excluded, but should be TRACKED as CSR pest sales under the
 // 'Mole/OLT' category (CSR-only — never PM commission). Per Mark.
 const MOLE_OLT_SERVICEIDS = new Set(['683', '631', '526', '489', '685', '691', '684', '690']);
-const monthKey = (d: string) => (d && !d.startsWith('0000')) ? d.slice(0, 7) : null;
+const monthKey = (d: string | null | undefined) => (d && !d.startsWith('0000')) ? d.slice(0, 7) : null;
 const toDate = (d: string | null | undefined) => (d && !d.startsWith('0000')) ? new Date(d) : null;
 
 function pmMatcher(pmNames: string[]) {
