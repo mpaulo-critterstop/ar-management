@@ -161,18 +161,24 @@ async function syncOffice(office: string, horizonDays: number) {
   }
 
   // Customer contact lookup.
-  const custInfo = new Map<string, { name: string; phone: string }>();
+  const custInfo = new Map<string, { name: string; phone: string; active: boolean }>();
   const custArr = [...custIdsNeeded];
   for (let i = 0; i < custArr.length; i += 1000) {
     const r = await frGet('customer/get', `customerIDs=${custArr.slice(i, i + 1000).join(',')}`, cfg.key, cfg.token);
     (r?.customers || []).forEach((c: any) => custInfo.set(String(c.customerID), {
       name: `${c.fname || ''} ${c.lname || ''}`.trim() || c.companyName || '', phone: c.phone1 || c.cellPhone || '',
+      // Customer is active only if status flag = active AND no cancellation date. Cancelled ACCOUNTS whose
+      // subscription happens to still read active must NOT be in the pool — pool is active customers only.
+      active: String(c.status) === '1' && (!c.dateCancelled || String(c.dateCancelled).startsWith('0000')),
     }));
     await new Promise(r2 => setTimeout(r2, 100));
   }
 
+  let inactiveCustSkipped = 0;
   for (const it of staged) {
     const cust = custInfo.get(String(it.s.customerID));
+    // Skip if the customer isn't found (deleted) or isn't active (cancelled account).
+    if (!cust || !cust.active) { inactiveCustSkipped++; continue; }
     rows.push({
       office, subscriptionId: String(it.s.subscriptionID), externalKey: `${office}:${it.s.subscriptionID}`,
       customerId: String(it.s.customerID), customerName: cust?.name || null, customerPhone: cust?.phone || null,
@@ -188,7 +194,7 @@ async function syncOffice(office: string, horizonDays: number) {
   for (let i = 0; i < rows.length; i += 200) {
     await prisma.servicePoolItem.createMany({ data: rows.slice(i, i + 200), skipDuplicates: true });
   }
-  return { office, activeSubsScanned: subIds.length, apptSearchCount, scheduled: scheduledSubs.size, onHoldSkipped, oneTimeSkipped, neverServicedSkipped, pooled: rows.length,
+  return { office, activeSubsScanned: subIds.length, apptSearchCount, scheduled: scheduledSubs.size, onHoldSkipped, oneTimeSkipped, neverServicedSkipped, inactiveCustSkipped, pooled: rows.length,
     overdue: rows.filter(r => r.isOverdue).length, chunkDiag, ...(subSearchDiag ? { subSearchDiag } : {}) };
 }
 
