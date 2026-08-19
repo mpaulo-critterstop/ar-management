@@ -8,6 +8,7 @@ export default function ServicePoolPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [office, setOffice] = useState('All');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
@@ -33,9 +34,20 @@ export default function ServicePoolPage() {
   const td: React.CSSProperties = { padding: '9px 12px', fontSize: 13, color: '#2C2C2A', borderBottom: '0.5px solid #F1EFE8' };
   const tdR = { ...td, textAlign: 'right' as const };
 
+  const CopyId = ({ label, val }: { label: string; val: string }) => (
+    <button title={`Copy ${label} ${val}`} onClick={() => { navigator.clipboard?.writeText(val); setCopiedId(val); setTimeout(() => setCopiedId(c => c === val ? null : c), 1500); }}
+      style={{ fontSize: 11, fontFamily: 'ui-monospace, monospace', color: copiedId === val ? '#128a3f' : '#6B6A64', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', textAlign: 'left' }}>
+      {copiedId === val ? '✓ copied' : `${label}: ${val}`}
+    </button>
+  );
+
   const Row = ({ i, overdue }: { i: any; overdue?: boolean }) => (
     <tr>
       <td style={{ ...td, fontWeight: 500 }}>{i.customerName || <span style={{ color: '#B4B2A9' }}>Unknown</span>}<div style={{ fontSize: 10, color: '#B4B2A9' }}>{i.office}</div></td>
+      <td style={td}>
+        <CopyId label="Cust" val={i.customerId} />
+        <CopyId label="Sub" val={i.subscriptionId} />
+      </td>
       <td style={{ ...td, fontSize: 12, color: '#6b6a64' }}>{i.customerPhone || '—'}</td>
       <td style={{ ...td, color: '#6b6a64', maxWidth: 220 }}>{i.serviceType || i.category}</td>
       <td style={{ ...td, color: '#6b6a64' }}>{i.frequencyDays ? `${i.frequencyDays}d` : '—'}</td>
@@ -48,7 +60,7 @@ export default function ServicePoolPage() {
 
   const Header = () => (
     <thead><tr>
-      <th style={th}>Customer</th><th style={th}>Phone</th><th style={th}>Service</th><th style={th}>Freq</th>
+      <th style={th}>Customer</th><th style={th}>FR ID</th><th style={th}>Phone</th><th style={th}>Service</th><th style={th}>Freq</th>
       <th style={th}>Last Service</th><th style={th}>Due Date</th><th style={thR}>Status</th><th style={thR}>Contract Value</th>
     </tr></thead>
   );
@@ -111,7 +123,7 @@ export default function ServicePoolPage() {
                 <Header />
                 <tbody>
                   {inWindow.length === 0 ? (
-                    <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={8}>{from || to ? 'None due in this window.' : 'None upcoming.'}</td></tr>
+                    <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={9}>{from || to ? 'None due in this window.' : 'None upcoming.'}</td></tr>
                   ) : inWindow.map((i: any) => <Row key={i.id} i={i} />)}
                 </tbody>
               </table>
