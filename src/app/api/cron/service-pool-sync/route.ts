@@ -125,17 +125,28 @@ async function syncOffice(office: string, horizonDays: number) {
       const commCat = classifyPestCommission(cat?.category || '', cat?.name || s.serviceType || '');
       if (commCat === 'EXCLUDE') continue;                          // pest + termite only (classifier)
       const freq = Number(s.frequency) || 0;
-      // lastCompleted from FR is a Central calendar date. Compute the due date as pure calendar arithmetic
-      // anchored at NOON UTC, so no ±TZ display shift can move it to the previous/next day.
+      // Use FR's OWN next-service date (nextService) as the due date — it's the authoritative value and is
+      // NOT simply lastCompleted + frequency (FR's is a day later; verified on real subs). Fall back to our
+      // computed date only if FR doesn't provide one.
       const lastRaw = s.lastCompleted && !String(s.lastCompleted).startsWith('0000') ? String(s.lastCompleted) : null;
-      if (!lastRaw || freq <= 0) continue;                          // need both to compute a due date
-      const lm = lastRaw.match(/(\d{4})-(\d{2})-(\d{2})/);
-      if (!lm) continue;
-      const last = new Date(Date.UTC(+lm[1], +lm[2] - 1, +lm[3], 12, 0, 0)); // noon UTC on the last-service date
-      const due = new Date(last.getTime() + freq * 86400000);        // + frequency whole days, still noon UTC
-      // daysOverdue: compare calendar dates at noon UTC (today at noon UTC vs due).
+      const nextRaw = s.nextService && !String(s.nextService).startsWith('0000') ? String(s.nextService) : null;
+      let dueStr: string | null = null;
+      if (nextRaw) {
+        const nm = nextRaw.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (nm) dueStr = `${nm[1]}-${nm[2]}-${nm[3]}`;
+      } else if (lastRaw && freq > 0) {
+        const lm = lastRaw.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (lm) {
+          const base = new Date(Date.UTC(+lm[1], +lm[2] - 1, +lm[3], 12));
+          dueStr = new Date(base.getTime() + freq * 86400000).toISOString().slice(0, 10);
+        }
+      }
+      if (!dueStr) continue;                                          // no way to determine a due date
+      const [dy, dmo, dd] = dueStr.split('-').map(Number);
+      const due = new Date(Date.UTC(dy, dmo - 1, dd, 12, 0, 0));      // noon UTC on the due calendar date
       const nowNoon = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 12, 0, 0));
       const daysOverdue = Math.round((nowNoon.getTime() - due.getTime()) / 86400000);
+      const last = lastRaw ? (() => { const lm = lastRaw.match(/(\d{4})-(\d{2})-(\d{2})/); return lm ? new Date(Date.UTC(+lm[1], +lm[2] - 1, +lm[3], 12)) : null; })() : null;
       staged.push({ s, sid, cat, commCat, freq, last, due, daysOverdue });
       custIdsNeeded.add(String(s.customerID));
     }
