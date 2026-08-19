@@ -56,7 +56,7 @@ export default function ServicePoolPage() {
   return (
     <div style={{ padding: '0 24px 40px', maxWidth: 1400, margin: '0 auto' }}>
       <div style={{ paddingTop: 24 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Service Pool</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Pest Control Job Pool</h1>
         <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>Active pest &amp; termite subscriptions due for service (last service + frequency) that have no appointment scheduled yet. Overdue shown first.</p>
       </div>
 

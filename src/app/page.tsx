@@ -109,7 +109,7 @@ export default function HomePage() {
     {
       module: 'service-pool' as ModuleKey,
       icon: '🗓️',
-      title: 'Service Pool',
+      title: 'Pest Control Job Pool',
       desc: 'Pest &amp; termite subscriptions due for service but not yet scheduled \u2014 overdue flagged.',
       href: '/service-pool',
       accentColor: '#c2410c',
