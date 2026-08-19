@@ -112,6 +112,7 @@ async function syncOffice(office: string, horizonDays: number) {
   const custIdsNeeded = new Set<string>();
   const staged: any[] = [];
   let onHoldSkipped = 0;
+  let oneTimeSkipped = 0;
   for (let i = 0; i < subIds.length; i += 1000) {
     const got = await frGet('subscription/get', `subscriptionIDs=${subIds.slice(i, i + 1000).join(',')}`, cfg.key, cfg.token);
     for (const s of (got?.subscriptions || [])) {
@@ -125,9 +126,10 @@ async function syncOffice(office: string, horizonDays: number) {
       const commCat = classifyPestCommission(cat?.category || '', cat?.name || s.serviceType || '');
       if (commCat === 'EXCLUDE') continue;                          // pest + termite only (classifier)
       const freq = Number(s.frequency) || 0;
-      // Use FR's OWN next-service date (nextService) as the due date — it's the authoritative value and is
-      // NOT simply lastCompleted + frequency (FR's is a day later; verified on real subs). Fall back to our
-      // computed date only if FR doesn't provide one.
+      // One-time / non-recurring services (FR frequency 0 or -1) can't be "due" again once done — exclude.
+      if (freq <= 0) { oneTimeSkipped++; continue; }
+      // Use FR's OWN next-service date (nextService) as the due date — authoritative, and NOT simply
+      // lastCompleted + frequency (FR's is a day later; verified). Fall back to computed only if absent.
       const lastRaw = s.lastCompleted && !String(s.lastCompleted).startsWith('0000') ? String(s.lastCompleted) : null;
       const nextRaw = s.nextService && !String(s.nextService).startsWith('0000') ? String(s.nextService) : null;
       let dueStr: string | null = null;
@@ -181,7 +183,7 @@ async function syncOffice(office: string, horizonDays: number) {
   for (let i = 0; i < rows.length; i += 200) {
     await prisma.servicePoolItem.createMany({ data: rows.slice(i, i + 200), skipDuplicates: true });
   }
-  return { office, activeSubsScanned: subIds.length, apptSearchCount, scheduled: scheduledSubs.size, onHoldSkipped, pooled: rows.length,
+  return { office, activeSubsScanned: subIds.length, apptSearchCount, scheduled: scheduledSubs.size, onHoldSkipped, oneTimeSkipped, pooled: rows.length,
     overdue: rows.filter(r => r.isOverdue).length, chunkDiag, ...(subSearchDiag ? { subSearchDiag } : {}) };
 }
 
