@@ -9,6 +9,7 @@ export default function ServicePoolPage() {
   const [loading, setLoading] = useState(true);
   const [office, setOffice] = useState('All');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
@@ -25,8 +26,15 @@ export default function ServicePoolPage() {
     }
   }, [office, from, to]);
 
-  const overdue = data?.overdue || [];
-  const inWindow = data?.inWindow || [];
+  const matchSearch = (i: any) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (i.customerName || '').toLowerCase().includes(q)
+      || (i.customerPhone || '').includes(search)
+      || (i.customerId || '').includes(search);
+  };
+  const overdue = (data?.overdue || []).filter(matchSearch);
+  const inWindow = (data?.inWindow || []).filter(matchSearch);
   const offices: string[] = data?.offices || [];
 
   const th: React.CSSProperties = { textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap' };
@@ -45,8 +53,7 @@ export default function ServicePoolPage() {
     <tr>
       <td style={{ ...td, fontWeight: 500 }}>{i.customerName || <span style={{ color: '#B4B2A9' }}>Unknown</span>}<div style={{ fontSize: 10, color: '#B4B2A9' }}>{i.office}</div></td>
       <td style={td}>
-        <CopyId label="Cust" val={i.customerId} />
-        <CopyId label="Sub" val={i.subscriptionId} />
+        <CopyId label="FRID" val={i.customerId} />
       </td>
       <td style={{ ...td, fontSize: 12, color: '#6b6a64' }}>{i.customerPhone || '—'}</td>
       <td style={{ ...td, color: '#6b6a64', maxWidth: 220 }}>{i.serviceType || i.category}</td>
@@ -74,6 +81,8 @@ export default function ServicePoolPage() {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 12, marginTop: 16, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input type="text" placeholder="Search customer / phone / FR ID..." value={search} onChange={e => setSearch(e.target.value)}
+          style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', minWidth: 220 }} />
         <span style={{ fontSize: 12, color: '#888780' }}>Office:</span>
         <select value={office} onChange={e => setOffice(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
           <option value="All">All offices</option>
