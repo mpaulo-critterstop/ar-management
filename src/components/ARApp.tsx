@@ -215,7 +215,7 @@ export default function ARApp() {
 
   if(loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:300,fontSize:13,color:"#888780"}}>Loading AR data…</div>;
 
-  const shared = {customers,invoices,payments,custMap,enriched,open,setModal,showToast,loadAll,officeFilter};
+  const shared = {customers,invoices,payments,custMap,enriched,open,setModal,showToast,loadAll,officeFilter,isAdmin};
 
   return (
     <div style={{padding:"0 24px 24px",maxWidth:1200,margin:"0 auto"}}>
@@ -1119,11 +1119,21 @@ function CustPage({customers,enriched,setModal,showToast,loadAll}: any) {
   );
 }
 
-function InvPage({enriched,setModal,showToast,loadAll}: any) {
+function InvPage({enriched,setModal,showToast,loadAll,isAdmin}: any) {
   const [search,setSearch]=useState("");
   const [statusF,setStatusF]=useState("");
   const [pageSize,setPageSize]=useState(100);
   const [currentPage,setCurrentPage]=useState(1);
+  const [reopening,setReopening]=useState<string|null>(null);
+
+  const reopen=async(inv:any)=>{
+    if(!confirm(`Reopen invoice ${inv.id} for ${inv.customer?.name||'this customer'}?\n\nThis sets it back to CURRENT, removes the due date, and takes it off the Call Sheet, AR Blitz, and PestAI follow-up. Use this when a project was closed by mistake and is still ongoing.`)) return;
+    setReopening(inv.id);
+    const r=await fetch(`/api/invoices/${inv.id}/reopen`,{method:'POST'});
+    setReopening(null);
+    if(r.ok){ showToast&&showToast(`Invoice ${inv.id} reopened`); loadAll(); }
+    else { const d=await r.json().catch(()=>({})); alert(d.error||'Reopen failed'); }
+  };
 
   const sorted = useMemo(()=>[...enriched].sort((a:any,b:any)=>new Date(b.date).getTime()-new Date(a.date).getTime()),[enriched]);
 
@@ -1164,7 +1174,16 @@ function InvPage({enriched,setModal,showToast,loadAll}: any) {
                   <Td right bold>{fmt(inv.balance)}</Td>
                   <Td><Badge status={inv.status} small/></Td>
                   <Td>
-                    {inv.balance>0&&<Btn small onClick={()=>setModal({type:"closeOut",invoice:inv})}>Close out</Btn>}
+                    <div style={{display:"flex",gap:6,justifyContent:"flex-end",alignItems:"center"}}>
+                      {inv.balance>0&&<Btn small onClick={()=>setModal({type:"closeOut",invoice:inv})}>Close out</Btn>}
+                      {isAdmin && (inv.status==="OVERDUE"||inv.status==="COLLECTIONS"||inv.due) && (
+                        <button onClick={()=>reopen(inv)} disabled={reopening===inv.id}
+                          title="Reopen — reset to CURRENT, clear due date, remove from Call Sheet / Blitz / PestAI"
+                          style={{fontSize:11,padding:"4px 9px",borderRadius:6,border:"0.5px solid #B45309",background:"#fff",color:"#B45309",fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>
+                          {reopening===inv.id?"…":"Reopen"}
+                        </button>
+                      )}
+                    </div>
                   </Td>
                 </tr>
               ))}
