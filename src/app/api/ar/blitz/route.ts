@@ -38,8 +38,9 @@ export async function GET(req: NextRequest) {
     WHERE i."blitzListedAt" IS NOT NULL
       AND i."arStage" IS NULL
       AND c."excludeFromAutomation" = false
+      AND NOT (i.status = 'CURRENT' AND i.due IS NULL)  -- reset to an ongoing/current project: drop off blitz
       ${officeFilter}
-    ORDER BY i.due ASC
+    ORDER BY i.due ASC NULLS LAST
   `) as any[];
 
   // Latest call note per invoice (for the "last call" hint).
@@ -72,7 +73,10 @@ export async function GET(req: NextRequest) {
   const MS_DAY = 86400000;
   const now = Date.now();
   let items = invoices.map(inv => {
-    const daysOverdue = Math.floor((now - new Date(inv.due).getTime()) / MS_DAY);
+    // due can be null (e.g. an invoice reset to CURRENT for an ongoing project). new Date(null) is epoch
+    // 1970, which produced a bogus ~20,685-day overdue. Treat a missing/future due date as not overdue.
+    const dueMs = inv.due ? new Date(inv.due).getTime() : null;
+    const daysOverdue = dueMs ? Math.max(0, Math.floor((now - dueMs) / MS_DAY)) : 0;
     const last = lastNoteByInvoice.get(inv.id);
     const invNotes = notesByInvoice.get(inv.id) || [];
     const daysSinceCall = last ? Math.floor((now - new Date(last.date).getTime()) / MS_DAY) : null;
