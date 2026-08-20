@@ -74,11 +74,11 @@ export async function GET(req: NextRequest) {
     const { currentStep, windowStart } = cadenceWindow(daysOverdue);
     if (currentStep == null) continue; // not yet at the 21-day first-call threshold
 
-    // "Called this window" = a note exists dated at/after the day this window opened.
+    // "Called this window" = a note exists dated at/after the day this window opened. We KEEP these on the
+    // sheet (flagged) rather than dropping them, so the team can sort/filter by called vs. not-yet-called.
     const windowOpenedDate = new Date(due.getTime() + windowStart * MS_DAY);
     const invNotes = notesByInvoice.get(inv.id) || [];
     const calledThisWindow = invNotes.some(n => new Date(n.date) >= windowOpenedDate);
-    if (calledThisWindow) continue; // actioned already this step → rolls to next step
 
     const outstanding = Number(inv.amount) - Number(inv.paid);
     // "Entered the sheet" = the day it crossed 21 days overdue (first cadence step).
@@ -107,8 +107,11 @@ export async function GET(req: NextRequest) {
       enteredSheet: enteredSheet.toISOString().slice(0, 10),
       daysOnSheet,
       daysSinceCall,
+      calledThisWindow,
+      lastCallDate: lastNote ? new Date(lastNote.date).toISOString().slice(0, 10) : null,
       arNote: inv.arNote || '',
       lastNote: lastNote ? { text: lastNote.text, date: lastNote.date, status: lastNote.status } : null,
+      allNotes: invNotes.map(n => ({ text: n.text, date: n.date, status: n.status, promisedDate: n.promisedDate, promisedAmount: n.promisedAmount })),
       noteCount: invNotes.length,
     });
   }

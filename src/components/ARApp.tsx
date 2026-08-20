@@ -277,6 +277,10 @@ function CallSheetPage({officeFilter, showToast}: any) {
   const [svcFilter, setSvcFilter] = useState<"all"|"Pest Control"|"Wildlife">("all");
   const [noteEdits, setNoteEdits] = useState<Record<string,string>>({});
   const [savingNote, setSavingNote] = useState<string|null>(null);
+  const [sortBy, setSortBy] = useState<"overdue"|"outstanding"|"lastCall">("overdue");
+  const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
+  const [calledFilter, setCalledFilter] = useState<"all"|"notyet"|"called">("all");
+  const [expanded, setExpanded] = useState<Record<string,boolean>>({});
 
   const load = useCallback(() => {
     setLoadingCS(true);
@@ -303,8 +307,26 @@ function CallSheetPage({officeFilter, showToast}: any) {
   const items = allItems.filter((it:any)=>{
     const matchSearch = !search.trim() || (it.customerName||'').toLowerCase().includes(search.toLowerCase());
     const matchSvc = svcFilter==="all" || it.serviceCategory===svcFilter;
-    return matchSearch && matchSvc;
+    const matchCalled = calledFilter==="all" || (calledFilter==="called" ? it.calledThisWindow : !it.calledThisWindow);
+    return matchSearch && matchSvc && matchCalled;
+  }).sort((a:any,b:any)=>{
+    const dir = sortDir==="asc" ? 1 : -1;
+    if(sortBy==="outstanding") return (a.outstanding - b.outstanding) * dir;
+    if(sortBy==="lastCall") {
+      // never-called sorts as "longest since call" (most urgent). Treat null as +Infinity days.
+      const av = a.daysSinceCall==null ? Number.POSITIVE_INFINITY : a.daysSinceCall;
+      const bv = b.daysSinceCall==null ? Number.POSITIVE_INFINITY : b.daysSinceCall;
+      return (av - bv) * dir;
+    }
+    return (a.daysOverdue - b.daysOverdue) * dir;
   });
+
+  const toggleSort=(col:"overdue"|"outstanding"|"lastCall")=>{
+    if(sortBy===col){ setSortDir(d=>d==="asc"?"desc":"asc"); }
+    else { setSortBy(col); setSortDir("desc"); }
+  };
+  const sortArrow=(col:string)=> sortBy===col ? (sortDir==="asc"?" ▲":" ▼") : "";
+  const notYetCount = allItems.filter((it:any)=>!it.calledThisWindow).length;
 
   return (
     <div>
@@ -324,6 +346,13 @@ function CallSheetPage({officeFilter, showToast}: any) {
             </button>
           ))}
         </div>
+        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
+          {([["all","All"],["notyet","Not called yet"],["called","Called"]] as const).map(([v,label])=>(
+            <button key={v} onClick={()=>setCalledFilter(v as any)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:calledFilter===v?"0.5px solid #D3D1C7":"0.5px solid transparent",background:calledFilter===v?"#fff":"transparent",color:calledFilter===v?(v==="notyet"?"#791F1F":"#2C2C2A"):"#888780"}}>
+              {label}{v==="notyet"&&notYetCount>0?` (${notYetCount})`:""}
+            </button>
+          ))}
+        </div>
       </div>
 
       {items.length>0 ? (
@@ -333,9 +362,9 @@ function CallSheetPage({officeFilter, showToast}: any) {
               <tr style={{color:"#888780",textAlign:"left"}}>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Customer</th>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Service</th>
-                <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>Outstanding</th>
-                <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>Overdue</th>
-                <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>Last Call</th>
+                <th onClick={()=>toggleSort("outstanding")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="outstanding"?"#0052cc":"#888780"}}>Outstanding{sortArrow("outstanding")}</th>
+                <th onClick={()=>toggleSort("overdue")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="overdue"?"#0052cc":"#888780"}}>Overdue{sortArrow("overdue")}</th>
+                <th onClick={()=>toggleSort("lastCall")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="lastCall"?"#0052cc":"#888780"}}>Last Call{sortArrow("lastCall")}</th>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Phone</th>
                 <th style={{padding:"10px 12px",fontWeight:500,minWidth:180}}>Note</th>
                 <th style={{padding:"10px 12px",fontWeight:500}}></th>
@@ -356,7 +385,10 @@ function CallSheetPage({officeFilter, showToast}: any) {
                   </td>
                   <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,color:"#791F1F"}}>{money(it.outstanding)}</td>
                   <td style={{padding:"10px 12px",textAlign:"right"}}>{it.daysOverdue}d</td>
-                  <td style={{padding:"10px 12px",textAlign:"right",color:"#6B6A64"}}>{it.daysSinceCall==null?<span style={{color:"#C9C7BE"}}>never</span>:`${it.daysSinceCall}d`}</td>
+                  <td style={{padding:"10px 12px",textAlign:"right",color:"#6B6A64"}}>
+                    {it.daysSinceCall==null?<span style={{color:"#C9C7BE"}}>never</span>:`${it.daysSinceCall}d`}
+                    {it.calledThisWindow && <div style={{fontSize:10,color:"#3F6B2E"}}>✓ called</div>}
+                  </td>
                   <td style={{padding:"10px 12px",color:"#6B6A64"}}>{it.phone||"—"}</td>
                   <td style={{padding:"8px 12px"}}>
                     <div style={{display:"flex",gap:4,alignItems:"center"}}>
@@ -364,7 +396,26 @@ function CallSheetPage({officeFilter, showToast}: any) {
                         placeholder="Add note…" style={{flex:1,padding:"5px 8px",fontSize:12,borderRadius:6,border:"0.5px solid #D3D1C7",minWidth:120}} />
                       {dirty && <button onClick={()=>saveNote(it.invoiceId)} disabled={savingNote===it.invoiceId} style={{padding:"5px 8px",fontSize:11,borderRadius:6,border:"none",background:"#0052cc",color:"#fff",cursor:"pointer"}}>{savingNote===it.invoiceId?"…":"Save"}</button>}
                     </div>
-                    {it.lastNote && <div style={{fontSize:10,color:"#B4B2A9",marginTop:3}} title={it.lastNote.text}>Last: {it.lastNote.text.slice(0,30)}{it.lastNote.text.length>30?"…":""} ({fmtDate(it.lastNote.date)})</div>}
+                    {it.lastNote && (
+                      <div style={{marginTop:3}}>
+                        <button onClick={()=>setExpanded(p=>({...p,[it.invoiceId]:!p[it.invoiceId]}))}
+                          style={{fontSize:10,color:"#6B6A64",background:"none",border:"none",padding:0,cursor:"pointer",textAlign:"left"}}>
+                          {expanded[it.invoiceId] ? "▼ hide notes" : `▶ Last: ${it.lastNote.text.slice(0,30)}${it.lastNote.text.length>30?"…":""} (${fmtDate(it.lastNote.date)})${it.noteCount>1?` +${it.noteCount-1} more`:""}`}
+                        </button>
+                        {expanded[it.invoiceId] && (
+                          <div style={{marginTop:4,padding:8,background:"#F8F7F4",borderRadius:6,border:"0.5px solid #E8E7E3",maxWidth:340}}>
+                            {(it.allNotes||[]).map((n:any,idx:number)=>(
+                              <div key={idx} style={{fontSize:11,color:"#2C2C2A",paddingBottom:6,marginBottom:6,borderBottom:idx<(it.allNotes.length-1)?"0.5px solid #E8E7E3":"none"}}>
+                                <div style={{whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{n.text||<span style={{color:"#B4B2A9"}}>(no text)</span>}</div>
+                                <div style={{fontSize:10,color:"#B4B2A9",marginTop:2}}>
+                                  {fmtDate(n.date)}{n.status?` · ${n.status}`:""}{n.promisedAmount?` · promised ${money(n.promisedAmount)}`:""}{n.promisedDate?` by ${fmtDate(n.promisedDate)}`:""}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td style={{padding:"10px 12px"}}>
                     <div style={{display:"flex",gap:6,whiteSpace:"nowrap"}}>
