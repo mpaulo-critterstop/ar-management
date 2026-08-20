@@ -255,13 +255,16 @@ async function syncDispatch(office: string, key: string, token: string) {
         },
       });
 
-      // Update invoice due date if newly closed out
+      // Update invoice due date if newly closed out.
       if (closedOut && closedOutDate && job.invoice?.id) {
         const inv = await prisma.invoice.findUnique({
           where: { id: job.invoice.id },
-          select: { due: true },
+          select: { due: true, arReopened: true },
         });
-        if (!inv?.due) {
+        // Only stamp the closeout date on an invoice that has no due date AND hasn't been deliberately
+        // reopened by an admin. Without the arReopened guard, reopening (which sets due=NULL) would itself
+        // re-trigger this block (!inv.due === true) and put the mistaken closeout date right back.
+        if (!inv?.due && !inv?.arReopened) {
           await prisma.invoice.update({
             where: { id: job.invoice.id },
             data: {
