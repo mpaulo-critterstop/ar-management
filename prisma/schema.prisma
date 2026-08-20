@@ -97,6 +97,7 @@ model Invoice {
   blitzAssignedTo  String?   // userId assigned this invoice for the AR blitz
   blitzListedAt    DateTime? // first time this invoice appeared on the blitz list (membership; persists once paid)
   arReopened       Boolean   @default(false) // admin reopened a mistaken closeout — FR sync must NOT recompute status/due
+  arReopenedThroughDate DateTime? // closeouts on/before this date are the mistaken one (ignored); a LATER closeout is the genuine one and is honored
   customer       Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   payments        Payment[]
   lead            Lead?     @relation("LeadInvoice")

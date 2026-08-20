@@ -259,17 +259,22 @@ async function syncDispatch(office: string, key: string, token: string) {
       if (closedOut && closedOutDate && job.invoice?.id) {
         const inv = await prisma.invoice.findUnique({
           where: { id: job.invoice.id },
-          select: { due: true, arReopened: true },
+          select: { due: true, arReopened: true, arReopenedThroughDate: true },
         });
-        // Only stamp the closeout date on an invoice that has no due date AND hasn't been deliberately
-        // reopened by an admin. Without the arReopened guard, reopening (which sets due=NULL) would itself
-        // re-trigger this block (!inv.due === true) and put the mistaken closeout date right back.
-        if (!inv?.due && !inv?.arReopened) {
+        // Apply the closeout when the invoice has no due date, UNLESS it was admin-reopened and this
+        // closeout is the same mistaken one we reopened past (closedOutDate <= arReopenedThroughDate).
+        // A closeout dated AFTER the through-date is the genuine project completion — honor it and clear
+        // the reopened flags so the invoice returns to normal AR life.
+        const isStillTheMistakenCloseout = inv?.arReopened && inv?.arReopenedThroughDate
+          && closedOutDate <= new Date(inv.arReopenedThroughDate);
+        if (!inv?.due && !isStillTheMistakenCloseout) {
           await prisma.invoice.update({
             where: { id: job.invoice.id },
             data: {
               due: closedOutDate,
               status: closedOutDate < new Date() ? 'OVERDUE' : 'CURRENT',
+              // If this is the genuine later closeout of a previously-reopened invoice, clear the guard.
+              ...(inv?.arReopened ? { arReopened: false, arReopenedThroughDate: null } : {}),
             },
           });
         }
