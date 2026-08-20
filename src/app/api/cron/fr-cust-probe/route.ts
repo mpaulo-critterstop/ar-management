@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
     phone1: c.phone1, email: c.email,
   };
   else out.customerRaw = cr; // show the raw response if not found (may reveal an error/empty)
+  if (c) out.customerFullRaw = c; // entire raw customer object — to see every status-related field
 
   // The specific subscription (if provided)
   if (sub) {
