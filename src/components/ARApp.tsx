@@ -542,6 +542,10 @@ function BlitzPage({officeFilter, showToast}: any) {
   const [callModal,setCallModal]=useState<any>(null);
   const [savingAssign,setSavingAssign]=useState<string|null>(null);
   const [distModal,setDistModal]=useState(false);
+  const [sortBy,setSortBy]=useState<"overdue"|"outstanding"|"lastCall">("overdue");
+  const [sortDir,setSortDir]=useState<"asc"|"desc">("desc");
+  const [calledFilter,setCalledFilter]=useState<"all"|"notyet"|"called">("all");
+  const [expanded,setExpanded]=useState<Record<string,boolean>>({});
 
   const load=useCallback(()=>{
     setLoadingB(true);
@@ -575,9 +579,22 @@ function BlitzPage({officeFilter, showToast}: any) {
   const items=allItems.filter((it:any)=>{
     const ms=!search.trim()||(it.customerName||'').toLowerCase().includes(search.toLowerCase());
     const mv=svcFilter==="all"||it.serviceCategory===svcFilter;
-    return ms&&mv;
+    const mc=calledFilter==="all"||(calledFilter==="called"?it.calledEver:!it.calledEver);
+    return ms&&mv&&mc;
+  }).sort((a:any,b:any)=>{
+    const dir=sortDir==="asc"?1:-1;
+    if(sortBy==="outstanding") return (a.outstanding-b.outstanding)*dir;
+    if(sortBy==="lastCall"){
+      const av=a.daysSinceCall==null?Number.POSITIVE_INFINITY:a.daysSinceCall;
+      const bv=b.daysSinceCall==null?Number.POSITIVE_INFINITY:b.daysSinceCall;
+      return (av-bv)*dir;
+    }
+    return (a.daysOverdue-b.daysOverdue)*dir;
   });
   const shownOutstanding=items.reduce((s:number,i:any)=>s+i.outstanding,0);
+  const toggleSort=(col:"overdue"|"outstanding"|"lastCall")=>{ if(sortBy===col){setSortDir(d=>d==="asc"?"desc":"asc");} else {setSortBy(col);setSortDir("desc");} };
+  const sortArrow=(col:string)=> sortBy===col?(sortDir==="asc"?" ▲":" ▼"):"";
+  const notYetCount=allItems.filter((it:any)=>!it.calledEver).length;
 
   return (
     <div>
@@ -608,6 +625,11 @@ function BlitzPage({officeFilter, showToast}: any) {
             <button key={s} onClick={()=>setPaidFilter(s)} style={{padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:paidFilter===s?"0.5px solid #D3D1C7":"0.5px solid transparent",background:paidFilter===s?"#fff":"transparent",color:paidFilter===s?"#2C2C2A":"#888780"}}>{s==="all"?"All":s==="unpaid"?"Unpaid":"Paid"}</button>
           ))}
         </div>
+        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
+          {([["all","All"],["notyet","Not called yet"],["called","Called"]] as const).map(([v,label])=>(
+            <button key={v} onClick={()=>setCalledFilter(v as any)} style={{padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:calledFilter===v?"0.5px solid #D3D1C7":"0.5px solid transparent",background:calledFilter===v?"#fff":"transparent",color:calledFilter===v?(v==="notyet"?"#791F1F":"#2C2C2A"):"#888780"}}>{label}{v==="notyet"&&notYetCount>0?` (${notYetCount})`:""}</button>
+          ))}
+        </div>
       </div>
 
       {items.length>0 ? (
@@ -617,8 +639,9 @@ function BlitzPage({officeFilter, showToast}: any) {
               <tr style={{color:"#888780",textAlign:"left"}}>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Customer</th>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Service</th>
-                <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>Outstanding</th>
-                <th style={{padding:"10px 12px",fontWeight:500,textAlign:"right"}}>Days Overdue</th>
+                <th onClick={()=>toggleSort("outstanding")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="outstanding"?"#0052cc":"#888780"}}>Outstanding{sortArrow("outstanding")}</th>
+                <th onClick={()=>toggleSort("overdue")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="overdue"?"#0052cc":"#888780"}}>Days Overdue{sortArrow("overdue")}</th>
+                <th onClick={()=>toggleSort("lastCall")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="lastCall"?"#0052cc":"#888780"}}>Last Call{sortArrow("lastCall")}</th>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Phone</th>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Assigned To</th>
                 <th style={{padding:"10px 12px",fontWeight:500,minWidth:160}}>Note</th>
@@ -636,6 +659,9 @@ function BlitzPage({officeFilter, showToast}: any) {
                   <td style={{padding:"10px 12px"}}><span style={{fontSize:11,padding:"2px 7px",borderRadius:6,background:it.serviceCategory==="Wildlife"?"#E9F1E5":"#EAEEF6",color:it.serviceCategory==="Wildlife"?"#3F6B2E":"#2E4A79"}}>{it.serviceCategory}</span></td>
                   <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,color:"#791F1F"}}>{money(it.outstanding)}</td>
                   <td style={{padding:"10px 12px",textAlign:"right",color:it.daysOverdue>=90?"#791F1F":it.daysOverdue>=30?"#B45309":"#6B6A64"}}>{it.daysOverdue}d</td>
+                  <td style={{padding:"10px 12px",textAlign:"right",color:"#6B6A64"}}>
+                    {it.daysSinceCall==null?<span style={{color:"#C9C7BE"}}>never</span>:`${it.daysSinceCall}d`}
+                  </td>
                   <td style={{padding:"10px 12px",color:"#6B6A64"}}>{it.phone||"—"}</td>
                   <td style={{padding:"8px 12px"}}>
                     <select value={it.assignedTo||""} onChange={e=>assign(it.invoiceId,e.target.value)} disabled={savingAssign===it.invoiceId}
@@ -644,10 +670,28 @@ function BlitzPage({officeFilter, showToast}: any) {
                       {coreUsers.map((u:any)=><option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
                   </td>
-                  <td style={{padding:"10px 12px",color:"#888780",maxWidth:180}}>
+                  <td style={{padding:"10px 12px",color:"#888780",maxWidth:200}}>
                     {it.arNote && <div style={{fontSize:11,color:"#6B6A64"}} title={it.arNote}>{it.arNote.slice(0,40)}{it.arNote.length>40?"…":""}</div>}
-                    {it.lastNote && <div style={{fontSize:10,color:"#B4B2A9"}} title={it.lastNote.text}>Last: {it.lastNote.text ? `${it.lastNote.text.slice(0,35)}${it.lastNote.text.length>35?"…":""} ` : ""}({new Date(it.lastNote.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})})</div>}
-                    {!it.arNote && !it.lastNote && <span style={{color:"#C9C7BE",fontSize:11}}>—</span>}
+                    {it.lastNote ? (
+                      <div style={{marginTop:2}}>
+                        <button onClick={()=>setExpanded(p=>({...p,[it.invoiceId]:!p[it.invoiceId]}))}
+                          style={{fontSize:10,color:"#6B6A64",background:"none",border:"none",padding:0,cursor:"pointer",textAlign:"left"}}>
+                          {expanded[it.invoiceId]?"▼ hide notes":`▶ Last: ${it.lastNote.text?`${it.lastNote.text.slice(0,30)}${it.lastNote.text.length>30?"…":""} `:""}(${new Date(it.lastNote.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})})${it.noteCount>1?` +${it.noteCount-1} more`:""}`}
+                        </button>
+                        {expanded[it.invoiceId] && (
+                          <div style={{marginTop:4,padding:8,background:"#F8F7F4",borderRadius:6,border:"0.5px solid #E8E7E3",maxWidth:340}}>
+                            {(it.allNotes||[]).map((n:any,idx:number)=>(
+                              <div key={idx} style={{fontSize:11,color:"#2C2C2A",paddingBottom:6,marginBottom:6,borderBottom:idx<(it.allNotes.length-1)?"0.5px solid #E8E7E3":"none"}}>
+                                <div style={{whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{n.text||<span style={{color:"#B4B2A9"}}>(no text)</span>}</div>
+                                <div style={{fontSize:10,color:"#B4B2A9",marginTop:2}}>
+                                  {new Date(n.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}{n.status?` · ${n.status}`:""}{n.promisedAmount?` · promised ${money(n.promisedAmount)}`:""}{n.promisedDate?` by ${new Date(n.promisedDate).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`:""}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (!it.arNote && <span style={{color:"#C9C7BE",fontSize:11}}>—</span>)}
                   </td>
                   <td style={{padding:"10px 12px"}}><button onClick={()=>setCallModal(it)} style={{background:"#0052cc",color:"#fff",border:"none",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>Mark Called</button></td>
                 </tr>

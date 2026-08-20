@@ -47,10 +47,16 @@ export async function GET(req: NextRequest) {
   const notes = invoiceIds.length ? await prisma.collectionNote.findMany({
     where: { invoiceId: { in: invoiceIds } },
     orderBy: { date: 'desc' },
-    select: { invoiceId: true, date: true, text: true, status: true },
+    select: { invoiceId: true, date: true, text: true, status: true, promisedDate: true, promisedAmount: true },
   }) : [];
   const lastNoteByInvoice = new Map<string, any>();
-  for (const n of notes) { if (n.invoiceId && !lastNoteByInvoice.has(n.invoiceId)) lastNoteByInvoice.set(n.invoiceId, n); }
+  const notesByInvoice = new Map<string, any[]>();
+  for (const n of notes) {
+    if (!n.invoiceId) continue;
+    if (!lastNoteByInvoice.has(n.invoiceId)) lastNoteByInvoice.set(n.invoiceId, n);
+    if (!notesByInvoice.has(n.invoiceId)) notesByInvoice.set(n.invoiceId, []);
+    notesByInvoice.get(n.invoiceId)!.push(n);
+  }
 
   // Assignable users (AR module access) for the dropdown + name lookup.
   const users = await prisma.user.findMany({
@@ -68,6 +74,8 @@ export async function GET(req: NextRequest) {
   let items = invoices.map(inv => {
     const daysOverdue = Math.floor((now - new Date(inv.due).getTime()) / MS_DAY);
     const last = lastNoteByInvoice.get(inv.id);
+    const invNotes = notesByInvoice.get(inv.id) || [];
+    const daysSinceCall = last ? Math.floor((now - new Date(last.date).getTime()) / MS_DAY) : null;
     const outstanding = Number(inv.amount) - Number(inv.paid);
     const isPaid = outstanding <= 0 || inv.status === 'PAID';
     return {
@@ -82,10 +90,14 @@ export async function GET(req: NextRequest) {
       outstanding: Math.max(0, outstanding),
       paid: isPaid,
       daysOverdue,
+      daysSinceCall,
+      calledEver: !!last,
       arNote: inv.arNote || '',
       assignedTo: inv.blitzAssignedTo || null,
       assignedToName: inv.blitzAssignedTo ? (userName.get(inv.blitzAssignedTo) || 'Unknown') : null,
       lastNote: last ? { text: last.text, date: last.date } : null,
+      allNotes: invNotes.map(n => ({ text: n.text, date: n.date, status: n.status, promisedDate: n.promisedDate, promisedAmount: n.promisedAmount })),
+      noteCount: invNotes.length,
     };
   });
 
