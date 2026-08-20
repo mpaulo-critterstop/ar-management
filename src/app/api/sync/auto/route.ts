@@ -124,7 +124,7 @@ async function processTicket(
   try {
     if (parseFloat(t.total) === 0) {
       await prisma.invoice.updateMany({
-        where: { externalId: String(t.ticketID), office },
+        where: { externalId: String(t.ticketID), office, arReopened: false },
         data: { status: 'PAID', paid: 0, amount: 0 },
       });
       const voidedInvoice = await prisma.invoice.findFirst({
@@ -147,7 +147,7 @@ async function processTicket(
 
     if (t.active !== '1') {
       await prisma.invoice.updateMany({
-        where: { externalId: String(t.ticketID), office },
+        where: { externalId: String(t.ticketID), office, arReopened: false },
         data: { status: 'PAID', paid: parseFloat(t.total), amount: parseFloat(t.total) },
       });
       const inactiveInvoice = await prisma.invoice.findFirst({
@@ -239,14 +239,13 @@ async function processTicket(
     // and AR sync must not overwrite it back to null
     const existingInvoice = await prisma.invoice.findFirst({
       where: { externalId: String(t.ticketID) },
-      select: { due: true, paid: true, amount: true, arFollowupSent: true },
+      select: { due: true, paid: true, amount: true, arFollowupSent: true, arReopened: true, status: true },
     });
     const preservedDue = existingInvoice?.due ?? invoiceData.due;
-    const updateData = {
-      ...invoiceData,
-      due: preservedDue,
-      status: getInvoiceStatus(balance, preservedDue) as any,
-    };
+    // Admin-reopened invoices keep their status + null due — the AR sync must not recompute them.
+    const updateData = existingInvoice?.arReopened
+      ? { ...invoiceData, due: preservedDue, status: existingInvoice.status as any }
+      : { ...invoiceData, due: preservedDue, status: getInvoiceStatus(balance, preservedDue) as any };
 
     const result = await prisma.invoice.upsert({
       where: { id: String(t.ticketID) },

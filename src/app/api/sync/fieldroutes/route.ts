@@ -80,7 +80,13 @@ export async function POST(req: NextRequest) {
             const existing = await prisma.invoice.findUnique({ where: { id: invId } });
 
             if (existing) {
-              await prisma.invoice.update({ where: { id: invId }, data: { paid, status } });
+              // Admin-reopened invoices (ongoing projects closed by mistake) are protected: refresh paid,
+              // but do NOT recompute status — leave it as the admin set it, or it'd flip back to OVERDUE.
+              if ((existing as any).arReopened) {
+                await prisma.invoice.update({ where: { id: invId }, data: { paid } });
+              } else {
+                await prisma.invoice.update({ where: { id: invId }, data: { paid, status } });
+              }
               invoicesUpdated++;
             } else {
               await prisma.invoice.create({

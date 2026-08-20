@@ -96,6 +96,7 @@ model Invoice {
   arStageAt        DateTime?
   blitzAssignedTo  String?   // userId assigned this invoice for the AR blitz
   blitzListedAt    DateTime? // first time this invoice appeared on the blitz list (membership; persists once paid)
+  arReopened       Boolean   @default(false) // admin reopened a mistaken closeout — FR sync must NOT recompute status/due
   customer       Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   payments        Payment[]
   lead            Lead?     @relation("LeadInvoice")

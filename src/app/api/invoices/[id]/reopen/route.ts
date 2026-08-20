@@ -25,6 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         arStage: null,
         arStageAt: null,
         blitzAssignedTo: null,
+        arReopened: true,   // protect from FR sync status recompute
         updatedAt: new Date(),
       },
       include: { customer: true },
