@@ -11,11 +11,16 @@ export default function PestInspectionsPage() {
   const [type, setType] = useState('all');       // all | Pest | Termite
   const [office, setOffice] = useState('All');
   const [statusF, setStatusF] = useState('All');  // All | SOLD | INSPECTED
+  const [pmF, setPmF] = useState('All');
   const [search, setSearch] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
   useEffect(() => {
+    // Only (re)fetch when the date range is complete (both set) or empty (neither) — avoids refetching the
+    // instant a From date is entered without a To.
+    const bothOrNeither = (!!from && !!to) || (!from && !to);
+    if (!bothOrNeither) return;
     setLoading(true);
     const qs = new URLSearchParams();
     if (type !== 'all') qs.set('type', type);
@@ -26,8 +31,10 @@ export default function PestInspectionsPage() {
 
   const totals = data?.totals;
   const byPM = data?.byPM || [];
+  const pmOptions = ['All', ...Array.from(new Set((data?.rows || []).map((r: any) => r.pmName).filter(Boolean))).sort() as string[]];
   const rows = (data?.rows || []).filter((r: any) => {
     if (statusF !== 'All' && r.status !== statusF) return false;
+    if (pmF !== 'All' && r.pmName !== pmF) return false;
     if (search.trim() && !(r.customerName || '').toLowerCase().includes(search.toLowerCase()) && !(r.customerId || '').includes(search)) return false;
     return true;
   });
@@ -111,6 +118,9 @@ export default function PestInspectionsPage() {
         <>
           <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'center' }}>
             <input type="text" placeholder="Search customer / FR ID…" value={search} onChange={e => setSearch(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', minWidth: 220 }} />
+            <select value={pmF} onChange={e => setPmF(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+              {pmOptions.map((p: string) => <option key={p} value={p}>{p === 'All' ? 'All PMs' : p}</option>)}
+            </select>
             <div style={{ display: 'inline-flex', gap: 2, padding: 4, borderRadius: 10, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
               {['All', 'SOLD', 'INSPECTED'].map(s => pill(s, statusF, setStatusF))}
             </div>
