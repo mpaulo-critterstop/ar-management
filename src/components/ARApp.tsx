@@ -158,9 +158,10 @@ export default function ARApp() {
       setCustomersState(c);
       setInvoicesState(i);
       setPaymentsState(Array.isArray(p)?p:[]);
-    } catch(e) {
+    } catch(e:any) {
       if (_retry < 2) { await new Promise(r=>setTimeout(r, 600)); return loadAll(office, _retry+1); }
-      showToast("Failed to load data — please refresh","error");
+      showToast(`Failed to load data: ${e?.message||'unknown'} — please refresh`,"error");
+      console.error("AR loadAll failed:", e);
     }
     setLoading(false);
   }
