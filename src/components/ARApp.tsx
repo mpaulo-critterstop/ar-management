@@ -139,20 +139,29 @@ export default function ARApp() {
     setToast({msg,type}); setTimeout(()=>setToast(null),3000);
   },[]);
 
-  async function loadAll(office?: string) {
+  async function loadAll(office?: string, _retry = 0) {
     setLoading(true);
     const o = office || officeFilter;
     const oq = o !== "ALL" ? `?office=${o}` : "";
     try {
       const [c,i,p] = await Promise.all([
-        fetch(`/api/customers${oq}`).then(r=>r.json()),
-        fetch(`/api/invoices${oq}`).then(r=>r.json()),
-        fetch(`/api/payments?days=365${o !== "ALL" ? `&office=${o}` : ""}`).then(r=>r.json()),
+        fetch(`/api/customers${oq}`).then(r=>{ if(!r.ok) throw new Error(`customers ${r.status}`); return r.json(); }),
+        fetch(`/api/invoices${oq}`).then(r=>{ if(!r.ok) throw new Error(`invoices ${r.status}`); return r.json(); }),
+        fetch(`/api/payments?days=365${o !== "ALL" ? `&office=${o}` : ""}`).then(r=>{ if(!r.ok) throw new Error(`payments ${r.status}`); return r.json(); }),
       ]);
-      setCustomersState(Array.isArray(c)?c:[]);
-      setInvoicesState(Array.isArray(i)?i:[]);
+      // If any core response isn't an array, it's an error/not-ready response — don't store it as empty
+      // (that's what showed $0). Retry once after a short delay (covers cold DB/session on first load).
+      if (!Array.isArray(c) || !Array.isArray(i)) {
+        if (_retry < 2) { await new Promise(r=>setTimeout(r, 600)); return loadAll(office, _retry+1); }
+        throw new Error("Data not ready");
+      }
+      setCustomersState(c);
+      setInvoicesState(i);
       setPaymentsState(Array.isArray(p)?p:[]);
-    } catch(e) { showToast("Failed to load data","error"); }
+    } catch(e) {
+      if (_retry < 2) { await new Promise(r=>setTimeout(r, 600)); return loadAll(office, _retry+1); }
+      showToast("Failed to load data — please refresh","error");
+    }
     setLoading(false);
   }
 
@@ -249,7 +258,9 @@ export default function ARApp() {
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {page==="dashboard" && <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected={collected} agingTotals={agingTotals} collectedDays={collectedDays} setCollectedDays={setCollectedDays} customDateFrom={customDateFrom} customDateTo={customDateTo} setCustomDateFrom={setCustomDateFrom} setCustomDateTo={setCustomDateTo} prevMonthAR={prevMonthAR} />}
+      {page==="dashboard" && (loading && !invoices.length
+        ? <div style={{padding:60,textAlign:"center",fontSize:14,color:"#888780"}}>Loading AR data…</div>
+        : <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected={collected} agingTotals={agingTotals} collectedDays={collectedDays} setCollectedDays={setCollectedDays} customDateFrom={customDateFrom} customDateTo={customDateTo} setCustomDateFrom={setCustomDateFrom} setCustomDateTo={setCustomDateTo} prevMonthAR={prevMonthAR} />)}
       {page==="callsheet" && <CallSheetPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="blitz" && <BlitzPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="tracking" && isAdmin && <TrackingPage />}
