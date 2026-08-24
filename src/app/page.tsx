@@ -85,6 +85,17 @@ export default function HomePage() {
       stats: null,
     },
     {
+      module: 'pest-sales' as ModuleKey,
+      icon: '🔍',
+      title: 'Pest Inspection Tracker',
+      desc: 'Pest & termite inspections per PM, marked sold or inspected \u2014 with per-PM close rate.',
+      href: '/pest-inspections',
+      accentColor: '#0052cc',
+      main: '—',
+      mainLabel: 'Close rate',
+      stats: null,
+    },
+    {
       module: 'csr-pest-sales' as ModuleKey,
       icon: '🎧',
       title: 'CSR Pest Sales',
