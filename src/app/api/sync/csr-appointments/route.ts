@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
           INSERT INTO "csr_appointments" (
             "id", "externalId", "office", "appointmentDate", "serviceTypeId",
             "serviceTypeName", "status", "originalAppointmentId", "employeeId",
-            "customerId", "createdAt", "updatedAt"
+            "servicedBy", "customerId", "createdAt", "updatedAt"
           ) VALUES (
             ${id},
             ${String(appt.appointmentID)},
@@ -125,11 +125,14 @@ export async function GET(req: NextRequest) {
             'COMPLETED',
             ${String(appt.originalAppointmentID || appt.appointmentID)},
             ${String(appt.employeeID || '0')},
+            ${appt.servicedBy && String(appt.servicedBy) !== '0' ? String(appt.servicedBy) : null},
             ${String(appt.customerID || '')},
             NOW(),
             NOW()
           )
-          ON CONFLICT ("externalId") DO NOTHING
+          ON CONFLICT ("externalId") DO UPDATE SET
+            "servicedBy" = EXCLUDED."servicedBy",
+            "updatedAt" = NOW()
         `;
         created++;
       } catch (e: any) {
