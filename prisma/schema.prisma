@@ -247,6 +247,31 @@ model Lead {
   updatedAt       DateTime @updatedAt
 }
 
+model PestInspection {
+  id              String    @id @default(cuid())
+  office          String
+  externalId      String    @unique               // FR appointment ID
+  customerId      String                          // FR customer ID (raw)
+  customerName    String?
+  inspectionType  String                          // 'Pest' | 'Termite'
+  serviceTypeName String?                         // FR service type name
+  inspectionDate  DateTime?
+  servicedBy      String?                         // FR employeeID of the inspecting PM
+  pmName          String?                         // resolved PM name (via pmMatcher)
+  status          String    @default("INSPECTED") // 'INSPECTED' | 'SOLD'
+  soldInvoiceId   String?                         // matched invoice (internal id) when SOLD
+  soldAmount      Float?
+  soldServiceId   Int?
+  soldDate        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  @@index([office])
+  @@index([pmName])
+  @@index([status])
+  @@index([inspectionType])
+  @@map("pest_inspections")
+}
+
 model CsrEmployee {
   id            String    @id @default(cuid())
   frEmployeeId  String    @unique
