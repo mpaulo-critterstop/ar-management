@@ -130,7 +130,7 @@ export default function PestInspectionsPage() {
                       <td style={{ ...td, color: '#6b6a64', whiteSpace: 'nowrap' }}>{fmtDate(r.inspectionDate)}</td>
                       <td style={{ ...td, color: r.pmName ? '#2C2C2A' : '#B4B2A9' }}>{r.pmName || 'Unattributed'}</td>
                       <td style={td}><span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 6, background: r.status === 'SOLD' ? '#e6f7ed' : '#F1EFE8', color: r.status === 'SOLD' ? '#128a3f' : '#888780' }}>{r.status}</span></td>
-                      <td style={tdR}>{r.status === 'SOLD' ? money(Number(r.soldAmount || 0)) : '—'}</td>
+                      <td style={tdR}>{r.status === 'SOLD' ? money(Number(r.soldContractValue || r.soldAmount || 0)) : '—'}</td>
                     </tr>
                   ))}
               </tbody>

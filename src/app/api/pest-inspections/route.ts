@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     if (isT) s.termiteInsp++; else s.pestInsp++;
     if (r.status === 'SOLD') {
       if (isT) s.termiteSold++; else s.pestSold++;
-      s.soldValue += Number(r.soldAmount || 0);
+      s.soldValue += Number(r.soldContractValue || r.soldAmount || 0);
     }
   }
   const byPM = Object.values(roll).map(s => {
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
   const totals = {
     inspections: rows.length,
     sold: rows.filter(r => r.status === 'SOLD').length,
-    soldValue: rows.reduce((a, r) => a + (r.status === 'SOLD' ? Number(r.soldAmount || 0) : 0), 0),
+    soldValue: rows.reduce((a, r) => a + (r.status === "SOLD" ? Number(r.soldContractValue || r.soldAmount || 0) : 0), 0),
     unattributed,
   };
 
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
       id: r.id, office: r.office, customerId: r.customerId, customerName: r.customerName,
       inspectionType: r.inspectionType, serviceTypeName: r.serviceTypeName,
       inspectionDate: r.inspectionDate, pmName: r.pmName, status: r.status,
-      soldAmount: r.soldAmount, soldDate: r.soldDate,
+      soldAmount: r.soldAmount, soldContractValue: r.soldContractValue, soldDate: r.soldDate,
     })),
   });
 }

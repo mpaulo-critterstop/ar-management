@@ -260,7 +260,8 @@ model PestInspection {
   pmName          String?                         // resolved PM name (via pmMatcher)
   status          String    @default("INSPECTED") // 'INSPECTED' | 'SOLD'
   soldInvoiceId   String?                         // matched invoice (internal id) when SOLD
-  soldAmount      Float?
+  soldAmount      Float?                          // matched invoice amount (single charge)
+  soldContractValue Float?                        // true annual contract value from the subscription (preferred)
   soldServiceId   Int?
   soldDate        DateTime?
   createdAt       DateTime  @default(now())

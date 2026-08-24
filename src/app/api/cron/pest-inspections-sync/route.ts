@@ -16,7 +16,11 @@ const OFFICES: Record<string, { key: string; token: string }> = {
   OKC:   { key: process.env.FIELDROUTES_KEY_OKC!,   token: process.env.FIELDROUTES_TOKEN_OKC! },
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT! },
 };
+let lastFrCall = 0;
 async function frGet(ep: string, params: string, key: string, token: string) {
+  const wait = 1100 - (Date.now() - lastFrCall);
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  lastFrCall = Date.now();
   const r = await fetch(`${FR_BASE}/${ep}?${params}&authenticationKey=${key}&authenticationToken=${token}`);
   return r.json();
 }
@@ -87,7 +91,7 @@ export async function GET(req: NextRequest) {
       const customer = await prisma.customer.findFirst({
         where: { externalId: String(insp.customerId), office }, select: { id: true, name: true },
       });
-      let status = 'INSPECTED', soldInvoiceId: string | null = null, soldAmount: number | null = null, soldServiceId: number | null = null, soldDate: Date | null = null;
+      let status = 'INSPECTED', soldInvoiceId: string | null = null, soldAmount: number | null = null, soldContractValue: number | null = null, soldServiceId: number | null = null, soldDate: Date | null = null;
       if (customer) {
         const invoice = await prisma.invoice.findFirst({
           where: {
@@ -99,6 +103,21 @@ export async function GET(req: NextRequest) {
         if (invoice) {
           status = 'SOLD'; soldInvoiceId = invoice.id; soldAmount = Number(invoice.amount);
           soldServiceId = invoice.serviceId; soldDate = invoice.due || invoice.date;
+          // True value: pull the customer's pest/termite subscription contractValue from FR (the annual
+          // recurring value), which the single invoice charge understates. Fall back to invoice amount for
+          // genuine one-time services (no subscription).
+          try {
+            const subSearch = await frGet('subscription/search', `customerIDs=${insp.customerId}`, cfg.key, cfg.token);
+            const subIds: number[] = subSearch?.subscriptionIDs || [];
+            if (subIds.length) {
+              const sr = await frGet('subscription/get', `subscriptionIDs=${subIds.slice(0, 50).join(',')}`, cfg.key, cfg.token);
+              const subs = (sr?.subscriptions || []).filter((s: any) => String(s.active) === '1' && Number(s.contractValue) > 0);
+              // Prefer the subscription whose serviceID matches the sold invoice; else the highest-CV active one.
+              const match = subs.find((s: any) => String(s.serviceID) === String(invoice.serviceId))
+                || subs.sort((a: any, b: any) => Number(b.contractValue) - Number(a.contractValue))[0];
+              if (match) soldContractValue = Number(match.contractValue);
+            }
+          } catch { /* keep invoice amount fallback */ }
         }
       }
 
@@ -109,12 +128,12 @@ export async function GET(req: NextRequest) {
           id, office, externalId: String(insp.externalId), customerId: String(insp.customerId),
           customerName: customer?.name || null, inspectionType: inspType, serviceTypeName: insp.serviceTypeName,
           inspectionDate: inspDate, servicedBy: insp.servicedBy ? String(insp.servicedBy) : null, pmName: pm,
-          status, soldInvoiceId, soldAmount, soldServiceId, soldDate,
+          status, soldInvoiceId, soldAmount, soldContractValue, soldServiceId, soldDate,
         },
         update: {
           inspectionType: inspType, serviceTypeName: insp.serviceTypeName, inspectionDate: inspDate,
           servicedBy: insp.servicedBy ? String(insp.servicedBy) : null, pmName: pm, customerName: customer?.name || null,
-          status, soldInvoiceId, soldAmount, soldServiceId, soldDate,
+          status, soldInvoiceId, soldAmount, soldContractValue, soldServiceId, soldDate,
         },
       });
       created++;
