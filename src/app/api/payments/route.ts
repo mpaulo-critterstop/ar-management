@@ -16,19 +16,22 @@ export async function GET(req: NextRequest) {
     const officeParam = searchParams.get("office");
 const officeFilter = (officeParam && officeParam !== "ALL") ? officeParam : (office && office !== "ALL" && office !== "ADMIN" ? office : null);
     
+    // Build the where clause cleanly. Only add the invoice-office constraint when we actually have an
+    // office filter — an empty `invoice: {}` relation filter forces an unnecessary join and can misbehave.
+    const where: any = { date: { gte: cutoff } };
+    if (officeFilter) {
+      where.invoice = { office: { equals: officeFilter, mode: 'insensitive' } };
+    }
+
     const payments = await prisma.payment.findMany({
-      where: {
-        date: { gte: cutoff },
-        invoice: { ...(officeFilter && { office: { equals: officeFilter, mode: 'insensitive' } }) }
-      },
-      include: {
-        invoice: {
-          include: {
-            customer: { select: { name: true } },
-          },
-        },
+      where,
+      select: {
+        id: true, invoiceId: true, amount: true, date: true,
+        paymentSource: true, processedBy: true, externalId: true, externalSource: true,
+        invoice: { select: { office: true, customer: { select: { name: true } } } },
       },
       orderBy: { date: "desc" },
+      take: 5000, // cap to avoid unbounded, join-heavy result that was timing out (payments 500)
     });
     return NextResponse.json(payments);
   } catch (e: any) {
