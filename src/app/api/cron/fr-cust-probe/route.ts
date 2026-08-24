@@ -40,6 +40,18 @@ export async function GET(req: NextRequest) {
   else out.customerRaw = cr; // show the raw response if not found (may reveal an error/empty)
   if (c) out.customerFullRaw = c; // entire raw customer object — to see every status-related field
 
+  // Replicate the pest-inspections sync's subscription lookup for this customer.
+  const subSearch = await frGet('subscription/search', `customerIDs=${cust}`, cfg.key, cfg.token);
+  out.subSearch = { success: subSearch?.success, count: (subSearch?.subscriptionIDs || []).length, ids: subSearch?.subscriptionIDs || [], error: subSearch?.errorMessage || null };
+  const sids: number[] = subSearch?.subscriptionIDs || [];
+  if (sids.length) {
+    const sr = await frGet('subscription/get', `subscriptionIDs=${sids.slice(0, 50).join(',')}`, cfg.key, cfg.token);
+    out.subscriptions = (sr?.subscriptions || []).map((s: any) => ({
+      subscriptionID: s.subscriptionID, serviceID: s.serviceID, active: s.active, activeText: s.activeText,
+      contractValue: s.contractValue, recurringCharge: s.recurringCharge, dateCancelled: s.dateCancelled,
+    }));
+  }
+
   // The specific subscription (if provided)
   if (sub) {
     const sr = await frGet('subscription/get', `subscriptionIDs=${sub},${sub}`, cfg.key, cfg.token);
