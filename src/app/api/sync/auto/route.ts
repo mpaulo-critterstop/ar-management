@@ -326,16 +326,20 @@ async function processTicket(
           customerID:    customer?.externalId || result.customerId,
         };
 
-        if (newPaid > prevPaid) {
-          // Payment received
-          if (amountDue <= 0) {
-            // Paid in full — remove from sequence
-            await fetch(AR_PAID_WEBHOOK, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...basePayload, event: 'paid_in_full' }),
-            }).catch(() => {});
-          } else {
+        // STATE-BASED SAFETY NET: regardless of whether we caught a *new* payment this run, if an enrolled
+        // customer is now fully paid, fire the paid webhook and un-enroll. This catches payments that landed
+        // while automation was off / in a run that didn't send (the transition check below would miss those
+        // because prevPaid already absorbed the payment). Belt-and-suspenders against dunning paid customers.
+        if (amountDue <= 0) {
+          await fetch(AR_PAID_WEBHOOK, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...basePayload, event: 'paid_in_full' }),
+          }).catch(() => {});
+          await prisma.invoice.update({ where: { id: result.id }, data: { arFollowupSent: false } }).catch(() => {});
+        } else if (newPaid > prevPaid) {
+          // Payment received (new this run)
+          {
             // Partial payment — restart sequence with new balance
             await fetch(AR_PARTIAL_WEBHOOK, {
               method: 'POST',
