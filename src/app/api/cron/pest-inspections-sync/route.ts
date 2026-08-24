@@ -110,7 +110,10 @@ export async function GET(req: NextRequest) {
             const subSearch = await frGet('subscription/search', `customerIDs=${insp.customerId}`, cfg.key, cfg.token);
             const subIds: number[] = subSearch?.subscriptionIDs || [];
             if (subIds.length) {
-              const sr = await frGet('subscription/get', `subscriptionIDs=${subIds.slice(0, 50).join(',')}`, cfg.key, cfg.token);
+              // FR quirk: subscription/get with a SINGLE id returns empty — pad by duplicating the id.
+              const idList = subIds.slice(0, 50);
+              const idParam = idList.length === 1 ? `${idList[0]},${idList[0]}` : idList.join(',');
+              const sr = await frGet('subscription/get', `subscriptionIDs=${idParam}`, cfg.key, cfg.token);
               const subs = (sr?.subscriptions || []).filter((s: any) => String(s.active) === '1' && Number(s.contractValue) > 0);
               // Prefer the subscription whose serviceID matches the sold invoice; else the highest-CV active one.
               const match = subs.find((s: any) => String(s.serviceID) === String(invoice.serviceId))

@@ -45,7 +45,9 @@ export async function GET(req: NextRequest) {
   out.subSearch = { success: subSearch?.success, count: (subSearch?.subscriptionIDs || []).length, ids: subSearch?.subscriptionIDs || [], error: subSearch?.errorMessage || null };
   const sids: number[] = subSearch?.subscriptionIDs || [];
   if (sids.length) {
-    const sr = await frGet('subscription/get', `subscriptionIDs=${sids.slice(0, 50).join(',')}`, cfg.key, cfg.token);
+    const idList = sids.slice(0, 50);
+    const idParam = idList.length === 1 ? `${idList[0]},${idList[0]}` : idList.join(',');
+    const sr = await frGet('subscription/get', `subscriptionIDs=${idParam}`, cfg.key, cfg.token);
     out.subscriptions = (sr?.subscriptions || []).map((s: any) => ({
       subscriptionID: s.subscriptionID, serviceID: s.serviceID, active: s.active, activeText: s.activeText,
       contractValue: s.contractValue, recurringCharge: s.recurringCharge, dateCancelled: s.dateCancelled,
