@@ -259,21 +259,23 @@ async function syncDispatch(office: string, key: string, token: string) {
       if (closedOut && closedOutDate && job.invoice?.id) {
         const inv = await prisma.invoice.findUnique({
           where: { id: job.invoice.id },
-          select: { due: true, arReopened: true, arReopenedThroughDate: true },
+          select: { due: true, arReopened: true, arReopenedThroughDate: true, paid: true, amount: true },
         });
-        // Apply the closeout when the invoice has no due date, UNLESS it was admin-reopened and this
-        // closeout is the same mistaken one we reopened past (closedOutDate <= arReopenedThroughDate).
-        // A closeout dated AFTER the through-date is the genuine project completion — honor it and clear
-        // the reopened flags so the invoice returns to normal AR life.
         const isStillTheMistakenCloseout = inv?.arReopened && inv?.arReopenedThroughDate
           && closedOutDate <= new Date(inv.arReopenedThroughDate);
         if (!inv?.due && !isStillTheMistakenCloseout) {
+          // Status must respect the balance FIRST: a fully-paid invoice is PAID regardless of closeout date.
+          // (Previously this computed status purely from the closeout date, stamping paid invoices OVERDUE —
+          // the cause of 'paid but still OVERDUE' invoices that then leaked into AR/PestAI.)
+          const paidAmt = Number(inv?.paid ?? 0);
+          const amt = Number(inv?.amount ?? 0);
+          const newStatus = (amt > 0 && paidAmt >= amt) ? 'PAID'
+            : (closedOutDate < new Date() ? 'OVERDUE' : 'CURRENT');
           await prisma.invoice.update({
             where: { id: job.invoice.id },
             data: {
               due: closedOutDate,
-              status: closedOutDate < new Date() ? 'OVERDUE' : 'CURRENT',
-              // If this is the genuine later closeout of a previously-reopened invoice, clear the guard.
+              status: newStatus,
               ...(inv?.arReopened ? { arReopened: false, arReopenedThroughDate: null } : {}),
             },
           });
