@@ -51,7 +51,20 @@ export async function GET(req: NextRequest) {
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const officeParam = sp.get('office');
   const offices = officeParam ? [officeParam] : Object.keys(OFFICES);
+  const wait = sp.get('wait') === '1';
 
+  // Fire-and-forget by default: the FR subscription lookups (throttled 1.1s each) can push the run past a
+  // cron scheduler's request timeout. Return immediately and let it finish in the background. Use ?wait=1
+  // for manual runs where you want the result summary.
+  if (!wait) {
+    runSync(offices).catch(e => console.error('pest-inspections-sync bg error:', e));
+    return NextResponse.json({ ok: true, started: true, offices, note: 'Running in background (fire-and-forget). Add &wait=1 to see results.' });
+  }
+  const results = await runSync(offices);
+  return NextResponse.json({ ok: true, results });
+}
+
+async function runSync(offices: string[]) {
   // PM roster + matcher
   const plans = await prisma.commissionPlan.findMany({ select: { pmName: true }, distinct: ['pmName'] });
   const getPM = pmMatcher(plans.map(p => p.pmName).filter(Boolean) as string[]);
@@ -146,5 +159,5 @@ export async function GET(req: NextRequest) {
     results.push({ office, inspections: inspections.length, upserted: created, sold, inspected });
   }
 
-  return NextResponse.json({ ok: true, results });
+  return results;
 }
