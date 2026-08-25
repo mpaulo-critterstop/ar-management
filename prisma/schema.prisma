@@ -323,6 +323,7 @@ model DispatchJob {
   exclusionDone   Boolean   @default(false)
   exclusionDate   DateTime?
   trapCheckCount  Int       @default(0)
+  tcAlerted       Boolean   @default(false) // Slack TC alert already sent for this job (fire once at 4+)
   trapsDone Boolean @default(false)
   lastTrapCheck   DateTime?
   farDone         Boolean   @default(false)

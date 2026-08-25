@@ -24,18 +24,23 @@ export async function GET(req: NextRequest) {
   }
   const dry = sp.get('dry') === '1';
   const office = sp.get('office');
+  // Only recently-active jobs — last trap check within the last 30 days. Long-stale jobs that crossed 4+
+  // months ago are a close-out/cleanup problem, not an active trapping alert.
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  // Active trapping jobs with 4+ trap checks and not yet completed/closed out.
+  // Active trapping jobs newly at 4+ trap checks: not closed out, not already alerted, recently active.
   const jobs = await prisma.dispatchJob.findMany({
     where: {
       hasTrapping: true,
       trapCheckCount: { gte: TC_THRESHOLD },
       trapsDone: false,
       closedOut: false,
+      tcAlerted: false,
+      lastTrapCheck: { gte: cutoff },
       ...(office ? { office } : {}),
     },
     select: {
-      office: true, pmName: true, trapCheckCount: true, lastTrapCheck: true,
+      id: true, office: true, pmName: true, trapCheckCount: true, lastTrapCheck: true,
       customer: { select: { name: true, externalId: true, serviceAddr: true } },
     },
     orderBy: { trapCheckCount: 'desc' },
@@ -43,7 +48,8 @@ export async function GET(req: NextRequest) {
 
   if (dry) {
     return NextResponse.json({
-      dry: true, threshold: TC_THRESHOLD, flagged: jobs.length,
+      dry: true, threshold: TC_THRESHOLD, note: 'Recently-active (last TC ≤30d) jobs newly at 4+, not yet alerted.',
+      flagged: jobs.length,
       jobs: jobs.map(j => ({
         customer: j.customer?.name, frId: j.customer?.externalId, office: j.office,
         pm: j.pmName, trapChecks: j.trapCheckCount,
@@ -75,5 +81,7 @@ export async function GET(req: NextRequest) {
   }
 
   await sendSlack(webhook, `Trap Check Alert: ${jobs.length} job(s) at ${TC_THRESHOLD}+ TCs`, blocks);
+  // Mark these jobs alerted so they don't fire again (once-per-job).
+  await prisma.dispatchJob.updateMany({ where: { id: { in: jobs.map(j => j.id) } }, data: { tcAlerted: true } });
   return NextResponse.json({ ok: true, flagged: jobs.length, posted: true });
 }
