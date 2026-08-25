@@ -93,24 +93,39 @@ export default function PestInspectionsPage() {
       {loading ? <div style={{ padding: 40, textAlign: 'center', color: '#888780' }}>Loading…</div> : tab === 'byPM' ? (
         <div style={{ overflowX: 'auto', border: '0.5px solid #E8E7E3', borderRadius: 12 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
-            <thead><tr>
-              <th style={th}>PM</th>
-              <th style={thR}>Pest Insp.</th><th style={thR}>Termite Insp.</th><th style={thR}>Total Insp.</th>
-              <th style={thR}>Sold</th><th style={thR}>Close Rate</th><th style={thR}>Sold Value</th>
-            </tr></thead>
+            <thead>
+              <tr>
+                <th style={{ ...th, borderBottom: 'none' }}></th>
+                <th style={{ ...thR, borderBottom: '0.5px solid #E8E7E3', color: '#0052cc' }} colSpan={3}>Pest</th>
+                <th style={{ ...thR, borderBottom: '0.5px solid #E8E7E3', color: '#6b21a8' }} colSpan={3}>Termite</th>
+                <th style={{ ...thR, borderBottom: 'none' }} colSpan={2}>Overall</th>
+              </tr>
+              <tr>
+                <th style={th}>PM</th>
+                <th style={thR}>Insp.</th><th style={thR}>Sold</th><th style={thR}>Close %</th>
+                <th style={thR}>Insp.</th><th style={thR}>Sold</th><th style={thR}>Close %</th>
+                <th style={thR}>Total Close %</th><th style={thR}>Sold Value</th>
+              </tr>
+            </thead>
             <tbody>
-              {byPM.length === 0 ? <tr><td style={{ ...td, textAlign: 'center', padding: 30, color: '#888780' }} colSpan={7}>No inspections.</td></tr> :
-                byPM.map((p: any) => (
+              {byPM.length === 0 ? <tr><td style={{ ...td, textAlign: 'center', padding: 30, color: '#888780' }} colSpan={9}>No inspections.</td></tr> :
+                byPM.map((p: any) => {
+                  const rateColor = (r: number | null) => r == null ? '#B4B2A9' : r >= 30 ? '#128a3f' : r >= 15 ? '#b45309' : '#b91c1c';
+                  const rate = (r: number | null) => r != null ? `${r}%` : '—';
+                  return (
                   <tr key={p.pm}>
                     <td style={{ ...td, fontWeight: 500 }}>{p.pm}</td>
                     <td style={tdR}>{p.pestInsp}</td>
+                    <td style={{ ...tdR, color: p.pestSold > 0 ? '#128a3f' : '#888780' }}>{p.pestSold}</td>
+                    <td style={{ ...tdR, fontWeight: 600, color: rateColor(p.pestCloseRate) }}>{rate(p.pestCloseRate)}</td>
                     <td style={tdR}>{p.termiteInsp}</td>
-                    <td style={{ ...tdR, fontWeight: 500 }}>{p.totalInsp}</td>
-                    <td style={{ ...tdR, color: '#128a3f', fontWeight: 500 }}>{p.totalSold}</td>
-                    <td style={{ ...tdR, fontWeight: 600, color: p.closeRate >= 30 ? '#128a3f' : p.closeRate >= 15 ? '#b45309' : '#b91c1c' }}>{p.closeRate != null ? `${p.closeRate}%` : '—'}</td>
+                    <td style={{ ...tdR, color: p.termiteSold > 0 ? '#128a3f' : '#888780' }}>{p.termiteSold}</td>
+                    <td style={{ ...tdR, fontWeight: 600, color: rateColor(p.termiteCloseRate) }}>{rate(p.termiteCloseRate)}</td>
+                    <td style={{ ...tdR, fontWeight: 600, color: rateColor(p.closeRate) }}>{rate(p.closeRate)}</td>
                     <td style={tdR}>{money(p.soldValue)}</td>
                   </tr>
-                ))}
+                  );
+                })}
             </tbody>
           </table>
         </div>

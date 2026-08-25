@@ -45,6 +45,8 @@ export async function GET(req: NextRequest) {
       pm: s.pm, pestInsp: s.pestInsp, termiteInsp: s.termiteInsp, totalInsp,
       pestSold: s.pestSold, termiteSold: s.termiteSold, totalSold,
       soldValue: s.soldValue,
+      pestCloseRate: s.pestInsp > 0 ? Math.round((s.pestSold / s.pestInsp) * 1000) / 10 : null,
+      termiteCloseRate: s.termiteInsp > 0 ? Math.round((s.termiteSold / s.termiteInsp) * 1000) / 10 : null,
       closeRate: totalInsp > 0 ? Math.round((totalSold / totalInsp) * 1000) / 10 : null,
     };
   }).sort((a, b) => b.totalInsp - a.totalInsp);
