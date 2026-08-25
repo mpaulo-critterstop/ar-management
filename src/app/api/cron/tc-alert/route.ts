@@ -24,9 +24,9 @@ export async function GET(req: NextRequest) {
   }
   const dry = sp.get('dry') === '1';
   const office = sp.get('office');
-  // Only recently-active jobs — last trap check within the last 30 days. Long-stale jobs that crossed 4+
-  // months ago are a close-out/cleanup problem, not an active trapping alert.
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  // Only recently-active jobs — last trap check within the last 10 days. Long-stale jobs that crossed 4+
+  // over 10 days ago are a close-out/cleanup problem, not an active trapping alert.
+  const cutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
 
   // Active trapping jobs newly at 4+ trap checks: not closed out, not already alerted, recently active.
   const jobs = await prisma.dispatchJob.findMany({
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 
   if (dry) {
     return NextResponse.json({
-      dry: true, threshold: TC_THRESHOLD, note: 'Recently-active (last TC ≤30d) jobs newly at 4+, not yet alerted.',
+      dry: true, threshold: TC_THRESHOLD, note: 'Recently-active (last TC ≤10d) jobs newly at 4+, not yet alerted.',
       flagged: jobs.length,
       jobs: jobs.map(j => ({
         customer: j.customer?.name, frId: j.customer?.externalId, office: j.office,
