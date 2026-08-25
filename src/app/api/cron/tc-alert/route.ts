@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
       customer: { select: { name: true, externalId: true, serviceAddr: true } },
     },
     orderBy: { trapCheckCount: 'desc' },
+    ...(sp.get('limit') ? { take: Math.max(1, Number(sp.get('limit'))) } : {}),
   });
 
   if (dry) {
