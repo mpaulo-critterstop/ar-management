@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 const AR_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/804c863a-a07d-4e18-804d-ab399061cdf9';
+const AR_PARTIAL_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/AM0p0PhEMlKoBozA9FnB';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -60,6 +61,13 @@ export async function GET(req: NextRequest) {
     const fname = nameParts[0] || '';
     const lname = nameParts.slice(1).join(' ') || '';
     const amountDue = Number(inv.amount || 0) - Number(inv.paid || 0);
+    // If a partial payment already exists at enrollment time, send them into the PARTIAL pipeline (correct
+    // balance messaging) instead of the full OVERDUE sequence. Otherwise the customer gets a "you owe the
+    // full amount" message, then the sync's partial webhook immediately corrects it with a contradictory
+    // "we received your payment" message. paid>0 means they've already paid part of it.
+    const alreadyPartiallyPaid = Number(inv.paid || 0) > 0;
+    const webhookUrl = alreadyPartiallyPaid ? AR_PARTIAL_WEBHOOK : AR_WEBHOOK;
+    const eventType = alreadyPartiallyPaid ? 'partial_payment' : 'overdue';
 
     const payload = {
       fname,
@@ -74,15 +82,16 @@ export async function GET(req: NextRequest) {
       officeName:    inv.office || '',
       salesRep:      '',
       customerID:    inv.customerExternalId || inv.customerId,
+      event:         eventType,
     };
 
     if (dry) {
-      results.push({ invoiceId: inv.externalId, customer: inv.customerName, amountDue: amountDue.toFixed(2), dueDate: payload.dueDate, status: 'would_send' });
+      results.push({ invoiceId: inv.externalId, customer: inv.customerName, amountDue: amountDue.toFixed(2), dueDate: payload.dueDate, pipeline: alreadyPartiallyPaid ? 'partial' : 'overdue', status: 'would_send' });
       continue;
     }
 
     try {
-      const res = await fetch(AR_WEBHOOK, {
+      const res = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -94,7 +103,7 @@ export async function GET(req: NextRequest) {
           where: { id: inv.id },
           data: { arFollowupSent: true, arFollowupSentAt: new Date() },
         });
-        results.push({ invoiceId: inv.externalId, customer: inv.customerName, amountDue: amountDue.toFixed(2), status: 'sent', httpStatus: res.status, response: resText });
+        results.push({ invoiceId: inv.externalId, customer: inv.customerName, amountDue: amountDue.toFixed(2), pipeline: alreadyPartiallyPaid ? 'partial' : 'overdue', status: 'sent', httpStatus: res.status, response: resText });
         sent++;
       } else {
         results.push({ invoiceId: inv.externalId, customer: inv.customerName, amountDue: amountDue.toFixed(2), status: 'failed', httpStatus: res.status, response: resText });
