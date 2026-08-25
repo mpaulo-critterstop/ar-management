@@ -71,6 +71,8 @@ export default function DispatchPage() {
   const [editingJob, setEditingJob] = useState<any>(null);
   const [stageEdit, setStageEdit] = useState<any>({});
   const [savingStage, setSavingStage] = useState(false);
+  const [sortBy, setSortBy] = useState<string>('soldDate');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -141,14 +143,38 @@ export default function DispatchPage() {
     ? jobs.filter(j => (j.customer?.name || '').toLowerCase().includes(searchLower))
     : jobs
   ).slice().sort((a, b) => {
-    // Sold date (invoice date) desc, with invoice-less jobs sorted LAST.
-    const da = a.invoice?.date ? new Date(a.invoice.date).getTime() : null;
-    const db = b.invoice?.date ? new Date(b.invoice.date).getTime() : null;
-    if (da === null && db === null) return 0;
-    if (da === null) return 1;   // a has no date → after b
-    if (db === null) return -1;  // b has no date → after a
-    return db - da;              // both have dates → newest first
+    const dir = sortDir === 'asc' ? 1 : -1;
+    // Value extractors per sortable column. null values always sort LAST regardless of direction.
+    const val = (j: any): string | number | null => {
+      switch (sortBy) {
+        case 'customer': return (j.customer?.name || '').toLowerCase() || null;
+        case 'pm': return (j.pmName || '').toLowerCase() || null;
+        case 'soldDate': return j.invoice?.date ? new Date(j.invoice.date).getTime() : null;
+        case 'daysSold': return j.invoice?.date ? new Date(j.invoice.date).getTime() : null; // older sold = more days; sort by date
+        case 'lastUpdate': return j.updatedAt ? new Date(j.updatedAt).getTime() : null;
+        case 'stage': return getStage(j).label?.toLowerCase() || null;
+        case 'trapChecks': return j.hasTrapping ? (j.trapCheckCount || 0) : null;
+        default: return null;
+      }
+    };
+    const va = val(a), vb = val(b);
+    if (va === null && vb === null) return 0;
+    if (va === null) return 1;
+    if (vb === null) return -1;
+    // "Days since sold" is inverse of date: more days = older date. When sorting daysSold asc (fewest days),
+    // that's newest date first, so flip.
+    if (sortBy === 'daysSold') return (vb < va ? -1 : vb > va ? 1 : 0) * dir * -1;
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
   });
+
+  const toggleSort = (col: string) => {
+    if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortDir(col === 'customer' || col === 'pm' || col === 'stage' ? 'asc' : 'desc'); }
+    setCurrentPage(1);
+  };
+  const sortArrow = (col: string) => sortBy === col ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
 
   const totalPages = Math.ceil(filteredJobs.length / pageSize);
   const displayed = filteredJobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -359,8 +385,23 @@ export default function DispatchPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
               <tr style={{ background: '#F8F7F4' }}>
-                {['', 'Customer', 'PM', 'Invoice', 'Sold date', 'Days since sold', 'Last update', 'Stage', 'Stages', 'Trap checks', 'Flags'].map(h => (
-                  <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3', whiteSpace: 'nowrap' }}>{h}</th>
+                {[
+                  { label: '', key: null },
+                  { label: 'Customer', key: 'customer' },
+                  { label: 'PM', key: 'pm' },
+                  { label: 'Invoice', key: null },
+                  { label: 'Sold date', key: 'soldDate' },
+                  { label: 'Days since sold', key: 'daysSold' },
+                  { label: 'Last update', key: 'lastUpdate' },
+                  { label: 'Stage', key: 'stage' },
+                  { label: 'Stages', key: null },
+                  { label: 'Trap checks', key: 'trapChecks' },
+                  { label: 'Flags', key: null },
+                ].map(h => (
+                  <th key={h.label} onClick={h.key ? () => toggleSort(h.key!) : undefined}
+                    style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: h.key && sortBy === h.key ? '#0052cc' : '#888780', borderBottom: '0.5px solid #E8E7E3', whiteSpace: 'nowrap', cursor: h.key ? 'pointer' : 'default', userSelect: 'none' }}>
+                    {h.label}{h.key ? sortArrow(h.key) : ''}
+                  </th>
                 ))}
               </tr>
             </thead>
