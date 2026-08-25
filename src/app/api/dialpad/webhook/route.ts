@@ -61,10 +61,15 @@ export async function POST(req: NextRequest) {
   try {
     const payload = await req.json();
 
-    // Store last webhook for debugging
+    // Store last webhook for debugging — full raw payload (truncated) to diagnose event format.
     await prisma.$executeRaw`
       INSERT INTO dialpad_config (key, value, updated_at)
       VALUES ('last_webhook', ${JSON.stringify({ ts: Date.now(), event: payload.event }).substring(0, 5000)}, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+    `;
+    await prisma.$executeRaw`
+      INSERT INTO dialpad_config (key, value, updated_at)
+      VALUES ('last_webhook_raw', ${JSON.stringify(payload).substring(0, 4900)}, NOW())
       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
     `;
 
