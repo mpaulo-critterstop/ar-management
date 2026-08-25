@@ -239,7 +239,7 @@ async function processTicket(
     // and AR sync must not overwrite it back to null
     const existingInvoice = await prisma.invoice.findFirst({
       where: { externalId: String(t.ticketID) },
-      select: { due: true, paid: true, amount: true, arFollowupSent: true, arReopened: true, status: true },
+      select: { due: true, paid: true, amount: true, arFollowupSent: true, arEnrolledPaid: true, arReopened: true, status: true },
     });
     const preservedDue = existingInvoice?.due ?? invoiceData.due;
     // Admin-reopened invoices keep their status + null due — the AR sync must not recompute them.
@@ -306,6 +306,10 @@ async function processTicket(
         const prevAmount = Number((existingInvoice as any)?.amount ?? 0);
         const newPaid    = paid;
         const amountDue  = Math.max(0, amount - newPaid);
+        // Baseline for "new payment": the paid amount when they were enrolled. A partial that already
+        // existed at enrollment (e.g. Alfredo's 6/9 payment) must NOT trigger a "we received your payment"
+        // message — only a payment made AFTER being sent overdue should. Fall back to prevPaid if no baseline.
+        const enrolledPaid = (existingInvoice as any)?.arEnrolledPaid != null ? Number((existingInvoice as any).arEnrolledPaid) : prevPaid;
 
         const customer = await prisma.customer.findUnique({
           where: { id: result.customerId },
@@ -337,16 +341,14 @@ async function processTicket(
             body: JSON.stringify({ ...basePayload, event: 'paid_in_full' }),
           }).catch(() => {});
           await prisma.invoice.update({ where: { id: result.id }, data: { arFollowupSent: false } }).catch(() => {});
-        } else if (newPaid > prevPaid) {
-          // Payment received (new this run)
-          {
-            // Partial payment — restart sequence with new balance
-            await fetch(AR_PARTIAL_WEBHOOK, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...basePayload, event: 'partial_payment' }),
-            }).catch(() => {});
-          }
+        } else if (newPaid > enrolledPaid) {
+          // A NEW payment since enrollment (paid rose above the enrollment-time baseline) — restart the
+          // sequence at the new balance. A pre-existing partial (paid at enrollment) never triggers this.
+          await fetch(AR_PARTIAL_WEBHOOK, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...basePayload, event: 'partial_payment' }),
+          }).catch(() => {});
         } else if (amount < prevAmount && newPaid === prevPaid) {
           // Discount applied — update contact balance but stay in sequence
           await fetch(AR_FOLLOWUP_WEBHOOK, {

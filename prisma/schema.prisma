@@ -98,6 +98,7 @@ model Invoice {
   blitzListedAt    DateTime? // first time this invoice appeared on the blitz list (membership; persists once paid)
   arReopened       Boolean   @default(false) // admin reopened a mistaken closeout — FR sync must NOT recompute status/due
   arReopenedThroughDate DateTime? // closeouts on/before this date are the mistaken one (ignored); a LATER closeout is the genuine one and is honored
+  arEnrolledPaid   Float?    // paid amount at the moment of AR enrollment — partial webhook only fires when paid exceeds THIS (a payment made AFTER being sent overdue), not a pre-existing partial
   customer       Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   payments        Payment[]
   lead            Lead?     @relation("LeadInvoice")

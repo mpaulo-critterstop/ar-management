@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
       if (res.ok) {
         await prisma.invoice.update({
           where: { id: inv.id },
-          data: { arFollowupSent: true, arFollowupSentAt: new Date() },
+          data: { arFollowupSent: true, arFollowupSentAt: new Date(), arEnrolledPaid: Number(inv.paid || 0) },
         });
         results.push({ invoiceId: inv.externalId, customer: inv.customerName, amountDue: amountDue.toFixed(2), status: 'sent', httpStatus: res.status, response: resText });
         sent++;
