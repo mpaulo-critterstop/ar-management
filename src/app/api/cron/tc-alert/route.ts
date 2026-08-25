@@ -23,7 +23,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const dry = sp.get('dry') === '1';
-  const office = sp.get('office');
+  // This alert feeds a DFW-only Slack channel. Default to DFW; allow ?office= override, ?office=All for all.
+  const officeParam = sp.get('office');
+  const office = officeParam ? (officeParam === 'All' ? null : officeParam) : 'DFW';
   // Only recently-active jobs — last trap check within the last 10 days. Long-stale jobs that crossed 4+
   // over 10 days ago are a close-out/cleanup problem, not an active trapping alert.
   const cutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
@@ -68,7 +70,7 @@ export async function GET(req: NextRequest) {
 
   const lines = jobs.map(j => {
     const last = j.lastTrapCheck ? new Date(j.lastTrapCheck).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
-    return `• *${j.customer?.name || 'Unknown'}* (${j.office}${j.pmName ? ` · ${j.pmName}` : ''}) — *${j.trapCheckCount} trap checks*, last ${last}${j.customer?.externalId ? ` · FR ${j.customer.externalId}` : ''}`;
+    return `• *${j.customer?.name || 'Unknown'}* (${j.office}) — *${j.trapCheckCount} trap checks*, last visit ${last}${j.customer?.externalId ? ` · FRID ${j.customer.externalId}` : ''}`;
   });
 
   const blocks: any[] = [
