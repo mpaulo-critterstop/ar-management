@@ -155,6 +155,27 @@ export async function POST(req: NextRequest) {
   }
   const b = await req.json().catch(() => ({}));
 
+  // ── APPEND action: add a NEW batch of currently-overdue invoices to the blitz WITHOUT clearing the
+  //    existing members. Existing members keep their original blitzListedAt (and assignments). Only
+  //    invoices not already on the list get stamped (as of now), so the new batch is distinguishable by
+  //    its later blitzListedAt timestamp.
+  if (b.action === 'append') {
+    const before = await prisma.invoice.count({ where: { blitzListedAt: { not: null } } });
+    await prisma.$executeRawUnsafe(`
+      UPDATE invoices i
+      SET "blitzListedAt" = NOW()
+      FROM customers c
+      WHERE c.id = i."customerId"
+        AND i."blitzListedAt" IS NULL            -- don't touch existing members (preserve their timestamp/assignment)
+        AND i.due IS NOT NULL AND i.due < NOW()
+        AND i.paid < i.amount AND i.amount > 0
+        AND i."arStage" IS NULL
+        AND c."excludeFromAutomation" = false
+    `);
+    const after = await prisma.invoice.count({ where: { blitzListedAt: { not: null } } });
+    return NextResponse.json({ ok: true, appended: after - before, previousMembers: before, totalMembers: after });
+  }
+
   // ── REBUILD action: clear the whole blitz list, then stamp today's overdue set as a FROZEN
   //    snapshot. Nothing auto-adds after this — the regular process handles new overdue invoices.
   if (b.action === 'rebuild') {
