@@ -202,7 +202,18 @@ export async function GET(req: NextRequest) {
   const pct = coJobs > 0 ? Math.round((closedOut / coJobs) * 1000) / 10 : null;
 
   if (dry) {
-    return NextResponse.json({ dry: true, date: dayStr, office: 'DFW', coJobs, closedOut, closeOutPct: pct, detail: coDetail.slice(0, 100) });
+    return NextResponse.json({ dry: true, date: dayStr, office: 'DFW', coJobs, closedOut, closeOutPct: pct,
+      _diag: {
+        searchReturnedIds: apptIds.length,
+        fetchedAppts: appts.length,
+        completedAppts: completed.length,
+        tcCandidates: tcCandidates.length,
+        tcCustomerIds: tcCustomerIds.length,
+        has_209581_inFetched: appts.map((a:any)=>String(a.appointmentID)).includes('209581'),
+        has_209581_inCompleted: completed.map((a:any)=>String(a.appointmentID)).includes('209581'),
+        priorTcCustomers: priorTcByCustomer.size,
+      },
+      detail: coDetail.slice(0, 100) });
   }
 
   const webhook = process.env.SLACK_CLOSEOUT_WEBHOOK_URL || process.env.SLACK_TC_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
