@@ -212,6 +212,8 @@ export async function GET(req: NextRequest) {
         searchReturnedIds: apptIds.length,
         fetchedAppts: appts.length,
         completedAppts: completed.length,
+        statusDistribution: appts.reduce((m: any, a: any) => { const s = `${a.status}:${a.statusText || ''}`; m[s] = (m[s] || 0) + 1; return m; }, {}),
+        coTypeStatusDist: appts.filter((a:any)=>{ const t=parseInt(String(a.type||a.serviceTypeID||'0')); return TRAP_CHECK_IDS.has(t)||OTHER_CO_IDS.has(t); }).reduce((m: any, a: any) => { const s = `${a.status}:${a.statusText || ''}`; m[s] = (m[s] || 0) + 1; return m; }, {}),
         tcCandidates: tcCandidates.length,
         tcCustomerIds: tcCustomerIds.length,
         has_209581_inFetched: appts.map((a:any)=>String(a.appointmentID)).includes('209581'),
