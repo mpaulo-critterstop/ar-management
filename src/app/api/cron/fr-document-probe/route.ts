@@ -46,11 +46,22 @@ export async function GET(req: NextRequest) {
     docs = getBody.documents || [];
   }
 
+  // Also probe for a FORMS endpoint — the Trap Check / Close-Out CHECKLISTS live in FR's Forms/eSign system,
+  // not the document endpoint. Try likely entity names to discover if any is API-accessible.
+  const formEntities = ['form', 'forms', 'formData', 'customerForm', 'eSignature', 'esign', 'signature', 'checklist', 'formSubmission', 'appointmentForm'];
+  const formProbe: any[] = [];
+  for (const ent of formEntities) {
+    const url = `${FR_BASE}/${ent}/search?customerID=${cust}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+    const body: any = await fetch(url).then(r => r.json()).catch(() => ({ _fetchError: true }));
+    formProbe.push({ entity: ent, success: body.success, error: body.errorMessage || null, idName: body.idName || null, count: body.count ?? null, keys: body && typeof body === 'object' ? Object.keys(body).filter(k => !['params','authenticationKey','authenticationToken'].includes(k)).slice(0, 8) : null });
+  }
+
   return NextResponse.json({
     office, cust, searchVariants,
     totalDocIds: allIds.length, documentIDs: allIds,
     documents: docs.map((d: any) => ({ ...d, _allKeys: Object.keys(d) })),
     rawFirstDoc: docs[0] ? JSON.stringify(docs[0]).substring(0, 800) : null,
+    formEndpointProbe: formProbe,
   });
 }
 
