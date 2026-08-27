@@ -137,7 +137,9 @@ export async function GET(req: NextRequest) {
     coJobs++;
     const co = hasCloseoutNote(a);
     if (co) closedOut++;
-    coDetail.push({ customer: a.customerName || a.customerID, type: typeId, closedOut: co });
+    coDetail.push({ customer: a.customerName || a.customerID, type: typeId, closedOut: co,
+      _officeNotes: a.officeNotes || '', _techNotes: a.techNotes || '', _notes: a.notes || '',
+      _appointmentNotes: (a.appointmentNotes || '').substring(0, 200) });
   }
 
   const pct = coJobs > 0 ? Math.round((closedOut / coJobs) * 1000) / 10 : null;
