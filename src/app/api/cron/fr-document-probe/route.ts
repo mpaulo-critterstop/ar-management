@@ -12,19 +12,6 @@ const OFFICES: Record<string, { key: string; token: string }> = {
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT! },
 };
 
-async function tryFr(entity: string, action: string, params: string, key: string, token: string) {
-  const url = `${FR_BASE}/${entity}/${action}?${params}&authenticationKey=${key}&authenticationToken=${token}`;
-  try {
-    const r = await fetch(url);
-    const status = r.status;
-    let body: any = null;
-    try { body = await r.json(); } catch { body = '(non-JSON)'; }
-    return { entity, action, httpStatus: status, ok: r.ok, keys: body && typeof body === 'object' ? Object.keys(body).slice(0, 15) : null, sample: JSON.stringify(body).substring(0, 400) };
-  } catch (e: any) {
-    return { entity, action, error: e.message };
-  }
-}
-
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -33,11 +20,34 @@ export async function GET(req: NextRequest) {
   const cfg = OFFICES[office];
   if (!cfg?.key || !cust) return NextResponse.json({ error: 'need office + cust' }, { status: 400 });
 
-  // Candidate document-ish entities to probe, with a customerIDs filter.
-  const entities = ['document', 'customerDocument', 'documents', 'file', 'attachment', 'media', 'customerFile'];
-  const results: any[] = [];
-  for (const ent of entities) {
-    results.push(await tryFr(ent, 'search', `customerIDs=${cust}`, cfg.key, cfg.token));
+  // 1) Search this customer's documents.
+  const searchUrl = `${FR_BASE}/document/search?customerIDs=${cust}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+  const searchRes = await fetch(searchUrl);
+  const searchBody: any = await searchRes.json().catch(() => ({}));
+  const docIds: any[] = searchBody.documentIDs || [];
+
+  // 2) Get the document details (metadata). Pad single id (FR quirk).
+  let docs: any[] = [];
+  if (docIds.length) {
+    const idParam = docIds.length === 1 ? `${docIds[0]},${docIds[0]}` : docIds.join(',');
+    const getUrl = `${FR_BASE}/document/get?documentIDs=${idParam}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+    const getRes = await fetch(getUrl);
+    const getBody: any = await getRes.json().catch(() => ({}));
+    docs = getBody.documents || [];
   }
-  return NextResponse.json({ office, cust, results });
+
+  return NextResponse.json({
+    office, cust,
+    count: searchBody.count ?? docIds.length,
+    documentIDs: docIds,
+    documents: docs.map((d: any) => ({
+      documentID: d.documentID, description: d.description, fileName: d.fileName || d.filename,
+      contentType: d.contentType, dateAdded: d.dateAdded, uploadedBy: d.uploadedBy,
+      // show any URL-ish or content field so we learn how to retrieve the actual file
+      _allKeys: Object.keys(d),
+    })),
+    rawFirstDoc: docs[0] ? JSON.stringify(docs[0]).substring(0, 600) : null,
+  });
 }
+
+// (old multi-entity discovery probe kept below for reference but no longer reached)
