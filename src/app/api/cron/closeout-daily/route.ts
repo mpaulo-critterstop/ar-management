@@ -72,7 +72,6 @@ export async function GET(req: NextRequest) {
 
   const cfgDbg = OFFICES.DFW;
   if (debugDay && cfgDbg?.key) {
-    // Test how appointment/search interprets the date window for a single day.
     const base = { officeIDs: '1' };
     const a = await frFetch(frUrl('appointment', 'search', { ...base, dateStart: debugDay, dateEnd: debugDay, status: '1' }, cfgDbg.key, cfgDbg.token));
     const b = await frFetch(frUrl('appointment', 'search', { ...base, dateStart: debugDay, dateEnd: debugDay }, cfgDbg.key, cfgDbg.token));
@@ -88,7 +87,6 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const cfgDbg = OFFICES.DFW;
   if (debugCust && cfgDbg?.key) {
     // Show everything FR returns for this customer over a wide window — both search variants.
     const wide = { officeIDs: '1', customerIDs: debugCust, dateStart: '2026-06-01', dateEnd: '2026-08-27' };
