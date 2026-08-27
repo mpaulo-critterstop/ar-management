@@ -67,6 +67,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const dry = sp.get('dry') === '1';
+  const debugCust = sp.get('debugCust'); // dump one customer's appts to diagnose
+
+  const cfgDbg = OFFICES.DFW;
+  if (debugCust && cfgDbg?.key) {
+    // Show everything FR returns for this customer over a wide window — both search variants.
+    const wide = { officeIDs: '1', customerIDs: debugCust, dateStart: '2026-06-01', dateEnd: '2026-08-27' };
+    const withStatus = await frFetch(frUrl('appointment', 'search', { ...wide, status: '1' }, cfgDbg.key, cfgDbg.token));
+    const noStatus = await frFetch(frUrl('appointment', 'search', wide, cfgDbg.key, cfgDbg.token));
+    const ids = noStatus.appointmentIDs || [];
+    const full = ids.length ? await fetchApptsByIds(ids, cfgDbg.key, cfgDbg.token) : [];
+    return NextResponse.json({
+      debugCust,
+      search_withStatus_count: (withStatus.appointmentIDs || []).length,
+      search_noStatus_count: ids.length,
+      appts: full.map((a: any) => ({
+        id: a.appointmentID, date: a.date, dateCompleted: a.dateCompleted, dateAdded: a.dateAdded,
+        type: a.type || a.serviceTypeID, status: a.status, statusText: a.statusText,
+        officeNotes: (a.officeNotes || '').substring(0, 120), techNotes: (a.techNotes || '').substring(0, 120),
+        appointmentNotes: (a.appointmentNotes || '').substring(0, 200),
+      })),
+    });
+  }
 
   // Target day = yesterday (Central-ish; we use date-only so time zone drift doesn't matter at day grain).
   // Allow ?date=YYYY-MM-DD override for testing.
