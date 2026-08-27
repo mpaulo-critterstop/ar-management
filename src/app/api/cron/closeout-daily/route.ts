@@ -67,10 +67,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const dry = sp.get('dry') === '1';
-  const debugCust = sp.get('debugCust'); // dump one customer's appts to diagnose
-  const debugDay = sp.get('debugDay');   // test single-day search variants for a given day
-
+  const debugCust = sp.get('debugCust');
+  const debugDay = sp.get('debugDay');
+  const debugLookback = sp.get('debugLookback'); // test the prior-TC lookback search for one customer
   const cfgDbg = OFFICES.DFW;
+
+  if (debugLookback && cfgDbg?.key) {
+    const day = sp.get('day') || fmtDate(new Date(Date.now() - 86400000));
+    const lookbackStart = fmtDate(new Date(new Date(day + 'T12:00:00Z').getTime() - 120 * 86400000));
+    // exactly as the cron builds it, but for a single customer
+    const s = await frFetch(frUrl('appointment', 'search', {
+      officeIDs: '1', customerIDs: debugLookback, dateStart: lookbackStart, dateEnd: day, status: '1',
+    }, cfgDbg.key, cfgDbg.token));
+    const ids: number[] = s.appointmentIDs || [];
+    const full = ids.length ? await fetchApptsByIds(ids, cfgDbg.key, cfgDbg.token) : [];
+    const tcs = full.filter((a: any) => TRAP_CHECK_IDS.has(parseInt(String(a.type || a.serviceTypeID || '0'))));
+    return NextResponse.json({
+      debugLookback, lookbackStart, day,
+      returnedIds: ids.length,
+      trapChecks: tcs.map((a: any) => ({ id: a.appointmentID, date: a.date, type: a.type || a.serviceTypeID })),
+    });
+  }
+
   if (debugDay && cfgDbg?.key) {
     const base = { officeIDs: '1' };
     const a = await frFetch(frUrl('appointment', 'search', { ...base, dateStart: debugDay, dateEnd: debugDay, status: '1' }, cfgDbg.key, cfgDbg.token));
