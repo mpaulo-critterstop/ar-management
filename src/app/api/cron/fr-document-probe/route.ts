@@ -20,34 +20,43 @@ export async function GET(req: NextRequest) {
   const cfg = OFFICES[office];
   if (!cfg?.key || !cust) return NextResponse.json({ error: 'need office + cust' }, { status: 400 });
 
-  // 1) Search this customer's documents.
-  const searchUrl = `${FR_BASE}/document/search?customerIDs=${cust}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
-  const searchRes = await fetch(searchUrl);
-  const searchBody: any = await searchRes.json().catch(() => ({}));
-  const docIds: any[] = searchBody.documentIDs || [];
+  // Documents can be attached to the customer, an appointment, or a ticket. Try all the filters FR supports.
+  const apptIds = sp.get('appts') || ''; // comma list
+  const ticketIds = sp.get('tickets') || '';
+  const filters: Record<string, string> = { customerIDs: cust };
+  if (apptIds) filters.appointmentIDs = apptIds;
+  if (ticketIds) filters.ticketIDs = ticketIds;
 
-  // 2) Get the document details (metadata). Pad single id (FR quirk).
+  const searchVariants: any[] = [];
+  // a) by customer
+  searchVariants.push({ by: 'customerIDs', ...(await docSearch({ customerIDs: cust }, cfg.key, cfg.token)) });
+  // b) by appointment
+  if (apptIds) searchVariants.push({ by: 'appointmentIDs', ...(await docSearch({ appointmentIDs: apptIds }, cfg.key, cfg.token)) });
+  // c) by ticket
+  if (ticketIds) searchVariants.push({ by: 'ticketIDs', ...(await docSearch({ ticketIDs: ticketIds }, cfg.key, cfg.token)) });
+  // d) unfiltered-ish: some FR search endpoints need at least one filter; try a broad recent search by customer only already done.
+
+  // Collect any document IDs found across variants.
+  const allIds = [...new Set(searchVariants.flatMap(v => v.documentIDs || []))];
   let docs: any[] = [];
-  if (docIds.length) {
-    const idParam = docIds.length === 1 ? `${docIds[0]},${docIds[0]}` : docIds.join(',');
+  if (allIds.length) {
+    const idParam = allIds.length === 1 ? `${allIds[0]},${allIds[0]}` : allIds.join(',');
     const getUrl = `${FR_BASE}/document/get?documentIDs=${idParam}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
-    const getRes = await fetch(getUrl);
-    const getBody: any = await getRes.json().catch(() => ({}));
+    const getBody: any = await fetch(getUrl).then(r => r.json()).catch(() => ({}));
     docs = getBody.documents || [];
   }
 
   return NextResponse.json({
-    office, cust,
-    count: searchBody.count ?? docIds.length,
-    documentIDs: docIds,
-    documents: docs.map((d: any) => ({
-      documentID: d.documentID, description: d.description, fileName: d.fileName || d.filename,
-      contentType: d.contentType, dateAdded: d.dateAdded, uploadedBy: d.uploadedBy,
-      // show any URL-ish or content field so we learn how to retrieve the actual file
-      _allKeys: Object.keys(d),
-    })),
-    rawFirstDoc: docs[0] ? JSON.stringify(docs[0]).substring(0, 600) : null,
+    office, cust, searchVariants,
+    totalDocIds: allIds.length, documentIDs: allIds,
+    documents: docs.map((d: any) => ({ ...d, _allKeys: Object.keys(d) })),
+    rawFirstDoc: docs[0] ? JSON.stringify(docs[0]).substring(0, 800) : null,
   });
 }
 
-// (old multi-entity discovery probe kept below for reference but no longer reached)
+async function docSearch(params: Record<string, string>, key: string, token: string) {
+  const qs = Object.entries(params).map(([k, v]) => `${k}=${v}`).join('&');
+  const url = `${FR_BASE}/document/search?${qs}&authenticationKey=${key}&authenticationToken=${token}`;
+  const body: any = await fetch(url).then(r => r.json()).catch(() => ({}));
+  return { count: body.count ?? (body.documentIDs || []).length, documentIDs: body.documentIDs || [], success: body.success, error: body.errorMessage || null };
+}
