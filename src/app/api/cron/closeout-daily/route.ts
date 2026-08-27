@@ -82,9 +82,9 @@ export async function GET(req: NextRequest) {
       withStatus_dateField: (a.appointmentIDs || []).length,
       noStatus_dateField: (b.appointmentIDs || []).length,
       dateCompleted_field: (c.appointmentIDs || []).length,
-      target_209581_in_withStatus: (a.appointmentIDs || []).includes(209581),
-      target_209581_in_noStatus: (b.appointmentIDs || []).includes(209581),
-      target_209581_in_dateCompleted: (c.appointmentIDs || []).includes(209581),
+      target_209581_in_withStatus: (a.appointmentIDs || []).map(String).includes("209581"),
+      target_209581_in_noStatus: (b.appointmentIDs || []).map(String).includes("209581"),
+      target_209581_in_dateCompleted: (c.appointmentIDs || []).map(String).includes("209581"),
     });
   }
 
