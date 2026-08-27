@@ -152,26 +152,31 @@ export async function GET(req: NextRequest) {
   const tcCandidates = completed.filter(a => TRAP_CHECK_IDS.has(parseInt(String(a.type || a.serviceTypeID || '0'))));
   const tcCustomerIds = [...new Set(tcCandidates.map(a => String(a.customerID)).filter(x => x && x !== '0'))];
 
-  // Map customerId -> array of {date, typeId} for TC history
+  // 2) For trap-check appts, we need to know if the customer had a PRIOR trap check before this appt's date.
+  //    Pull each TC customer's history individually — FR's appointment/search with many customerIDs joined
+  //    together only honors one, so a bulk search silently drops all-but-one customer. Per-customer is
+  //    reliable (throttled lightly to respect FR rate limits).
   const priorTcByCustomer = new Map<string, Date[]>();
   if (tcCustomerIds.length) {
     const lookbackStart = fmtDate(new Date(target.getTime() - 120 * 24 * 60 * 60 * 1000));
-    const histSearch = await frFetch(frUrl('appointment', 'search', {
-      officeIDs: String(cfg.officeId),
-      customerIDs: tcCustomerIds.join(','),
-      dateStart: lookbackStart,
-      dateEnd: dayStr,
-      status: '1',
-    }, cfg.key, cfg.token));
-    const histIds: number[] = histSearch.appointmentIDs || [];
-    const hist = histIds.length ? await fetchApptsByIds(histIds, cfg.key, cfg.token) : [];
-    for (const h of hist) {
-      const tId = parseInt(String(h.type || h.serviceTypeID || '0'));
-      if (!TRAP_CHECK_IDS.has(tId)) continue;
-      const cust = String(h.customerID);
-      const d = new Date(h.date || h.dateAdded);
-      if (!priorTcByCustomer.has(cust)) priorTcByCustomer.set(cust, []);
-      priorTcByCustomer.get(cust)!.push(d);
+    for (const custId of tcCustomerIds) {
+      const histSearch = await frFetch(frUrl('appointment', 'search', {
+        officeIDs: String(cfg.officeId),
+        customerIDs: custId,
+        dateStart: lookbackStart,
+        dateEnd: dayStr,
+      }, cfg.key, cfg.token));
+      const histIds: number[] = histSearch.appointmentIDs || [];
+      if (!histIds.length) continue;
+      const hist = await fetchApptsByIds(histIds, cfg.key, cfg.token);
+      for (const h of hist) {
+        if (String(h.status) !== '1') continue;
+        const tId = parseInt(String(h.type || h.serviceTypeID || '0'));
+        if (!TRAP_CHECK_IDS.has(tId)) continue;
+        const d = new Date(h.date || h.dateAdded);
+        if (!priorTcByCustomer.has(custId)) priorTcByCustomer.set(custId, []);
+        priorTcByCustomer.get(custId)!.push(d);
+      }
     }
   }
 
