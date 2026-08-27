@@ -189,6 +189,7 @@ export async function GET(req: NextRequest) {
   // 3) Classify each completed appt as CO job / closed out.
   let coJobs = 0, closedOut = 0;
   const coDetail: any[] = [];
+  const techTally = new Map<string, { co: number; closed: number }>();
   for (const a of completed) {
     const typeId = parseInt(String(a.type || a.serviceTypeID || '0'));
     let isCoJob = false;
@@ -205,21 +206,39 @@ export async function GET(req: NextRequest) {
     coJobs++;
     const co = hasCloseoutNote(a);
     if (co) closedOut++;
-    coDetail.push({ customer: a.customerName || a.customerID, type: typeId, closedOut: co,
-      _servicedBy: a.servicedBy, _employeeID: a.employeeID, _assignedTech: a.assignedTech, _completedBy: a.completedBy });
+    // Per-tech tally, attributed to the tech who did the visit (servicedBy; fallback assignedTech).
+    const techId = String(a.servicedBy && a.servicedBy !== '0' ? a.servicedBy : (a.assignedTech || '0'));
+    if (!techTally.has(techId)) techTally.set(techId, { co: 0, closed: 0 });
+    const tt = techTally.get(techId)!;
+    tt.co++;
+    if (co) tt.closed++;
+    coDetail.push({ customer: a.customerName || a.customerID, type: typeId, closedOut: co, tech: techId });
   }
 
   const pct = coJobs > 0 ? Math.round((closedOut / coJobs) * 1000) / 10 : null;
 
+  // Resolve tech IDs -> names for the per-tech breakdown.
+  const techIds = [...techTally.keys()].filter(id => id && id !== '0');
+  const techNames = new Map<string, string>();
+  if (techIds.length) {
+    const idParam = techIds.length === 1 ? `${techIds[0]},${techIds[0]}` : techIds.join(',');
+    const er = await frFetch(frUrl('employee', 'get', { employeeIDs: idParam }, cfg.key, cfg.token));
+    for (const e of (er?.employees || [])) techNames.set(String(e.employeeID), `${e.fname || ''} ${e.lname || ''}`.trim());
+  }
+  const byTech = [...techTally.entries()]
+    .map(([id, t]) => ({ tech: techNames.get(id) || `#${id}`, co: t.co, closed: t.closed, pct: t.co > 0 ? Math.round((t.closed / t.co) * 1000) / 10 : 0 }))
+    .sort((a, b) => b.co - a.co);
+
   if (dry) {
     return NextResponse.json({ dry: true, date: dayStr, office: 'DFW', coJobs, closedOut, closeOutPct: pct,
-      detail: coDetail.slice(0, 100) });
+      byTech, detail: coDetail.slice(0, 100) });
   }
 
   const webhook = process.env.SLACK_CLOSEOUT_WEBHOOK_URL || process.env.SLACK_TC_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
   if (!webhook) return NextResponse.json({ error: 'No Slack webhook configured' }, { status: 500 });
 
   const prettyDate = target.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const techLines = byTech.map(t => `• *${t.tech}* — ${t.closed}/${t.co} closed out (${t.pct}%)`).join('\n') || '_No close-out jobs._';
   const blocks = [
     { type: 'header', text: { type: 'plain_text', text: `📋 DFW Close-Out Report — ${prettyDate}`, emoji: true } },
     { type: 'section', fields: [
@@ -227,6 +246,8 @@ export async function GET(req: NextRequest) {
       { type: 'mrkdwn', text: `*Closed out:*\n${closedOut}` },
       { type: 'mrkdwn', text: `*Close-out %:*\n${pct != null ? pct + '%' : '—'}` },
     ] },
+    { type: 'divider' },
+    { type: 'section', text: { type: 'mrkdwn', text: `*By tech:*\n${techLines}` } },
   ];
   await sendSlack(webhook, `DFW Close-Out ${prettyDate}: ${closedOut}/${coJobs} (${pct != null ? pct + '%' : '—'})`, blocks);
   return NextResponse.json({ ok: true, date: dayStr, coJobs, closedOut, closeOutPct: pct, posted: true });
