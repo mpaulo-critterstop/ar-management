@@ -56,12 +56,28 @@ export async function GET(req: NextRequest) {
     formProbe.push({ entity: ent, success: body.success, error: body.errorMessage || null, idName: body.idName || null, count: body.count ?? null, keys: body && typeof body === 'object' ? Object.keys(body).filter(k => !['params','authenticationKey','authenticationToken'].includes(k)).slice(0, 8) : null });
   }
 
+  // The `form` endpoint works and returns contractIDs — this is where the Trap Check / Close-Out CHECKLISTS
+  // live. Search then get the form details.
+  const formSearchUrl = `${FR_BASE}/form/search?customerID=${cust}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+  const formSearchBody: any = await fetch(formSearchUrl).then(r => r.json()).catch(() => ({}));
+  const contractIds: any[] = formSearchBody.contractIDs || formSearchBody.formIDs || [];
+  let forms: any[] = [];
+  if (contractIds.length) {
+    const idParam = contractIds.length === 1 ? `${contractIds[0]},${contractIds[0]}` : contractIds.join(',');
+    const formGetUrl = `${FR_BASE}/form/get?contractIDs=${idParam}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+    const formGetBody: any = await fetch(formGetUrl).then(r => r.json()).catch(() => ({}));
+    forms = formGetBody.forms || formGetBody.contracts || formGetBody.documents || [];
+  }
+
   return NextResponse.json({
     office, cust, searchVariants,
     totalDocIds: allIds.length, documentIDs: allIds,
     documents: docs.map((d: any) => ({ ...d, _allKeys: Object.keys(d) })),
-    rawFirstDoc: docs[0] ? JSON.stringify(docs[0]).substring(0, 800) : null,
-    formEndpointProbe: formProbe,
+    formCount: formSearchBody.count ?? contractIds.length,
+    contractIDs: contractIds,
+    forms: forms.map((f: any) => ({ ...f, _allKeys: Object.keys(f) })),
+    rawFirstForm: forms[0] ? JSON.stringify(forms[0]).substring(0, 1000) : null,
+    formGetPropertyName: formSearchBody.propertyName,
   });
 }
 
