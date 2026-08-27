@@ -33,7 +33,13 @@ function frUrl(endpoint: string, action: string, params: Record<string, string>,
   url.searchParams.set('authenticationToken', token);
   return url.toString();
 }
+let lastFrCall = 0;
 async function frFetch(url: string) {
+  // Global throttle: FR rate-limits at 60 reads/min. Space calls ~1.1s apart so the per-customer prior-TC
+  // lookups don't hit the limit (which was causing coJobs to vary run-to-run as some lookups silently failed).
+  const wait = 1100 - (Date.now() - lastFrCall);
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  lastFrCall = Date.now();
   const r = await fetch(url);
   return r.json();
 }
