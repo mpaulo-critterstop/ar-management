@@ -68,6 +68,25 @@ export async function GET(req: NextRequest) {
   }
   const dry = sp.get('dry') === '1';
   const debugCust = sp.get('debugCust'); // dump one customer's appts to diagnose
+  const debugDay = sp.get('debugDay');   // test single-day search variants for a given day
+
+  const cfgDbg = OFFICES.DFW;
+  if (debugDay && cfgDbg?.key) {
+    // Test how appointment/search interprets the date window for a single day.
+    const base = { officeIDs: '1' };
+    const a = await frFetch(frUrl('appointment', 'search', { ...base, dateStart: debugDay, dateEnd: debugDay, status: '1' }, cfgDbg.key, cfgDbg.token));
+    const b = await frFetch(frUrl('appointment', 'search', { ...base, dateStart: debugDay, dateEnd: debugDay }, cfgDbg.key, cfgDbg.token));
+    const c = await frFetch(frUrl('appointment', 'search', { ...base, dateCompletedStart: debugDay, dateCompletedEnd: debugDay }, cfgDbg.key, cfgDbg.token));
+    return NextResponse.json({
+      debugDay,
+      withStatus_dateField: (a.appointmentIDs || []).length,
+      noStatus_dateField: (b.appointmentIDs || []).length,
+      dateCompleted_field: (c.appointmentIDs || []).length,
+      target_209581_in_withStatus: (a.appointmentIDs || []).includes(209581),
+      target_209581_in_noStatus: (b.appointmentIDs || []).includes(209581),
+      target_209581_in_dateCompleted: (c.appointmentIDs || []).includes(209581),
+    });
+  }
 
   const cfgDbg = OFFICES.DFW;
   if (debugCust && cfgDbg?.key) {
