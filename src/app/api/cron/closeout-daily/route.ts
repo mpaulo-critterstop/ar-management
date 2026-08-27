@@ -205,7 +205,8 @@ export async function GET(req: NextRequest) {
     coJobs++;
     const co = hasCloseoutNote(a);
     if (co) closedOut++;
-    coDetail.push({ customer: a.customerName || a.customerID, type: typeId, closedOut: co });
+    coDetail.push({ customer: a.customerName || a.customerID, type: typeId, closedOut: co,
+      _servicedBy: a.servicedBy, _employeeID: a.employeeID, _assignedTech: a.assignedTech, _completedBy: a.completedBy });
   }
 
   const pct = coJobs > 0 ? Math.round((closedOut / coJobs) * 1000) / 10 : null;
