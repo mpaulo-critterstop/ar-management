@@ -28,20 +28,20 @@ export async function GET(req: NextRequest) {
   if (ticketIds) filters.ticketIDs = ticketIds;
 
   const searchVariants: any[] = [];
-  // a) by customer
-  searchVariants.push({ by: 'customerIDs', ...(await docSearch({ customerIDs: cust }, cfg.key, cfg.token)) });
+  // a) by customer — NOTE: this endpoint uses customerID (singular), not customerIDs
+  searchVariants.push({ by: 'customerID', ...(await docSearch({ customerID: cust }, cfg.key, cfg.token)) });
   // b) by appointment
   if (apptIds) searchVariants.push({ by: 'appointmentIDs', ...(await docSearch({ appointmentIDs: apptIds }, cfg.key, cfg.token)) });
   // c) by ticket
   if (ticketIds) searchVariants.push({ by: 'ticketIDs', ...(await docSearch({ ticketIDs: ticketIds }, cfg.key, cfg.token)) });
-  // d) unfiltered-ish: some FR search endpoints need at least one filter; try a broad recent search by customer only already done.
 
   // Collect any document IDs found across variants.
   const allIds = [...new Set(searchVariants.flatMap(v => v.documentIDs || []))];
   let docs: any[] = [];
   if (allIds.length) {
+    // get endpoint takes uploadIDs (not documentIDs). Pad single id.
     const idParam = allIds.length === 1 ? `${allIds[0]},${allIds[0]}` : allIds.join(',');
-    const getUrl = `${FR_BASE}/document/get?documentIDs=${idParam}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+    const getUrl = `${FR_BASE}/document/get?uploadIDs=${idParam}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
     const getBody: any = await fetch(getUrl).then(r => r.json()).catch(() => ({}));
     docs = getBody.documents || [];
   }
@@ -58,5 +58,6 @@ async function docSearch(params: Record<string, string>, key: string, token: str
   const qs = Object.entries(params).map(([k, v]) => `${k}=${v}`).join('&');
   const url = `${FR_BASE}/document/search?${qs}&authenticationKey=${key}&authenticationToken=${token}`;
   const body: any = await fetch(url).then(r => r.json()).catch(() => ({}));
-  return { count: body.count ?? (body.documentIDs || []).length, documentIDs: body.documentIDs || [], success: body.success, error: body.errorMessage || null };
+  // NOTE: the document endpoint returns IDs under `documentIDs` but the get endpoint takes `uploadIDs`.
+  return { count: body.count ?? (body.documentIDs || []).length, documentIDs: body.documentIDs || [], idName: body.idName, success: body.success, error: body.errorMessage || null };
 }
