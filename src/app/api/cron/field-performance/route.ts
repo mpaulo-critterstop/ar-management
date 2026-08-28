@@ -16,7 +16,7 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number }> 
 };
 
 // ─── APPOINTMENT TYPE IDs ────────────────────────────────────────────────────
-const TRAP_CHECK_TYPES       = new Set(['504', '636']);
+const TRAP_CHECK_TYPES       = new Set(['504', '636', '1076']); // 1076 = QA Trap Check (Crew Lead)
 const EXCLUSION_TYPES        = new Set(['553', '716']);
 const CALLBACK_TYPES         = new Set(['615', '671', '546', '554']);
 const CALLBACK_TC_TYPES      = new Set(['620']);

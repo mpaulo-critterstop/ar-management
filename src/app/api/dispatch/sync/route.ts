@@ -13,7 +13,7 @@ const OFFICES = {
 const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
 const BATCH_SIZE = 1000;
 const EXCLUSION_APPT_TYPES = new Set(['553', '716']);
-const TRAP_CHECK_APPT_TYPES = new Set(['504', '636']);
+const TRAP_CHECK_APPT_TYPES = new Set(['504', '636', '1076']); // 1076 = QA Trap Check (Crew Lead)
 const FAR_APPT_TYPES = new Set(['624', '542', '479', '674']);
 const REMOVAL_ONLY_TYPE = '1073';
 const TRAPPING_PRODUCT_IDS = new Set([8]);
