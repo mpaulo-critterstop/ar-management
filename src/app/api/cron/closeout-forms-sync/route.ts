@@ -97,10 +97,11 @@ async function runSync(offices: string[], lookbackDays: number) {
 }
 
 async function setSyncStatus(msg: string) {
-  await prisma.$executeRawUnsafe(
-    `INSERT INTO dialpad_config (key, value, updated_at) VALUES ('closeout_forms_sync_status', $1, NOW())
-     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`, msg,
-  ).catch(() => {});
+  await prisma.appSetting.upsert({
+    where: { key: 'closeout_forms_sync_status' },
+    create: { key: 'closeout_forms_sync_status', value: msg },
+    update: { value: msg },
+  }).catch(() => {});
 }
 
 export async function GET(req: NextRequest) {
