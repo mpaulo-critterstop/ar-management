@@ -331,5 +331,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Kick off the Closed-Out form cache refresh for the offices we just synced — fire-and-forget so dispatch
+  // sync returns fast. This keeps the closeout_forms cache fresh right after dispatch data updates, without a
+  // separate cron. It's a separate serverless invocation (its own maxDuration) so it isn't killed when this
+  // response returns.
+  const baseUrl = process.env.PUBLIC_BASE_URL || 'https://hub.critterstop.com';
+  for (const office of officesToSync) {
+    fetch(`${baseUrl}/api/cron/closeout-forms-sync?token=critterstop2026&office=${office}`).catch(() => {});
+  }
+
   return NextResponse.json({ success: true, results });
 }
