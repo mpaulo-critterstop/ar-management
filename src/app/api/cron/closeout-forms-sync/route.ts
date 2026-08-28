@@ -51,6 +51,8 @@ async function fetchApptsByIds(ids: number[], key: string, token: string): Promi
 
 async function runSync(offices: string[], lookbackDays: number) {
   const results: any[] = [];
+  const startedAt = new Date();
+  await setSyncStatus(`running: started ${startedAt.toISOString()}, offices ${offices.join(',')}`);
   for (const officeName of offices) {
     const cfg = OFFICES[officeName];
     if (!cfg?.key) continue;
@@ -66,28 +68,39 @@ async function runSync(offices: string[], lookbackDays: number) {
       .map(a => String(a.customerID)).filter(x => x && x !== '0'))];
 
     // 2) Per-customer: fetch template-86 forms, upsert into the cache.
-    let formsFound = 0;
+    let formsFound = 0, done = 0;
     for (const custId of coCustomerIds) {
       const fs = await frFetch(`${BASE_URL}/form/search?customerID=${custId}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`);
       const ids: any[] = fs?.contractIDs || fs?.formIDs || [];
-      if (!ids.length) continue;
-      const idParam = ids.length === 1 ? `${ids[0]},${ids[0]}` : ids.join(',');
-      const fg = await frFetch(`${BASE_URL}/form/get?contractIDs=${idParam}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`);
-      const forms: any[] = (fg?.forms || fg?.contracts || []).filter((f: any) => parseInt(String(f.formTemplateID)) === CLOSEOUT_FORM_TEMPLATE_ID);
-      for (const f of forms) {
-        const dateAdded = new Date(f.dateAdded);
-        if (isNaN(dateAdded.getTime())) continue;
-        await prisma.closeoutForm.upsert({
-          where: { formId: String(f.formID || f.contractID) },
-          create: { office: officeName, customerId: custId, formId: String(f.formID || f.contractID), formTemplateId: CLOSEOUT_FORM_TEMPLATE_ID, documentState: f.documentState || null, dateAdded },
-          update: { documentState: f.documentState || null, dateAdded },
-        }).catch(() => {});
-        formsFound++;
+      done++;
+      if (ids.length) {
+        const idParam = ids.length === 1 ? `${ids[0]},${ids[0]}` : ids.join(',');
+        const fg = await frFetch(`${BASE_URL}/form/get?contractIDs=${idParam}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`);
+        const forms: any[] = (fg?.forms || fg?.contracts || []).filter((f: any) => parseInt(String(f.formTemplateID)) === CLOSEOUT_FORM_TEMPLATE_ID);
+        for (const f of forms) {
+          const dateAdded = new Date(f.dateAdded);
+          if (isNaN(dateAdded.getTime())) continue;
+          await prisma.closeoutForm.upsert({
+            where: { formId: String(f.formID || f.contractID) },
+            create: { office: officeName, customerId: custId, formId: String(f.formID || f.contractID), formTemplateId: CLOSEOUT_FORM_TEMPLATE_ID, documentState: f.documentState || null, dateAdded },
+            update: { documentState: f.documentState || null, dateAdded },
+          }).catch(() => {});
+          formsFound++;
+        }
       }
+      if (done % 10 === 0) await setSyncStatus(`running: ${officeName} ${done}/${coCustomerIds.length} customers, ${formsFound} forms`);
     }
     results.push({ office: officeName, coCustomers: coCustomerIds.length, closeoutFormsUpserted: formsFound });
   }
+  await setSyncStatus(`done: ${new Date().toISOString()} — ${JSON.stringify(results)}`);
   return results;
+}
+
+async function setSyncStatus(msg: string) {
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO dialpad_config (key, value, updated_at) VALUES ('closeout_forms_sync_status', $1, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`, msg,
+  ).catch(() => {});
 }
 
 export async function GET(req: NextRequest) {
