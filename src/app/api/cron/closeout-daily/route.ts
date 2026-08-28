@@ -68,11 +68,29 @@ export async function GET(req: NextRequest) {
   if (token !== process.env.CRON_SECRET && token !== 'critterstop2026') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const cfgDbg = OFFICES.DFW;
+  const debugForms = sp.get('debugForms'); // dump raw template-86 form detection for one customer
+  if (debugForms && cfgDbg?.key) {
+    const searchUrl = `${BASE_URL}/form/search?customerID=${debugForms}&authenticationKey=${cfgDbg.key}&authenticationToken=${cfgDbg.token}`;
+    const search = await frFetch(searchUrl);
+    const ids: any[] = search?.contractIDs || search?.formIDs || [];
+    let forms: any[] = [];
+    if (ids.length) {
+      const idParam = ids.length === 1 ? `${ids[0]},${ids[0]}` : ids.join(',');
+      const got = await frFetch(`${BASE_URL}/form/get?contractIDs=${idParam}&authenticationKey=${cfgDbg.key}&authenticationToken=${cfgDbg.token}`);
+      forms = got?.forms || got?.contracts || [];
+    }
+    return NextResponse.json({
+      debugForms, contractIDs: ids,
+      forms: forms.map((f: any) => ({ formTemplateID: f.formTemplateID, formDescription: f.formDescription, documentState: f.documentState, dateAdded: f.dateAdded, dateSigned: f.dateSigned })),
+      template86: forms.filter((f: any) => parseInt(String(f.formTemplateID)) === 86).map((f: any) => ({ dateAdded: f.dateAdded, state: f.documentState })),
+    });
+  }
+
+  const debugLookback = sp.get('debugLookback'); // test the prior-TC lookback search for one customer
   const dry = sp.get('dry') === '1';
   const debugCust = sp.get('debugCust');
   const debugDay = sp.get('debugDay');
-  const debugLookback = sp.get('debugLookback'); // test the prior-TC lookback search for one customer
-  const cfgDbg = OFFICES.DFW;
 
   if (debugLookback && cfgDbg?.key) {
     const day = sp.get('day') || fmtDate(new Date(Date.now() - 86400000));
