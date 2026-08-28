@@ -13,6 +13,7 @@
 //   /api/cron/closeout-daily?token=critterstop2026&dry=1     (preview JSON, posts nothing)
 //   /api/cron/closeout-daily?token=critterstop2026&date=2026-08-24  (report a specific day)
 import { NextRequest, NextResponse } from 'next/server';
+import { hasCloseoutNote, getCloseoutFormDates, formWithinWindow } from '@/lib/closeout';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -24,7 +25,6 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number }> 
 
 const TRAP_CHECK_IDS = new Set([504, 636]);
 const OTHER_CO_IDS    = new Set([615, 671, 546, 554, 620, 533, 538]); // call backs + annual inspections
-const CLOSEOUT_KEYWORDS = ['ready for insulation', 'ready for far', 'closed out'];
 
 function frUrl(endpoint: string, action: string, params: Record<string, string>, key: string, token: string) {
   const url = new URL(`${BASE_URL}/${endpoint}/${action}`);
@@ -55,10 +55,6 @@ async function fetchApptsByIds(ids: number[], key: string, token: string): Promi
   return out;
 }
 function fmtDate(d: Date) { return d.toISOString().split('T')[0]; }
-function hasCloseoutNote(appt: any): boolean {
-  const text = [appt.officeNotes, appt.techNotes, appt.notes].filter(Boolean).join(' ').toLowerCase();
-  return CLOSEOUT_KEYWORDS.some(k => text.includes(k));
-}
 
 async function sendSlack(webhook: string, text: string, blocks?: any[]) {
   const body: any = { text };
@@ -187,24 +183,38 @@ export async function GET(req: NextRequest) {
   }
 
   // 3) Classify each completed appt as CO job / closed out.
+  // First, determine which appts are CO jobs (so we know which customers need a Closed-Out form lookup).
+  const isCoJobAppt = (a: any): boolean => {
+    const typeId = parseInt(String(a.type || a.serviceTypeID || '0'));
+    if (OTHER_CO_IDS.has(typeId)) return true;
+    if (TRAP_CHECK_IDS.has(typeId)) {
+      const cust = String(a.customerID);
+      const thisDate = new Date(a.date || a.dateAdded).getTime();
+      return (priorTcByCustomer.get(cust) || []).some(d => d.getTime() < thisDate);
+    }
+    return false;
+  };
+  // Fetch Closed-Out (template-86) form dates for each CO-job customer (once per customer).
+  const coCustomerIds = [...new Set(completed.filter(isCoJobAppt).map(a => String(a.customerID)).filter(x => x && x !== '0'))];
+  const closeoutFormsByCustomer = new Map<string, Date[]>();
+  for (const custId of coCustomerIds) {
+    const dates = await getCloseoutFormDates(custId, BASE_URL, cfg.key, cfg.token, frFetch);
+    if (dates.length) closeoutFormsByCustomer.set(custId, dates);
+  }
+
   let coJobs = 0, closedOut = 0;
   const coDetail: any[] = [];
   const techTally = new Map<string, { co: number; closed: number }>();
   for (const a of completed) {
+    if (!isCoJobAppt(a)) continue;
     const typeId = parseInt(String(a.type || a.serviceTypeID || '0'));
-    let isCoJob = false;
-    if (OTHER_CO_IDS.has(typeId)) {
-      isCoJob = true;
-    } else if (TRAP_CHECK_IDS.has(typeId)) {
-      // Prior TC before THIS appointment's date?
-      const cust = String(a.customerID);
-      const thisDate = new Date(a.date || a.dateAdded).getTime();
-      const priors = priorTcByCustomer.get(cust) || [];
-      isCoJob = priors.some(d => d.getTime() < thisDate);
-    }
-    if (!isCoJob) continue;
     coJobs++;
-    const co = hasCloseoutNote(a);
+    // Closed out if EITHER a keyword note OR a Closed-Out form within ±2 days of this appt.
+    const cust = String(a.customerID);
+    const apptDate = new Date(a.date || a.dateAdded);
+    const byNote = hasCloseoutNote(a);
+    const byForm = formWithinWindow(closeoutFormsByCustomer.get(cust) || [], apptDate);
+    const co = byNote || byForm;
     if (co) closedOut++;
     // Per-tech tally, attributed to the tech who did the visit (servicedBy; fallback assignedTech).
     const techId = String(a.servicedBy && a.servicedBy !== '0' ? a.servicedBy : (a.assignedTech || '0'));
@@ -212,7 +222,7 @@ export async function GET(req: NextRequest) {
     const tt = techTally.get(techId)!;
     tt.co++;
     if (co) tt.closed++;
-    coDetail.push({ customer: a.customerName || a.customerID, type: typeId, closedOut: co, tech: techId });
+    coDetail.push({ customer: a.customerName || a.customerID, type: typeId, closedOut: co, via: co ? (byNote && byForm ? 'both' : byNote ? 'note' : 'form') : null, tech: techId });
   }
 
   const pct = coJobs > 0 ? Math.round((closedOut / coJobs) * 1000) / 10 : null;
