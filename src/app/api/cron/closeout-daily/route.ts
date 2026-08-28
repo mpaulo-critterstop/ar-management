@@ -13,7 +13,8 @@
 //   /api/cron/closeout-daily?token=critterstop2026&dry=1     (preview JSON, posts nothing)
 //   /api/cron/closeout-daily?token=critterstop2026&date=2026-08-24  (report a specific day)
 import { NextRequest, NextResponse } from 'next/server';
-import { hasCloseoutNote, getCloseoutFormDates, formWithinWindow } from '@/lib/closeout';
+import { hasCloseoutNote, formWithinWindow, loadCloseoutFormDates } from '@/lib/closeout';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -218,11 +219,9 @@ export async function GET(req: NextRequest) {
   };
   // Fetch Closed-Out (template-86) form dates for each CO-job customer (once per customer).
   const coCustomerIds = [...new Set(completed.filter(isCoJobAppt).map(a => String(a.customerID)).filter(x => x && x !== '0'))];
-  const closeoutFormsByCustomer = new Map<string, Date[]>();
-  for (const custId of coCustomerIds) {
-    const dates = await getCloseoutFormDates(custId, BASE_URL, cfg.key, cfg.token, frFetch);
-    if (dates.length) closeoutFormsByCustomer.set(custId, dates);
-  }
+  // Read Closed-Out form dates from the cache table (populated by closeout-forms-sync) — no live FR calls,
+  // so the daily report stays fast and doesn't hit rate limits.
+  const closeoutFormsByCustomer = await loadCloseoutFormDates(prisma, coCustomerIds);
 
   let coJobs = 0, closedOut = 0;
   const coDetail: any[] = [];
