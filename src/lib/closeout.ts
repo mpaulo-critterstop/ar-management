@@ -49,3 +49,20 @@ export function formWithinWindow(formDates: Date[], apptDate: Date, windowDays =
   const t = apptDate.getTime();
   return formDates.some(d => Math.abs(d.getTime() - t) <= ms);
 }
+
+// Load Closed-Out form dates from the closeout_forms CACHE TABLE (populated by closeout-forms-sync) for a set
+// of customers. Returns a Map<customerId, Date[]>. This is the scalable path — no live FR calls — used by the
+// detection systems that run across offices/wide windows (dispatch, Field Performance).
+export async function loadCloseoutFormDates(prisma: any, customerIds: string[]): Promise<Map<string, Date[]>> {
+  const map = new Map<string, Date[]>();
+  if (!customerIds.length) return map;
+  const rows = await prisma.closeoutForm.findMany({
+    where: { customerId: { in: customerIds }, formTemplateId: CLOSEOUT_FORM_TEMPLATE_ID },
+    select: { customerId: true, dateAdded: true },
+  });
+  for (const r of rows) {
+    if (!map.has(r.customerId)) map.set(r.customerId, []);
+    map.get(r.customerId)!.push(new Date(r.dateAdded));
+  }
+  return map;
+}

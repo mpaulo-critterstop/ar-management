@@ -274,6 +274,27 @@ model PestInspection {
   @@map("pest_inspections")
 }
 
+// Cache of FR "Closed-Out" (template-86) marker forms. Populated by the closeout-forms-sync cron so that the
+// closeout-detection systems (daily report, dispatch, Field Performance) can check for a form match against
+// the DB instead of making slow per-customer FR calls (form/search is customerID-singular and doesn't scale
+// across offices/wide windows). One row per form.
+model CloseoutForm {
+  id             String   @id @default(cuid())
+  office         String
+  customerId     String   // FR customerID (external)
+  formId         String   @unique // FR formID
+  formTemplateId Int      // 86 = Closed-Out marker
+  documentState  String?  // COMPLETED | WIP | WAITING_CUST_SIGN
+  dateAdded      DateTime // when the form was uploaded (the closeout signal date)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([dateAdded])
+  @@index([office])
+  @@map("closeout_forms")
+}
+
 model CsrEmployee {
   id            String    @id @default(cuid())
   frEmployeeId  String    @unique
