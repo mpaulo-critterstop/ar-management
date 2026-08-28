@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { loadCloseoutFormDates, formWithinWindow } from '@/lib/closeout';
 
 const SUBDOMAIN = 'critterstoppest';
 const BASE_URL = `https://${SUBDOMAIN}.fieldroutes.com/api`;
@@ -184,6 +185,15 @@ export async function POST(req: NextRequest) {
       // Get all future appointments for customers in this batch to compute forward-looking fields
       const customerIds = [...new Set(relevant.map((a: any) => String(a.customerID)))];
 
+      // Cached Closed-Out (template-86) forms for these customers — a form counts as a closeout signal
+      // (note OR form), read from the cache table (no live FR calls).
+      const coFormsByCust = await loadCloseoutFormDates(prisma, customerIds);
+      const isClosedOut = (appt: any): boolean => {
+        if (hasCloseoutNote(appt)) return true;
+        const dates = coFormsByCust.get(String(appt.customerID)) || [];
+        return formWithinWindow(dates, new Date(appt.date || appt.dateAdded));
+      };
+
       // Fetch future appointments per customer (scheduled, not completed) — batched across ALL customers
       let futureAppts: any[] = [];
       try {
@@ -241,7 +251,7 @@ export async function POST(req: NextRequest) {
         if (CALLBACK_IDS.has(typeId)) {
           cb60Map.set(custId, true);
         }
-        if (hasCloseoutNote(pa)) {
+        if (isClosedOut(pa)) {
           const diffDays = (paDate.getTime() - weekEnd.getTime()) / 86400000;
           if (diffDays <= 7) wk1Map.set(custId, true);
           if (diffDays <= 14) wk2Map.set(custId, true);
@@ -320,7 +330,7 @@ export async function POST(req: NextRequest) {
               techName: tech?.name || '',
               office: officeName,
               isCoJob,
-              closedOut: hasCloseoutNote(appt),
+              closedOut: isClosedOut(appt),
               wk1CloseOut: wk1Map.get(custId) ?? false,
               wk2CloseOut: wk2Map.get(custId) ?? false,
               cb60Day: cb60Map.get(custId) ?? false,
@@ -342,7 +352,7 @@ export async function POST(req: NextRequest) {
               techName: tech?.name || '',
               office: officeName,
               isCoJob,
-              closedOut: hasCloseoutNote(appt),
+              closedOut: isClosedOut(appt),
               wk1CloseOut: wk1Map.get(custId) ?? false,
               wk2CloseOut: wk2Map.get(custId) ?? false,
               cb60Day: cb60Map.get(custId) ?? false,

@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { loadCloseoutFormDates, formWithinWindow } from '@/lib/closeout';
 
 const SUBDOMAIN = 'critterstoppest';
 const BASE_URL = `https://${SUBDOMAIN}.fieldroutes.com/api`;
@@ -192,6 +193,14 @@ export async function GET(req: NextRequest) {
 
       // Get all future appointments for customers in this batch to compute forward-looking fields
       const customerIds = [...new Set(relevant.map((a: any) => String(a.customerID)))];
+      // Cached Closed-Out (template-86) forms — a form counts as a closeout signal (note OR form).
+      const coFormsByCust = await loadCloseoutFormDates(prisma, customerIds);
+      const isClosedOut = (appt: any): boolean => {
+        if (!appt) return false;
+        if (hasCloseoutNote(appt)) return true;
+        const dates = coFormsByCust.get(String(appt.customerID)) || [];
+        return formWithinWindow(dates, new Date(appt.date || appt.dateAdded));
+      };
 
       // Fetch future appointments per customer — 180 days out, all types — batched across ALL customers
       let futureAppts: any[] = [];
@@ -349,7 +358,7 @@ export async function GET(req: NextRequest) {
           isCoJob = tcCount >= 2;
         }
         // Rule 3: if closed out, always a CO job regardless of trap check count
-        const closedOut = hasCloseoutNote(appt);
+        const closedOut = isClosedOut(appt);
         if (closedOut) isCoJob = true;
 
         // Future visits — trap checks only, not callbacks or annual inspections, within 180 days
@@ -369,7 +378,7 @@ export async function GET(req: NextRequest) {
 
         // wk1CloseOut: next future non-CB visit has closedOut=true (Excel Col N: XLOOKUP finds next visit M=1)
         // We check if the next future visit has a closeout note
-        const wk1CloseOut = nextNonCb ? hasCloseoutNote(nextNonCb) : false;
+        const wk1CloseOut = nextNonCb ? isClosedOut(nextNonCb) : false;
 
         // wk2CloseOut: exactly 2 future non-CB visits (Excel Col O: K5=2)
         const wk2CloseOut = futureNonCb === 2;

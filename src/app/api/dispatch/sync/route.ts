@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { loadCloseoutFormDates } from '@/lib/closeout';
 
 const OFFICES = {
   DFW: { key: process.env.FIELDROUTES_KEY_DFW!, token: process.env.FIELDROUTES_TOKEN_DFW! },
@@ -87,6 +88,9 @@ async function syncDispatch(office: string, key: string, token: string) {
   console.log(`[${office}] Syncing ${jobs.length} dispatch jobs...`);
 
   const ticketIds = [...new Set(jobs.map(j => j.invoice?.externalId).filter(Boolean))];
+  // Load cached Closed-Out (template-86) forms for all these customers once — a form is a closeout signal.
+  const jobCustExternalIds = [...new Set(jobs.map(j => j.customer?.externalId).filter(Boolean) as string[])];
+  const closeoutFormsByCust = await loadCloseoutFormDates(prisma, jobCustExternalIds);
 
   // ============================================================
   // STEP 1: Fetch all tickets for hasTrapping / hasFAR detection
@@ -226,6 +230,15 @@ async function syncDispatch(office: string, key: string, token: string) {
       if (trapsDone && !jobHasFAR && !closedOut) {
         closedOut = true;
         closedOutDate = lastTrapCheck || new Date();
+      }
+
+      // Closed-Out (template-86) form uploaded = closed out. A near-universal internal marker techs upload;
+      // more reliable than the keyword note. Its date is the closeout date.
+      const custFormDates = closeoutFormsByCust.get(String(custFRId)) || [];
+      if (custFormDates.length && !closedOut) {
+        closedOut = true;
+        const latestForm = custFormDates.sort((a, b) => b.getTime() - a.getTime())[0];
+        closedOutDate = latestForm || new Date();
       }
 
       // Auto close-out: exclusion done + no trapping + no FAR
