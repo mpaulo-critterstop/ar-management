@@ -177,11 +177,15 @@ export async function GET(req: NextRequest) {
   //    trap-check appointments over the lookback window in ONE batched search+get, then group by customer.
   const tcCandidates = completed.filter(a => TRAP_CHECK_IDS.has(parseInt(String(a.type || a.serviceTypeID || '0'))));
   const priorTcByCustomer = new Map<string, Date[]>();
+  let priorTcSearchCount = 0;
   if (tcCandidates.length) {
     const lookbackStart = fmtDate(new Date(target.getTime() - 120 * 24 * 60 * 60 * 1000));
-    // One office-wide search for the whole window (no customer filter — grouping happens in memory).
+    // Search ONLY trap-check service types over the window (not all appt types — that returns thousands and
+    // times out). serviceIDs filter keeps it to the handful of TC appointments we actually need.
+    const tcServiceIds = [...TRAP_CHECK_IDS].join(',');
     const histSearch = await frFetch(frUrl('appointment', 'search', {
       officeIDs: String(cfg.officeId),
+      serviceIDs: tcServiceIds,
       dateStart: lookbackStart,
       dateEnd: dayStr,
       status: '1',
@@ -198,6 +202,7 @@ export async function GET(req: NextRequest) {
       if (!priorTcByCustomer.has(custId)) priorTcByCustomer.set(custId, []);
       priorTcByCustomer.get(custId)!.push(d);
     }
+    priorTcSearchCount = histIds.length;
   }
 
   // 3) Classify each completed appt as CO job / closed out.
@@ -257,6 +262,7 @@ export async function GET(req: NextRequest) {
 
   if (dry) {
     return NextResponse.json({ dry: true, date: dayStr, office: 'DFW', coJobs, closedOut, closeOutPct: pct,
+      _diag: { priorTcSearchCount, cachedFormCustomers: closeoutFormsByCustomer.size },
       byTech, detail: coDetail.slice(0, 100) });
   }
 
