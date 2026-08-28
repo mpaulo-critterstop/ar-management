@@ -173,35 +173,30 @@ export async function GET(req: NextRequest) {
   const completed = appts.filter(a => String(a.status) === '1');
 
   // 2) For trap-check appts, we need to know if the customer had a PRIOR trap check before this appt's date.
-  //    Pull a 120-day lookback of each relevant customer's appointments and check for an earlier TC.
+  //    Instead of a per-customer lookup (2 FR calls each — the timeout culprit), pull ALL of the office's
+  //    trap-check appointments over the lookback window in ONE batched search+get, then group by customer.
   const tcCandidates = completed.filter(a => TRAP_CHECK_IDS.has(parseInt(String(a.type || a.serviceTypeID || '0'))));
-  const tcCustomerIds = [...new Set(tcCandidates.map(a => String(a.customerID)).filter(x => x && x !== '0'))];
-
-  // 2) For trap-check appts, we need to know if the customer had a PRIOR trap check before this appt's date.
-  //    Pull each TC customer's history individually — FR's appointment/search with many customerIDs joined
-  //    together only honors one, so a bulk search silently drops all-but-one customer. Per-customer is
-  //    reliable (throttled lightly to respect FR rate limits).
   const priorTcByCustomer = new Map<string, Date[]>();
-  if (tcCustomerIds.length) {
+  if (tcCandidates.length) {
     const lookbackStart = fmtDate(new Date(target.getTime() - 120 * 24 * 60 * 60 * 1000));
-    for (const custId of tcCustomerIds) {
-      const histSearch = await frFetch(frUrl('appointment', 'search', {
-        officeIDs: String(cfg.officeId),
-        customerIDs: custId,
-        dateStart: lookbackStart,
-        dateEnd: dayStr,
-      }, cfg.key, cfg.token));
-      const histIds: number[] = histSearch.appointmentIDs || [];
-      if (!histIds.length) continue;
-      const hist = await fetchApptsByIds(histIds, cfg.key, cfg.token);
-      for (const h of hist) {
-        if (String(h.status) !== '1') continue;
-        const tId = parseInt(String(h.type || h.serviceTypeID || '0'));
-        if (!TRAP_CHECK_IDS.has(tId)) continue;
-        const d = new Date(h.date || h.dateAdded);
-        if (!priorTcByCustomer.has(custId)) priorTcByCustomer.set(custId, []);
-        priorTcByCustomer.get(custId)!.push(d);
-      }
+    // One office-wide search for the whole window (no customer filter — grouping happens in memory).
+    const histSearch = await frFetch(frUrl('appointment', 'search', {
+      officeIDs: String(cfg.officeId),
+      dateStart: lookbackStart,
+      dateEnd: dayStr,
+      status: '1',
+    }, cfg.key, cfg.token));
+    const histIds: number[] = histSearch.appointmentIDs || [];
+    const hist = histIds.length ? await fetchApptsByIds(histIds, cfg.key, cfg.token) : [];
+    for (const h of hist) {
+      if (String(h.status) !== '1') continue;
+      const tId = parseInt(String(h.type || h.serviceTypeID || '0'));
+      if (!TRAP_CHECK_IDS.has(tId)) continue;
+      const custId = String(h.customerID);
+      const d = new Date(h.date || h.dateAdded);
+      if (isNaN(d.getTime())) continue;
+      if (!priorTcByCustomer.has(custId)) priorTcByCustomer.set(custId, []);
+      priorTcByCustomer.get(custId)!.push(d);
     }
   }
 
