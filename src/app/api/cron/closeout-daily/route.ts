@@ -33,15 +33,19 @@ function frUrl(endpoint: string, action: string, params: Record<string, string>,
   url.searchParams.set('authenticationToken', token);
   return url.toString();
 }
-let lastFrCall = 0;
-async function frFetch(url: string) {
-  // Global throttle: FR rate-limits at 60 reads/min. Space calls ~1.1s apart so the per-customer prior-TC
-  // lookups don't hit the limit (which was causing coJobs to vary run-to-run as some lookups silently failed).
-  const wait = 1100 - (Date.now() - lastFrCall);
-  if (wait > 0) await new Promise(r => setTimeout(r, wait));
-  lastFrCall = Date.now();
-  const r = await fetch(url);
-  return r.json();
+let frChain: Promise<any> = Promise.resolve();
+async function frFetch(url: string): Promise<any> {
+  // Truly serialize ALL FR calls through a single promise chain with 1.1s spacing. A timestamp-only guard
+  // can race when many awaits are in flight, letting bursts exceed FR's 60/min limit — which silently
+  // returns empty results and drops customers from the counts (causing run-to-run inconsistency).
+  const run = frChain.then(async () => {
+    await new Promise(r => setTimeout(r, 1100));
+    const r = await fetch(url);
+    return r.json();
+  });
+  // keep the chain alive even if this call throws
+  frChain = run.catch(() => {});
+  return run;
 }
 async function fetchApptsByIds(ids: number[], key: string, token: string): Promise<any[]> {
   const out: any[] = [];
