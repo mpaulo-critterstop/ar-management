@@ -172,37 +172,23 @@ export async function GET(req: NextRequest) {
   // Only completed appts, of a CO-relevant type.
   const completed = appts.filter(a => String(a.status) === '1');
 
-  // 2) For trap-check appts, we need to know if the customer had a PRIOR trap check before this appt's date.
-  //    Instead of a per-customer lookup (2 FR calls each — the timeout culprit), pull ALL of the office's
-  //    trap-check appointments over the lookback window in ONE batched search+get, then group by customer.
+  // 2) Prior-TC check: does the customer have a PRIOR trap check (so a TC appt counts as a CO job)?
+  //    Read from the DB (DispatchJob.trapCheckCount, kept fresh by dispatch sync) instead of a live FR fetch
+  //    of thousands of appointments (which timed out). A customer whose running TC count is >= 2 has had at
+  //    least one TC before today's. Map FR customerID (externalId) -> trapCheckCount.
   const tcCandidates = completed.filter(a => TRAP_CHECK_IDS.has(parseInt(String(a.type || a.serviceTypeID || '0'))));
-  const priorTcByCustomer = new Map<string, Date[]>();
+  const priorTcCustomers = new Set<string>();
   let priorTcSearchCount = 0;
   if (tcCandidates.length) {
-    const lookbackStart = fmtDate(new Date(target.getTime() - 120 * 24 * 60 * 60 * 1000));
-    // Search ONLY trap-check service types over the window (not all appt types — that returns thousands and
-    // times out). serviceIDs filter keeps it to the handful of TC appointments we actually need.
-    const tcServiceIds = [...TRAP_CHECK_IDS].join(',');
-    const histSearch = await frFetch(frUrl('appointment', 'search', {
-      officeIDs: String(cfg.officeId),
-      serviceIDs: tcServiceIds,
-      dateStart: lookbackStart,
-      dateEnd: dayStr,
-      status: '1',
-    }, cfg.key, cfg.token));
-    const histIds: number[] = histSearch.appointmentIDs || [];
-    const hist = histIds.length ? await fetchApptsByIds(histIds, cfg.key, cfg.token) : [];
-    for (const h of hist) {
-      if (String(h.status) !== '1') continue;
-      const tId = parseInt(String(h.type || h.serviceTypeID || '0'));
-      if (!TRAP_CHECK_IDS.has(tId)) continue;
-      const custId = String(h.customerID);
-      const d = new Date(h.date || h.dateAdded);
-      if (isNaN(d.getTime())) continue;
-      if (!priorTcByCustomer.has(custId)) priorTcByCustomer.set(custId, []);
-      priorTcByCustomer.get(custId)!.push(d);
+    const tcCustExternalIds = [...new Set(tcCandidates.map(a => String(a.customerID)).filter(x => x && x !== '0'))];
+    const jobs = await prisma.dispatchJob.findMany({
+      where: { customer: { externalId: { in: tcCustExternalIds } }, trapCheckCount: { gte: 2 } },
+      select: { customer: { select: { externalId: true } }, trapCheckCount: true },
+    });
+    for (const j of jobs) {
+      if (j.customer?.externalId) priorTcCustomers.add(String(j.customer.externalId));
     }
-    priorTcSearchCount = histIds.length;
+    priorTcSearchCount = jobs.length;
   }
 
   // 3) Classify each completed appt as CO job / closed out.
@@ -211,9 +197,8 @@ export async function GET(req: NextRequest) {
     const typeId = parseInt(String(a.type || a.serviceTypeID || '0'));
     if (OTHER_CO_IDS.has(typeId)) return true;
     if (TRAP_CHECK_IDS.has(typeId)) {
-      const cust = String(a.customerID);
-      const thisDate = new Date(a.date || a.dateAdded).getTime();
-      return (priorTcByCustomer.get(cust) || []).some(d => d.getTime() < thisDate);
+      // Trap check counts as a CO job only if the customer has a prior TC (running count >= 2, from the DB).
+      return priorTcCustomers.has(String(a.customerID));
     }
     return false;
   };
