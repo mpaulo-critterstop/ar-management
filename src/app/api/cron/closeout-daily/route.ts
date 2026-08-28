@@ -178,7 +178,7 @@ export async function GET(req: NextRequest) {
   //    least one TC before today's. Map FR customerID (externalId) -> trapCheckCount.
   const tcCandidates = completed.filter(a => TRAP_CHECK_IDS.has(parseInt(String(a.type || a.serviceTypeID || '0'))));
   const priorTcCustomers = new Set<string>();
-  let priorTcSearchCount = 0;
+
   if (tcCandidates.length) {
     const tcCustExternalIds = [...new Set(tcCandidates.map(a => String(a.customerID)).filter(x => x && x !== '0'))];
     const jobs = await prisma.dispatchJob.findMany({
@@ -188,7 +188,7 @@ export async function GET(req: NextRequest) {
     for (const j of jobs) {
       if (j.customer?.externalId) priorTcCustomers.add(String(j.customer.externalId));
     }
-    priorTcSearchCount = jobs.length;
+
   }
 
   // 3) Classify each completed appt as CO job / closed out.
@@ -247,7 +247,6 @@ export async function GET(req: NextRequest) {
 
   if (dry) {
     return NextResponse.json({ dry: true, date: dayStr, office: 'DFW', coJobs, closedOut, closeOutPct: pct,
-      _diag: { priorTcSearchCount, cachedFormCustomers: closeoutFormsByCustomer.size },
       byTech, detail: coDetail.slice(0, 100) });
   }
 
