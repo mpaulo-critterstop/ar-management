@@ -75,6 +75,28 @@ export async function GET(req: NextRequest) {
   }
   const cfgDbg = OFFICES.DFW;
   const debugForms = sp.get('debugForms'); // dump raw template-86 form detection for one customer
+  const debugFormRaw = sp.get('debugFormRaw'); // dump COMPLETE raw form data for one contractID (probe for fields)
+  if (debugFormRaw && cfgDbg?.key) {
+    const cid = debugFormRaw;
+    const attempts: any[] = [];
+    // 1) form/get with just this id (padded) — the FULL raw object, every key
+    const g1 = await frFetch(`${BASE_URL}/form/get?contractIDs=${cid},${cid}&authenticationKey=${cfgDbg.key}&authenticationToken=${cfgDbg.token}`);
+    attempts.push({ call: 'form/get', raw: JSON.stringify(g1).substring(0, 3000) });
+    // 2) form/get with includeData / includeFields style params (guessing param names FR might support)
+    for (const extra of ['includeData=1', 'includeFields=1', 'includeFieldData=1', 'includeAnswers=1', 'fields=1', 'data=1', 'full=1']) {
+      const g = await frFetch(`${BASE_URL}/form/get?contractIDs=${cid},${cid}&${extra}&authenticationKey=${cfgDbg.key}&authenticationToken=${cfgDbg.token}`);
+      const s = JSON.stringify(g);
+      // only report if it returned MORE than the base (i.e., the param did something)
+      attempts.push({ call: `form/get?${extra}`, len: s.length, keys: g?.forms?.[0] ? Object.keys(g.forms[0]) : (g?.contracts?.[0] ? Object.keys(g.contracts[0]) : Object.keys(g || {})) });
+    }
+    // 3) try sibling endpoints that might hold field data
+    for (const ent of ['formField', 'formFields', 'formData', 'formAnswer', 'formAnswers', 'contractField', 'contractData']) {
+      const g = await frFetch(`${BASE_URL}/${ent}/search?contractIDs=${cid}&authenticationKey=${cfgDbg.key}&authenticationToken=${cfgDbg.token}`);
+      attempts.push({ call: `${ent}/search`, success: g?.success, error: g?.errorMessage || null, keys: g && typeof g === 'object' ? Object.keys(g).filter(k => k !== 'params').slice(0, 8) : null });
+    }
+    return NextResponse.json({ contractID: cid, attempts });
+  }
+
   if (debugForms && cfgDbg?.key) {
     const searchUrl = `${BASE_URL}/form/search?customerID=${debugForms}&authenticationKey=${cfgDbg.key}&authenticationToken=${cfgDbg.token}`;
     const search = await frFetch(searchUrl);
