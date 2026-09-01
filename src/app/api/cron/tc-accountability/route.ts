@@ -20,7 +20,7 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number }> 
 const TC_SERVICE_IDS = new Set([504, 636, 1076, 615, 671, 546, 554, 620, 538]);
 const TRAP_CHECK_IDS = new Set([504, 636, 1076]); // 1076 = QA Trap Check (Crew Lead)
 const CALLBACK_IDS   = new Set([615, 671, 546, 554]);
-const CO_JOB_IDS     = new Set([504, 636, 1076, 615, 671, 546, 554, 620, 533, 538]);
+const CO_JOB_IDS     = new Set([504, 636, 1076, 620, 533, 538]); // 615/671/546/554 removed from CO jobs per policy change (still tracked for callback rate)
 
 // Close-out keywords — tech/office notes only
 const CLOSEOUT_KEYWORDS = ['ready for insulation', 'ready for far', 'closed out'];

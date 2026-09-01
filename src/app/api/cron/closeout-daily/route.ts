@@ -25,7 +25,7 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number }> 
 };
 
 const TRAP_CHECK_IDS = new Set([504, 636, 1076]); // 1076 = QA Trap Check (Crew Lead) — same as a regular TC
-const OTHER_CO_IDS    = new Set([615, 671, 546, 554, 620, 533, 538]); // call backs + annual inspections
+const OTHER_CO_IDS    = new Set([620, 533, 538]); // 620 (call back) + annual inspections. 615/671/546/554 removed from CO jobs per policy change
 
 function frUrl(endpoint: string, action: string, params: Record<string, string>, key: string, token: string) {
   const url = new URL(`${BASE_URL}/${endpoint}/${action}`);
