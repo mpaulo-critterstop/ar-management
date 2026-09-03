@@ -7,7 +7,7 @@
 //   &dry=1  -> preview without writing
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { computePmMonthCommission, PestCommCategory } from '@/lib/pestCommission';
+import { computePmMonthCommission, perSaleRate, PestCommCategory } from '@/lib/pestCommission';
 import { waitUntil } from '@vercel/functions';
 
 export const dynamic = 'force-dynamic';
@@ -18,17 +18,19 @@ export async function GET(req: NextRequest) {
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const onlyMonth = sp.get('month'); // 'YYYY-MM'
   const dry = sp.get('dry') === '1';
+  const debugPm = sp.get('debugPm'); // per-sale breakdown for one PM
 
   // dry runs inline (need to see the preview). ?wait=1 also inline. Otherwise fire-and-forget via waitUntil.
-  if (dry || sp.get('wait') === '1') {
-    const result = await runCompute(onlyMonth, dry);
+  if (dry || sp.get('wait') === '1' || debugPm) {
+    const result = await runCompute(onlyMonth, dry, debugPm);
     return NextResponse.json(result);
   }
-  waitUntil(runCompute(onlyMonth, false).catch(e => { console.error('pest-commissions-compute background error:', e); }));
+  waitUntil(runCompute(onlyMonth, false, null).catch(e => { console.error('pest-commissions-compute background error:', e); }));
   return NextResponse.json({ ok: true, started: true, month: onlyMonth || 'all-open', note: 'Compute running in background. Use ?dry=1 or ?wait=1 for inline result.' });
 }
 
-async function runCompute(onlyMonth: string | null, dry: boolean) {
+async function runCompute(onlyMonth: string | null, dry: boolean, debugPm?: string | null) {
+  let debugOut: any = null;
 
   // Pull all completed, commissionable pest sales (source can be fr OR excel, but commission compute is
   // for going-forward FR sales; history commissions are already frozen in commission_months). We compute
@@ -65,6 +67,27 @@ async function runCompute(onlyMonth: string | null, dry: boolean) {
     const { total, byCategory } = computePmMonthCommission(pmSales);
     const monthDate = new Date(`${month}-01T00:00:00.000Z`);
     const rounded = Math.round(total * 100) / 100;
+
+    // Per-sale line-item breakdown for one PM (debug): show each sale + the commission it earns.
+    if (debugPm && pm.toLowerCase().includes(debugPm.toLowerCase()) && (!onlyMonth || month === onlyMonth)) {
+      const done = pmSales.filter((s: any) => s.initialCompletedAt != null && s.category !== 'EXCLUDE');
+      const gpc = done.filter((s: any) => s.category === 'Pest Control')
+        .sort((a: any, b: any) => a.initialCompletedAt.getTime() - b.initialCompletedAt.getTime());
+      const lines = done.map((s: any) => {
+        let rate: number, note = '';
+        if (s.category === 'Pest Control') {
+          const idx = gpc.indexOf(s) + 1;
+          rate = idx >= 11 ? 0.5 : idx >= 6 ? 0.4 : 0.3;
+          note = `GPC #${idx} (marginal)`;
+        } else {
+          rate = perSaleRate(s.category, s.cv);
+        }
+        return { category: s.category, cv: s.cv, completedAt: s.initialCompletedAt, rate, commission: Math.round(s.cv * rate * 100) / 100, note };
+      });
+      const excluded = pmSales.filter((s: any) => s.initialCompletedAt == null || s.category === 'EXCLUDE')
+        .map((s: any) => ({ category: s.category, cv: s.cv, completedAt: s.initialCompletedAt, reason: s.category === 'EXCLUDE' ? 'EXCLUDE category' : 'not completed' }));
+      debugOut = { pm, month, total: rounded, byCategory, saleCount: done.length, lines, excluded };
+    }
 
     const existing = await prisma.commissionMonth.findUnique({
       where: { pmName_month: { pmName: pm, month: monthDate } },
@@ -127,5 +150,6 @@ async function runCompute(onlyMonth: string | null, dry: boolean) {
 
   results.sort((a, b) => (a.month < b.month ? 1 : -1) || (a.pm < b.pm ? -1 : 1));
   cvResults.sort((a, b) => (a.month < b.month ? 1 : -1) || (a.scope < b.scope ? -1 : 1));
+  if (debugOut) return { ok: true, debugPm: true, detail: debugOut };
   return { ok: true, dry, groups: groups.size, written, cvWritten, skippedFinalized, skippedHistory, note: 'Commissions: live non-finalized months only. Booked Pest CV: all live months (>= Jul 2026), per PM + company; pre-live months keep Excel history.', results, bookedPestCV: cvResults };
 }
