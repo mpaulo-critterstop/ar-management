@@ -48,7 +48,11 @@ export async function GET(req: NextRequest) {
     'Content-Type': 'application/json',
     'x-cron-secret': process.env.CRON_SECRET || '',
   };
-  const body = JSON.stringify({ office });
+  // Optional manual date range — lets you re-sync a specific historical date (e.g. ?from=2026-07-27&to=2026-07-27)
+  // to catch invoices whose FR dateUpdated is behind the incremental window (paid-but-still-due fixes).
+  const fromDate = searchParams.get('from') || undefined;
+  const toDate = searchParams.get('to') || undefined;
+  const body = JSON.stringify({ office, ...(fromDate ? { fromDate } : {}), ...(toDate ? { toDate } : {}) });
   const startedAt = new Date();
 
   // Run the current stage's actual work (awaits the underlying sync endpoint).
