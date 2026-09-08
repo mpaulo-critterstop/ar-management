@@ -25,18 +25,23 @@ export function segmentOf(category: string | null): 'Wildlife' | 'Pest' {
   return (category || '').toLowerCase() === 'rodents' ? 'Wildlife' : 'Pest';
 }
 
-function dayBucket(ms: number | null): '0' | '1' | '2' | '3' | '4+' | null {
+// Chisam's time buckets (Sept 2026): <5m, 5-15m, 15-60m, 1-24h, >1d, No Reply.
+// Minutes/hours are far more indicative of follow-up performance than whole-day differences.
+export type BucketKey = '<5m' | '5-15m' | '15-60m' | '1-24h' | '>1d';
+const MIN = 60 * 1000;
+const HOUR = 60 * MIN;
+
+function timeBucket(ms: number | null): BucketKey | null {
   if (ms == null) return null;
-  const days = Math.floor(ms / DAY);
-  if (days <= 0) return '0';
-  if (days === 1) return '1';
-  if (days === 2) return '2';
-  if (days === 3) return '3';
-  return '4+';
+  if (ms < 5 * MIN) return '<5m';
+  if (ms < 15 * MIN) return '5-15m';
+  if (ms < 60 * MIN) return '15-60m';
+  if (ms < 24 * HOUR) return '1-24h';
+  return '>1d';
 }
 
-export interface BucketCounts { '0': number; '1': number; '2': number; '3': number; '4+': number; noReply?: number; total: number; }
-function emptyBuckets(): BucketCounts { return { '0': 0, '1': 0, '2': 0, '3': 0, '4+': 0, noReply: 0, total: 0 }; }
+export interface BucketCounts { '<5m': number; '5-15m': number; '15-60m': number; '1-24h': number; '>1d': number; noReply?: number; total: number; }
+function emptyBuckets(): BucketCounts { return { '<5m': 0, '5-15m': 0, '15-60m': 0, '1-24h': 0, '>1d': 0, noReply: 0, total: 0 }; }
 
 // Period key helpers
 function monthKey(d: Date): string { return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; }
@@ -81,7 +86,7 @@ export function buildReport(rows: LsaLagRow[], seg: Segment, period: 'month' | '
 
     // Metric 1: time to first reply
     if (r.firstReplyAt) {
-      const b = dayBucket(r.firstReplyAt.getTime() - created.getTime());
+      const b = timeBucket(r.firstReplyAt.getTime() - created.getTime());
       if (b) { pr.firstReply[b]++; pr.firstReply.total++; }
     } else {
       pr.firstReply.noReply = (pr.firstReply.noReply || 0) + 1;
@@ -90,7 +95,7 @@ export function buildReport(rows: LsaLagRow[], seg: Segment, period: 'month' | '
 
     // Metric 2: follow-up depth (last activity - received)
     const last = r.lastActivityAt || created;
-    const b2 = dayBucket(last.getTime() - created.getTime());
+    const b2 = timeBucket(last.getTime() - created.getTime());
     if (b2) { pr.depth[b2]++; pr.depth.total++; }
   }
 
