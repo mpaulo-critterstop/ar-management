@@ -21,7 +21,6 @@ const TRAPPING_PRODUCT_IDS = new Set([8]);
 const FAR_PRODUCT_IDS = new Set([10]);
 const TRAPPING_KEYWORDS = ['trapping', 'trap'];
 const FAR_KEYWORDS = ['full attic', 'insulation', 'far', 'blow-in'];
-const TRAPPING_DONE_KEYWORDS = ['ready for insulation', 'ready for far', 'closed out'];
 const TRAPPING_ONLY_APPT_TYPES = new Set(['720']);
 
 async function frFetch(endpoint: string, params: string, key: string, token: string) {
@@ -62,15 +61,6 @@ function safeDate(dateStr: string | null | undefined, fallback: Date | null = nu
   if (!dateStr) return fallback;
   const d = new Date(dateStr);
   return isNaN(d.getTime()) ? fallback : d;
-}
-
-function hasTrappingDoneNote(appts: any[]): boolean {
-  return appts.some((a: any) =>
-    TRAPPING_DONE_KEYWORDS.some(k =>
-      a.officeNotes?.toLowerCase().includes(k) ||
-      a.notes?.toLowerCase().includes(k)
-    )
-  );
 }
 
 async function syncDispatch(office: string, key: string, token: string) {
@@ -190,8 +180,11 @@ async function syncDispatch(office: string, key: string, token: string) {
         ? safeDate(custTrapAppts[0].date, job.lastTrapCheck)
         : job.lastTrapCheck;
 
-      // Trapping done - check notes on any trap check appointment
-      const trapsDone = jobHasTrapping && hasTrappingDoneNote(custTrapAppts);
+      // Trapping done — no longer derived from note keywords (techs mis-noting caused false closeouts).
+      // Now driven by the Closed-Out form (or the manual checkbox, preserved via job.trapsDone).
+      const custFormDates = closeoutFormsByCust.get(String(custFRId)) || [];
+      const hasCloseoutForm = custFormDates.length > 0;
+      const trapsDone = jobHasTrapping && (hasCloseoutForm || job.trapsDone);
 
       // FAR - completed blow-in appointment
       const custFarAppts = (farByCustomer.get(custFRId) || [])
@@ -226,19 +219,14 @@ async function syncDispatch(office: string, key: string, token: string) {
         closedOutDate = removalDate || new Date();
       }
 
-      // Trapping done + no FAR = closed out
-      if (trapsDone && !jobHasFAR && !closedOut) {
-        closedOut = true;
-        closedOutDate = lastTrapCheck || new Date();
-      }
-
-      // Closed-Out (template-86) form uploaded = closed out. A near-universal internal marker techs upload;
-      // more reliable than the keyword note. Its date is the closeout date.
-      const custFormDates = closeoutFormsByCust.get(String(custFRId)) || [];
-      if (custFormDates.length && !closedOut) {
+      // Closed out via the Closed-Out form (template 86) OR a manual trapsDone check — BUT ONLY if the job has
+      // NO FAR. A form may be uploaded when trapping is done while the FAR isn't complete yet; for FAR jobs,
+      // only the actual FAR (rule 1) or removal (rule 2) completion closes it out, never the form.
+      // (Keyword-note closeout was removed — techs mis-noting caused false closeouts.)
+      if ((hasCloseoutForm || (jobHasTrapping && job.trapsDone)) && !jobHasFAR && !closedOut) {
         closedOut = true;
         const latestForm = custFormDates.sort((a, b) => b.getTime() - a.getTime())[0];
-        closedOutDate = latestForm || new Date();
+        closedOutDate = latestForm || lastTrapCheck || new Date();
       }
 
       // Auto close-out: exclusion done + no trapping + no FAR
