@@ -57,7 +57,8 @@ export async function GET(req: NextRequest) {
     else aging['30d+']++;
   }
 
-  const webhook = process.env.SLACK_LSA_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
+  // Dedicated channel for the daily scoreboard (separate from SLACK_LSA_WEBHOOK_URL, which is the LSA alerts).
+  const webhook = process.env.SLACK_LSA_SCOREBOARD_WEBHOOK_URL || process.env.SLACK_LSA_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
 
   // ─── AM: today's list + store snapshot ───────────────────────────────
   if (run === 'am') {
