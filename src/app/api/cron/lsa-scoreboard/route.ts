@@ -59,6 +59,8 @@ export async function GET(req: NextRequest) {
 
   // Dedicated channel for the daily scoreboard (separate from SLACK_LSA_WEBHOOK_URL, which is the LSA alerts).
   const webhook = process.env.SLACK_LSA_SCOREBOARD_WEBHOOK_URL || process.env.SLACK_LSA_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
+  const webhookSource = process.env.SLACK_LSA_SCOREBOARD_WEBHOOK_URL ? 'SCOREBOARD' : process.env.SLACK_LSA_WEBHOOK_URL ? 'LSA_ALERTS (fallback)' : process.env.SLACK_WEBHOOK_URL ? 'MAIN (fallback)' : 'NONE';
+  if (sp.get('checkWebhook') === '1') return NextResponse.json({ webhookSource, scoreboardVarSet: !!process.env.SLACK_LSA_SCOREBOARD_WEBHOOK_URL });
 
   // ─── AM: today's list + store snapshot ───────────────────────────────
   if (run === 'am') {
