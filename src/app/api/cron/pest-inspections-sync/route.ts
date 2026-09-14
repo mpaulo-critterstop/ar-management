@@ -5,6 +5,7 @@
 //   /api/cron/pest-inspections-sync?token=critterstop2026
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { waitUntil } from '@vercel/functions';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 500;
@@ -57,8 +58,8 @@ export async function GET(req: NextRequest) {
   // cron scheduler's request timeout. Return immediately and let it finish in the background. Use ?wait=1
   // for manual runs where you want the result summary.
   if (!wait) {
-    runSync(offices).catch(e => console.error('pest-inspections-sync bg error:', e));
-    return NextResponse.json({ ok: true, started: true, offices, note: 'Running in background (fire-and-forget). Add &wait=1 to see results.' });
+    waitUntil(runSync(offices).catch(e => console.error('pest-inspections-sync bg error:', e)));
+    return NextResponse.json({ ok: true, started: true, offices, note: 'Running in background. Add &wait=1 to see results.' });
   }
   const results = await runSync(offices);
   return NextResponse.json({ ok: true, results });
