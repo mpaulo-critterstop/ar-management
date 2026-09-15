@@ -2,12 +2,13 @@
 import { useEffect, useState } from 'react';
 import LagReportView from './LagReportView';
 
-const STAGES = ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Booked', 'Lost'];
+const STAGES = ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Sent to Pest AI', 'Booked', 'Lost'];
 const stageColor: Record<string, { bg: string; fg: string }> = {
   'New': { bg: '#e6f0ff', fg: '#0052cc' },
   'Awaiting Customer': { bg: '#fef9e6', fg: '#a16207' },
   'Customer Replied': { bg: '#e6f7ff', fg: '#0891b2' },
   'Need Follow-up': { bg: '#fee2e2', fg: '#b91c1c' },
+  'Sent to Pest AI': { bg: '#ede9fb', fg: '#6D28D9' },
   'Booked': { bg: '#e6f9ec', fg: '#128a3f' },
   'Lost': { bg: '#f1efe8', fg: '#888780' },
   'Call — handled': { bg: '#f1efe8', fg: '#B4B2A9' },
@@ -215,6 +216,18 @@ export default function LsaLeadsPage() {
                         style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>
                         ↶ Undo
                       </button>
+                    ) : l.status === 'Sent to Pest AI' ? (
+                      // Already sent to Pest AI — button greyed/disabled; offer release back to automatic.
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <button disabled title={l.pestAiSentAt ? `Sent ${new Date(l.pestAiSentAt).toLocaleString()}` : 'Sent to Pest AI'}
+                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#f1efe8', color: '#B4B2A9', cursor: 'not-allowed' }}>
+                          ✓ Sent to Pest AI
+                        </button>
+                        <button onClick={() => untagLead(l.leadId)}
+                          style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#B4B2A9', cursor: 'pointer' }}>
+                          × untag
+                        </button>
+                      </div>
                     ) : (l.status === 'Booked' || l.status === 'Lost') ? (
                       // already tagged terminal — offer release back to automatic (only meaningful if manual)
                       l.manualOverride ? (

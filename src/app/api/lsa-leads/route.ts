@@ -7,7 +7,7 @@ import { deriveLsaStage } from '@/lib/lsaStage';
 
 export const dynamic = 'force-dynamic';
 
-const STAGES = ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Booked', 'Lost'];
+const STAGES = ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Sent to Pest AI', 'Booked', 'Lost'];
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -84,8 +84,12 @@ export async function PATCH(req: NextRequest) {
       });
       const respText = await res.text();
       if (!res.ok) return NextResponse.json({ error: `Webhook failed (${res.status})`, detail: respText.slice(0, 300) }, { status: 502 });
-      // Stamp that it was sent (for UI feedback + avoiding accidental double-sends).
-      await prisma.lsaLead.update({ where: { leadId }, data: { pestAiSentAt: new Date() } }).catch(() => {});
+      // Move the lead to the "Sent to Pest AI" stage + stamp when. manualOverride so the auto-sync won't flip
+      // it back to Need Follow-up etc. — it's been handed to Pest AI, out of the manual worklist.
+      await prisma.lsaLead.update({
+        where: { leadId },
+        data: { status: 'Sent to Pest AI', manualOverride: true, staleFlagged: false, pestAiSentAt: new Date() },
+      }).catch(() => {});
       return NextResponse.json({ ok: true, sent: true, response: respText.slice(0, 200) });
     } catch (e: any) {
       return NextResponse.json({ error: 'Webhook error', detail: String(e).slice(0, 300) }, { status: 502 });
