@@ -2,7 +2,14 @@
 import { useEffect, useState } from 'react';
 import LagReportView from './LagReportView';
 
-const STAGES = ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Sent to Pest AI', 'Booked', 'Lost'];
+// Feature flag: LSA → Pest AI manual send. Hidden for now — most LSA leads have no valid phone/email, and
+// Pest AI can't create a contact without one. Flip to true to re-enable the button + "Sent to Pest AI" tile.
+// (Backend action + status + column all remain intact.)
+const PESTAI_SEND_ENABLED = false;
+
+const STAGES = PESTAI_SEND_ENABLED
+  ? ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Sent to Pest AI', 'Booked', 'Lost']
+  : ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Booked', 'Lost'];
 const stageColor: Record<string, { bg: string; fg: string }> = {
   'New': { bg: '#e6f0ff', fg: '#0052cc' },
   'Awaiting Customer': { bg: '#fef9e6', fg: '#a16207' },
@@ -216,7 +223,7 @@ export default function LsaLeadsPage() {
                         style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>
                         ↶ Undo
                       </button>
-                    ) : l.status === 'Sent to Pest AI' ? (
+                    ) : (PESTAI_SEND_ENABLED && l.status === 'Sent to Pest AI') ? (
                       // Already sent to Pest AI — button greyed/disabled; offer release back to automatic.
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <button disabled title={l.pestAiSentAt ? `Sent ${new Date(l.pestAiSentAt).toLocaleString()}` : 'Sent to Pest AI'}
@@ -246,10 +253,12 @@ export default function LsaLeadsPage() {
                           style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #B4B2A9', background: '#f1efe8', color: '#888780', cursor: 'pointer' }}>
                           ✕ Lost
                         </button>
-                        <button onClick={() => sendToPestAI(l.leadId)} disabled={sending[l.leadId]} title={l.pestAiSentAt ? `Last sent ${new Date(l.pestAiSentAt).toLocaleString()}` : 'Send this lead to Pest AI'}
-                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #6D28D9', background: l.pestAiSentAt ? '#f3f0fb' : '#ede9fb', color: '#6D28D9', cursor: sending[l.leadId] ? 'wait' : 'pointer', opacity: sending[l.leadId] ? 0.6 : 1 }}>
-                          {sending[l.leadId] ? 'Sending…' : l.pestAiSentAt ? '↻ Pest AI' : '→ Pest AI'}
-                        </button>
+                        {PESTAI_SEND_ENABLED && (
+                          <button onClick={() => sendToPestAI(l.leadId)} disabled={sending[l.leadId]} title={l.pestAiSentAt ? `Last sent ${new Date(l.pestAiSentAt).toLocaleString()}` : 'Send this lead to Pest AI'}
+                            style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #6D28D9', background: l.pestAiSentAt ? '#f3f0fb' : '#ede9fb', color: '#6D28D9', cursor: sending[l.leadId] ? 'wait' : 'pointer', opacity: sending[l.leadId] ? 0.6 : 1 }}>
+                            {sending[l.leadId] ? 'Sending…' : l.pestAiSentAt ? '↻ Pest AI' : '→ Pest AI'}
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>
