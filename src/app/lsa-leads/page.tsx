@@ -28,7 +28,7 @@ export default function LsaLeadsPage() {
   const [leadType, setLeadType] = useState('All');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [location, setLocation] = useState('Southlake');
+  const [location, setLocation] = useState('All');
   const [tab, setTab] = useState<'leads' | 'report'>('leads');
 
   function load() {
@@ -84,9 +84,9 @@ export default function LsaLeadsPage() {
         <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>Google Local Services Ads leads. Stages update automatically from message activity — reply in LSA and it moves to Awaiting Customer; 1 day silent flips to Need Follow-up with a Slack alert. You can still override a stage manually.</p>
       </div>
 
-      {/* Location selector — one account/office at a time */}
+      {/* Location selector — 'All' aggregates every office; or pick one */}
       <div style={{ display: 'flex', gap: 4, marginTop: 16, background: '#f1efe8', borderRadius: 8, padding: 3, flexWrap: 'wrap', width: 'fit-content' }}>
-        {(data?.locations || ['Southlake']).map((loc: string) => (
+        {['All', ...(data?.locations || ['Southlake'])].map((loc: string) => (
           <button key={loc} onClick={() => setLocation(loc)}
             style={{ fontSize: 12, padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
               background: location === loc ? '#fff' : 'transparent', color: location === loc ? '#2C2C2A' : '#888780', fontWeight: location === loc ? 600 : 400 }}>

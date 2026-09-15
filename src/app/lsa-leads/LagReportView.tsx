@@ -17,12 +17,17 @@ export default function LagReportView({ location }: { location: string }) {
   const [view, setView] = useState<'month' | 'week'>('month');
   const [seg, setSeg] = useState<Seg>('All');
   const [metric, setMetric] = useState<'firstReply' | 'depth'>('firstReply');
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     fetch(`/api/lsa-lag-report?location=${encodeURIComponent(location)}`).then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
   }, [location]);
 
-  const periods: Period[] = data ? (view === 'month' ? data.monthly : data.weekly)[seg] || [] : [];
+  // Newest first (so recent periods are at the top — no scrolling). Default to a recent window; "Show all" expands.
+  const allPeriods: Period[] = data ? [...((view === 'month' ? data.monthly : data.weekly)[seg] || [])].reverse() : [];
+  const recentLimit = view === 'month' ? 6 : 8;
+  const periods: Period[] = showAll ? allPeriods : allPeriods.slice(0, recentLimit);
+  const hiddenCount = allPeriods.length - periods.length;
 
   async function downloadExcel() {
     // SheetJS from CDN (client-side) to build a multi-tab workbook matching Chisam's format.
@@ -102,15 +107,15 @@ export default function LagReportView({ location }: { location: string }) {
     XLSX.writeFile(wb, `LSA_Lag_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
-  const th: React.CSSProperties = { textAlign: 'right', padding: '7px 12px', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3', whiteSpace: 'nowrap' };
-  const thL: React.CSSProperties = { ...th, textAlign: 'left' };
+  const th: React.CSSProperties = { textAlign: 'right', padding: '7px 12px', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: '#fff', zIndex: 2 };
+  const thL: React.CSSProperties = { ...th, textAlign: 'left', left: 0, zIndex: 3 };
   const td: React.CSSProperties = { textAlign: 'right', padding: '7px 12px', fontSize: 13, color: '#2C2C2A', borderBottom: '0.5px solid #F1EFE8', whiteSpace: 'nowrap' };
   const tdL: React.CSSProperties = { ...td, textAlign: 'left', fontWeight: 500 };
 
   const isFR = metric === 'firstReply';
 
   // Totals for the highlight strip
-  const totals = periods.reduce((a, p) => {
+  const totals = allPeriods.reduce((a, p) => {
     const b = p[metric];
     for (const k of BK) (a as any)[k] += (b as any)[k];
     a.noReply += b.noReply || 0; a.total += b.total;
@@ -157,6 +162,13 @@ export default function LagReportView({ location }: { location: string }) {
             </button>
           ))}
         </div>
+        {hiddenCount > 0 || showAll ? (
+          <button onClick={() => setShowAll(s => !s)}
+            style={{ fontSize: 12, padding: '5px 14px', borderRadius: 6, border: '0.5px solid #E8E7E3', cursor: 'pointer',
+              background: '#fff', color: '#2C2C2A', fontWeight: 500 }}>
+            {showAll ? `Show recent ${view === 'month' ? '6 months' : '8 weeks'}` : `Show all (${allPeriods.length})`}
+          </button>
+        ) : null}
         <div style={{ display: 'flex', gap: 4, background: '#f1efe8', borderRadius: 8, padding: 3 }}>
           {(['All', 'Wildlife', 'Pest'] as Seg[]).map(s => (
             <button key={s} onClick={() => setSeg(s)}
@@ -173,7 +185,7 @@ export default function LagReportView({ location }: { location: string }) {
       ) : periods.length === 0 ? (
         <p style={{ color: '#888780', fontSize: 13, padding: 30, textAlign: 'center' }}>No message-lead data yet. Run the LSA sync first.</p>
       ) : (
-        <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff' }}>
+        <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', maxHeight: '65vh', background: '#fff' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             {isFR ? (
               // FIRST-REPLY view: lead with the 3 efficiency KPIs as %, keep >1d + No Reply as worst-case flags.
@@ -205,7 +217,7 @@ export default function LagReportView({ location }: { location: string }) {
                     );
                   })}
                   <tr style={{ background: '#faf9f6' }}>
-                    <td style={{ ...tdL, fontWeight: 600 }}>TOTAL</td>
+                    <td style={{ ...tdL, fontWeight: 600 }}>TOTAL (all)</td>
                     <td style={{ ...td, fontWeight: 700, color: '#128a3f' }}>{totals['<5m']} <span style={{ fontWeight: 500 }}>({pct(totals['<5m'], totals.total)})</span></td>
                     <td style={{ ...td, fontWeight: 600 }}>{totals['5-15m']} <span style={{ fontWeight: 500 }}>({pct(totals['5-15m'], totals.total)})</span></td>
                     <td style={{ ...td, fontWeight: 600, color: '#b45309' }}>{totals['15-60m'] + totals['1-24h']} <span style={{ fontWeight: 500 }}>({pct(totals['15-60m'] + totals['1-24h'], totals.total)})</span></td>
@@ -237,7 +249,7 @@ export default function LagReportView({ location }: { location: string }) {
                     );
                   })}
                   <tr style={{ background: '#faf9f6' }}>
-                    <td style={{ ...tdL, fontWeight: 600 }}>TOTAL</td>
+                    <td style={{ ...tdL, fontWeight: 600 }}>TOTAL (all)</td>
                     {BK.map(k => <td key={k} style={{ ...td, fontWeight: 600 }}>{totals[k]}</td>)}
                     <td style={{ ...td, fontWeight: 600 }}>{totals.total}</td>
                     <td style={{ ...td, fontWeight: 600, borderLeft: '0.5px solid #E8E7E3', color: '#128a3f' }}>{pct(totals['>1d'], totals.total)}</td>
