@@ -56,7 +56,7 @@ function weekInfo(d: Date): { key: string; label: string } {
   const week = Math.ceil((((dt.getTime() - yearStart.getTime()) / DAY) + 1) / 7);
   return {
     key: `${dt.getUTCFullYear()}-W${String(week).padStart(2, '0')}`,
-    label: `Wk of ${monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`,
+    label: `Wk of ${monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`,
   };
 }
 

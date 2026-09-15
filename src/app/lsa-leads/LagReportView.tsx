@@ -17,17 +17,15 @@ export default function LagReportView({ location }: { location: string }) {
   const [view, setView] = useState<'month' | 'week'>('month');
   const [seg, setSeg] = useState<Seg>('All');
   const [metric, setMetric] = useState<'firstReply' | 'depth'>('firstReply');
-  const [showAll, setShowAll] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('all'); // period key, or 'all'
 
   useEffect(() => {
     fetch(`/api/lsa-lag-report?location=${encodeURIComponent(location)}`).then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
   }, [location]);
 
-  // Newest first (so recent periods are at the top — no scrolling). Default to a recent window; "Show all" expands.
+  // Newest first (recent at the top). A dropdown lets you jump to a specific month/week, or view all.
   const allPeriods: Period[] = data ? [...((view === 'month' ? data.monthly : data.weekly)[seg] || [])].reverse() : [];
-  const recentLimit = view === 'month' ? 6 : 8;
-  const periods: Period[] = showAll ? allPeriods : allPeriods.slice(0, recentLimit);
-  const hiddenCount = allPeriods.length - periods.length;
+  const periods: Period[] = selectedPeriod === 'all' ? allPeriods : allPeriods.filter(p => p.key === selectedPeriod);
 
   async function downloadExcel() {
     // SheetJS from CDN (client-side) to build a multi-tab workbook matching Chisam's format.
@@ -155,20 +153,18 @@ export default function LagReportView({ location }: { location: string }) {
       <div style={{ display: 'flex', gap: 16, marginTop: 16, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 4, background: '#f1efe8', borderRadius: 8, padding: 3 }}>
           {(['month', 'week'] as const).map(v => (
-            <button key={v} onClick={() => setView(v)}
+            <button key={v} onClick={() => { setView(v); setSelectedPeriod('all'); }}
               style={{ fontSize: 12, padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
                 background: view === v ? '#fff' : 'transparent', color: view === v ? '#2C2C2A' : '#888780', fontWeight: view === v ? 600 : 400 }}>
               {v === 'month' ? 'Monthly' : 'Weekly'}
             </button>
           ))}
         </div>
-        {hiddenCount > 0 || showAll ? (
-          <button onClick={() => setShowAll(s => !s)}
-            style={{ fontSize: 12, padding: '5px 14px', borderRadius: 6, border: '0.5px solid #E8E7E3', cursor: 'pointer',
-              background: '#fff', color: '#2C2C2A', fontWeight: 500 }}>
-            {showAll ? `Show recent ${view === 'month' ? '6 months' : '8 weeks'}` : `Show all (${allPeriods.length})`}
-          </button>
-        ) : null}
+        <select value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}
+          style={{ fontSize: 12, padding: '6px 12px', borderRadius: 6, border: '0.5px solid #E8E7E3', cursor: 'pointer', background: '#fff', color: '#2C2C2A' }}>
+          <option value="all">All {view === 'month' ? 'months' : 'weeks'}</option>
+          {allPeriods.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+        </select>
         <div style={{ display: 'flex', gap: 4, background: '#f1efe8', borderRadius: 8, padding: 3 }}>
           {(['All', 'Wildlife', 'Pest'] as Seg[]).map(s => (
             <button key={s} onClick={() => setSeg(s)}
