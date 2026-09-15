@@ -62,6 +62,36 @@ export async function PATCH(req: NextRequest) {
 
   const data: any = {};
 
+  // Manual send of the lead to Pest AI (LeadConnector webhook).
+  if (action === 'send-pestai') {
+    const PESTAI_LEAD_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/fffe85cb-4674-4477-a3ff-6a6a65f55239';
+    const nameParts = (lead.contactName || '').trim().split(/\s+/);
+    const payload = {
+      leadId: lead.leadId,
+      fname: nameParts[0] || '',
+      lname: nameParts.slice(1).join(' ') || '',
+      phone1: (lead.contactPhone || '').replace(/\D/g, ''),
+      location: lead.location || '',
+      category: lead.category || '',
+      leadType: lead.leadType || '',
+      status: lead.status || '',
+      creationDate: lead.creationDateTime ? new Date(lead.creationDateTime).toISOString() : '',
+      source: 'LSA',
+    };
+    try {
+      const res = await fetch(PESTAI_LEAD_WEBHOOK, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      const respText = await res.text();
+      if (!res.ok) return NextResponse.json({ error: `Webhook failed (${res.status})`, detail: respText.slice(0, 300) }, { status: 502 });
+      // Stamp that it was sent (for UI feedback + avoiding accidental double-sends).
+      await prisma.lsaLead.update({ where: { leadId }, data: { pestAiSentAt: new Date() } }).catch(() => {});
+      return NextResponse.json({ ok: true, sent: true, response: respText.slice(0, 200) });
+    } catch (e: any) {
+      return NextResponse.json({ error: 'Webhook error', detail: String(e).slice(0, 300) }, { status: 502 });
+    }
+  }
+
   if (action === 'tag') {
     // Manual Booked/Lost tag — overrides automation.
     if (tag !== 'Booked' && tag !== 'Lost') return NextResponse.json({ error: 'tag must be Booked or Lost' }, { status: 400 });

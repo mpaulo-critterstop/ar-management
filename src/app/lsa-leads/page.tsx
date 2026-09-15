@@ -39,6 +39,7 @@ export default function LsaLeadsPage() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [status, leadType, location]);
 
   const [undoable, setUndoable] = useState<Record<string, string>>({}); // leadId -> prior status, during undo window
+  const [sending, setSending] = useState<Record<string, boolean>>({}); // leadId -> true while sending to Pest AI
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   async function tagLead(leadId: string, tag: 'Booked' | 'Lost', priorStatus: string) {
@@ -59,6 +60,21 @@ export default function LsaLeadsPage() {
     });
     setUndoable(u => { const n = { ...u }; delete n[leadId]; return n; });
     load();
+  }
+
+  async function sendToPestAI(leadId: string) {
+    if (!confirm('Send this lead to Pest AI? This fires the follow-up webhook for this lead.')) return;
+    setSending(s => ({ ...s, [leadId]: true }));
+    try {
+      const res = await fetch('/api/lsa-leads', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId, action: 'send-pestai' }),
+      });
+      const d = await res.json();
+      if (!res.ok) { alert(d.error || 'Failed to send to Pest AI'); }
+      load();
+    } catch { alert('Failed to send to Pest AI'); }
+    finally { setSending(s => { const n = { ...s }; delete n[leadId]; return n; }); }
   }
 
   const leads = (data?.leads || []).filter((l: any) =>
@@ -208,7 +224,7 @@ export default function LsaLeadsPage() {
                         </button>
                       ) : <span style={{ fontSize: 11, color: '#B4B2A9' }}>auto</span>
                     ) : (
-                      <div style={{ display: 'flex', gap: 4 }}>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                         <button onClick={() => tagLead(l.leadId, 'Booked', l.status)}
                           style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #128a3f', background: '#e6f9ec', color: '#128a3f', cursor: 'pointer' }}>
                           ✓ Booked
@@ -216,6 +232,10 @@ export default function LsaLeadsPage() {
                         <button onClick={() => tagLead(l.leadId, 'Lost', l.status)}
                           style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #B4B2A9', background: '#f1efe8', color: '#888780', cursor: 'pointer' }}>
                           ✕ Lost
+                        </button>
+                        <button onClick={() => sendToPestAI(l.leadId)} disabled={sending[l.leadId]} title={l.pestAiSentAt ? `Last sent ${new Date(l.pestAiSentAt).toLocaleString()}` : 'Send this lead to Pest AI'}
+                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #6D28D9', background: l.pestAiSentAt ? '#f3f0fb' : '#ede9fb', color: '#6D28D9', cursor: sending[l.leadId] ? 'wait' : 'pointer', opacity: sending[l.leadId] ? 0.6 : 1 }}>
+                          {sending[l.leadId] ? 'Sending…' : l.pestAiSentAt ? '↻ Pest AI' : '→ Pest AI'}
                         </button>
                       </div>
                     )}

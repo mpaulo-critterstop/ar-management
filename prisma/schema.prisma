@@ -915,6 +915,7 @@ model LsaLead {
   conversationCount Int       @default(0)
   lastParticipant   String?                        // 'ADVERTISER' (us) | 'CONSUMER' (customer) — last msg sender
   manualOverride    Boolean   @default(false)      // true = stage was hand-set; auto-derivation skips it
+  pestAiSentAt      DateTime?                       // when the lead was manually sent to Pest AI via webhook
   followupNote      String?                        // our internal follow-up note
   staleFlagged      Boolean   @default(false)      // set when auto-flagged stale (dedupe Slack alerts)
   replyAlerted      Boolean   @default(false)      // set when we've Slack-alerted this customer reply (dedupe)
