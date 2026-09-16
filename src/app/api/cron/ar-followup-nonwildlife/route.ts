@@ -25,12 +25,47 @@ const OFFICE_WEBHOOKS: Record<string, string> = {
   // CStat: '...',
 };
 
+// Per-office "fully paid" webhooks (same as sync/auto's NONWILDLIFE_PAID_WEBHOOKS). Used here only for the
+// test-paid mapping action; the real paid firing happens in sync/auto when a balance hits 0.
+const OFFICE_PAID_WEBHOOKS: Record<string, string> = {
+  ATX: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/U7XqrO6Z72QSQdx0NBDk',
+};
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   if (searchParams.get('token') !== 'critterstop2026' && searchParams.get('token') !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const dry = searchParams.get('dry') === 'true';
+  const action = searchParams.get('action') || undefined; // 'test-paid' fires the PAID webhook for mapping
+
+  // TEST-PAID: fire the per-office paid webhook for one invoice, to map it in Pest AI. Does NOT change any
+  // enrollment state — purely a mapping tool. The real paid firing happens in sync/auto when balance hits 0.
+  if (action === 'test-paid') {
+    const testInvId = searchParams.get('invoiceId');
+    if (!testInvId) return NextResponse.json({ error: 'need invoiceId' }, { status: 400 });
+    const rows = await prisma.$queryRawUnsafe(`
+      SELECT i.*, c.name as "customerName", c.phone, c.email, c."serviceAddr", c."externalId" as "customerExternalId"
+      FROM invoices i JOIN customers c ON c.id = i."customerId"
+      WHERE i."externalId" = '${testInvId.replace(/'/g, "")}' LIMIT 1
+    `) as any[];
+    const inv = rows[0];
+    if (!inv) return NextResponse.json({ error: 'invoice not found' }, { status: 404 });
+    const paidWebhook = OFFICE_PAID_WEBHOOKS[inv.office];
+    if (!paidWebhook) return NextResponse.json({ error: `no paid webhook for office ${inv.office}` }, { status: 400 });
+    const nameParts = (inv.customerName || '').trim().split(' ');
+    const payload = {
+      fname: nameParts[0] || '', lname: nameParts.slice(1).join(' ') || '',
+      phone1: (inv.phone || '').replace(/\D/g, ''), email: inv.email || '', address: inv.serviceAddr || '',
+      invoiceNumber: inv.externalId || inv.id, invoiceAmount: Number(inv.amount || 0).toFixed(2),
+      amountDue: '0.00', dueDate: inv.due ? new Date(inv.due).toISOString().split('T')[0] : '',
+      officeName: inv.office || '', customerID: inv.customerExternalId || inv.customerId, event: 'paid_in_full',
+    };
+    if (dry) return NextResponse.json({ testPaid: true, dry: true, invoice: testInvId, office: inv.office, payload });
+    const res = await fetch(paidWebhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    return NextResponse.json({ testPaid: true, invoice: testInvId, office: inv.office, httpStatus: res.status, note: 'Paid webhook fired for mapping — no enrollment state changed.' });
+  }
+
   const officeParam = searchParams.get('office') || undefined;
   const limit = parseInt(searchParams.get('limit') || '200');
   const days = parseInt(searchParams.get('days') || '1'); // due within the last N days (default: yesterday)
