@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
   const officeParam = searchParams.get('office') || undefined;
   const limit = parseInt(searchParams.get('limit') || '200');
   const days = parseInt(searchParams.get('days') || '1'); // due within the last N days (default: yesterday)
+  const singleInvoiceId = searchParams.get('invoiceId') || undefined; // send one specific invoice (bypasses date window)
 
   // Only offices with a configured webhook (optionally narrowed to ?office=).
   const activeOffices = Object.keys(OFFICE_WEBHOOKS).filter(o => !officeParam || o === officeParam);
@@ -58,8 +59,9 @@ export async function GET(req: NextRequest) {
       AND i."arFollowupSent" = false
       AND c."excludeFromAutomation" = false
       AND i.office IN (${officeCsv})
-      AND i.due >= (CURRENT_DATE - INTERVAL '${days} day')
-      AND i.due < CURRENT_DATE
+      ${singleInvoiceId
+        ? `AND i."externalId" = '${singleInvoiceId.replace(/'/g, "")}'`
+        : `AND i.due >= (CURRENT_DATE - INTERVAL '${days} day') AND i.due < CURRENT_DATE`}
     ORDER BY i.due ASC
     LIMIT ${limit}
   `) as any[];
