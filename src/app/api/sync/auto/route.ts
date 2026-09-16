@@ -15,6 +15,17 @@ const AR_FOLLOWUP_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSB
 const AR_PARTIAL_WEBHOOK  = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/AM0p0PhEMlKoBozA9FnB';
 const AR_PAID_WEBHOOK     = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/rlu6JwusY1H2fUXOrMli';
 
+// AR enrollment wildlife service IDs (must match the ar-followup enrollment list exactly — NOT the broad
+// WILDLIFE_SERVICE_IDS categorization set). An enrolled invoice is "wildlife AR" only if its serviceId is here;
+// otherwise it was enrolled via the non-wildlife per-office flow and its paid webhook routes per office.
+const AR_WILDLIFE_SERVICE_IDS = new Set([553, 716, 720, 501, 674, 479, 541, 542, 624, 510]);
+
+// Per-office "fully paid" webhooks for the NON-wildlife AR flow (mirrors the wildlife AR_PAID_WEBHOOK). Add
+// offices as their paid webhooks are created.
+const NONWILDLIFE_PAID_WEBHOOKS: Record<string, string> = {
+  ATX: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/U7XqrO6Z72QSQdx0NBDk',
+};
+
 // ============================================================
 // OFFICE CONFIGURATION
 // ============================================================
@@ -334,14 +345,22 @@ async function processTicket(
         // customer is now fully paid, fire the paid webhook and un-enroll. This catches payments that landed
         // while automation was off / in a run that didn't send (the transition check below would miss those
         // because prevPaid already absorbed the payment). Belt-and-suspenders against dunning paid customers.
+        // Route the paid/maintenance webhooks by flow: wildlife AR uses the single AR_PAID_WEBHOOK (+ partial/
+        // balance sequence); the non-wildlife per-office flow uses its office paid webhook and is PAID-only
+        // (no partial/balance sequence — that flow is overdue + paid).
+        const isWildlifeAr = AR_WILDLIFE_SERVICE_IDS.has(Number(serviceId));
+        const paidWebhook = isWildlifeAr ? AR_PAID_WEBHOOK : NONWILDLIFE_PAID_WEBHOOKS[String(result.office)];
+
         if (amountDue <= 0) {
-          await fetch(AR_PAID_WEBHOOK, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...basePayload, event: 'paid_in_full' }),
-          }).catch(() => {});
+          if (paidWebhook) {
+            await fetch(paidWebhook, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...basePayload, event: 'paid_in_full' }),
+            }).catch(() => {});
+          }
           await prisma.invoice.update({ where: { id: result.id }, data: { arFollowupSent: false } }).catch(() => {});
-        } else if (newPaid > enrolledPaid) {
+        } else if (isWildlifeAr && newPaid > enrolledPaid) {
           // A NEW payment since enrollment (paid rose above the enrollment-time baseline) — restart the
           // sequence at the new balance. A pre-existing partial (paid at enrollment) never triggers this.
           await fetch(AR_PARTIAL_WEBHOOK, {
@@ -349,8 +368,8 @@ async function processTicket(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...basePayload, event: 'partial_payment' }),
           }).catch(() => {});
-        } else if (amount < prevAmount && newPaid === prevPaid) {
-          // Discount applied — update contact balance but stay in sequence
+        } else if (isWildlifeAr && amount < prevAmount && newPaid === prevPaid) {
+          // Discount applied — update contact balance but stay in sequence (wildlife only)
           await fetch(AR_FOLLOWUP_WEBHOOK, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
