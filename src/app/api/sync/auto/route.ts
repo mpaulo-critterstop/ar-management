@@ -389,6 +389,16 @@ async function syncCustomers(
 
   const customers = await fetchInBatches('customer/get', 'customerIDs', allIds, key, token);
 
+  // Pre-pass: collect every account referenced AS a master by some other customer. A customer whose own ID is
+  // in this set IS a master (has children), so it should also be excluded from AR automation — not just the
+  // children (which the hasMaster check below already catches). This closes the gap where parent/master
+  // accounts (e.g. "Main House") were being dunned.
+  const masterIds = new Set<string>();
+  for (const c of customers) {
+    const m = String(c.masterAccount ?? '0');
+    if (m !== '0' && m !== '' && m !== String(c.customerID)) masterIds.add(m);
+  }
+
   for (const c of customers) {
     try {
       if (c.officeID !== OFFICES[office as keyof typeof OFFICES].officeId) continue;
@@ -406,9 +416,10 @@ async function syncCustomers(
       const commercial = c.commercialAccount === 1 || c.commercialAccount === '1';
       const masterRaw = String(c.masterAccount ?? '0');
       const hasMaster = masterRaw !== '0' && masterRaw !== '' && masterRaw !== custId;
+      const isMaster = masterIds.has(custId); // this account IS a master (has children) → also exclude
       const billToRaw = String(c.billToAccountID ?? custId);
       const billsElsewhere = billToRaw !== '0' && billToRaw !== '' && billToRaw !== custId;
-      const excludeFromAutomation = commercial || hasMaster || billsElsewhere;
+      const excludeFromAutomation = commercial || hasMaster || isMaster || billsElsewhere;
 
       const customerData = {
         name,
