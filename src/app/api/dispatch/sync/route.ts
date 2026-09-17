@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { loadCloseoutFormDates } from '@/lib/closeout';
+import { waitUntil } from '@vercel/functions';
 
 const OFFICES = {
   DFW: { key: process.env.FIELDROUTES_KEY_DFW!, token: process.env.FIELDROUTES_TOKEN_DFW! },
@@ -325,7 +326,7 @@ export async function POST(req: NextRequest) {
   // response returns.
   const baseUrl = process.env.PUBLIC_BASE_URL || 'https://hub.critterstop.com';
   for (const office of officesToSync) {
-    fetch(`${baseUrl}/api/cron/closeout-forms-sync?token=critterstop2026&office=${office}`).catch(() => {});
+    waitUntil(fetch(`${baseUrl}/api/cron/closeout-forms-sync?token=critterstop2026&office=${office}`).catch(() => {}));
   }
 
   return NextResponse.json({ success: true, results });

@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { CLOSEOUT_FORM_TEMPLATE_ID } from '@/lib/closeout';
+import { waitUntil } from '@vercel/functions';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 800;
@@ -115,7 +116,7 @@ export async function GET(req: NextRequest) {
   const wait = sp.get('wait') === '1';
 
   if (!wait) {
-    runSync(offices, lookbackDays).catch(e => console.error('closeout-forms-sync bg error:', e));
+    waitUntil(runSync(offices, lookbackDays).catch(e => console.error('closeout-forms-sync bg error:', e)));
     return NextResponse.json({ ok: true, started: true, offices, lookbackDays, note: 'Running in background. Add &wait=1 for results.' });
   }
   const results = await runSync(offices, lookbackDays);
