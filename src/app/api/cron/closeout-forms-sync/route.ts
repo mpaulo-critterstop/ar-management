@@ -14,7 +14,7 @@ import { CLOSEOUT_FORM_TEMPLATE_ID } from '@/lib/closeout';
 import { waitUntil } from '@vercel/functions';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 800;
+export const maxDuration = 900;
 
 const BASE_URL = 'https://critterstoppest.fieldroutes.com/api';
 const OFFICES: Record<string, { key: string; token: string; officeId: number }> = {
@@ -112,7 +112,8 @@ export async function GET(req: NextRequest) {
   }
   const officeParam = sp.get('office');
   const offices = officeParam ? [officeParam] : Object.keys(OFFICES);
-  const lookbackDays = parseInt(sp.get('days') || '21');
+  const lookbackDays = parseInt(sp.get('days') || '4'); // routine run: only recent CO customers (small/fast).
+  // For a full catch-up, pass a bigger ?days= and run ONE office at a time (?office=) to stay under maxDuration.
   const wait = sp.get('wait') === '1';
 
   if (!wait) {
