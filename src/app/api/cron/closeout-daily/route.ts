@@ -188,6 +188,10 @@ export async function GET(req: NextRequest) {
     dateEnd: dayStr,
     status: '1', // completed
   }, cfg.key, cfg.token));
+  // Surface FR errors (e.g. daily read-quota exhausted) instead of throwing a generic 500.
+  if (search?.success === false || (!search.appointmentIDs && search?.errorMessage)) {
+    return NextResponse.json({ error: 'FR appointment/search failed', detail: search?.errorMessage || JSON.stringify(search).slice(0, 300), hint: 'Often the FR daily read quota (5000/office/day) — resets at midnight.' }, { status: 502 });
+  }
   const apptIds: number[] = search.appointmentIDs || [];
   const appts = apptIds.length ? await fetchApptsByIds(apptIds, cfg.key, cfg.token) : [];
 
