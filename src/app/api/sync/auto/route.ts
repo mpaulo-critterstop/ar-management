@@ -24,6 +24,7 @@ const AR_WILDLIFE_SERVICE_IDS = new Set([553, 716, 720, 501, 674, 479, 541, 542,
 // offices as their paid webhooks are created.
 const NONWILDLIFE_PAID_WEBHOOKS: Record<string, string> = {
   ATX: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/U7XqrO6Z72QSQdx0NBDk',
+  OKC: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/Fu5oU8bpXzyhcGeHz1yu',
 };
 
 // ============================================================
