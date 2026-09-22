@@ -30,6 +30,9 @@ const EXCLUDE_SERVICEIDS = new Set(['836', '1077']);
 // Wildlife service types that are normally excluded, but should be TRACKED as CSR pest sales under the
 // 'Mole/OLT' category (CSR-only — never PM commission). Per Mark.
 const MOLE_OLT_SERVICEIDS = new Set(['683', '631', '526', '489', '685', '691', '684', '690']);
+// Dead Animal Removal (ID 496) — FR-categorized Wildlife (normally excluded) but tracked as a CSR sale under
+// its own 'Dead Animal Removal' category, same treatment as Mole/OLT (CSR-only, never PM commission). Per Mark.
+const DEAD_ANIMAL_SERVICEIDS = new Set(['496']);
 const monthKey = (d: string | null | undefined) => (d && !d.startsWith('0000')) ? d.slice(0, 7) : null;
 // FR returns dates as 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS' in the office's LOCAL time (US Central), with no
 // offset. new Date() on a UTC server misreads them (a 5-6h shift that can move a sale to the prior day/month).
@@ -174,11 +177,12 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
       const frCategory = cat?.category || '';
       const name = cat?.name || s.serviceType || `#${s.serviceID}`;
       const isMoleOlt = MOLE_OLT_SERVICEIDS.has(String(s.serviceID));
+      const isDeadAnimal = DEAD_ANIMAL_SERVICEIDS.has(String(s.serviceID));
       // Fine-grained commission category (peels Mosquito/Misting/Bed Bug/Flea-Roach/Bait/Fly/standalone
       // rodent out of FR "Pest Control"; excludes inspections/reservice/etc.).
-      // Mole/OLT service IDs are Wildlife (normally excluded) but should be TRACKED as CSR sales under a
-      // dedicated 'Mole/OLT' category — never as PM commission (handled below by dropping PM sellers).
-      const commCat = isMoleOlt ? 'Mole/OLT' : classifyPestCommission(frCategory, name);
+      // Mole/OLT + Dead Animal Removal service IDs are Wildlife (normally excluded) but should be TRACKED as
+      // CSR sales under a dedicated category — never as PM commission (handled below by dropping PM sellers).
+      const commCat = isMoleOlt ? 'Mole/OLT' : isDeadAnimal ? 'Dead Animal Removal' : classifyPestCommission(frCategory, name);
       if (commCat === 'EXCLUDE') continue;
       const isT = commCat === 'Termite';
       const cv = Number(s.contractValue);
@@ -191,8 +195,8 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
       const csr = pm ? null : getCSR(soldByName);   // PM precedence; else CSR
       const seller = pm || csr;
       if (!seller) continue;
-      // Mole/OLT is CSR-tracking only — if a PM somehow sold it, don't record it (no PM commission).
-      if (isMoleOlt && pm) continue;
+      // Mole/OLT + Dead Animal Removal are CSR-tracking only — if a PM somehow sold it, don't record it.
+      if ((isMoleOlt || isDeadAnimal) && pm) continue;
       // Skip PM sales before the Excel/FR boundary (avoid double-count). CSR sales are fine any time.
       const saleDt = toDate(s.dateAdded);
       if (pm && saleDt && saleDt < PM_FR_BOUNDARY) {
