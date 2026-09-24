@@ -21,7 +21,7 @@ const WILDLIFE_SERVICE_IDS = [553, 716, 720, 501, 674, 479, 541, 542, 624, 510];
 const OFFICE_WEBHOOKS: Record<string, string> = {
   ATX: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/81b4942e-427d-44d9-ab24-68022e64c3d8',
   OKC: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/aiPd3gLE8gbCPJyQE5IL',
-  // DFW: '...',
+  DFW: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/5lugzs1yVnb2BvZP183z',
   // CStat: '...',
 };
 
@@ -30,6 +30,7 @@ const OFFICE_WEBHOOKS: Record<string, string> = {
 const OFFICE_PAID_WEBHOOKS: Record<string, string> = {
   ATX: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/U7XqrO6Z72QSQdx0NBDk',
   OKC: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/Fu5oU8bpXzyhcGeHz1yu',
+  DFW: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/TY1ZIaLzXHpzEuv67mpm',
 };
 
 export async function GET(req: NextRequest) {
