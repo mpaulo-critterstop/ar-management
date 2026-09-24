@@ -93,6 +93,7 @@ export async function GET(req: NextRequest) {
       AND (i."serviceId" IS NULL OR i."serviceId" NOT IN (${wildlistCsv}))
       AND i.amount > 0
       AND i.paid < i.amount
+      AND (i.amount - i.paid) >= 10   -- minimum balance floor: don't dun for < $10
       AND i."arFollowupSent" = false
       AND c."excludeFromAutomation" = false
       AND i.office IN (${officeCsv})
