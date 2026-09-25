@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
 
   // 3) Those customers' tickets → aggregate distinct productID + description with totals.
   const products = new Map<string, { productID: string; description: string; count: number; totalAmount: number; sampleAmounts: number[] }>();
-  const custArr = [...custIds].slice(0, 120); // cap for the probe
+  const custArr: string[] = [...custIds].slice(0, 120); // cap for the probe
   for (let i = 0; i < custArr.length; i += 1) {
     const ts = await fr(`${BASE_URL}/ticket/search?customerID=${custArr[i]}&${auth}`);
     const tIds: any[] = (ts.ticketIDs || []).slice(0, 20);
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
       for (const it of (t.items || [])) {
         const key = `${it.productID}|${(it.description || '').trim()}`;
         const amt = parseFloat(it.amount || '0');
-        const cur = products.get(key) || { productID: String(it.productID), description: (it.description || '').trim(), count: 0, totalAmount: 0, sampleAmounts: [] };
+        const cur = products.get(key) || { productID: String(it.productID), description: (it.description || '').trim(), count: 0, totalAmount: 0, sampleAmounts: [] as number[] };
         cur.count++; cur.totalAmount += amt;
         if (cur.sampleAmounts.length < 3 && amt > 0) cur.sampleAmounts.push(amt);
         products.set(key, cur);
