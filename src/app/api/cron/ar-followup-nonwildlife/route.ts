@@ -22,7 +22,7 @@ const OFFICE_WEBHOOKS: Record<string, string> = {
   ATX: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/81b4942e-427d-44d9-ab24-68022e64c3d8',
   OKC: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/aiPd3gLE8gbCPJyQE5IL',
   DFW: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/5lugzs1yVnb2BvZP183z',
-  // CStat: '...',
+  CStat: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/z3fOAw3YUiFvWWlRHqpS',
 };
 
 // Per-office "fully paid" webhooks (same as sync/auto's NONWILDLIFE_PAID_WEBHOOKS). Used here only for the
@@ -31,6 +31,7 @@ const OFFICE_PAID_WEBHOOKS: Record<string, string> = {
   ATX: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/U7XqrO6Z72QSQdx0NBDk',
   OKC: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/Fu5oU8bpXzyhcGeHz1yu',
   DFW: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/TY1ZIaLzXHpzEuv67mpm',
+  CStat: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/jeo4cVmhgfPgWoJO1ERw',
 };
 
 export async function GET(req: NextRequest) {

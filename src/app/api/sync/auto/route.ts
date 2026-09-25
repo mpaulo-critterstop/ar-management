@@ -26,6 +26,7 @@ const NONWILDLIFE_PAID_WEBHOOKS: Record<string, string> = {
   ATX: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/U7XqrO6Z72QSQdx0NBDk',
   OKC: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/Fu5oU8bpXzyhcGeHz1yu',
   DFW: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/TY1ZIaLzXHpzEuv67mpm',
+  CStat: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/jeo4cVmhgfPgWoJO1ERw',
 };
 
 // ============================================================
