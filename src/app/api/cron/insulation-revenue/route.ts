@@ -12,6 +12,7 @@
 //   /api/cron/insulation-revenue?token=critterstop2026&period=month&date=2026-09-01
 //   ...&office=DFW   (single office; default all)   ...&csv=1
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 800;
 
@@ -31,6 +32,16 @@ function fr(url: string): Promise<any> {
   return run;
 }
 const fmt = (d: Date) => d.toISOString().split('T')[0];
+
+// Get a customer's invoice/ticket externalIDs from the Hub DB (reliable for old invoices, unlike FR
+// ticket/search which misses tickets outside its recent window). custExtId = FR customerID.
+async function customerTicketIds(custExtId: string): Promise<string[]> {
+  const invs = await prisma.invoice.findMany({
+    where: { customer: { externalId: custExtId }, externalId: { not: null } },
+    select: { externalId: true },
+  });
+  return invs.map(i => i.externalId!).filter(Boolean);
+}
 
 // Monday-start week bounds containing `d`; or month bounds.
 function periodBounds(period: string, d: Date): { start: Date; end: Date; label: string } {
@@ -80,8 +91,8 @@ export async function GET(req: NextRequest) {
     const out: any[] = [];
     for (const a of appts) {
       const custID = String(a.customerID); if (!custID || custID === '0') continue;
-      const ts = await fr(`${BASE_URL}/ticket/search?customerID=${custID}&${auth}`);
-      const tickets = (ts.ticketIDs || []).length ? await fetchByIds('ticket', 'ticketIDs', ts.ticketIDs, cfg.key, cfg.token) : [];
+      const tIds = await customerTicketIds(custID);
+      const tickets = tIds.length ? await fetchByIds('ticket', 'ticketIDs', tIds, cfg.key, cfg.token) : [];
       let rev = 0; const farLines: any[] = [];
       for (const t of tickets) for (const it of (t.items || [])) {
         if (INSULATION_PRODUCT_IDS.has(parseInt(String(it.productID)))) { rev += parseFloat(it.amount || '0'); farLines.push({ ticketID: t.ticketID, productID: it.productID, desc: it.description, amount: it.amount }); }
@@ -148,8 +159,7 @@ export async function GET(req: NextRequest) {
   // 3) Per job: pull the customer's FAR invoice line items (productID 10/43) and sum.
   for (const job of jobs.values()) {
     const cfg = OFFICES[job.office]; const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
-    const ts = await fr(`${BASE_URL}/ticket/search?customerID=${job.customerID}&${auth}`);
-    const tIds: any[] = ts.ticketIDs || [];
+    const tIds = await customerTicketIds(job.customerID);
     if (!tIds.length) { job.revenue = 0; continue; }
     const tickets = await fetchByIds('ticket', 'ticketIDs', tIds, cfg.key, cfg.token);
     let rev = 0; let found = false;
