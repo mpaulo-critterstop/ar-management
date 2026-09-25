@@ -209,6 +209,17 @@ export default function HomePage() {
         { label: 'Active CSRs', value: (csrKpis.csrStats || []).filter((c: any) => c.active).length },
       ] : null,
     },
+    {
+      module: 'reports' as ModuleKey,
+      icon: '📈',
+      title: 'Reports',
+      desc: 'Operational and financial reports \u2014 insulation revenue per tech, close-out lists, and more.',
+      href: '/reports',
+      accentColor: '#0052cc',
+      main: '\u2014',
+      mainLabel: 'Reports',
+      stats: null,
+    },
   ];
 
   // Show only modules this user can access.
