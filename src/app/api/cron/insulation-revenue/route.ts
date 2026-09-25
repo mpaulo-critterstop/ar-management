@@ -64,6 +64,33 @@ export async function GET(req: NextRequest) {
   if (sp.get('token') !== process.env.CRON_SECRET && sp.get('token') !== 'critterstop2026') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  // FAST VALIDATION: one route → its appts → each customer's FAR invoice revenue. Confirms the logic quickly.
+  const debugRoute = sp.get('debugRoute');
+  const debugOffice = sp.get('office') || 'DFW';
+  if (debugRoute) {
+    const cfg = OFFICES[debugOffice]; const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+    const rg = await fr(`${BASE_URL}/route/get?routeIDs=${debugRoute},${debugRoute}&${auth}`);
+    const r = (rg.routes || [])[0];
+    if (!r) return NextResponse.json({ error: 'route not found' });
+    const crew = (r.additionalTechs ? String(r.additionalTechs).split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+    if (!crew.length && r.assignedTech && String(r.assignedTech) !== '0') crew.push(String(r.assignedTech));
+    const as = await fr(`${BASE_URL}/appointment/search?routeIDs=${debugRoute}&${auth}`);
+    const appts = (as.appointmentIDs || []).length ? await fetchByIds('appointment', 'appointmentIDs', as.appointmentIDs, cfg.key, cfg.token) : [];
+    const out: any[] = [];
+    for (const a of appts) {
+      const custID = String(a.customerID); if (!custID || custID === '0') continue;
+      const ts = await fr(`${BASE_URL}/ticket/search?customerID=${custID}&${auth}`);
+      const tickets = (ts.ticketIDs || []).length ? await fetchByIds('ticket', 'ticketIDs', ts.ticketIDs, cfg.key, cfg.token) : [];
+      let rev = 0; const farLines: any[] = [];
+      for (const t of tickets) for (const it of (t.items || [])) {
+        if (INSULATION_PRODUCT_IDS.has(parseInt(String(it.productID)))) { rev += parseFloat(it.amount || '0'); farLines.push({ ticketID: t.ticketID, productID: it.productID, desc: it.description, amount: it.amount }); }
+      }
+      out.push({ customer: a.customerName || custID, customerID: custID, apptStatus: a.status, insulationRevenue: Math.round(rev * 100) / 100, farLines });
+    }
+    return NextResponse.json({ debugRoute, routeDate: r.date, routeGroup: r.groupTitle, crew, crewSize: crew.length, appts: out });
+  }
+
   const period = sp.get('period') === 'month' ? 'month' : 'week';
   const dateParam = sp.get('date');
   const anchor = dateParam ? new Date(dateParam + 'T12:00:00Z') : new Date();
