@@ -37,13 +37,39 @@ export async function GET(req: NextRequest) {
   const idParam = routeIDs.length === 1 ? `${routeIDs[0]},${routeIDs[0]}` : routeIDs.join(',');
   const got = await fr(`${BASE_URL}/route/get?routeIDs=${idParam}&${auth}`);
   const routes = (got.routes || []).map((r: any) => ({
-    routeID: r.routeID, date: r.date, assignedTech: r.assignedTech,
-    _allKeys: Object.keys(r),
-    // surface any field that might hold additional techs
-    additionalTechs: r.additionalTechs, additionalTech: r.additionalTech, assignedTechs: r.assignedTechs,
-    secondaryTech: r.secondaryTech, helpers: r.helpers, techIDs: r.techIDs, employeeIDs: r.employeeIDs,
-    _raw: JSON.stringify(r).substring(0, 1500),
+    routeID: r.routeID, date: r.date, title: r.title, groupTitle: r.groupTitle, groupID: r.groupID,
+    assignedTech: r.assignedTech, additionalTechs: r.additionalTechs,
   }));
 
-  return NextResponse.json({ office, routeIDsProbed: routeIDs, routes });
+  // If probing a single route, also pull its appointments + ticket item amounts (to see FAR revenue lines).
+  let apptDetail: any = null;
+  if (explicit && routeIDs.length === 1) {
+    const spotSearch = await fr(`${BASE_URL}/spot/search?routeIDs=${routeIDs[0]}&${auth}`);
+    const spotIds: any[] = spotSearch.spotIDs || [];
+    let apptIds: any[] = [];
+    // spots -> appointments: search appointments on this route/date
+    const apptSearch = await fr(`${BASE_URL}/appointment/search?routeIDs=${routeIDs[0]}&${auth}`);
+    apptIds = apptSearch.appointmentIDs || [];
+    let appts: any[] = [];
+    if (apptIds.length) {
+      const ap = apptIds.slice(0, 20).join(',');
+      const ag = await fr(`${BASE_URL}/appointment/get?appointmentIDs=${ap}&${auth}`);
+      appts = ag.appointments || [];
+    }
+    // pull tickets for these appts to see item amounts
+    const ticketIds = [...new Set(appts.map((a: any) => a.ticketID).filter(Boolean))].slice(0, 10);
+    let tickets: any[] = [];
+    if (ticketIds.length) {
+      const tg = await fr(`${BASE_URL}/ticket/get?ticketIDs=${ticketIds.join(',')}&${auth}`);
+      tickets = (tg.tickets || []).map((t: any) => ({
+        ticketID: t.ticketID, customerID: t.customerID, total: t.total,
+        items: (t.items || []).map((it: any) => ({ _keys: Object.keys(it), description: it.description, productID: it.productID, amount: it.amount, serviceCharge: it.serviceCharge, total: it.total, quantity: it.quantity })),
+      }));
+    }
+    apptDetail = { spotCount: spotIds.length, apptCount: apptIds.length,
+      appts: appts.slice(0, 8).map((a: any) => ({ appointmentID: a.appointmentID, customerID: a.customerID, customerName: a.customerName, type: a.type, servicedBy: a.servicedBy, ticketID: a.ticketID })),
+      tickets };
+  }
+
+  return NextResponse.json({ office, routeIDsProbed: routeIDs, routes, apptDetail });
 }
