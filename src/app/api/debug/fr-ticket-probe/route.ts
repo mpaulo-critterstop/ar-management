@@ -50,7 +50,9 @@ export async function GET(req: NextRequest) {
     ticketRaw: t ? {
       ticketID: t.ticketID, total: t.total, balance: t.balance, invoiceDate: t.invoiceDate,
       dateUpdated: t.dateUpdated, dateCompleted: t.dateCompleted, active: t.active, subscriptionID: t.subscriptionID,
+      serviceID: t.serviceID,
     } : null,
+    items: (t?.items || []).map((it: any) => ({ _keys: Object.keys(it), description: it.description, productID: it.productID, serviceID: it.serviceID, amount: it.amount, serviceCharge: it.serviceCharge, total: it.total, quantity: it.quantity, unitPrice: it.unitPrice })),
     payments,
   });
 }
