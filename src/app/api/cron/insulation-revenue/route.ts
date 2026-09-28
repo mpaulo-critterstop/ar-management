@@ -83,11 +83,10 @@ export async function GET(req: NextRequest) {
   const debugCust = sp.get('debugCust');
   if (debugCust) {
     const cfg = OFFICES[debugOffice]; const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
-    const insServiceIds = '479,542,624,674,543,716,720';
-    const s = await fr(`${BASE_URL}/appointment/search?customerIDs=${debugCust}&serviceIDs=${insServiceIds}&dateStart=2026-01-01&dateEnd=2026-12-31&${auth}`);
+    const s = await fr(`${BASE_URL}/appointment/search?customerIDs=${debugCust}&dateStart=2026-01-01&dateEnd=2026-12-31&${auth}`);
     const ids: any[] = s.appointmentIDs || [];
     const appts = ids.length ? await fetchByIds('appointment', 'appointmentIDs', ids, cfg.key, cfg.token) : [];
-    return NextResponse.json({ debugCust, insulationAppts: appts.map((a: any) => ({ appointmentID: a.appointmentID, date: a.date, type: a.type || a.serviceTypeID, status: a.status, statusText: a.statusText, routeID: a.routeID, servicedBy: a.servicedBy })) });
+    return NextResponse.json({ debugCust, count: appts.length, appts: appts.map((a: any) => ({ appointmentID: a.appointmentID, date: a.date, type: a.type || a.serviceTypeID, status: a.status, statusText: a.statusText, routeID: a.routeID, servicedBy: a.servicedBy, serviceType: a.serviceType })) });
   }
   if (debugRoute) {
     const cfg = OFFICES[debugOffice]; const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
