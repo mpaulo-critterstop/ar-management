@@ -284,6 +284,7 @@ model InsulationRevenueCache {
   id          String   @id @default(cuid())
   period      String   // 'week' | 'month'
   periodKey   String   // e.g. '2026-09-22' (week start) or '2026-09' (month)
+  office      String   @default("ALL") // per-office cache
   periodLabel String
   rangeStart  DateTime
   rangeEnd    DateTime
@@ -291,7 +292,7 @@ model InsulationRevenueCache {
   totals      Json
   computedAt  DateTime @default(now())
 
-  @@unique([period, periodKey])
+  @@unique([period, periodKey, office])
   @@map("insulation_revenue_cache")
 }
 

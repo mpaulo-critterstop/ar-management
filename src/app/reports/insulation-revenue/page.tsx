@@ -31,6 +31,7 @@ const money = (n: number) => '$' + (n ?? 0).toLocaleString('en-US', { minimumFra
 
 export default function InsulationRevenueReport() {
   const [period, setPeriod] = useState<'week' | 'month'>('week');
+  const [office, setOffice] = useState('DFW');
   const [options, setOptions] = useState(recentWeeks());
   const [sel, setSel] = useState(options[0]?.key || '');
   const [data, setData] = useState<any>(null);
@@ -42,18 +43,17 @@ export default function InsulationRevenueReport() {
   useEffect(() => {
     if (!sel) return;
     setLoading(true);
-    fetch(`/api/cron/insulation-revenue?token=critterstop2026&period=${period}&date=${sel}`)
+    fetch(`/api/cron/insulation-revenue?token=critterstop2026&period=${period}&date=${sel}&office=${office}`)
       .then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
-  }, [period, sel]);
+  }, [period, sel, office]);
 
   async function refresh() {
     setRefreshing(true);
-    await fetch(`/api/cron/insulation-revenue?token=critterstop2026&period=${period}&date=${sel}&refresh=1`).catch(() => {});
-    // poll for completion
+    await fetch(`/api/cron/insulation-revenue?token=critterstop2026&period=${period}&date=${sel}&office=${office}&refresh=1`).catch(() => {});
     let tries = 0;
     const poll = setInterval(async () => {
       tries++;
-      const d = await fetch(`/api/cron/insulation-revenue?token=critterstop2026&period=${period}&date=${sel}`).then(r => r.json()).catch(() => null);
+      const d = await fetch(`/api/cron/insulation-revenue?token=critterstop2026&period=${period}&date=${sel}&office=${office}`).then(r => r.json()).catch(() => null);
       if (d?.cached || tries > 20) { setData(d); setRefreshing(false); clearInterval(poll); }
     }, 15000);
   }
@@ -73,6 +73,11 @@ export default function InsulationRevenueReport() {
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 4, background: '#f1efe8', borderRadius: 8, padding: 3 }}>
+          {['DFW', 'ATX', 'OKC', 'CStat'].map(o => (
+            <button key={o} onClick={() => setOffice(o)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: office === o ? '#fff' : 'transparent', color: office === o ? '#2C2C2A' : '#888780', fontWeight: office === o ? 600 : 400 }}>{o}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 4, background: '#f1efe8', borderRadius: 8, padding: 3 }}>
           {(['week', 'month'] as const).map(p => (
             <button key={p} onClick={() => setPeriod(p)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: period === p ? '#fff' : 'transparent', color: period === p ? '#2C2C2A' : '#888780', fontWeight: period === p ? 600 : 400 }}>{p === 'week' ? 'Weekly' : 'Monthly'}</button>
           ))}
@@ -81,7 +86,7 @@ export default function InsulationRevenueReport() {
           {options.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
         </select>
         <button onClick={refresh} disabled={refreshing} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '0.5px solid #0052cc', background: '#fff', color: '#0052cc', fontWeight: 500, cursor: refreshing ? 'wait' : 'pointer' }}>{refreshing ? 'Refreshing… (up to ~5 min)' : '↻ Refresh from FR'}</button>
-        <a href={`/api/cron/insulation-revenue?token=critterstop2026&period=${period}&date=${sel}&csv=1`} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '0.5px solid #128a3f', background: '#fff', color: '#128a3f', fontWeight: 500, textDecoration: 'none' }}>⤓ CSV</a>
+        <a href={`/api/cron/insulation-revenue?token=critterstop2026&period=${period}&date=${sel}&office=${office}&csv=1`} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '0.5px solid #128a3f', background: '#fff', color: '#128a3f', fontWeight: 500, textDecoration: 'none' }}>⤓ CSV</a>
       </div>
 
       {data && !data.cached && !loading && (
