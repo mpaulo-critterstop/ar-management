@@ -249,8 +249,15 @@ async function runReport(period: string, start: Date, end: Date, label: string, 
     const tickets = await fetchByIds('ticket', 'ticketIDs', tIds, cfg.key, cfg.token);
     let rev = 0; let found = false;
     for (const t of tickets) {
-      for (const it of (t.items || [])) {
-        if (INSULATION_PRODUCT_IDS.has(parseInt(String(it.productID)))) { rev += parseFloat(it.amount || '0'); found = true; }
+      const items = t.items || [];
+      if (items.length) {
+        // Itemized: sum the FAR (10) + Top-Off (43) line items only (excludes bundled trapping/exclusion).
+        for (const it of items) {
+          if (INSULATION_PRODUCT_IDS.has(parseInt(String(it.productID)))) { rev += parseFloat(it.amount || '0'); found = true; }
+        }
+      } else if (parseInt(String(t.serviceID)) === 501) {
+        // Itemless AND serviceID 501 (Full Attic Restoration) = solely-insulation invoice -> use the total.
+        rev += parseFloat(t.total || '0'); found = true;
       }
     }
     job.revenue = found ? Math.round(rev * 100) / 100 : 0;
