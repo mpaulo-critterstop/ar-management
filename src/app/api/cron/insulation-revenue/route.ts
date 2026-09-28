@@ -166,71 +166,69 @@ async function runReport(period: string, start: Date, end: Date, label: string, 
   type Job = { office: string; customerID: string; customer: string; days: number; techDays: number; techIds: Set<string>;
                firstDay: string; lastDay: string; revenue: number | null; };
   const jobs = new Map<string, Job>(); // key office:customerID
-  const inProgressCustomers = new Set<string>(); // office:custID with any non-completed insulation appt (job not done)
+  const inProgressCustomers = new Set<string>();
+
+  // Insulation appointment service types (per Mark):
+  // 624 Blow-In Cellulose (final), 542 Blow-In Fiberglass (final), 541 Removal (early, 1-3 days),
+  // 479 Removal+Blow-In (single-day FAR), 1073 Removal ONLY, 674 Top-Off.
+  const INS_TYPES = new Set([624, 542, 541, 479, 1073, 674]);
+  const FINAL_TYPES = new Set([624, 542, 479, 1073, 674]); // completes a job (541 removal alone does not)
+  const INS_TYPE_CSV = '624,542,541,479,1073,674';
 
   for (const officeName of offices) {
     const cfg = OFFICES[officeName]; if (!cfg?.key) continue;
     const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
 
-    // 1) Insulation-group routes in the period.
-    const rs = await fr(`${BASE_URL}/route/search?officeIDs=${cfg.officeId}&dateStart=${fmt(start)}&dateEnd=${fmt(end)}&${auth}`);
-    const routeIds: string[] = (rs.routeIDs || []).map(String);
-    const routes = routeIds.length ? await fetchByIds('route', 'routeIDs', routeIds, cfg.key, cfg.token) : [];
-    const insRoutes = routes.filter((r: any) => String(r.groupTitle || '').toLowerCase().includes('insulation'));
+    // 1) All insulation appointments in the window (by service type), completed only for counting.
+    const as = await fr(`${BASE_URL}/appointment/search?officeIDs=${cfg.officeId}&serviceIDs=${INS_TYPE_CSV}&dateStart=${fmt(start)}&dateEnd=${fmt(end)}&${auth}`);
+    const apptIds: any[] = as.appointmentIDs || [];
+    if (!apptIds.length) continue;
+    const appts = await fetchByIds('appointment', 'appointmentIDs', apptIds, cfg.key, cfg.token);
 
-    // Map routeID -> { date, crewCount } (crew = unique additionalTechs, fallback assignedTech).
-    const routeInfo = new Map<string, { date: string; crew: string[] }>();
-    for (const r of insRoutes) {
+    // 2) Crew per route (route additionalTechs). Collect the routes these appts sit on.
+    const routeIds = [...new Set(appts.map((a: any) => String(a.routeID)).filter(x => x && x !== '0'))];
+    const routes = routeIds.length ? await fetchByIds('route', 'routeIDs', routeIds, cfg.key, cfg.token) : [];
+    const crewByRoute = new Map<string, string[]>();
+    for (const r of routes) {
       const crew = (r.additionalTechs ? String(r.additionalTechs).split(',').map((s: string) => s.trim()).filter(Boolean) : []);
       if (!crew.length && r.assignedTech && String(r.assignedTech) !== '0') crew.push(String(r.assignedTech));
-      routeInfo.set(String(r.routeID), { date: String(r.date), crew: [...new Set(crew)] });
+      crewByRoute.set(String(r.routeID), [...new Set(crew)]);
     }
 
-    // 2) Appointments on those insulation routes (per route to avoid multi-value quirks).
-    for (const [routeID, info] of routeInfo) {
-      const as = await fr(`${BASE_URL}/appointment/search?routeIDs=${routeID}&${auth}`);
-      const apptIds: any[] = as.appointmentIDs || [];
-      if (!apptIds.length) continue;
-      const appts = await fetchByIds('appointment', 'appointmentIDs', apptIds, cfg.key, cfg.token);
-      for (const a of appts) {
-        const custID = String(a.customerID); if (!custID || custID === '0') continue;
-        // Any NON-completed insulation appointment (pending status 0, or a future/scheduled day) means the job
-        // is still in progress -> mark it so we can exclude it (Option C: only count fully-completed jobs).
-        if (String(a.status) !== '1') { inProgressCustomers.add(`${officeName}:${custID}`); continue; }
-        const key = `${officeName}:${custID}`;
-        let job = jobs.get(key);
-        if (!job) {
-          job = { office: officeName, customerID: custID, customer: a.customerName || custID, days: 0, techDays: 0, techIds: new Set(), firstDay: info.date, lastDay: info.date, revenue: null };
-          jobs.set(key, job);
-        }
-        // count this day once per route-day for the customer
-        job.days += 1;
-        job.techDays += info.crew.length;
-        info.crew.forEach(t => job!.techIds.add(t));
-        if (info.date < job.firstDay) job.firstDay = info.date;
-        if (info.date > job.lastDay) job.lastDay = info.date;
-      }
+    // 3) Build jobs from completed insulation appts; flag customers with any non-completed ins appt (in progress).
+    for (const a of appts) {
+      const typeId = parseInt(String(a.type || a.serviceTypeID || '0'));
+      if (!INS_TYPES.has(typeId)) continue;
+      const custID = String(a.customerID); if (!custID || custID === '0') continue;
+      const key = `${officeName}:${custID}`;
+      if (String(a.status) !== '1') { inProgressCustomers.add(key); continue; } // pending/scheduled -> in progress
+      const crew = crewByRoute.get(String(a.routeID)) || [];
+      const date = String(a.date || a.dateAdded).slice(0, 10);
+      let job = jobs.get(key);
+      if (!job) { job = { office: officeName, customerID: custID, customer: a.customerName || custID, days: 0, techDays: 0, techIds: new Set(), firstDay: date, lastDay: date, revenue: null }; jobs.set(key, job); }
+      job.days += 1;
+      job.techDays += crew.length;
+      crew.forEach(t => job!.techIds.add(t));
+      if (date < job.firstDay) job.firstDay = date;
+      if (date > job.lastDay) job.lastDay = date;
     }
   }
 
-  // 2b) Forward-looking completion check: a job is only counted once FULLY complete (Option C). Beyond the
-  // in-window non-completed appts already flagged, also check each candidate customer for any pending or
-  // FUTURE insulation appointment (which would sit on a route dated after the window). If found, the job is
-  // still in progress -> exclude it now; it'll count in the period it finishes.
-  const insServiceIds = '479,542,624,674,543,716,720'; // FAR/insulation appointment service types
-  const futureEnd = fmt(new Date(end.getTime() + 60 * 86400000)); // look ~60 days past the window
+  // 4) Completion check (Option C): a job counts only when fully done. Exclude if there's any pending in-window
+  // insulation appt (flagged above) OR any pending/future insulation appt after the window (removal done but
+  // blow-in still upcoming). Look forward ~60 days.
+  const futureStart = fmt(new Date(end.getTime() + 86400000));
+  const futureEnd = fmt(new Date(end.getTime() + 60 * 86400000));
   for (const [key, job] of jobs) {
-    if (inProgressCustomers.has(key)) continue; // already known in-progress
+    if (inProgressCustomers.has(key)) continue;
     const cfg = OFFICES[job.office]; const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
-    // any insulation appt for this customer after the window end that isn't completed?
-    const fs = await fr(`${BASE_URL}/appointment/search?customerIDs=${job.customerID}&serviceIDs=${insServiceIds}&dateStart=${fmt(new Date(end.getTime() + 86400000))}&dateEnd=${futureEnd}&${auth}`);
+    const fs = await fr(`${BASE_URL}/appointment/search?customerIDs=${job.customerID}&serviceIDs=${INS_TYPE_CSV}&dateStart=${futureStart}&dateEnd=${futureEnd}&${auth}`);
     const futIds: any[] = fs.appointmentIDs || [];
     if (futIds.length) {
       const futAppts = await fetchByIds('appointment', 'appointmentIDs', futIds, cfg.key, cfg.token);
-      if (futAppts.some((a: any) => String(a.status) !== '1')) inProgressCustomers.add(key);
+      if (futAppts.some((a: any) => INS_TYPES.has(parseInt(String(a.type || a.serviceTypeID || '0'))) && String(a.status) !== '1')) inProgressCustomers.add(key);
     }
   }
-  // Drop in-progress jobs.
   for (const key of inProgressCustomers) jobs.delete(key);
 
   // 3) Per job: pull the customer's FAR invoice line items (productID 10/43) and sum.
