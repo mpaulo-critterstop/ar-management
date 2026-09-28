@@ -80,6 +80,15 @@ export async function GET(req: NextRequest) {
   // FAST VALIDATION: one route → its appts → each customer's FAR invoice revenue. Confirms the logic quickly.
   const debugRoute = sp.get('debugRoute');
   const debugOffice = sp.get('office') || 'DFW';
+  const debugCust = sp.get('debugCust');
+  if (debugCust) {
+    const cfg = OFFICES[debugOffice]; const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+    const insServiceIds = '479,542,624,674,543,716,720';
+    const s = await fr(`${BASE_URL}/appointment/search?customerIDs=${debugCust}&serviceIDs=${insServiceIds}&dateStart=2026-01-01&dateEnd=2026-12-31&${auth}`);
+    const ids: any[] = s.appointmentIDs || [];
+    const appts = ids.length ? await fetchByIds('appointment', 'appointmentIDs', ids, cfg.key, cfg.token) : [];
+    return NextResponse.json({ debugCust, insulationAppts: appts.map((a: any) => ({ appointmentID: a.appointmentID, date: a.date, type: a.type || a.serviceTypeID, status: a.status, statusText: a.statusText, routeID: a.routeID, servicedBy: a.servicedBy })) });
+  }
   if (debugRoute) {
     const cfg = OFFICES[debugOffice]; const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
     const rg = await fr(`${BASE_URL}/route/get?routeIDs=${debugRoute},${debugRoute}&${auth}`);
