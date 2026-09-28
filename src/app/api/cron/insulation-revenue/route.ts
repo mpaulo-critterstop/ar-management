@@ -34,6 +34,18 @@ function fr(url: string): Promise<any> {
 }
 const fmt = (d: Date) => d.toISOString().split('T')[0];
 
+// FR appointment/search only reliably honors ONE serviceID in a comma list (same multi-value quirk as
+// customerIDs/routeIDs). So search each insulation service type separately and merge the appointment IDs.
+async function searchApptIdsByServiceTypes(cfg: any, extraParams: string, serviceIds: number[]): Promise<number[]> {
+  const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+  const all = new Set<number>();
+  for (const sid of serviceIds) {
+    const s = await fr(`${BASE_URL}/appointment/search?${extraParams}&serviceIDs=${sid}&${auth}`);
+    for (const id of (s.appointmentIDs || [])) all.add(Number(id));
+  }
+  return [...all];
+}
+
 // Get a customer's invoice/ticket externalIDs from the Hub DB (reliable for old invoices, unlike FR
 // ticket/search which misses tickets outside its recent window). custExtId = FR customerID.
 async function customerTicketIds(custExtId: string): Promise<string[]> {
@@ -179,9 +191,8 @@ async function runReport(period: string, start: Date, end: Date, label: string, 
     const cfg = OFFICES[officeName]; if (!cfg?.key) continue;
     const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
 
-    // 1) All insulation appointments in the window (by service type), completed only for counting.
-    const as = await fr(`${BASE_URL}/appointment/search?officeIDs=${cfg.officeId}&serviceIDs=${INS_TYPE_CSV}&dateStart=${fmt(start)}&dateEnd=${fmt(end)}&${auth}`);
-    const apptIds: any[] = as.appointmentIDs || [];
+    // 1) All insulation appointments in the window (by service type — searched per-type due to FR quirk).
+    const apptIds: any[] = await searchApptIdsByServiceTypes(cfg, `officeIDs=${cfg.officeId}&dateStart=${fmt(start)}&dateEnd=${fmt(end)}`, [...INS_TYPES]);
     if (!apptIds.length) continue;
     const appts = await fetchByIds('appointment', 'appointmentIDs', apptIds, cfg.key, cfg.token);
 
@@ -222,8 +233,7 @@ async function runReport(period: string, start: Date, end: Date, label: string, 
   for (const [key, job] of jobs) {
     if (inProgressCustomers.has(key)) continue;
     const cfg = OFFICES[job.office]; const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
-    const fs = await fr(`${BASE_URL}/appointment/search?customerIDs=${job.customerID}&serviceIDs=${INS_TYPE_CSV}&dateStart=${futureStart}&dateEnd=${futureEnd}&${auth}`);
-    const futIds: any[] = fs.appointmentIDs || [];
+    const futIds: any[] = await searchApptIdsByServiceTypes(cfg, `customerIDs=${job.customerID}&dateStart=${futureStart}&dateEnd=${futureEnd}`, [...INS_TYPES]);
     if (futIds.length) {
       const futAppts = await fetchByIds('appointment', 'appointmentIDs', futIds, cfg.key, cfg.token);
       if (futAppts.some((a: any) => INS_TYPES.has(parseInt(String(a.type || a.serviceTypeID || '0'))) && String(a.status) !== '1')) inProgressCustomers.add(key);
