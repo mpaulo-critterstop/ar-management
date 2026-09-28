@@ -122,13 +122,21 @@ export async function GET(req: NextRequest) {
   // REFRESH: compute from FR in the background (FR-heavy). Returns immediately; writes to cache when done.
   if (refresh && !asCsv) {
     waitUntil((async () => {
-      const result = await runReport(period, start, end, label, offices);
-      await prisma.insulationRevenueCache.upsert({
-        where: { period_periodKey: { period, periodKey } },
-        create: { period, periodKey, periodLabel: label, rangeStart: start, rangeEnd: end, rows: result.rows as any, totals: result.totals as any },
-        update: { periodLabel: label, rangeStart: start, rangeEnd: end, rows: result.rows as any, totals: result.totals as any, computedAt: new Date() },
-      }).catch(e => console.error('insulation-revenue cache write error:', e));
-    })().catch(e => console.error('insulation-revenue refresh error:', e)));
+      const setStatus = (m: string) => prisma.appSetting.upsert({ where: { key: 'insulation_revenue_status' }, create: { key: 'insulation_revenue_status', value: m }, update: { value: m } }).catch(() => {});
+      try {
+        await setStatus(`running: ${period} ${periodKey} started ${new Date().toISOString()}`);
+        const result = await runReport(period, start, end, label, offices);
+        await prisma.insulationRevenueCache.upsert({
+          where: { period_periodKey: { period, periodKey } },
+          create: { period, periodKey, periodLabel: label, rangeStart: start, rangeEnd: end, rows: result.rows as any, totals: result.totals as any },
+          update: { periodLabel: label, rangeStart: start, rangeEnd: end, rows: result.rows as any, totals: result.totals as any, computedAt: new Date() },
+        });
+        await setStatus(`done: ${period} ${periodKey} — ${result.totals.jobs} jobs, $${result.totals.totalRevenue}, ${result.totals.totalTechDays} tech-days @ ${new Date().toISOString()}`);
+      } catch (e: any) {
+        await setStatus(`ERROR: ${period} ${periodKey} — ${String(e).slice(0, 400)} @ ${new Date().toISOString()}`);
+        console.error('insulation-revenue refresh error:', e);
+      }
+    })());
     return NextResponse.json({ ok: true, started: true, period, periodKey, note: 'Computing in background. Reload the report (without refresh) in a few minutes.' });
   }
 
