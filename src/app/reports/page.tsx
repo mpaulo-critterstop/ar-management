@@ -5,9 +5,9 @@ type Report = { title: string; desc: string; href?: string; status: 'available' 
 const REPORTS: Report[] = [
   {
     title: 'Insulation Revenue per Tech',
-    desc: 'Weekly & monthly FAR (insulation) revenue per job, crew size from the route, and revenue per tech. Labor-cost columns for Direct Labor %.',
-    href: undefined,
-    status: 'coming-soon',
+    desc: 'Weekly & monthly FAR + Top-Off revenue per job, crew size from the route, and revenue per tech. Direct Labor columns for manual entry.',
+    href: '/reports/insulation-revenue',
+    status: 'available',
   },
 ];
 

@@ -217,6 +217,14 @@ async function runReport(period: string, start: Date, end: Date, label: string, 
     job.revenue = found ? Math.round(rev * 100) / 100 : 0;
   }
 
+  // Backfill customer names (appointment customerName is often blank -> shows as ID).
+  const needName = [...jobs.values()].filter(j => !j.customer || j.customer === j.customerID).map(j => j.customerID);
+  if (needName.length) {
+    const custs = await prisma.customer.findMany({ where: { externalId: { in: needName } }, select: { externalId: true, name: true } });
+    const nameMap = new Map(custs.map(c => [String(c.externalId), c.name]));
+    for (const j of jobs.values()) if (!j.customer || j.customer === j.customerID) j.customer = nameMap.get(j.customerID) || `FR ${j.customerID}`;
+  }
+
   const rows = [...jobs.values()].map(j => ({
     office: j.office, customer: j.customer, customerID: j.customerID,
     firstDay: j.firstDay, lastDay: j.lastDay, days: j.days,
