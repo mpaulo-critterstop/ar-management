@@ -146,25 +146,38 @@ export async function GET(req: NextRequest) {
 
   // REFRESH: compute each requested office SEPARATELY (background), one cache row per office.
   if (refresh && !asCsv) {
+    // Periods to compute this run. With no explicit date, also refresh the PREVIOUS period so the tail of a
+    // month/week (days after the last scheduled Sunday run) still gets a final refresh once it's rolled over.
+    const targets: { periodKey: string; start: Date; end: Date; label: string }[] = [{ periodKey, start, end, label }];
+    if (!dateParam) {
+      const prevAnchor = period === 'month'
+        ? new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() - 1, 15))
+        : new Date(start.getTime() - 7 * 86400000);
+      const pb = periodBounds(period, prevAnchor);
+      const prevKey = period === 'month' ? pb.label : fmt(pb.start);
+      targets.push({ periodKey: prevKey, start: pb.start, end: pb.end, label: pb.label });
+    }
     waitUntil((async () => {
       const setStatus = (m: string) => prisma.appSetting.upsert({ where: { key: 'insulation_revenue_status' }, create: { key: 'insulation_revenue_status', value: m }, update: { value: m } }).catch(() => {});
       try {
-        for (const office of refreshOffices) {
-          await setStatus(`running: ${office} ${period} ${periodKey} @ ${new Date().toISOString()}`);
-          const result = await runReport(period, start, end, label, [office]);
-          await prisma.insulationRevenueCache.upsert({
-            where: { period_periodKey_office: { period, periodKey, office } },
-            create: { period, periodKey, office, periodLabel: label, rangeStart: start, rangeEnd: end, rows: result.rows as any, totals: result.totals as any },
-            update: { periodLabel: label, rangeStart: start, rangeEnd: end, rows: result.rows as any, totals: result.totals as any, computedAt: new Date() },
-          });
+        for (const t of targets) {
+          for (const office of refreshOffices) {
+            await setStatus(`running: ${office} ${period} ${t.periodKey} @ ${new Date().toISOString()}`);
+            const result = await runReport(period, t.start, t.end, t.label, [office]);
+            await prisma.insulationRevenueCache.upsert({
+              where: { period_periodKey_office: { period, periodKey: t.periodKey, office } },
+              create: { period, periodKey: t.periodKey, office, periodLabel: t.label, rangeStart: t.start, rangeEnd: t.end, rows: result.rows as any, totals: result.totals as any },
+              update: { periodLabel: t.label, rangeStart: t.start, rangeEnd: t.end, rows: result.rows as any, totals: result.totals as any, computedAt: new Date() },
+            });
+          }
         }
-        await setStatus(`done: ${refreshOffices.join(',')} ${period} ${periodKey} @ ${new Date().toISOString()}`);
+        await setStatus(`done: ${refreshOffices.join(',')} ${period} [${targets.map(t => t.periodKey).join(', ')}] @ ${new Date().toISOString()}`);
       } catch (e: any) {
         await setStatus(`ERROR: ${period} ${periodKey} — ${String(e).slice(0, 400)} @ ${new Date().toISOString()}`);
         console.error('insulation-revenue refresh error:', e);
       }
     })());
-    return NextResponse.json({ ok: true, started: true, period, periodKey, offices: refreshOffices, note: 'Computing per office in background. Reload (without refresh) in a few minutes.' });
+    return NextResponse.json({ ok: true, started: true, period, periodKeys: targets.map(t => t.periodKey), offices: refreshOffices, note: 'Computing per office (current + previous period) in background. Reload (without refresh) in a few minutes.' });
   }
 
   // CSV: one office (cache if present, else compute live).
