@@ -278,6 +278,23 @@ model PestInspection {
 // closeout-detection systems (daily report, dispatch, Field Performance) can check for a form match against
 // the DB instead of making slow per-customer FR calls (form/search is customerID-singular and doesn't scale
 // across offices/wide windows). One row per form.
+// Cache of one computed insulation-revenue-per-tech report period. Recomputed nightly (FR-heavy), read
+// instantly by the Reports page so page loads never hit FieldRoutes.
+model InsulationRevenueCache {
+  id          String   @id @default(cuid())
+  period      String   // 'week' | 'month'
+  periodKey   String   // e.g. '2026-09-22' (week start) or '2026-09' (month)
+  periodLabel String
+  rangeStart  DateTime
+  rangeEnd    DateTime
+  rows        Json
+  totals      Json
+  computedAt  DateTime @default(now())
+
+  @@unique([period, periodKey])
+  @@map("insulation_revenue_cache")
+}
+
 model CloseoutForm {
   id             String   @id @default(cuid())
   office         String

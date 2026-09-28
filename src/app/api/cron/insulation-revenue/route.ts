@@ -13,6 +13,7 @@
 //   ...&office=DFW   (single office; default all)   ...&csv=1
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { waitUntil } from '@vercel/functions';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 800;
 
@@ -108,7 +109,44 @@ export async function GET(req: NextRequest) {
   const { start, end, label } = periodBounds(period, anchor);
   const offices = sp.get('office') ? [sp.get('office')!] : Object.keys(OFFICES);
   const asCsv = sp.get('csv') === '1';
+  const refresh = sp.get('refresh') === '1';
+  const periodKey = period === 'month' ? label : fmt(start); // month uses label, week uses Monday date
 
+  // DEFAULT: read the cached result (instant, no FR). The Reports page uses this.
+  if (!refresh && !asCsv) {
+    const cached = await prisma.insulationRevenueCache.findUnique({ where: { period_periodKey: { period, periodKey } } });
+    if (cached) return NextResponse.json({ period, periodLabel: cached.periodLabel, start: fmt(cached.rangeStart), end: fmt(cached.rangeEnd), cached: true, computedAt: cached.computedAt, totals: cached.totals, rows: cached.rows });
+    return NextResponse.json({ period, periodLabel: label, start: fmt(start), end: fmt(end), cached: false, note: 'Not computed yet — run with &refresh=1 (or wait for the nightly job).', totals: { jobs: 0, totalRevenue: 0, totalTechDays: 0 }, rows: [] });
+  }
+
+  // REFRESH: compute from FR in the background (FR-heavy). Returns immediately; writes to cache when done.
+  if (refresh && !asCsv) {
+    waitUntil((async () => {
+      const result = await runReport(period, start, end, label, offices);
+      await prisma.insulationRevenueCache.upsert({
+        where: { period_periodKey: { period, periodKey } },
+        create: { period, periodKey, periodLabel: label, rangeStart: start, rangeEnd: end, rows: result.rows as any, totals: result.totals as any },
+        update: { periodLabel: label, rangeStart: start, rangeEnd: end, rows: result.rows as any, totals: result.totals as any, computedAt: new Date() },
+      }).catch(e => console.error('insulation-revenue cache write error:', e));
+    })().catch(e => console.error('insulation-revenue refresh error:', e)));
+    return NextResponse.json({ ok: true, started: true, period, periodKey, note: 'Computing in background. Reload the report (without refresh) in a few minutes.' });
+  }
+
+  // CSV: compute live (used rarely, for export). Falls back to cache if present to avoid FR load.
+  const cachedForCsv = await prisma.insulationRevenueCache.findUnique({ where: { period_periodKey: { period, periodKey } } });
+  const data = cachedForCsv ? { rows: cachedForCsv.rows as any[], totals: cachedForCsv.totals } : await runReport(period, start, end, label, offices);
+  const rows = data.rows as any[];
+  {
+    const header = 'Office,Customer,FR ID,First Day,Last Day,Days,Tech-Days,Unique Techs,Insulation Revenue,Revenue per Tech,Direct Labor Cost,Direct Labor %';
+    const lines = rows.map(r => [r.office, r.customer, r.customerID, r.firstDay, r.lastDay, r.days, r.techDays, r.uniqueTechs, r.insulationRevenue, r.revenuePerTech, '', '']
+      .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
+    return new NextResponse([header, ...lines].join('\n'), {
+      headers: { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="insulation-revenue-${period}-${fmt(start)}.csv"` },
+    });
+  }
+}
+
+async function runReport(period: string, start: Date, end: Date, label: string, offices: string[]) {
   type Job = { office: string; customerID: string; customer: string; days: number; techDays: number; techIds: Set<string>;
                firstDay: string; lastDay: string; revenue: number | null; };
   const jobs = new Map<string, Job>(); // key office:customerID
@@ -185,14 +223,5 @@ export async function GET(req: NextRequest) {
     totalTechDays: rows.reduce((s, r) => s + r.techDays, 0),
   };
 
-  if (asCsv) {
-    const header = 'Office,Customer,FR ID,First Day,Last Day,Days,Tech-Days,Unique Techs,Insulation Revenue,Revenue per Tech,Direct Labor Cost,Direct Labor %';
-    const lines = rows.map(r => [r.office, r.customer, r.customerID, r.firstDay, r.lastDay, r.days, r.techDays, r.uniqueTechs, r.insulationRevenue, r.revenuePerTech, '', '']
-      .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
-    return new NextResponse([header, ...lines].join('\n'), {
-      headers: { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="insulation-revenue-${period}-${fmt(start)}.csv"` },
-    });
-  }
-
-  return NextResponse.json({ period, periodLabel: label, start: fmt(start), end: fmt(end), offices, totals, rows });
+  return { rows, totals };
 }
