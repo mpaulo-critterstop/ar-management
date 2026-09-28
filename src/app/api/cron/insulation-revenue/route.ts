@@ -158,6 +158,7 @@ async function runReport(period: string, start: Date, end: Date, label: string, 
   type Job = { office: string; customerID: string; customer: string; days: number; techDays: number; techIds: Set<string>;
                firstDay: string; lastDay: string; revenue: number | null; };
   const jobs = new Map<string, Job>(); // key office:customerID
+  const inProgressCustomers = new Set<string>(); // office:custID with any non-completed insulation appt (job not done)
 
   for (const officeName of offices) {
     const cfg = OFFICES[officeName]; if (!cfg?.key) continue;
@@ -184,8 +185,10 @@ async function runReport(period: string, start: Date, end: Date, label: string, 
       if (!apptIds.length) continue;
       const appts = await fetchByIds('appointment', 'appointmentIDs', apptIds, cfg.key, cfg.token);
       for (const a of appts) {
-        if (String(a.status) !== '1') continue; // completed only
         const custID = String(a.customerID); if (!custID || custID === '0') continue;
+        // Any NON-completed insulation appointment (pending status 0, or a future/scheduled day) means the job
+        // is still in progress -> mark it so we can exclude it (Option C: only count fully-completed jobs).
+        if (String(a.status) !== '1') { inProgressCustomers.add(`${officeName}:${custID}`); continue; }
         const key = `${officeName}:${custID}`;
         let job = jobs.get(key);
         if (!job) {
@@ -201,6 +204,26 @@ async function runReport(period: string, start: Date, end: Date, label: string, 
       }
     }
   }
+
+  // 2b) Forward-looking completion check: a job is only counted once FULLY complete (Option C). Beyond the
+  // in-window non-completed appts already flagged, also check each candidate customer for any pending or
+  // FUTURE insulation appointment (which would sit on a route dated after the window). If found, the job is
+  // still in progress -> exclude it now; it'll count in the period it finishes.
+  const insServiceIds = '479,542,624,674,543,716,720'; // FAR/insulation appointment service types
+  const futureEnd = fmt(new Date(end.getTime() + 60 * 86400000)); // look ~60 days past the window
+  for (const [key, job] of jobs) {
+    if (inProgressCustomers.has(key)) continue; // already known in-progress
+    const cfg = OFFICES[job.office]; const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+    // any insulation appt for this customer after the window end that isn't completed?
+    const fs = await fr(`${BASE_URL}/appointment/search?customerIDs=${job.customerID}&serviceIDs=${insServiceIds}&dateStart=${fmt(new Date(end.getTime() + 86400000))}&dateEnd=${futureEnd}&${auth}`);
+    const futIds: any[] = fs.appointmentIDs || [];
+    if (futIds.length) {
+      const futAppts = await fetchByIds('appointment', 'appointmentIDs', futIds, cfg.key, cfg.token);
+      if (futAppts.some((a: any) => String(a.status) !== '1')) inProgressCustomers.add(key);
+    }
+  }
+  // Drop in-progress jobs.
+  for (const key of inProgressCustomers) jobs.delete(key);
 
   // 3) Per job: pull the customer's FAR invoice line items (productID 10/43) and sum.
   for (const job of jobs.values()) {
