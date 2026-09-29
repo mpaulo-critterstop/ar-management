@@ -106,7 +106,8 @@ export async function GET(req: NextRequest) {
     const r = (rg.routes || [])[0];
     if (!r) return NextResponse.json({ error: 'route not found' });
     const crew = (r.additionalTechs ? String(r.additionalTechs).split(',').map((s: string) => s.trim()).filter(Boolean) : []);
-    if (!crew.length && r.assignedTech && String(r.assignedTech) !== '0') crew.push(String(r.assignedTech));
+    // Always include the assignedTech (the servicing tech) — it isn't always duplicated into additionalTechs.
+    if (r.assignedTech && String(r.assignedTech) !== '0') crew.push(String(r.assignedTech));
     const as = await fr(`${BASE_URL}/appointment/search?routeIDs=${debugRoute}&${auth}`);
     const appts = (as.appointmentIDs || []).length ? await fetchByIds('appointment', 'appointmentIDs', as.appointmentIDs, cfg.key, cfg.token) : [];
     const out: any[] = [];
@@ -222,7 +223,7 @@ async function runReport(period: string, start: Date, end: Date, label: string, 
     const crewByRoute = new Map<string, string[]>();
     for (const r of routes) {
       const crew = (r.additionalTechs ? String(r.additionalTechs).split(',').map((s: string) => s.trim()).filter(Boolean) : []);
-      if (!crew.length && r.assignedTech && String(r.assignedTech) !== '0') crew.push(String(r.assignedTech));
+      if (r.assignedTech && String(r.assignedTech) !== '0') crew.push(String(r.assignedTech));
       crewByRoute.set(String(r.routeID), [...new Set(crew)]);
     }
 
