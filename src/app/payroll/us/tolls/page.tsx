@@ -88,7 +88,15 @@ export default function TollsPage() {
       body: JSON.stringify({ action: 'save', payDate, label: `Pay ${payDate} (${f(periodStart)}–${f(periodEnd)})`, periodStart: f(periodStart), periodEnd: f(periodEnd),
         total: result.total, matched: result.matched, unmatched: result.unmatched, perTech: result.perTech, unmatchedList: result.unmatchedList, rawRowCount: result.rawRowCount }) });
     const d = await res.json();
-    setSavedMsg(d.ok ? `✓ Saved to pay week ${payDate}` : 'Save failed'); loadPeriods();
+    loadPeriods();
+    if (d.ok) {
+      const savedTo = payDate;
+      // Clear the calculate view for a clean slate; show a brief confirmation.
+      setResult(null); setFileName(''); setPayDate(''); setErr('');
+      setSavedMsg(`✓ Saved to pay week ${savedTo}. View it under History.`);
+    } else {
+      setSavedMsg('Save failed');
+    }
   }
 
   async function savePlate() {
@@ -160,6 +168,9 @@ export default function TollsPage() {
           <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFile} style={{ display: 'none' }} />
         </label>
         {fileName && <span style={{ fontSize: 12, color: '#888780', marginLeft: 12 }}>{fileName}</span>}
+        {!result && savedMsg && savedMsg.startsWith('✓') && (
+          <div style={{ fontSize: 13, color: '#128a3f', background: '#E1F5EE', border: '0.5px solid #9FE1CB', borderRadius: 8, padding: '10px 14px', marginTop: 14 }}>{savedMsg}</div>
+        )}
         {computing && <div style={{ fontSize: 13, color: '#888780', marginTop: 12 }}>Processing…</div>}
         {err && <div style={{ fontSize: 13, color: '#b91c1c', background: '#FCEBEB', border: '0.5px solid #F7C1C1', borderRadius: 8, padding: '10px 14px', marginTop: 14 }}>{err}</div>}
 
