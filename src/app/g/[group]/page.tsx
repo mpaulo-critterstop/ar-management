@@ -10,7 +10,7 @@ function fmt(n: number) { return '$' + n.toLocaleString('en-US', { minimumFracti
 const GROUP_OF: Record<string, 'operations' | 'management' | 'reports'> = {
   leads: 'operations', 'pest-sales': 'operations', 'csr-pest-sales': 'operations', cancellations: 'operations',
   'service-pool': 'operations', 'lsa-leads': 'operations', dispatch: 'operations', ar: 'operations',
-  dialpad: 'operations', 'field-performance': 'operations', csr: 'operations', reports: 'reports',
+  dialpad: 'operations', 'field-performance': 'management', csr: 'operations', reports: 'reports',
 };
 const GROUP_TITLES: Record<string, string> = { operations: 'Operations', management: 'Management', reports: 'Reports' };
 

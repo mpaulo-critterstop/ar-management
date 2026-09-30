@@ -229,7 +229,7 @@ export default function HomePage() {
   const GROUP_OF: Record<string, 'operations' | 'management' | 'reports'> = {
     leads: 'operations', 'pest-sales': 'operations', 'csr-pest-sales': 'operations', cancellations: 'operations',
     'service-pool': 'operations', 'lsa-leads': 'operations', dispatch: 'operations', ar: 'operations',
-    dialpad: 'operations', 'field-performance': 'operations', csr: 'operations',
+    dialpad: 'operations', 'field-performance': 'management', csr: 'operations',
     reports: 'reports',
     // management modules (e.g. payroll) added here as they're built
   };
