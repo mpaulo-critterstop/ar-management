@@ -220,6 +220,17 @@ export default function HomePage() {
       mainLabel: 'Reports',
       stats: null,
     },
+    {
+      module: 'payroll' as ModuleKey,
+      icon: '💵',
+      title: 'Payroll',
+      desc: 'US and international payroll \u2014 tolls, team, raises, probation, PTO, and pay periods.',
+      href: '/payroll',
+      accentColor: '#534AB7',
+      main: '\u2014',
+      mainLabel: 'Payroll',
+      stats: null,
+    },
   ];
 
   // Show only modules this user can access.
@@ -230,7 +241,7 @@ export default function HomePage() {
     leads: 'operations', 'pest-sales': 'operations', 'csr-pest-sales': 'operations', cancellations: 'operations',
     'service-pool': 'operations', 'lsa-leads': 'operations', dispatch: 'operations', ar: 'operations',
     dialpad: 'operations', 'field-performance': 'management', csr: 'operations',
-    reports: 'reports',
+    reports: 'reports', payroll: 'management',
     // management modules (e.g. payroll) added here as they're built
   };
   const GROUPS: { key: 'operations' | 'management' | 'reports'; title: string; icon: string; desc: string; color: string; bg: string }[] = [

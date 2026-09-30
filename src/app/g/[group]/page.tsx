@@ -10,7 +10,7 @@ function fmt(n: number) { return '$' + n.toLocaleString('en-US', { minimumFracti
 const GROUP_OF: Record<string, 'operations' | 'management' | 'reports'> = {
   leads: 'operations', 'pest-sales': 'operations', 'csr-pest-sales': 'operations', cancellations: 'operations',
   'service-pool': 'operations', 'lsa-leads': 'operations', dispatch: 'operations', ar: 'operations',
-  dialpad: 'operations', 'field-performance': 'management', csr: 'operations', reports: 'reports',
+  dialpad: 'operations', 'field-performance': 'management', csr: 'operations', reports: 'reports', payroll: 'management',
 };
 const GROUP_TITLES: Record<string, string> = { operations: 'Operations', management: 'Management', reports: 'Reports' };
 
@@ -216,6 +216,17 @@ export default function GroupPage() {
       accentColor: '#0052cc',
       main: '\u2014',
       mainLabel: 'Reports',
+      stats: null,
+    },
+    {
+      module: 'payroll' as ModuleKey,
+      icon: '💵',
+      title: 'Payroll',
+      desc: 'US and international payroll \u2014 tolls, team, raises, probation, PTO, and pay periods.',
+      href: '/payroll',
+      accentColor: '#534AB7',
+      main: '\u2014',
+      mainLabel: 'Payroll',
       stats: null,
     },
   ];
