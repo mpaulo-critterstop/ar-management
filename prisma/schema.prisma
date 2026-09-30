@@ -663,6 +663,31 @@ model TollPeriod {
   @@map("toll_periods")
 }
 
+// US Payroll — Raise Tracker. One row per employee: current pay + raise history. Feeds the master tracker's rate.
+model RaiseTracker {
+  id                String    @id @default(cuid())
+  employeeName      String
+  email             String?
+  department        String?   // grouping (Marketing, CSR/Admin, Technician, ...)
+  position          String?
+  startDate         DateTime?
+  endDate           DateTime? // set when they leave
+  currentSalary     Float?    // value; unit in payType
+  payType           String?   @default("hourly") // hourly | monthly | annual
+  pto               String?
+  bonusHistory      String?
+  mostRecentRaiseDate DateTime?
+  raiseAmount       String?   // free-text "$X to $Y"
+  previousRaiseDate DateTime?
+  previousRaiseAmount String?
+  notes             String?
+  active            Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("raise_tracker")
+}
+
 model AppSetting {
   key       String   @id
   value     String
