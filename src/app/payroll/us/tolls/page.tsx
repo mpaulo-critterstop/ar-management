@@ -251,7 +251,7 @@ export default function TollsPage() {
       </>)}
 
       {tab === 'registry' && (<>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', position: 'sticky', top: 0, background: '#fff', zIndex: 3, padding: '8px 0' }}>
           <button onClick={() => setEditing({ active: true })} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>+ Add plate / vehicle</button>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search plate or tech…" style={{ fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '0.5px solid #E8E7E3', flex: 1, minWidth: 180 }} />
         </div>
@@ -275,9 +275,15 @@ export default function TollsPage() {
           </div>
         )}
 
-        <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff' }}>
+        <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff', maxHeight: '60vh' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr><th style={thL}>Plate</th><th style={thL}>Technician</th><th style={thL}>Vehicle</th><th style={thL}>Toll Tag</th><th style={th}></th></tr></thead>
+            <thead><tr>
+              <th style={{ ...thL, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}>Plate</th>
+              <th style={{ ...thL, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}>Technician</th>
+              <th style={{ ...thL, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}>Vehicle</th>
+              <th style={{ ...thL, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}>Toll Tag</th>
+              <th style={{ ...th, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}></th>
+            </tr></thead>
             <tbody>
               {plates.filter(p => !search || (p.plateRaw + ' ' + p.tech).toLowerCase().includes(search.toLowerCase())).map(p => (
                 <tr key={p.id} style={{ opacity: p.active === false ? 0.5 : 1 }}>
