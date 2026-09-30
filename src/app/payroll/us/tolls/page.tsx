@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 
 const money = (n: number) => '$' + Math.abs(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -60,12 +61,25 @@ export default function TollsPage() {
     setFileName(f.name); setErr(''); setResult(null); setComputing(true);
     try {
       let rows: any[] = [];
-      if (f.name.endsWith('.csv')) {
+      if (f.name.toLowerCase().endsWith('.csv')) {
         rows = parseCsv(await f.text());
+      } else if (/\.xlsx?$/i.test(f.name)) {
+        const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const aoa: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+        if (aoa.length > 1) {
+          const header = (aoa[0] || []).map((h: any) => String(h).toLowerCase());
+          const plateIdx = header.findIndex((h: string) => h.includes('plate'));
+          const amtIdx = header.findIndex((h: string) => h.includes('transaction amount') || h === 'amount');
+          const dateIdx = header.findIndex((h: string) => h.includes('entry date'));
+          if (plateIdx >= 0 && amtIdx >= 0) {
+            rows = aoa.slice(1).map(c => ({ plate: c[plateIdx] || '', amount: c[amtIdx] || '', date: dateIdx >= 0 ? (c[dateIdx] || '') : '' })).filter(r => r.plate || r.amount);
+          }
+        }
       } else {
-        setErr('Please upload the toll Transaction History as a .csv (in Excel: Save As → CSV).'); setComputing(false); return;
+        setErr('Please upload a .xlsx or .csv toll Transaction History file.'); setComputing(false); return;
       }
-      if (!rows.length) { setErr('Could not find Plate / Transaction Amount columns in the CSV.'); setComputing(false); return; }
+      if (!rows.length) { setErr('Could not find Plate / Transaction Amount columns in the file. Check the headers.'); setComputing(false); return; }
       const res = await fetch('/api/payroll/tolls', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'compute', rows }) });
       const d = await res.json();
       setResult(d);
@@ -92,8 +106,8 @@ export default function TollsPage() {
 
       {tab === 'calc' && (<>
         <label style={{ display: 'inline-block', fontSize: 13, padding: '10px 18px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>
-          ⤒ Upload toll CSV
-          <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} />
+          ⤒ Upload toll file (.xlsx or .csv)
+          <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFile} style={{ display: 'none' }} />
         </label>
         {fileName && <span style={{ fontSize: 12, color: '#888780', marginLeft: 12 }}>{fileName}</span>}
         {computing && <div style={{ fontSize: 13, color: '#888780', marginTop: 12 }}>Processing…</div>}
