@@ -6,10 +6,11 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const rows = await prisma.raiseTracker.findMany({ orderBy: [{ department: 'asc' }, { employeeName: 'asc' }] });
+  const region = req.nextUrl.searchParams.get('region') || undefined;
+  const rows = await prisma.raiseTracker.findMany({ where: region ? { region } : undefined, orderBy: [{ department: 'asc' }, { employeeName: 'asc' }] });
   return NextResponse.json({ rows });
 }
 
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
   const action = body.action;
 
   const toData = (b: any) => ({
-    employeeName: b.employeeName, email: b.email || null, department: b.department || null, position: b.position || null,
+    employeeName: b.employeeName, region: b.region || 'US', email: b.email || null, department: b.department || null, position: b.position || null,
     startDate: b.startDate ? new Date(b.startDate) : null, endDate: b.endDate ? new Date(b.endDate) : null,
     currentSalary: b.currentSalary != null && b.currentSalary !== '' ? parseFloat(b.currentSalary) : null,
     payType: b.payType || 'hourly', pto: b.pto || null, bonusHistory: b.bonusHistory || null,

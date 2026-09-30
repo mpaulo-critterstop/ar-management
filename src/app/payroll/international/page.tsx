@@ -2,7 +2,8 @@
 export const dynamic = 'force-dynamic';
 
 const SECTIONS = [
-  { title: 'PTO Tracker', desc: 'PTO and holiday allotments, used, and remaining (Mark, Ana, Anni).', href: '/payroll/international/pto', status: 'available' as const },
+  { title: 'Employee and Raise Tracker', desc: 'International employee pay, positions, and raise history.', href: '/payroll/international/raises', status: 'available' as const },
+  { title: 'PTO Tracker', desc: 'PTO and holiday allotments, used, and remaining.', href: '/payroll/international/pto', status: 'available' as const },
 ];
 
 export default function InternationalPayrollPage() {

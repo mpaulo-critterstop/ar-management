@@ -667,6 +667,7 @@ model TollPeriod {
 model RaiseTracker {
   id                String    @id @default(cuid())
   employeeName      String
+  region            String    @default("US") // 'US' | 'International' — which payroll section this employee belongs to
   email             String?
   department        String?   // grouping (Marketing, CSR/Admin, Technician, ...)
   position          String?
