@@ -257,7 +257,7 @@ export default function HomePage() {
         {visibleGroups.map(g => (
           <a
             key={g.key}
-            href={`/g/${g.key}`}
+            href={g.key === 'reports' ? '/reports' : `/g/${g.key}`}
             style={{
               background: '#fff', borderRadius: 12, border: '0.5px solid #E8E7E3', padding: 24,
               cursor: 'pointer', display: 'block', textDecoration: 'none', transition: 'box-shadow 0.15s',
