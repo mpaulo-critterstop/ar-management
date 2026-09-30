@@ -667,7 +667,6 @@ model TollPeriod {
 model RaiseTracker {
   id                String    @id @default(cuid())
   employeeName      String
-  region            String    @default("US") // 'US' | 'International' — which payroll section this employee belongs to
   email             String?
   department        String?   // grouping (Marketing, CSR/Admin, Technician, ...)
   position          String?
@@ -687,6 +686,31 @@ model RaiseTracker {
   updatedAt         DateTime  @updatedAt
 
   @@map("raise_tracker")
+}
+
+// International Payroll — completely separate Employee and Raise Tracker (own table).
+model IntlRaiseTracker {
+  id                String    @id @default(cuid())
+  employeeName      String
+  email             String?
+  department        String?
+  position          String?
+  startDate         DateTime?
+  endDate           DateTime?
+  currentSalary     Float?
+  payType           String?   @default("monthly")
+  pto               String?
+  bonusHistory      String?
+  mostRecentRaiseDate DateTime?
+  raiseAmount       String?
+  previousRaiseDate DateTime?
+  previousRaiseAmount String?
+  notes             String?
+  active            Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("intl_raise_tracker")
 }
 
 // International Payroll — PTO. Annual allotment per person (PTO + Holiday days). Used/Remaining computed from log.
