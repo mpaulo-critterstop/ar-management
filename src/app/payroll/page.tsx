@@ -6,7 +6,7 @@ const TILES = [
     title: 'US Payroll',
     desc: 'Tolls, Team Tracker, Raise Tracker, Probation, PTO, Reviews, and weekly pay periods.',
     href: '/payroll/us',
-    icon: '🇺🇸',
+    icon: 'us-flag',
     status: 'available' as 'available' | 'coming-soon',
   },
   {
@@ -17,6 +17,16 @@ const TILES = [
     status: 'available' as 'available' | 'coming-soon',
   },
 ];
+
+function UsFlag() {
+  return (
+    <svg width="30" height="21" viewBox="0 0 30 21" style={{ borderRadius: 3, border: '0.5px solid #E8E7E3', display: 'block' }} aria-label="US flag">
+      <rect width="30" height="21" fill="#fff" />
+      {[0, 2, 4, 6, 8, 10, 12].map(i => <rect key={i} y={i * 1.615} width="30" height="1.615" fill="#B22234" />)}
+      <rect width="12" height="11.3" fill="#3C3B6E" />
+    </svg>
+  );
+}
 
 export default function PayrollPage() {
   return (
@@ -33,7 +43,7 @@ export default function PayrollPage() {
               opacity: t.status === 'coming-soon' ? 0.7 : 1,
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ fontSize: 26 }}>{t.icon}</div>
+                <div style={{ fontSize: 26, lineHeight: 1 }}>{t.icon === 'us-flag' ? <UsFlag /> : t.icon}</div>
                 {t.status === 'coming-soon' && (
                   <span style={{ fontSize: 10, fontWeight: 600, color: '#BA7517', background: '#FBF3E5', padding: '2px 8px', borderRadius: 999 }}>Coming soon</span>
                 )}
