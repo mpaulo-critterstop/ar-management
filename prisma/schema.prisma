@@ -628,6 +628,39 @@ model ManualAdj {
   @@map("manual_adjs")
 }
 
+// US Payroll — Tolls. Plate registry: maps a vehicle's license plate to the assigned tech. Editable in the Hub.
+model TollPlate {
+  id         String   @id @default(cuid())
+  plate      String   @unique // normalized (upper, no "TX -"/spaces)
+  plateRaw   String   // as entered / as seen in the toll CSV
+  tech       String   // assigned technician name
+  vehicle    String?
+  tollTag    String?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("toll_plates")
+}
+
+// A computed toll period (one CSV upload) — per-tech totals stored so it's reviewable later.
+model TollPeriod {
+  id          String   @id @default(cuid())
+  label       String   // e.g. a pay-period label or the upload date
+  periodStart DateTime?
+  periodEnd   DateTime?
+  totalAmount Float    @default(0)
+  matchedRows Int      @default(0)
+  unmatchedRows Int    @default(0)
+  perTech     Json     // [{ tech, amount, count }]
+  unmatched   Json     // [{ plate, amount, count }]
+  rawRowCount Int      @default(0)
+  uploadedBy  String?
+  createdAt   DateTime @default(now())
+
+  @@map("toll_periods")
+}
+
 model AppSetting {
   key       String   @id
   value     String
