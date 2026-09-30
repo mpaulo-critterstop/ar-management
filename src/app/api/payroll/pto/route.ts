@@ -55,9 +55,24 @@ export async function POST(req: NextRequest) {
       businessDays: parseFloat(b.businessDays) || 0, notes: b.notes || null, year: b.year || new Date(b.startDate).getFullYear(),
     };
     if (action === 'addLeave') { const r = await prisma.ptoLeave.create({ data }); return NextResponse.json({ ok: true, id: r.id }); }
+    // Don't allow editing a row already marked used (it's a historical record).
+    const existing = await prisma.ptoLeave.findUnique({ where: { id: b.id } });
+    if (existing?.used) return NextResponse.json({ error: 'This leave is marked used and cannot be edited.' }, { status: 400 });
     await prisma.ptoLeave.update({ where: { id: b.id }, data }); return NextResponse.json({ ok: true });
   }
-  if (action === 'deleteLeave') { await prisma.ptoLeave.delete({ where: { id: b.id } }); return NextResponse.json({ ok: true }); }
+  if (action === 'markUsed') {
+    await prisma.ptoLeave.update({ where: { id: b.id }, data: { used: true, usedAt: new Date() } });
+    return NextResponse.json({ ok: true });
+  }
+  if (action === 'markUnused') { // in case of a mistake — allow reverting
+    await prisma.ptoLeave.update({ where: { id: b.id }, data: { used: false, usedAt: null } });
+    return NextResponse.json({ ok: true });
+  }
+  if (action === 'deleteLeave') {
+    const existing = await prisma.ptoLeave.findUnique({ where: { id: b.id } });
+    if (existing?.used) return NextResponse.json({ error: 'This leave is marked used and cannot be deleted.' }, { status: 400 });
+    await prisma.ptoLeave.delete({ where: { id: b.id } }); return NextResponse.json({ ok: true });
+  }
 
   if (action === 'setAllotment') {
     const data = { name: b.name, year: b.year, ptoAllotment: parseFloat(b.ptoAllotment) || 0, holidayAllotment: parseFloat(b.holidayAllotment) || 0, notes: b.notes || null };

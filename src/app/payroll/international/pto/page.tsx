@@ -22,7 +22,8 @@ export default function PtoTrackerPage() {
     await fetch('/api/payroll/pto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: editing.id ? 'updateLeave' : 'addLeave', year, ...editing }) });
     setSaving(false); setEditing(null); load();
   }
-  async function delLeave(id: string) { if (!confirm('Delete this leave entry?')) return; await fetch('/api/payroll/pto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'deleteLeave', id }) }); load(); }
+  async function delLeave(id: string) { if (!confirm('Delete this leave entry?')) return; const r = await fetch('/api/payroll/pto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'deleteLeave', id }) }); if (!r.ok) alert((await r.json()).error || 'Could not delete.'); load(); }
+  async function markUsed(id: string) { if (!confirm('Mark this leave as used? Once used, it can no longer be edited or deleted.')) return; await fetch('/api/payroll/pto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'markUsed', id }) }); load(); }
   async function saveAllot() {
     if (!allotEdit?.name) { alert('Name is required.'); return; }
     setSaving(true);
@@ -163,8 +164,13 @@ export default function PtoTrackerPage() {
                 <td style={{ ...td, textAlign: 'right' }}>{l.businessDays}</td>
                 <td style={td}>{l.notes || '—'}</td>
                 <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <button onClick={() => setEditing({ ...l, startDate: fmtDate(l.startDate), endDate: fmtDate(l.endDate) })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#534AB7', cursor: 'pointer', marginRight: 6 }}>Edit</button>
-                  <button onClick={() => delLeave(l.id)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Del</button>
+                  {l.used ? (
+                    <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 999, background: '#E1F5EE', color: '#0F6E56', fontWeight: 600 }}>✓ Used</span>
+                  ) : (<>
+                    <button onClick={() => markUsed(l.id)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #128a3f', background: '#fff', color: '#128a3f', cursor: 'pointer', marginRight: 6 }}>Used</button>
+                    <button onClick={() => setEditing({ ...l, startDate: fmtDate(l.startDate), endDate: fmtDate(l.endDate) })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#534AB7', cursor: 'pointer', marginRight: 6 }}>Edit</button>
+                    <button onClick={() => delLeave(l.id)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Del</button>
+                  </>)}
                 </td>
               </tr>
             ))}

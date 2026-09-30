@@ -713,6 +713,8 @@ model PtoLeave {
   businessDays Float    @default(0)
   notes        String?
   year         Int
+  used         Boolean  @default(false) // false = planned/filed ahead; true = actually taken (locks the row)
+  usedAt       DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
