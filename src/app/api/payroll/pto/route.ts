@@ -64,5 +64,10 @@ export async function POST(req: NextRequest) {
     await prisma.ptoAllotment.upsert({ where: { name_year: { name: b.name, year: b.year } }, create: data, update: data });
     return NextResponse.json({ ok: true });
   }
+  if (action === 'deleteAllotment') {
+    // Remove the employee's allotment for the year. Leave-log entries are left intact (delete separately if needed).
+    await prisma.ptoAllotment.deleteMany({ where: { name: b.name, year: b.year } });
+    return NextResponse.json({ ok: true });
+  }
   return NextResponse.json({ error: 'unknown action' }, { status: 400 });
 }

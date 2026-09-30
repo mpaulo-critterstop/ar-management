@@ -24,9 +24,15 @@ export default function PtoTrackerPage() {
   }
   async function delLeave(id: string) { if (!confirm('Delete this leave entry?')) return; await fetch('/api/payroll/pto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'deleteLeave', id }) }); load(); }
   async function saveAllot() {
+    if (!allotEdit?.name) { alert('Name is required.'); return; }
     setSaving(true);
     await fetch('/api/payroll/pto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'setAllotment', year, ...allotEdit }) });
     setSaving(false); setAllotEdit(null); load();
+  }
+  async function delEmployee(name: string) {
+    if (!confirm(`Remove ${name}'s ${year} allotment? (Leave-log entries are kept.)`)) return;
+    await fetch('/api/payroll/pto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'deleteAllotment', name, year }) });
+    load();
   }
 
   const summary = data?.summary || [];
@@ -49,35 +55,17 @@ export default function PtoTrackerPage() {
         </select>
       </div>
 
-      {/* Balance summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, marginBottom: 26 }}>
-        {summary.map((s: any) => (
-          <div key={s.name} style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, padding: 16, background: '#fff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ fontSize: 15, fontWeight: 600 }}>{s.name}</div>
-              <button onClick={() => setAllotEdit({ name: s.name, ptoAllotment: s.pto.allotment, holidayAllotment: s.holiday.allotment })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#534AB7', cursor: 'pointer' }}>Edit allotment</button>
-            </div>
-            <div style={{ display: 'flex', gap: 20 }}>
-              {[{ k: 'pto', label: 'PTO' }, { k: 'holiday', label: 'Holiday' }].map(({ k, label }) => {
-                const v = (s as any)[k];
-                return (
-                  <div key={k} style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, color: '#888780', marginBottom: 4 }}>{label} (days)</div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: v.remaining <= 0 ? '#b91c1c' : '#128a3f' }}>{v.remaining}</div>
-                    <div style={{ fontSize: 11, color: '#B4B2A9' }}>{v.used} used / {v.allotment} total</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-        {!summary.length && <div style={{ fontSize: 13, color: '#888780' }}>No PTO data for {year}. Add a leave entry or set an allotment below.</div>}
+      {/* Employee allotments + usage table */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 15, fontWeight: 600 }}>Employees ({year})</div>
+        <button onClick={() => setAllotEdit({ name: '', ptoAllotment: 15, holidayAllotment: 6, isNew: true })} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>+ Add employee</button>
       </div>
 
       {allotEdit && (
         <div style={{ border: '0.5px solid #534AB7', borderRadius: 12, padding: 16, background: '#F7F6FD', marginBottom: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Allotment — {allotEdit.name} ({year})</div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>{allotEdit.isNew ? 'Add employee' : `Edit — ${allotEdit.name}`} ({year})</div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            {allotEdit.isNew && <label style={{ fontSize: 12, color: '#888780' }}>Name<input value={allotEdit.name} onChange={e => setAllotEdit({ ...allotEdit, name: e.target.value })} placeholder="Employee name" style={{ ...inp, width: 200 }} /></label>}
             <label style={{ fontSize: 12, color: '#888780' }}>PTO days<input type="number" step="0.5" value={allotEdit.ptoAllotment} onChange={e => setAllotEdit({ ...allotEdit, ptoAllotment: e.target.value })} style={{ ...inp, width: 120 }} /></label>
             <label style={{ fontSize: 12, color: '#888780' }}>Holiday days<input type="number" step="0.5" value={allotEdit.holidayAllotment} onChange={e => setAllotEdit({ ...allotEdit, holidayAllotment: e.target.value })} style={{ ...inp, width: 120 }} /></label>
           </div>
@@ -87,6 +75,39 @@ export default function PtoTrackerPage() {
           </div>
         </div>
       )}
+
+      <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff', marginBottom: 26 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr>
+            <th style={th}>Name</th>
+            <th style={{ ...th, textAlign: 'right' }}>PTO (days)</th>
+            <th style={{ ...th, textAlign: 'right' }}>Holiday (days)</th>
+            <th style={{ ...th, textAlign: 'right' }}>Used PTO</th>
+            <th style={{ ...th, textAlign: 'right' }}>Used Holiday</th>
+            <th style={{ ...th, textAlign: 'right' }}>PTO Left</th>
+            <th style={{ ...th, textAlign: 'right' }}>Holiday Left</th>
+            <th style={{ ...th, textAlign: 'right' }}></th>
+          </tr></thead>
+          <tbody>
+            {summary.map((s: any) => (
+              <tr key={s.name}>
+                <td style={td}>{s.name}</td>
+                <td style={{ ...td, textAlign: 'right' }}>{s.pto.allotment}</td>
+                <td style={{ ...td, textAlign: 'right' }}>{s.holiday.allotment}</td>
+                <td style={{ ...td, textAlign: 'right' }}>{s.pto.used}</td>
+                <td style={{ ...td, textAlign: 'right' }}>{s.holiday.used}</td>
+                <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: s.pto.remaining <= 0 ? '#b91c1c' : '#128a3f' }}>{s.pto.remaining}</td>
+                <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: s.holiday.remaining <= 0 ? '#b91c1c' : '#128a3f' }}>{s.holiday.remaining}</td>
+                <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  <button onClick={() => setAllotEdit({ name: s.name, ptoAllotment: s.pto.allotment, holidayAllotment: s.holiday.allotment })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#534AB7', cursor: 'pointer', marginRight: 6 }}>Edit</button>
+                  <button onClick={() => delEmployee(s.name)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Del</button>
+                </td>
+              </tr>
+            ))}
+            {!summary.length && <tr><td colSpan={8} style={{ ...td, color: '#888780', padding: 20 }}>No employees for {year}. Add one above.</td></tr>}
+          </tbody>
+        </table>
+      </div>
 
       {/* Leave log */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
