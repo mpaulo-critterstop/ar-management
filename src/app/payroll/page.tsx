@@ -7,14 +7,14 @@ const TILES = [
     desc: 'Tolls, Team Tracker, Raise Tracker, Probation, PTO, Reviews, and weekly pay periods.',
     href: '/payroll/us',
     icon: '🇺🇸',
-    status: 'available' as const,
+    status: 'available' as 'available' | 'coming-soon',
   },
   {
     title: 'International Payroll',
     desc: 'International team payroll and PTO.',
     href: '/payroll/international',
     icon: '🌎',
-    status: 'available' as const,
+    status: 'available' as 'available' | 'coming-soon',
   },
 ];
 
