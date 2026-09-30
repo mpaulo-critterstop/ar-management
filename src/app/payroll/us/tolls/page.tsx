@@ -5,9 +5,21 @@ import * as XLSX from 'xlsx';
 
 const money = (n: number) => '$' + Math.abs(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// Parse a date that may be ISO (YYYY-MM-DD…) or US (MM/DD/YYYY…). Returns a UTC Date at noon, or null.
+function parseAnyDate(s: string): Date | null {
+  if (!s) return null;
+  const str = String(s).trim();
+  let m = str.match(/^(\d{4})-(\d{2})-(\d{2})/); // ISO
+  if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12));
+  m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); // US MM/DD/YYYY
+  if (m) return new Date(Date.UTC(+m[3], +m[1] - 1, +m[2], 12));
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 // Given a date within the Mon-Sun toll period, return { start (Mon), end (Sun), payDate (following Mon) }.
 function payWeekFor(dateStr: string): { start: string; end: string; payDate: string } {
-  const d = new Date((dateStr || new Date().toISOString().slice(0, 10)).slice(0, 10) + 'T12:00:00Z');
+  const d = parseAnyDate(dateStr) || new Date();
   const dow = d.getUTCDay(); // 0 Sun..6 Sat
   const toMon = dow === 0 ? -6 : 1 - dow;
   const mon = new Date(d); mon.setUTCDate(d.getUTCDate() + toMon);

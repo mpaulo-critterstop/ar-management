@@ -53,7 +53,14 @@ export async function POST(req: NextRequest) {
       const amt = parseFloat(String(r.amount).replace(/[^0-9.\-]/g, ''));
       if (isNaN(amt)) continue;
       total += amt;
-      if (r.date) { const d = String(r.date).slice(0, 10); if (!minDate || d < minDate) minDate = d; if (!maxDate || d > maxDate) maxDate = d; }
+      if (r.date) {
+        const s = String(r.date).trim();
+        let iso = '';
+        let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) iso = `${m[1]}-${m[2]}-${m[3]}`;
+        else { m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m) iso = `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`; }
+        if (iso) { if (!minDate || iso < minDate) minDate = iso; if (!maxDate || iso > maxDate) maxDate = iso; }
+      }
       const key = normPlate(r.plate);
       const tech = key ? reg.get(key) : undefined;
       if (tech) {
