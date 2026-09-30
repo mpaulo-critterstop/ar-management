@@ -10,6 +10,8 @@ export default function PtoTrackerPage() {
   const [editing, setEditing] = useState<any>(null); // leave being added/edited
   const [allotEdit, setAllotEdit] = useState<any>(null); // allotment being edited
   const [saving, setSaving] = useState(false);
+  const [fName, setFName] = useState('');
+  const [fType, setFType] = useState('');
 
   const load = () => fetch(`/api/payroll/pto?year=${year}`).then(r => r.json()).then(setData).catch(() => {});
   useEffect(() => { load(); }, [year]);
@@ -28,7 +30,8 @@ export default function PtoTrackerPage() {
   }
 
   const summary = data?.summary || [];
-  const leaves = data?.leaves || [];
+  const allLeaves = data?.leaves || [];
+  const leaves = allLeaves.filter((l: any) => (!fName || l.name === fName) && (!fType || l.leaveType === fType));
   const inp: React.CSSProperties = { display: 'block', width: '100%', fontSize: 13, padding: '8px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', marginTop: 4 };
   const th: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#888780', borderBottom: '0.5px solid #E8E7E3', whiteSpace: 'nowrap' };
   const td: React.CSSProperties = { textAlign: 'left', padding: '7px 10px', fontSize: 13, borderBottom: '0.5px solid #F1EFE8', whiteSpace: 'nowrap' };
@@ -86,9 +89,18 @@ export default function PtoTrackerPage() {
       )}
 
       {/* Leave log */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 15, fontWeight: 600 }}>Leave Log</div>
-        <button onClick={() => setEditing({ leaveType: 'PTO', businessDays: 1 })} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>+ Add leave</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select value={fName} onChange={e => setFName(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '0.5px solid #E8E7E3' }}>
+            <option value="">All names</option>
+            {[...new Set(allLeaves.map((l: any) => l.name))].sort().map((n: any) => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <select value={fType} onChange={e => setFType(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '0.5px solid #E8E7E3' }}>
+            <option value="">All types</option><option value="PTO">PTO</option><option value="Holiday">Holiday</option>
+          </select>
+          <button onClick={() => setEditing({ leaveType: 'PTO', businessDays: 1 })} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>+ Add leave</button>
+        </div>
       </div>
 
       {editing && (
