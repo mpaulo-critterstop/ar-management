@@ -77,19 +77,26 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Persist a computed period.
+  // Persist a computed period, keyed by payDate (Monday after the Mon-Sun period). Re-saving the same week
+  // REPLACES it (re-upload = authoritative version for that week).
   if (action === 'save') {
-    const p = await prisma.tollPeriod.create({
-      data: {
-        label: body.label || new Date().toISOString().slice(0, 10),
-        periodStart: body.periodStart ? new Date(body.periodStart) : null,
-        periodEnd: body.periodEnd ? new Date(body.periodEnd) : null,
-        totalAmount: body.total || 0, matchedRows: body.matched || 0, unmatchedRows: body.unmatched || 0,
-        perTech: body.perTech || [], unmatched: body.unmatchedList || [], rawRowCount: body.rawRowCount || 0,
-        uploadedBy: (session.user as any)?.name || null,
-      },
-    });
-    return NextResponse.json({ ok: true, id: p.id });
+    if (!body.payDate) return NextResponse.json({ error: 'payDate required' }, { status: 400 });
+    const data = {
+      payDate: body.payDate, label: body.label || body.payDate,
+      periodStart: body.periodStart ? new Date(body.periodStart) : null,
+      periodEnd: body.periodEnd ? new Date(body.periodEnd) : null,
+      totalAmount: body.total || 0, matchedRows: body.matched || 0, unmatchedRows: body.unmatched || 0,
+      perTech: body.perTech || [], unmatched: body.unmatchedList || [], rawRowCount: body.rawRowCount || 0,
+      uploadedBy: (session.user as any)?.name || null,
+    };
+    const p = await prisma.tollPeriod.upsert({ where: { payDate: body.payDate }, create: data, update: data });
+    return NextResponse.json({ ok: true, id: p.id, payDate: p.payDate });
+  }
+
+  // Get one saved period by payDate (for the tracker / history view).
+  if (action === 'getPeriod') {
+    const p = await prisma.tollPeriod.findUnique({ where: { payDate: body.payDate } });
+    return NextResponse.json({ period: p });
   }
 
   // Registry management.

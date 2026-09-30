@@ -646,9 +646,10 @@ model TollPlate {
 // A computed toll period (one CSV upload) — per-tech totals stored so it's reviewable later.
 model TollPeriod {
   id          String   @id @default(cuid())
-  label       String   // e.g. a pay-period label or the upload date
-  periodStart DateTime?
-  periodEnd   DateTime?
+  payDate     String   @unique // pay-period key = Monday AFTER the Mon-Sun period (e.g. '2026-09-28' for 9/21-9/27). Ties to the master payroll tracker week.
+  label       String
+  periodStart DateTime? // the Monday (9/21)
+  periodEnd   DateTime? // the Sunday (9/27)
   totalAmount Float    @default(0)
   matchedRows Int      @default(0)
   unmatchedRows Int    @default(0)
@@ -657,6 +658,7 @@ model TollPeriod {
   rawRowCount Int      @default(0)
   uploadedBy  String?
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("toll_periods")
 }

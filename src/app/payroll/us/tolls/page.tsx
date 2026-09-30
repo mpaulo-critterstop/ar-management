@@ -5,6 +5,18 @@ import * as XLSX from 'xlsx';
 
 const money = (n: number) => '$' + Math.abs(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// Given a date within the Mon-Sun toll period, return { start (Mon), end (Sun), payDate (following Mon) }.
+function payWeekFor(dateStr: string): { start: string; end: string; payDate: string } {
+  const d = new Date((dateStr || new Date().toISOString().slice(0, 10)).slice(0, 10) + 'T12:00:00Z');
+  const dow = d.getUTCDay(); // 0 Sun..6 Sat
+  const toMon = dow === 0 ? -6 : 1 - dow;
+  const mon = new Date(d); mon.setUTCDate(d.getUTCDate() + toMon);
+  const sun = new Date(mon); sun.setUTCDate(mon.getUTCDate() + 6);
+  const pay = new Date(sun); pay.setUTCDate(sun.getUTCDate() + 1); // Monday after
+  const f = (x: Date) => x.toISOString().slice(0, 10);
+  return { start: f(mon), end: f(sun), payDate: f(pay) };
+}
+
 // Minimal CSV/row parser: expects the toll Transaction History (headers incl. Plate + Transaction Amount +
 // Transaction Entry Date/Time). We find those columns by header name.
 function parseCsv(text: string): { plate: string; amount: string; date: string }[] {
@@ -32,14 +44,40 @@ export default function TollsPage() {
   const [computing, setComputing] = useState(false);
   const [fileName, setFileName] = useState('');
   const [err, setErr] = useState('');
-  const [tab, setTab] = useState<'calc' | 'registry'>('calc');
+  const [tab, setTab] = useState<'calc' | 'history' | 'registry'>('calc');
   const [plates, setPlates] = useState<any[]>([]);
   const [editing, setEditing] = useState<any>(null); // the plate being edited, or {} for a new one
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
 
+  const [payDate, setPayDate] = useState('');
+  const [savedMsg, setSavedMsg] = useState('');
+  const [periods, setPeriods] = useState<any[]>([]);
+  const [histSel, setHistSel] = useState('');
+
   const loadPlates = () => fetch('/api/payroll/tolls?action=plates').then(r => r.json()).then(d => setPlates(d.plates || [])).catch(() => {});
-  useEffect(() => { loadPlates(); }, []);
+  const loadPeriods = () => fetch('/api/payroll/tolls?action=periods').then(r => r.json()).then(d => setPeriods(d.periods || [])).catch(() => {});
+  useEffect(() => { loadPlates(); loadPeriods(); }, []);
+
+  // When a result comes in, default the pay week from the toll dates.
+  useEffect(() => {
+    if (result?.periodStart) setPayDate(payWeekFor(result.periodStart).payDate);
+  }, [result]);
+
+  async function saveWeek() {
+    if (!payDate) { alert('Pick the pay week first.'); return; }
+    const wk = payWeekFor(payDate); // payDate IS the Monday-after; derive back for label
+    // payDate the user sees is the pay date; period is the Mon-Sun before it.
+    const periodEnd = new Date(payDate + 'T12:00:00Z'); periodEnd.setUTCDate(periodEnd.getUTCDate() - 1);
+    const periodStart = new Date(periodEnd); periodStart.setUTCDate(periodEnd.getUTCDate() - 6);
+    const f = (x: Date) => x.toISOString().slice(0, 10);
+    setSavedMsg('Saving…');
+    const res = await fetch('/api/payroll/tolls', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save', payDate, label: `Pay ${payDate} (${f(periodStart)}–${f(periodEnd)})`, periodStart: f(periodStart), periodEnd: f(periodEnd),
+        total: result.total, matched: result.matched, unmatched: result.unmatched, perTech: result.perTech, unmatchedList: result.unmatchedList, rawRowCount: result.rawRowCount }) });
+    const d = await res.json();
+    setSavedMsg(d.ok ? `✓ Saved to pay week ${payDate}` : 'Save failed'); loadPeriods();
+  }
 
   async function savePlate() {
     if (!editing?.plateRaw || !editing?.tech) { alert('Plate and Technician are required.'); return; }
@@ -99,8 +137,8 @@ export default function TollsPage() {
       <p style={{ fontSize: 13, color: '#888780', margin: '0 0 20px' }}>Upload the toll Transaction History CSV; tolls are matched to each tech by license plate.</p>
 
       <div style={{ display: 'flex', gap: 4, background: '#f1efe8', borderRadius: 8, padding: 3, width: 'fit-content', marginBottom: 20 }}>
-        {(['calc', 'registry'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ fontSize: 12, padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', background: tab === t ? '#fff' : 'transparent', color: tab === t ? '#2C2C2A' : '#888780', fontWeight: tab === t ? 600 : 400 }}>{t === 'calc' ? 'Calculate' : `Plate Registry (${plates.length})`}</button>
+        {(['calc', 'history', 'registry'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ fontSize: 12, padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', background: tab === t ? '#fff' : 'transparent', color: tab === t ? '#2C2C2A' : '#888780', fontWeight: tab === t ? 600 : 400 }}>{t === 'calc' ? 'Calculate' : t === 'history' ? `History (${periods.length})` : `Plate Registry (${plates.length})`}</button>
         ))}
       </div>
 
@@ -139,6 +177,16 @@ export default function TollsPage() {
             </table>
           </div>
 
+          <div style={{ border: '0.5px solid #534AB7', borderRadius: 12, padding: 16, background: '#F7F6FD', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#2C2C2A' }}>Save to payroll week:</div>
+            <label style={{ fontSize: 12, color: '#888780' }}>Pay date (Mon after period)
+              <input type="date" value={payDate} onChange={e => { setPayDate(e.target.value); setSavedMsg(''); }} style={{ display: 'block', fontSize: 13, padding: '7px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', marginTop: 4 }} />
+            </label>
+            {payDate && <span style={{ fontSize: 12, color: '#888780' }}>Period: {(() => { const pe = new Date(payDate + 'T12:00:00Z'); pe.setUTCDate(pe.getUTCDate() - 1); const ps = new Date(pe); ps.setUTCDate(pe.getUTCDate() - 6); return `${ps.toISOString().slice(5, 10)} – ${pe.toISOString().slice(5, 10)}`; })()}</span>}
+            <button onClick={saveWeek} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#534AB7', color: '#fff', fontWeight: 500, cursor: 'pointer' }}>Save week</button>
+            {savedMsg && <span style={{ fontSize: 12, color: savedMsg.startsWith('✓') ? '#128a3f' : '#888780' }}>{savedMsg}</span>}
+          </div>
+
           {result.unmatchedList?.length > 0 && (
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#b91c1c', marginBottom: 8 }}>⚠ Unmatched plates — add these to the registry</div>
@@ -151,6 +199,32 @@ export default function TollsPage() {
             </div>
           )}
         </>)}
+      </>)}
+
+      {tab === 'history' && (<>
+        <div style={{ marginBottom: 16 }}>
+          <select value={histSel} onChange={e => setHistSel(e.target.value)} style={{ fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '0.5px solid #E8E7E3', background: '#fff', minWidth: 260 }}>
+            <option value="">Select a saved pay week…</option>
+            {periods.map(p => <option key={p.payDate} value={p.payDate}>{p.label}</option>)}
+          </select>
+        </div>
+        {(() => {
+          const p = periods.find(x => x.payDate === histSel);
+          if (!p) return <div style={{ fontSize: 13, color: '#888780' }}>{periods.length ? 'Pick a pay week to view its saved tolls.' : 'No saved toll weeks yet. Upload + save a week on the Calculate tab.'}</div>;
+          const pt = (p.perTech as any[]) || [];
+          return (<>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+              <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 10, padding: '10px 16px', background: '#fff' }}><div style={{ fontSize: 18, fontWeight: 700 }}>{money(p.totalAmount)}</div><div style={{ fontSize: 11, color: '#888780' }}>Total tolls</div></div>
+              <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 10, padding: '10px 16px', background: '#fff' }}><div style={{ fontSize: 18, fontWeight: 700 }}>{pt.length}</div><div style={{ fontSize: 11, color: '#888780' }}>Techs</div></div>
+            </div>
+            <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead><tr><th style={thL}>Technician</th><th style={th}># Tolls</th><th style={th}>Toll Deduction</th></tr></thead>
+                <tbody>{pt.map((t: any) => (<tr key={t.tech}><td style={tdL}>{t.tech}</td><td style={td}>{t.count}</td><td style={{ ...td, fontWeight: 600 }}>{money(t.amount)}</td></tr>))}</tbody>
+              </table>
+            </div>
+          </>);
+        })()}
       </>)}
 
       {tab === 'registry' && (<>
