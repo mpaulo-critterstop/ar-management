@@ -2,18 +2,25 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { canAccessModule, type ModuleKey } from '@/lib/access';
 
-function fmt(n: number) {
-  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
+function fmt(n: number) { return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 
-export default function HomePage() {
+const GROUP_OF: Record<string, 'operations' | 'management' | 'reports'> = {
+  leads: 'operations', 'pest-sales': 'operations', 'csr-pest-sales': 'operations', cancellations: 'operations',
+  'service-pool': 'operations', 'lsa-leads': 'operations', dispatch: 'operations', ar: 'operations',
+  dialpad: 'operations', 'field-performance': 'operations', csr: 'operations', reports: 'reports',
+};
+const GROUP_TITLES: Record<string, string> = { operations: 'Operations', management: 'Management', reports: 'Reports' };
+
+export default function GroupPage() {
   const sessionData = useSession();
   const session = sessionData?.data;
   const status = sessionData?.status;
   const router = useRouter();
+  const params = useParams();
+  const group = String((params as any)?.group || 'operations');
   const [kpis, setKpis] = useState<any>(null);
   const [leadsKpis, setLeadsKpis] = useState<any>(null);
   const [dispatchKpis, setDispatchKpis] = useState<any>(null);
@@ -24,10 +31,7 @@ export default function HomePage() {
     if (status === 'unauthenticated') router.push('/login');
     if (status === 'authenticated') {
       const u = session?.user as any;
-      // Force a password change before anything else.
       if (u?.mustChangePassword) { router.replace('/change-password'); return; }
-      // Only technicians (role or linked techId) go to the personal mobile dashboard.
-      // Other own-data users (e.g. a PM restricted to their own commission) stay on the normal home.
       if (u?.role === 'Technician' || u?.techId) { router.replace('/my-performance'); return; }
     }
   }, [status, router, session]);
@@ -48,13 +52,7 @@ export default function HomePage() {
 
   if (!session) return null;
   const role = (session?.user as any)?.role;
-  // Render nothing while technicians are being redirected to their mobile dashboard.
   if (role === 'Technician' || (session?.user as any)?.techId) return null;
-  const fpRoles = ['Admin', 'Manager', 'Technician'];
-
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-
   const user = session?.user as any;
 
   const allCards = [
@@ -222,59 +220,34 @@ export default function HomePage() {
     },
   ];
 
-  // Show only modules this user can access.
-  const cards = allCards.filter(c => canAccessModule(user, c.module)).sort((a, b) => a.title.localeCompare(b.title));
 
-  // Group assignment: which top-level group each module belongs to.
-  const GROUP_OF: Record<string, 'operations' | 'management' | 'reports'> = {
-    leads: 'operations', 'pest-sales': 'operations', 'csr-pest-sales': 'operations', cancellations: 'operations',
-    'service-pool': 'operations', 'lsa-leads': 'operations', dispatch: 'operations', ar: 'operations',
-    dialpad: 'operations', 'field-performance': 'operations', csr: 'operations',
-    reports: 'reports',
-    // management modules (e.g. payroll) added here as they're built
-  };
-  const GROUPS: { key: 'operations' | 'management' | 'reports'; title: string; icon: string; desc: string; color: string; bg: string }[] = [
-    { key: 'operations', title: 'Operations', icon: '🛠️', desc: 'Dispatch, AR, sales, leads, job pool, and more', color: '#185FA5', bg: '#E6F1FB' },
-    { key: 'management', title: 'Management', icon: '💼', desc: 'Payroll and management tools', color: '#534AB7', bg: '#EEEDFE' },
-    { key: 'reports', title: 'Reports', icon: '📈', desc: 'Insulation revenue and future reports', color: '#0F6E56', bg: '#E1F5EE' },
-  ];
-  // Count accessible modules per group (access is preserved — a group only shows if the user has ≥1 module in it).
-  const countInGroup = (g: string) => cards.filter(c => (GROUP_OF[c.module] || 'operations') === g).length;
-  const visibleGroups = GROUPS.map(g => ({ ...g, count: countInGroup(g.key) })).filter(g => g.count > 0);
+  const cards = allCards
+    .filter(c => canAccessModule(user, c.module))
+    .filter(c => (GROUP_OF[c.module] || 'operations') === group)
+    .sort((a, b) => a.title.localeCompare(b.title));
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 22, fontWeight: 500, color: '#2C2C2A', marginBottom: 4 }}>
-          {greeting} 👋
-        </div>
-        <div style={{ fontSize: 14, color: '#888780' }}>
-          Welcome back, {(session.user as any)?.name || (session.user as any)?.email?.split('@')[0]}
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-        {visibleGroups.map(g => (
-          <a
-            key={g.key}
-            href={`/g/${g.key}`}
-            style={{
-              background: '#fff', borderRadius: 12, border: '0.5px solid #E8E7E3', padding: 24,
-              cursor: 'pointer', display: 'block', textDecoration: 'none', transition: 'box-shadow 0.15s',
-            }}
+      <a href="/" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← Home</a>
+      <div style={{ fontSize: 22, fontWeight: 500, color: '#2C2C2A', margin: '10px 0 28px' }}>{GROUP_TITLES[group] || 'Modules'}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+        {cards.map(card => (
+          <a key={card.href} href={card.href} style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #E8E7E3', borderTop: `3px solid ${card.accentColor}`, padding: 20, cursor: 'pointer', display: 'block', textDecoration: 'none', transition: 'box-shadow 0.15s' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(44,44,42,0.08)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
-          >
-            <div style={{ width: 44, height: 44, borderRadius: 10, background: g.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, fontSize: 22 }}>
-              {g.icon}
-            </div>
-            <div style={{ fontSize: 17, fontWeight: 500, color: '#2C2C2A' }}>{g.title}</div>
-            <div style={{ fontSize: 13, color: '#888780', marginTop: 4, lineHeight: 1.5 }}>{g.desc}</div>
-            <div style={{ fontSize: 12, color: '#B4B2A9', marginTop: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-              {g.count} {g.count === 1 ? 'module' : 'modules'} →
-            </div>
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#F1EFE8', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, fontSize: 20 }}>{card.icon}</div>
+            <div style={{ fontSize: 15, fontWeight: 500, color: '#2C2C2A', marginBottom: 6 }}>{card.title}</div>
+            <div style={{ fontSize: 12, color: '#888780', lineHeight: 1.6, marginBottom: 16 }}>{card.desc}</div>
+            <div style={{ fontSize: 24, fontWeight: 500, color: card.accentColor }}>{card.main}</div>
+            <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 2, marginBottom: 12 }}>{card.mainLabel}</div>
+            {card.stats && (
+              <div style={{ display: 'flex', gap: 16, borderTop: '0.5px solid #E8E7E3', paddingTop: 12 }}>
+                {card.stats.map((s: any) => (<div key={s.label}><div style={{ fontSize: 16, fontWeight: 500, color: s.color || '#2C2C2A' }}>{s.value}</div><div style={{ fontSize: 11, color: '#B4B2A9' }}>{s.label}</div></div>))}
+              </div>
+            )}
           </a>
         ))}
+        {!cards.length && <div style={{ color: '#888780', fontSize: 14 }}>No modules in this group yet.</div>}
       </div>
     </div>
   );
