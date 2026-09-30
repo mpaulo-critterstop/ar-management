@@ -11,10 +11,10 @@ const TILES = [
   },
   {
     title: 'International Payroll',
-    desc: 'International team payroll.',
+    desc: 'International team payroll and PTO.',
     href: '/payroll/international',
     icon: '🌎',
-    status: 'coming-soon' as const,
+    status: 'available' as const,
   },
 ];
 

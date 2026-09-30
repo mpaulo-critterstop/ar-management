@@ -7,7 +7,6 @@ const SECTIONS = [
   { title: 'Team Tracker', desc: 'Team assignments and structure.', href: '/payroll/us/team', status: 'coming-soon' as const },
   { title: 'Raise Tracker', desc: 'Employee pay, positions, and raise history.', href: '/payroll/us/raises', status: 'available' as const },
   { title: 'Probation Tracker', desc: 'Probation status and review dates.', href: '/payroll/us/probation', status: 'coming-soon' as const },
-  { title: 'PTO Tracker', desc: 'PTO balances and usage.', href: '/payroll/us/pto', status: 'coming-soon' as const },
   { title: 'Reviews', desc: 'Google reviews (temporary — planned for removal).', href: '/payroll/us/reviews', status: 'coming-soon' as const },
 ];
 

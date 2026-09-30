@@ -688,6 +688,37 @@ model RaiseTracker {
   @@map("raise_tracker")
 }
 
+// International Payroll — PTO. Annual allotment per person (PTO + Holiday days). Used/Remaining computed from log.
+model PtoAllotment {
+  id             String   @id @default(cuid())
+  name           String
+  year           Int
+  ptoAllotment   Float    @default(0)
+  holidayAllotment Float  @default(0)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([name, year])
+  @@map("pto_allotments")
+}
+
+// A single leave entry. Used days per person/type = sum of businessDays here.
+model PtoLeave {
+  id           String   @id @default(cuid())
+  name         String
+  leaveType    String   // 'PTO' | 'Holiday'
+  startDate    DateTime
+  endDate      DateTime
+  businessDays Float    @default(0)
+  notes        String?
+  year         Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("pto_leaves")
+}
+
 model AppSetting {
   key       String   @id
   value     String
