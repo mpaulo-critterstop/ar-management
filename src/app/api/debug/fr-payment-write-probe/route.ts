@@ -91,6 +91,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ sent: { doCharge: 0, customerID, amount, paymentMethod, checkNumber }, success: p?.success, paymentID: p?.paymentID, errorMessage: p?.errorMessage, raw: typeof p === 'string' ? p : JSON.stringify(p).slice(0, 400) });
   }
 
+  // DISCOVER PAYMENT METHODS: sample recent real payments, group by paymentMethod code so we can map
+  // code -> Cash/Check/Card/ACH. Read-only. Also tries a paymentMethod reference endpoint if one exists.
+  if (sp.get('methods') === '1') {
+    // grab newest ~400 payment IDs, fetch a chunk, group by paymentMethod value
+    const s = await fetch(`${BASE}/payment/search?${auth}`);
+    const sj = await s.json();
+    const ids: number[] = (sj.paymentIDs || []).map(Number).sort((a: number, b: number) => b - a).slice(0, 300);
+    const byMethod: Record<string, { count: number; samples: any[] }> = {};
+    for (let i = 0; i < ids.length; i += 100) {
+      const g = await fetch(`${BASE}/payment/get?paymentIDs=${ids.slice(i, i + 100).join(',')}&${auth}`);
+      const gj = await g.json();
+      for (const p of (gj.payments || [])) {
+        const m = String(p.paymentMethod);
+        if (!byMethod[m]) byMethod[m] = { count: 0, samples: [] };
+        byMethod[m].count++;
+        if (byMethod[m].samples.length < 3) byMethod[m].samples.push({ paymentID: p.paymentID, amount: p.amount, checkNumber: p.checkNumber, last4: p.cardLast4 || p.last4, ccType: p.ccType || p.cardType });
+      }
+    }
+    return NextResponse.json({ note: 'paymentMethod code distribution from real payments. Cross-reference samples (checkNumber present=Check, card fields present=Card, etc.) to map codes.', byMethod });
+  }
+
   // SAFE READ: inspect a ticket + its customer (to build the real $1 write correctly). Creates nothing.
   if (sp.get('inspect') === '1') {
     const ticketId = sp.get('ticket'); const custId = sp.get('customer');
