@@ -41,5 +41,5 @@ export async function POST(req: NextRequest) {
 
 // Helcim may send a GET to verify the endpoint.
 export async function GET() {
-  return NextResponse.json({ ok: true, endpoint: 'helcim-webhook' });
+  return NextResponse.json({ ok: true, endpoint: 'payment-processor-webhook' });
 }
