@@ -746,6 +746,24 @@ model PtoLeave {
   @@map("pto_leaves")
 }
 
+// US Payroll — Probation Tracker. One row per employee; days-until-eligible computed live from probationEndDate.
+model ProbationTracker {
+  id              String    @id @default(cuid())
+  techId          String?
+  employeeName    String
+  hireDate        DateTime?
+  probationEndDate DateTime?
+  status          String?   @default("In probation") // 'In probation' | 'Done - added'
+  addedToOnPay    Boolean   @default(false)
+  addedToOnPayDate DateTime?
+  notes           String?
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("probation_tracker")
+}
+
 model AppSetting {
   key       String   @id
   value     String
