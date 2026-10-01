@@ -76,6 +76,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ note: 'Field discovery with doCharge=0 and invalid/zero customer+amount — nothing valid was created. Each step shows the next required/invalid field.', steps });
   }
 
+  // SAFE READ: inspect a ticket + its customer (to build the real $1 write correctly). Creates nothing.
+  if (sp.get('inspect') === '1') {
+    const ticketId = sp.get('ticket'); const custId = sp.get('customer');
+    const out: any = {};
+    if (ticketId) {
+      const t = await fetch(`${BASE}/ticket/get?ticketIDs=${ticketId},${ticketId}&${auth}`);
+      const tj = await t.json();
+      const tk = (tj.tickets || [])[0];
+      out.ticket = tk ? { ticketID: tk.ticketID, customerID: tk.customerID, total: tk.total, balance: tk.balance, serviceID: tk.serviceID, invoiceDate: tk.invoiceDate, _keys: Object.keys(tk) } : { notFound: true };
+    }
+    if (custId) {
+      const c = await fetch(`${BASE}/customer/get?customerIDs=${custId},${custId}&${auth}`);
+      const cj = await c.json();
+      const cu = (cj.customers || [])[0];
+      out.customer = cu ? { customerID: cu.customerID, name: `${cu.fname||''} ${cu.lname||''}`.trim(), balance: cu.balance, aPay: cu.aPay, autopayProfileID: cu.autoPayPaymentProfileID, ticketIDs: cu.ticketIDs } : { notFound: true };
+    }
+    return NextResponse.json({ note: 'Read-only inspection — nothing created.', ...out });
+  }
+
   // CLEANUP: find payments created today (to locate the stray $0 one), and optionally void/delete by id.
   if (sp.get('cleanup') === 'find') {
     // The stray payment(s) I created today have the HIGHEST paymentIDs. Get all IDs, take the top N, inspect them.
