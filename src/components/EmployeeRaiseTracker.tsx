@@ -15,7 +15,7 @@ export default function EmployeeRaiseTracker({ region, backHref }: { region: 'US
   const [editing, setEditing] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [showInactive, setShowInactive] = useState(false);
+  const [view, setView] = useState<'active' | 'inactive'>('active');
 
   const load = () => fetch(`/api/payroll/raises?region=${region}`).then(r => r.json()).then(d => setRows(d.rows || [])).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -26,9 +26,10 @@ export default function EmployeeRaiseTracker({ region, backHref }: { region: 'US
     await fetch('/api/payroll/raises', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: editing.id ? 'update' : 'add', region, ...editing }) });
     setSaving(false); setEditing(null); load();
   }
-  async function del(id: string, name: string) {
-    if (!confirm(`Delete ${name} from the raise tracker?`)) return;
-    await fetch('/api/payroll/raises', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id }) });
+  async function setActive(row: any, active: boolean) {
+    if (!confirm(`${active ? 'Reactivate' : 'Deactivate'} ${row.employeeName}?`)) return;
+    await fetch('/api/payroll/raises', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update', region, ...row, startDate: fmtDate(row.startDate), mostRecentRaiseDate: fmtDate(row.mostRecentRaiseDate), previousRaiseDate: fmtDate(row.previousRaiseDate), active }) });
     load();
   }
 
@@ -39,7 +40,7 @@ export default function EmployeeRaiseTracker({ region, backHref }: { region: 'US
   const inp: React.CSSProperties = { display: 'block', width: '100%', fontSize: 13, padding: '8px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', marginTop: 4 };
 
   const filtered = rows
-    .filter(r => showInactive || r.active !== false)
+    .filter(r => view === 'inactive' ? r.active === false : r.active !== false)
     .filter(r => !search || (r.employeeName + ' ' + (r.department || '') + ' ' + (r.position || '')).toLowerCase().includes(search.toLowerCase()));
 
   return (
@@ -51,7 +52,11 @@ export default function EmployeeRaiseTracker({ region, backHref }: { region: 'US
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', position: 'sticky', top: 0, background: '#fff', zIndex: 3, padding: '8px 0' }}>
         <button onClick={() => setEditing({ active: true, payType: region === 'International' ? 'monthly' : 'hourly' })} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>+ Add employee</button>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, dept, position…" style={{ fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '0.5px solid #E8E7E3', flex: 1, minWidth: 200 }} />
-        <label style={{ fontSize: 12, color: '#888780', display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} /> Show inactive</label>
+        <div style={{ display: 'flex', gap: 4, background: '#f1efe8', borderRadius: 8, padding: 3 }}>
+          {(['active', 'inactive'] as const).map(v => (
+            <button key={v} onClick={() => setView(v)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: view === v ? '#fff' : 'transparent', color: view === v ? '#2C2C2A' : '#888780', fontWeight: view === v ? 600 : 400, textTransform: 'capitalize' }}>{v}</button>
+          ))}
+        </div>
       </div>
 
       {editing && (
@@ -100,7 +105,9 @@ export default function EmployeeRaiseTracker({ region, backHref }: { region: 'US
                   <td style={td}>{r.raiseAmount || '—'}</td>
                   <td style={{ ...tdR, whiteSpace: 'nowrap' }}>
                     <button onClick={() => setEditing({ ...r, startDate: fmtDate(r.startDate), mostRecentRaiseDate: fmtDate(r.mostRecentRaiseDate), previousRaiseDate: fmtDate(r.previousRaiseDate) })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#534AB7', cursor: 'pointer', marginRight: 6 }}>Edit</button>
-                    <button onClick={() => del(r.id, r.employeeName)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Del</button>
+                    {r.active === false
+                      ? <button onClick={() => setActive(r, true)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#128a3f', cursor: 'pointer' }}>Reactivate</button>
+                      : <button onClick={() => setActive(r, false)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Deactivate</button>}
                   </td>
                 </tr>
               );
