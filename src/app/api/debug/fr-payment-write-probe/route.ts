@@ -76,6 +76,34 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ note: 'Field discovery with doCharge=0 and invalid/zero customer+amount — nothing valid was created. Each step shows the next required/invalid field.', steps });
   }
 
+  // CLEANUP: find payments created today (to locate the stray $0 one), and optionally void/delete by id.
+  if (sp.get('cleanup') === 'find') {
+    const today = new Date().toISOString().slice(0, 10);
+    const s = await fetch(`${BASE}/payment/search?${auth}&dateCreatedStart=${today}&dateCreatedEnd=${today}`);
+    const sj = await s.json();
+    const ids: any[] = sj.paymentIDs || [];
+    let payments: any[] = [];
+    if (ids.length) {
+      const g = await fetch(`${BASE}/payment/get?paymentIDs=${ids.slice(0, 50).join(',')}&${auth}`);
+      const gj = await g.json();
+      payments = (gj.payments || []).map((p: any) => ({ paymentID: p.paymentID, customerID: p.customerID, amount: p.amount, date: p.date, dateCreated: p.dateCreated, paymentMethod: p.paymentMethod, status: p.status }));
+    }
+    return NextResponse.json({ today, foundIDs: ids, payments });
+  }
+  if (sp.get('cleanup') === 'void') {
+    const pid = sp.get('paymentID');
+    if (!pid) return NextResponse.json({ error: 'paymentID required' }, { status: 400 });
+    // try void then delete action names
+    const out: any = {};
+    for (const act of ['void', 'delete', 'cancel']) {
+      const r = await fetch(`${BASE}/payment/${act}?paymentIDs=${pid}&${auth}`);
+      const t = await r.text(); let p: any; try { p = JSON.parse(t); } catch { p = t.slice(0, 200); }
+      out[act] = { success: p?.success, errorMessage: p?.errorMessage };
+      if (p?.success) break;
+    }
+    return NextResponse.json({ paymentID: pid, result: out });
+  }
+
   return NextResponse.json({
     note: 'Safe probe — no payment params sent, so nothing was created. Reading endpoint existence + write quota + error shapes only.',
     office: sp.get('office') || 'DFW',
