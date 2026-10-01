@@ -76,6 +76,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ note: 'Field discovery with doCharge=0 and invalid/zero customer+amount — nothing valid was created. Each step shows the next required/invalid field.', steps });
   }
 
+  // REAL WRITE: a single deliberate record-only payment. Only runs with explicit confirm=YES + all params.
+  // Records (does NOT charge) a payment for a customer. Used to validate the Helcim->FR bridge path.
+  if (sp.get('realwrite') === '1') {
+    if (sp.get('confirm') !== 'YES') return NextResponse.json({ error: 'Add &confirm=YES to actually write.' }, { status: 400 });
+    const customerID = sp.get('customer');
+    const amount = sp.get('amount');
+    const paymentMethod = sp.get('paymentMethod') || '1'; // 1 = check (non-card; appropriate for recording external payment)
+    const checkNumber = sp.get('checkNumber') || 'HELCIM-TEST';
+    if (!customerID || !amount) return NextResponse.json({ error: 'customer + amount required' }, { status: 400 });
+    const qs = `doCharge=0&customerID=${customerID}&amount=${amount}&paymentMethod=${paymentMethod}&checkNumber=${encodeURIComponent(checkNumber)}`;
+    const r = await fetch(`${BASE}/payment/create?${auth}&${qs}`);
+    const t = await r.text(); let p: any; try { p = JSON.parse(t); } catch { p = t.slice(0, 400); }
+    return NextResponse.json({ sent: { doCharge: 0, customerID, amount, paymentMethod, checkNumber }, success: p?.success, paymentID: p?.paymentID, errorMessage: p?.errorMessage, raw: typeof p === 'string' ? p : JSON.stringify(p).slice(0, 400) });
+  }
+
   // SAFE READ: inspect a ticket + its customer (to build the real $1 write correctly). Creates nothing.
   if (sp.get('inspect') === '1') {
     const ticketId = sp.get('ticket'); const custId = sp.get('customer');
