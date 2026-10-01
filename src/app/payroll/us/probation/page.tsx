@@ -93,7 +93,7 @@ export default function ProbationTrackerPage() {
                   <td style={td}>{r.techId || '—'}</td>
                   <td style={td}>{fmtDate(r.hireDate) || '—'}</td>
                   <td style={td}>{fmtDate(r.probationEndDate) || '—'}</td>
-                  <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: eligible ? '#128a3f' : '#2C2C2A' }}>{du != null ? (eligible ? `Eligible (${-du}d ago)` : du) : '—'}</td>
+                  <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: eligible ? '#128a3f' : '#2C2C2A' }}>{r.status === 'Done - added' ? '—' : (du != null ? (eligible ? `Eligible (${-du}d ago)` : du) : '—')}</td>
                   <td style={td}><span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: r.status === 'Done - added' ? '#E1F5EE' : '#FBF3E5', color: r.status === 'Done - added' ? '#0F6E56' : '#BA7517' }}>{r.status || 'In probation'}</span></td>
                   <td style={td}>{r.addedToOnPay ? '✓' : '—'}</td>
                   <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
