@@ -52,6 +52,30 @@ export async function GET(req: NextRequest) {
     } catch (e: any) { results.writeProbes[ep] = { fetchError: String(e).slice(0, 200) }; }
   }
 
+  // 3) INCREMENTAL FIELD DISCOVERY — build up params from a base, reading each "X required" error.
+  //    We pass doCharge=0 (record-only, NO card charge) and deliberately OMIT a real amount/customer until we
+  //    know the full field list. We stop BEFORE sending a complete chargeable/recordable payload.
+  if (sp.get('discover') === '1') {
+    const steps: any[] = [];
+    // progressively add fields the error asks for; start minimal with doCharge=0
+    const attempts: Record<string, string>[] = [
+      { doCharge: '0' },
+      { doCharge: '0', customerID: '0' },                                   // invalid customer on purpose
+      { doCharge: '0', customerID: '0', amount: '0' },                      // zero amount on purpose
+      { doCharge: '0', customerID: '0', amount: '0', paymentMethod: '0' },
+      { doCharge: '0', customerID: '0', amount: '0', paymentMethod: '1', checkNumber: '' },
+    ];
+    for (const a of attempts) {
+      const qs = Object.entries(a).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+      const r = await fetch(`${BASE}/payment/create?${auth}&${qs}`);
+      const t = await r.text(); let p: any; try { p = JSON.parse(t); } catch { p = t.slice(0, 300); }
+      steps.push({ sent: a, success: p?.success, errorMessage: p?.errorMessage, paymentID: p?.paymentID });
+      // if it ever reports success, STOP (shouldn't, with customerID=0/amount=0)
+      if (p?.success) break;
+    }
+    return NextResponse.json({ note: 'Field discovery with doCharge=0 and invalid/zero customer+amount — nothing valid was created. Each step shows the next required/invalid field.', steps });
+  }
+
   return NextResponse.json({
     note: 'Safe probe — no payment params sent, so nothing was created. Reading endpoint existence + write quota + error shapes only.',
     office: sp.get('office') || 'DFW',
