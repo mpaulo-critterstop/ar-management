@@ -34,9 +34,9 @@ export default function PaymentBridgePage() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
-      <a href="/payroll/us" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← US Payroll</a>
+      <a href="/reports" style={{ fontSize: 13, color: "#888780", textDecoration: "none" }}>← Reports</a>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>Payment Bridge (Helcim → FR)</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>Helcim Payment Report</h1>
         <button onClick={runPoll} disabled={syncing} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: syncing ? 'wait' : 'pointer' }}>{syncing ? 'Syncing…' : '↻ Run sync now'}</button>
       </div>
       <p style={{ fontSize: 13, color: '#888780', margin: '0 0 20px' }}>Helcim payments recorded into FieldRoutes. Webhook posts in real time; the sync is the safety net. Flagged/failed need attention.</p>
