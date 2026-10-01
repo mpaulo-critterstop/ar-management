@@ -93,7 +93,22 @@ export async function processHelcimTransaction(txn: HelcimTxn, source: 'webhook'
     const r = await fetch(`${FR_BASE}/payment/create?authenticationKey=${cfg.key}&authenticationToken=${cfg.token}&${qs}`);
     const j = await r.json();
     if (j?.success === false) return fail(`FR error: ${j?.errorMessage || 'unknown'}`);
-    frPaymentId = j?.paymentID ? String(j.paymentID) : null;
+    frPaymentId = j?.paymentID || j?.paymentIDs?.[0] ? String(j.paymentID || j.paymentIDs[0]) : null;
+    // Fallback: FR create doesn't always return the id. Look it up by this customer's newest payment
+    // matching our amount + reference (checkNumber = HELCIM-<txnId>), so the audit trail is complete.
+    if (!frPaymentId) {
+      try {
+        const srch = await fetch(`${FR_BASE}/payment/search?customerIDs=${inv.customerID}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`);
+        const sj = await srch.json();
+        const ids: number[] = (sj.paymentIDs || []).map(Number).sort((a: number, b: number) => b - a).slice(0, 10);
+        if (ids.length) {
+          const g = await fetch(`${FR_BASE}/payment/get?paymentIDs=${ids.join(',')}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`);
+          const gj = await g.json();
+          const match = (gj.payments || []).find((p: any) => String(p.checkNumber) === ref);
+          if (match) frPaymentId = String(match.paymentID);
+        }
+      } catch { /* non-fatal — payment still recorded, just no id captured */ }
+    }
   } catch (e: any) {
     return fail(`FR write threw: ${String(e).slice(0, 150)}`);
   }
