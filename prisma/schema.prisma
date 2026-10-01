@@ -764,6 +764,38 @@ model ProbationTracker {
   @@map("probation_tracker")
 }
 
+// Helcim→FR bridge ledger. One row per Helcim transaction the Hub has seen. The unique helcimTransactionId
+// prevents double-posting to FR; status tracks the FR write; frPaymentId + reconcile fields give an audit trail.
+model HelcimPayment {
+  id                  String   @id @default(cuid())
+  helcimTransactionId String   @unique // dedup key — never write the same Helcim txn to FR twice
+  office              String?
+  // Helcim transaction snapshot
+  amount              Float
+  currency            String?
+  cardType            String?
+  cardHolderName      String?
+  helcimType          String?  // purchase | ach | etc.
+  helcimStatus        String?  // APPROVED | DECLINED
+  helcimCustomerCode  String?
+  helcimInvoiceNumber String?  // the FR invoice number the payment references
+  helcimDateCreated   DateTime?
+  source              String   @default("poll") // 'webhook' | 'poll' — how we first saw it
+  // FR write result
+  status              String   @default("pending") // pending | written | failed | flagged | skipped
+  frCustomerId        String?
+  frPaymentId         String?  // the FR payment created
+  frPaymentMethod     Int?     // 3=Card, 4=ACH
+  failReason          String?
+  processedAt         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([status])
+  @@index([helcimInvoiceNumber])
+  @@map("helcim_payments")
+}
+
 model AppSetting {
   key       String   @id
   value     String
