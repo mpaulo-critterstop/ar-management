@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 const SECTIONS = [
   { title: 'Tolls', desc: 'Upload the toll transaction CSV; tolls are matched to each tech per pay period.', href: '/payroll/us/tolls', status: 'available' as const },
   { title: 'Main Payroll Tracker', desc: 'Weekly pay periods with a week dropdown, including historical data.', href: '/payroll/us/tracker', status: 'coming-soon' as const },
+  { title: 'Payment Bridge (Helcim)', desc: 'Helcim payments recorded into FieldRoutes — status, flagged/failed queue, and activity.', href: '/payroll/us/payment-bridge', status: 'available' as const },
   { title: 'Team Tracker', desc: 'Team assignments and structure.', href: '/payroll/us/team', status: 'coming-soon' as const },
   { title: 'Employee and Raise Tracker', desc: 'Employee pay, positions, and raise history.', href: '/payroll/us/raises', status: 'available' as const },
   { title: 'Probation Tracker', desc: 'New hires, probation status, and OnPay tracking.', href: '/payroll/us/probation', status: 'available' as const },
