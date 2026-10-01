@@ -78,17 +78,19 @@ export async function GET(req: NextRequest) {
 
   // CLEANUP: find payments created today (to locate the stray $0 one), and optionally void/delete by id.
   if (sp.get('cleanup') === 'find') {
-    const today = new Date().toISOString().slice(0, 10);
-    const s = await fetch(`${BASE}/payment/search?${auth}&dateCreatedStart=${today}&dateCreatedEnd=${today}`);
+    // The stray payment(s) I created today have the HIGHEST paymentIDs. Get all IDs, take the top N, inspect them.
+    const s = await fetch(`${BASE}/payment/search?${auth}`);
     const sj = await s.json();
-    const ids: any[] = sj.paymentIDs || [];
+    const ids: number[] = (sj.paymentIDs || []).map(Number).sort((a: number, b: number) => b - a); // newest first
+    const topN = ids.slice(0, 20);
     let payments: any[] = [];
-    if (ids.length) {
-      const g = await fetch(`${BASE}/payment/get?paymentIDs=${ids.slice(0, 50).join(',')}&${auth}`);
+    if (topN.length) {
+      const g = await fetch(`${BASE}/payment/get?paymentIDs=${topN.join(',')}&${auth}`);
       const gj = await g.json();
-      payments = (gj.payments || []).map((p: any) => ({ paymentID: p.paymentID, customerID: p.customerID, amount: p.amount, date: p.date, dateCreated: p.dateCreated, paymentMethod: p.paymentMethod, status: p.status }));
+      payments = (gj.payments || []).map((p: any) => ({ paymentID: p.paymentID, customerID: p.customerID, amount: p.amount, date: p.date, dateCreated: p.dateUpdated || p.date, paymentMethod: p.paymentMethod, status: p.status, check: p.checkNumber }))
+        .sort((a: any, b: any) => Number(b.paymentID) - Number(a.paymentID));
     }
-    return NextResponse.json({ today, foundIDs: ids, payments });
+    return NextResponse.json({ note: 'Top 20 newest paymentIDs — the stray $0 / customerID 0 one(s) from today will be here.', maxId: ids[0], payments });
   }
   if (sp.get('cleanup') === 'void') {
     const pid = sp.get('paymentID');
