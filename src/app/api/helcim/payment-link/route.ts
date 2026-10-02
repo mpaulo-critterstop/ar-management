@@ -8,6 +8,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sendPaymentLinkEmail } from '@/lib/email';
+import { sendPaymentLinkSms } from '@/lib/sms';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
     const cu = (cj.customers || [])[0];
     const name = cu ? `${cu.fname || ''} ${cu.lname || ''}`.trim() : 'Customer';
     const email = cu?.email || cu?.billingEmail || '';
+    const phone = cu?.phone1 || cu?.phone2 || '';
 
     // Upsert Helcim customer (returns Helcim internal id for invoice linking).
     const helcimCustomerId = await upsertHelcimCustomer(apiToken, custId, name, email, cu?.phone1 || '', { street1: cu?.billingAddress, city: cu?.billingCity, state: cu?.billingState, postalCode: cu?.billingZip });
@@ -98,13 +100,13 @@ export async function POST(req: NextRequest) {
     });
     const url = `https://hub.critterstop.com/pay/${token}`;
 
-    // Send via email if requested + we have an address.
-    let emailResult: any = { sent: false, reason: 'not requested' };
-    if ((b.delivery || 'email') === 'email') {
-      emailResult = await sendPaymentLinkEmail({ to: email, customerName: name, amount, invoiceNumber, url });
-    }
+    // Send via the chosen method.
+    const delivery = b.delivery || 'email';
+    let sendResult: any = { sent: false, reason: 'not requested' };
+    if (delivery === 'email') sendResult = await sendPaymentLinkEmail({ to: email, customerName: name, amount, invoiceNumber, url });
+    else if (delivery === 'text') sendResult = await sendPaymentLinkSms({ to: phone, customerName: name, amount, invoiceNumber, url });
 
-    return NextResponse.json({ ok: true, url, token, emailSent: emailResult.sent, emailReason: emailResult.reason, invoice: { customer: name, email, balance: tk.balance, total: tk.total } });
+    return NextResponse.json({ ok: true, url, token, delivery, sent: sendResult.sent, sendReason: sendResult.reason, invoice: { customer: name, email, phone, balance: tk.balance, total: tk.total } });
   }
 
   // Called by the /pay page to start a HelcimPay.js checkout session.
