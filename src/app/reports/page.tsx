@@ -4,12 +4,6 @@ type Report = { title: string; desc: string; href?: string; status: 'available' 
 
 const REPORTS: Report[] = [
   {
-    title: 'Helcim Payment Report',
-    desc: 'Helcim payments recorded into FieldRoutes — status, flagged/failed queue, and recent activity.',
-    href: '/reports/helcim-payments',
-    status: 'available',
-  },
-  {
     title: 'Insulation Revenue per Tech',
     desc: 'Weekly & monthly FAR + Top-Off revenue per job, crew size from the route, and revenue per tech. Direct Labor columns for manual entry.',
     href: '/reports/insulation-revenue',

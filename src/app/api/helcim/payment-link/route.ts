@@ -37,6 +37,13 @@ async function upsertHelcimCustomer(apiToken: string, frCustomerId: string, name
   } catch { return null; }
 }
 
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const links = await prisma.paymentLinkRequest.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
+  return NextResponse.json({ links: links.map(l => ({ id: l.id, token: l.token, url: `https://hub.critterstop.com/pay/${l.token}`, office: l.office, frInvoiceNumber: l.frInvoiceNumber, customerName: l.customerName, customerEmail: l.customerEmail, amount: l.amount, deliveryMethod: l.deliveryMethod, status: l.status, paidAt: l.paidAt, createdBy: l.createdBy, createdAt: l.createdAt })) });
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

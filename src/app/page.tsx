@@ -221,6 +221,17 @@ export default function HomePage() {
       stats: null,
     },
     {
+      module: 'helcim' as ModuleKey,
+      icon: '💳',
+      title: 'Helcim Payments',
+      desc: 'Send customers payment links for invoices; payments record back into FieldRoutes automatically.',
+      href: '/helcim',
+      accentColor: '#185FA5',
+      main: '\u2014',
+      mainLabel: 'Payments',
+      stats: null,
+    },
+    {
       module: 'payroll' as ModuleKey,
       icon: '💵',
       title: 'Payroll',
@@ -240,7 +251,7 @@ export default function HomePage() {
   const GROUP_OF: Record<string, 'operations' | 'management' | 'reports'> = {
     leads: 'operations', 'pest-sales': 'operations', 'csr-pest-sales': 'operations', cancellations: 'operations',
     'service-pool': 'operations', 'lsa-leads': 'operations', dispatch: 'operations', ar: 'operations',
-    dialpad: 'operations', 'field-performance': 'management', csr: 'operations',
+    dialpad: 'operations', 'field-performance': 'management', csr: 'operations', helcim: 'operations',
     reports: 'reports', payroll: 'management',
     // management modules (e.g. payroll) added here as they're built
   };
