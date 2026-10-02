@@ -91,6 +91,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ sent: { doCharge: 0, customerID, amount, paymentMethod, checkNumber }, success: p?.success, paymentID: p?.paymentID, errorMessage: p?.errorMessage, raw: typeof p === 'string' ? p : JSON.stringify(p).slice(0, 400) });
   }
 
+  // SERVICE TYPE lookup: resolve a serviceID to its name (e.g. 553 -> "Exclusion").
+  if (sp.get('serviceType')) {
+    const sid = sp.get('serviceType');
+    for (const ep of ['serviceType/get', 'serviceType/search']) {
+      try {
+        const r = await fetch(`${BASE}/${ep}?serviceTypeIDs=${sid},${sid}&${auth}`);
+        const j = await r.json();
+        const st = (j.serviceTypes || [])[0];
+        if (st) return NextResponse.json({ endpoint: ep, serviceType: { serviceTypeID: st.serviceTypeID, description: st.description, _keys: Object.keys(st) } });
+      } catch { /* try next */ }
+    }
+    return NextResponse.json({ note: 'serviceType not found via tried endpoints', sid });
+  }
+
   // DISCOVER PAYMENT METHODS: sample recent real payments, group by paymentMethod code so we can map
   // code -> Cash/Check/Card/ACH. Read-only. Also tries a paymentMethod reference endpoint if one exists.
   if (sp.get('methods') === '1') {
