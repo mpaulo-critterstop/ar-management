@@ -796,6 +796,30 @@ model HelcimPayment {
   @@map("helcim_payments")
 }
 
+// A CSR-created Helcim payment link for a specific FR invoice + amount. The /pay/<token> page uses it to
+// initialize a HelcimPay.js checkout. Payment itself flows back through the existing webhook -> FR bridge.
+model PaymentLinkRequest {
+  id              String    @id @default(cuid())
+  token           String    @unique // short token in the /pay/<token> URL
+  office          String
+  frInvoiceNumber String    // FR ticket/invoice number (carried into Helcim for matching)
+  frCustomerId    String
+  customerName    String?
+  customerEmail   String?
+  amount          Float     // the amount to collect (supports partial / 50% deposits)
+  helcimCustomerCode String? // = frCustomerId, tied to the Helcim customer
+  deliveryMethod  String    @default("email") // email | text (text later)
+  status          String    @default("sent") // sent | viewed | paid | expired
+  paidAt          DateTime?
+  helcimTransactionId String?
+  createdBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@map("payment_link_requests")
+}
+
 model AppSetting {
   key       String   @id
   value     String
