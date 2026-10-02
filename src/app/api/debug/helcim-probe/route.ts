@@ -94,14 +94,17 @@ export async function GET(req: NextRequest) {
   if (action === 'create-invoice') {
     const invoiceNumber = sp.get('invoiceNumber') || '';
     const customerId = sp.get('customerId'); // Helcim internal customer id (links the invoice to the customer)
-    const amount = parseFloat(sp.get('amount') || '0');
+    const subTotal = parseFloat(sp.get('subTotal') || sp.get('amount') || '0'); // pre-tax
+    const taxAmount = parseFloat(sp.get('taxAmount') || '0');
     const desc = sp.get('desc') || 'Service';
-    // Helcim invoices need line items. Build one line for the full amount. Link to customer via customerId.
+    // Push the FR breakdown: line item = pre-tax subtotal, tax as a separate amount. This keeps records accurate
+    // AND helps qualify for Level 2/3 interchange (cheaper) which needs tax + itemized data.
     const bodyObj: any = {
       invoiceNumber,
       ...(customerId ? { customerId: parseInt(customerId) } : {}),
       currency: 'USD',
-      lineItems: [{ description: desc, quantity: 1, price: amount, total: amount }],
+      lineItems: [{ description: desc, quantity: 1, price: subTotal, total: subTotal }],
+      ...(taxAmount > 0 ? { tax: { amount: taxAmount } } : {}),
     };
     const r = await fetch(`${BASE}/invoices`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(bodyObj) });
     const t = await r.text(); let j: any; try { j = JSON.parse(t); } catch { j = t.slice(0, 500); }
