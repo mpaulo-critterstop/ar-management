@@ -13,6 +13,7 @@ const model = (region: string) => (region === 'International' ? prisma.intlRaise
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if ((session.user as any)?.role !== 'Admin') return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 });
   const region = req.nextUrl.searchParams.get('region') || 'US';
   const rows = await model(region).findMany({ orderBy: [{ department: 'asc' }, { employeeName: 'asc' }] });
   return NextResponse.json({ rows });
@@ -21,6 +22,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if ((session.user as any)?.role !== 'Admin') return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 });
   const b = await req.json();
   const m = model(b.region || 'US');
 

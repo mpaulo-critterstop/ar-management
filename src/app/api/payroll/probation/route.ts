@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if ((session.user as any)?.role !== 'Admin') return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 });
   const rows = await prisma.probationTracker.findMany({ orderBy: [{ probationEndDate: 'asc' }, { employeeName: 'asc' }] });
   return NextResponse.json({ rows });
 }
@@ -16,6 +17,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if ((session.user as any)?.role !== 'Admin') return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 });
   const b = await req.json();
 
   const toData = (b: any) => ({

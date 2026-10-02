@@ -18,9 +18,15 @@ export interface AccessUser {
   techId?: string | null;
 }
 
+// Modules restricted to Admin only (even Managers, who otherwise have full access, are excluded).
+// Payroll is locked down while in development — contains salaries/raises/PTO, admin-only for now.
+const ADMIN_ONLY_MODULES: ModuleKey[] = ['payroll'];
+
 // Does this user have access to a given module?
 export function canAccessModule(user: AccessUser | null | undefined, moduleKey: ModuleKey): boolean {
   if (!user) return false;
+  // Admin-only modules: only the Admin role, regardless of full-access status.
+  if (ADMIN_ONLY_MODULES.includes(moduleKey)) return user.role === 'Admin';
   if (user.role && FULL_ACCESS_ROLES.includes(user.role)) return true;
   // If no allowlist is set at all, fall back to role-based legacy behavior (don't lock out existing users).
   if (!user.modules || user.modules.length === 0) return legacyRoleAccess(user.role, moduleKey);

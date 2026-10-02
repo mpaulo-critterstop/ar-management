@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if ((session.user as any)?.role !== 'Admin') return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 });
   const year = parseInt(req.nextUrl.searchParams.get('year') || String(new Date().getFullYear()));
 
   const [allotments, leaves] = await Promise.all([
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if ((session.user as any)?.role !== 'Admin') return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 });
   const b = await req.json();
   const action = b.action;
 
