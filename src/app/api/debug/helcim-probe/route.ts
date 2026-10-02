@@ -66,6 +66,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ action: 'create-customer', httpStatus: r.status, sent: bodyObj, result: j });
   }
 
+  if (action === 'update-customer') {
+    const helcimCustomerId = sp.get('helcimCustomerId');
+    if (!helcimCustomerId) return NextResponse.json({ error: 'helcimCustomerId required' }, { status: 400 });
+    const contactName = sp.get('contactName') || '';
+    const businessName = sp.get('businessName') || '';
+    const email = sp.get('email') || '';
+    const cellPhone = (sp.get('cellPhone') || '').replace(/\D/g, '');
+    const street1 = sp.get('street1') || '';
+    const city = sp.get('city') || '';
+    const province = sp.get('state') || '';
+    const postalCode = sp.get('zip') || '';
+    const bodyObj: any = {};
+    if (contactName) bodyObj.contactName = contactName;
+    if (businessName) bodyObj.businessName = businessName;
+    if (email) bodyObj.email = email;
+    if (cellPhone && cellPhone.length >= 10 && cellPhone.length <= 16) bodyObj.cellPhone = cellPhone;
+    const billName = contactName || businessName;
+    if (billName && street1 && postalCode) {
+      bodyObj.billingAddress = { name: billName, street1, ...(city ? { city } : {}), ...(province ? { province } : {}), postalCode, country: 'USA', ...(email ? { email } : {}), ...(cellPhone ? { phone: cellPhone } : {}) };
+    }
+    const r = await fetch(`${BASE}/customers/${helcimCustomerId}`, { method: 'PUT', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(bodyObj) });
+    const t = await r.text(); let j: any; try { j = JSON.parse(t); } catch { j = t.slice(0, 500); }
+    return NextResponse.json({ action: 'update-customer', httpStatus: r.status, sent: bodyObj, result: j });
+  }
+
   if (action === 'create-invoice') {
     const invoiceNumber = sp.get('invoiceNumber') || '';
     const customerId = sp.get('customerId'); // Helcim internal customer id (links the invoice to the customer)
