@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sendPaymentLinkEmail } from '@/lib/email';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -96,8 +97,14 @@ export async function POST(req: NextRequest) {
       data: { token, office, frInvoiceNumber: invoiceNumber, frCustomerId: custId, customerName: name, customerEmail: email, amount, helcimCustomerCode: custId, deliveryMethod: b.delivery || 'email', createdBy: (session.user as any)?.name || null },
     });
     const url = `https://hub.critterstop.com/pay/${token}`;
-    // (Email sending wired in a later step.)
-    return NextResponse.json({ ok: true, url, token, invoice: { customer: name, email, balance: tk.balance, total: tk.total } });
+
+    // Send via email if requested + we have an address.
+    let emailResult: any = { sent: false, reason: 'not requested' };
+    if ((b.delivery || 'email') === 'email') {
+      emailResult = await sendPaymentLinkEmail({ to: email, customerName: name, amount, invoiceNumber, url });
+    }
+
+    return NextResponse.json({ ok: true, url, token, emailSent: emailResult.sent, emailReason: emailResult.reason, invoice: { customer: name, email, balance: tk.balance, total: tk.total } });
   }
 
   // Called by the /pay page to start a HelcimPay.js checkout session.

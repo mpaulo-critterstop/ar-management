@@ -69,7 +69,10 @@ export default function HelcimPaymentsPage() {
           {result && (
             <div style={{ border: '0.5px solid #9FE1CB', borderRadius: 12, padding: 16, background: '#E1F5EE', marginTop: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#0F6E56', marginBottom: 8 }}>✓ Payment link created for {result.invoice?.customer}</div>
-              <div style={{ fontSize: 12, color: '#2C2C2A', marginBottom: 8 }}>Invoice balance: {money(parseFloat(result.invoice?.balance || 0))} · Email: {result.invoice?.email || '—'}</div>
+              <div style={{ fontSize: 12, color: '#2C2C2A', marginBottom: 4 }}>Invoice balance: {money(parseFloat(result.invoice?.balance || 0))} · Email: {result.invoice?.email || '—'}</div>
+              <div style={{ fontSize: 12, marginBottom: 8, color: result.emailSent ? '#0F6E56' : '#BA7517' }}>
+                {result.emailSent ? `✓ Emailed to ${result.invoice?.email}` : `⚠ Email not sent (${result.emailReason || 'unknown'}) — copy the link below and send manually.`}
+              </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <input readOnly value={result.url} style={{ flex: 1, fontSize: 12, padding: '8px 10px', borderRadius: 6, border: '0.5px solid #9FE1CB', background: '#fff' }} />
                 <button onClick={() => navigator.clipboard.writeText(result.url)} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: 'none', background: '#0F6E56', color: '#fff', cursor: 'pointer' }}>Copy</button>
