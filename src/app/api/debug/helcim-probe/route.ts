@@ -115,7 +115,17 @@ export async function GET(req: NextRequest) {
     // Build line items: base service charge (if > 0) + each product item.
     const lineItems: any[] = [];
     const svc = parseFloat(tk.serviceCharge || '0');
-    if (svc > 0) lineItems.push({ description: sp.get('serviceDesc') || `Service (${tk.serviceID})`, quantity: 1, price: svc, total: svc });
+    if (svc > 0) {
+      // Resolve the serviceID to its real name (e.g. 553 -> "Exclusion") from FR's service type reference.
+      let svcName = `Service (${tk.serviceID})`;
+      try {
+        const str = await fetch(`${FR_BASE}/serviceType/get?serviceTypeIDs=${tk.serviceID},${tk.serviceID}&authenticationKey=${fr.key}&authenticationToken=${fr.token}`);
+        const stj = await str.json();
+        const st = (stj.serviceTypes || [])[0];
+        if (st?.description) svcName = st.description;
+      } catch { /* fall back to placeholder */ }
+      lineItems.push({ description: svcName, quantity: 1, price: svc, total: svc });
+    }
     for (const it of (tk.items || [])) {
       const amt = parseFloat(it.amount || '0');
       lineItems.push({ description: it.description || 'Item', quantity: parseFloat(it.quantity || '1'), price: amt, total: amt * parseFloat(it.quantity || '1') });
