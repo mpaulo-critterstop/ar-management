@@ -27,7 +27,12 @@ export default function PayPage() {
     fetch('/api/pay-initialize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) })
       .then(r => r.json())
       .then(d => {
-        if (d.error) { setErr(d.error === 'already paid' ? 'This payment has already been completed.' : 'This payment link is invalid or expired.'); setStatus('error'); return; }
+        if (d.error) {
+          const friendly = d.error === 'already paid' ? 'This payment has already been completed.'
+            : d.error === 'invalid link' ? 'This payment link is invalid or expired.'
+            : `Could not start payment: ${d.error}${d.helcim ? ' — ' + JSON.stringify(d.helcim).slice(0, 200) : ''}`;
+          setErr(friendly); setStatus('error'); return;
+        }
         setInfo(d); setStatus('ready');
       })
       .catch(() => { setErr('Something went wrong loading this payment.'); setStatus('error'); });
