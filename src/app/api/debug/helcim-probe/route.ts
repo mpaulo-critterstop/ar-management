@@ -43,10 +43,24 @@ export async function GET(req: NextRequest) {
     const customerCode = sp.get('customerCode') || '';
     const contactName = sp.get('contactName') || '';
     const businessName = sp.get('businessName') || '';
+    const email = sp.get('email') || '';
+    const cellPhone = (sp.get('cellPhone') || '').replace(/\D/g, '');
+    // billing address (Helcim requires name + street1 + postalCode for a valid billingAddress)
+    const street1 = sp.get('street1') || '';
+    const city = sp.get('city') || '';
+    const province = sp.get('state') || '';
+    const postalCode = sp.get('zip') || '';
     if (!contactName && !businessName) return NextResponse.json({ error: 'contactName or businessName required' }, { status: 400 });
     const bodyObj: any = { customerCode };
     if (contactName) bodyObj.contactName = contactName;
     if (businessName) bodyObj.businessName = businessName;
+    if (email) bodyObj.email = email;
+    if (cellPhone && cellPhone.length >= 10 && cellPhone.length <= 16) bodyObj.cellPhone = cellPhone;
+    // Only send billingAddress if we have the minimum required fields (name + street1 + postalCode).
+    const billName = contactName || businessName;
+    if (billName && street1 && postalCode) {
+      bodyObj.billingAddress = { name: billName, street1, ...(city ? { city } : {}), ...(province ? { province } : {}), postalCode, country: 'USA', ...(email ? { email } : {}), ...(cellPhone ? { phone: cellPhone } : {}) };
+    }
     const r = await fetch(`${BASE}/customers`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(bodyObj) });
     const t = await r.text(); let j: any; try { j = JSON.parse(t); } catch { j = t.slice(0, 500); }
     return NextResponse.json({ action: 'create-customer', httpStatus: r.status, sent: bodyObj, result: j });

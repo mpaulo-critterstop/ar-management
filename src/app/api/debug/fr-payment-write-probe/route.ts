@@ -126,7 +126,13 @@ export async function GET(req: NextRequest) {
       const c = await fetch(`${BASE}/customer/get?customerIDs=${custId},${custId}&${auth}`);
       const cj = await c.json();
       const cu = (cj.customers || [])[0];
-      out.customer = cu ? { customerID: cu.customerID, name: `${cu.fname||''} ${cu.lname||''}`.trim(), balance: cu.balance, aPay: cu.aPay, autopayProfileID: cu.autoPayPaymentProfileID, ticketIDs: cu.ticketIDs } : { notFound: true };
+      out.customer = cu ? {
+        customerID: cu.customerID, fname: cu.fname, lname: cu.lname, companyName: cu.companyName,
+        email: cu.email, phone1: cu.phone1, phone2: cu.phone2,
+        address: cu.address, city: cu.city, state: cu.state, zip: cu.zip,
+        billingAddress: cu.billingAddress, billingCity: cu.billingCity, billingState: cu.billingState, billingZip: cu.billingZip, billingCompanyName: cu.billingCompanyName, billingFName: cu.billingFName, billingLName: cu.billingLName,
+        balance: cu.balance, _keys: Object.keys(cu),
+      } : { notFound: true };
     }
     return NextResponse.json({ note: 'Read-only inspection — nothing created.', ...out });
   }
