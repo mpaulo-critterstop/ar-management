@@ -116,7 +116,6 @@ export function CommissionsTab() {
             // Summary totals across all PMs, per month, for the requested metrics.
             const SUMMARY_DEFS: { key: string; label: string; kind?: 'delta' }[] = [
               { key: 'bookedRevenue', label: 'Booked Revenue' },
-              { key: 'cumulativeBookedRevenue', label: 'Total Cumulative Booked Rev.' },
               { key: 'prePeriodDelta', label: 'Pre-Period Delta', kind: 'delta' },
               { key: 'adjustedRevenue', label: 'Adj. Booked Revenue' },
               { key: 'wildlifeCommission', label: 'Wildlife Commission' },
@@ -147,34 +146,24 @@ export function CommissionsTab() {
                       <tr style={{ background: '#FCFBF9' }}>
                         <th style={{ textAlign: 'left', padding: '6px 12px', color: '#888780', fontWeight: 500, position: 'sticky', left: 0, background: '#FCFBF9', minWidth: 170 }}>Metric</th>
                         {MONTHS.map(m => <th key={m} style={{ textAlign: 'right', padding: '6px 10px', color: '#888780', fontWeight: 500, minWidth: 78, whiteSpace: 'nowrap' }}>{m}</th>)}
-                        <th style={{ textAlign: 'right', padding: '6px 12px', color: '#2C2C2A', fontWeight: 600, minWidth: 90, whiteSpace: 'nowrap', background: '#FCFBF9' }}>Year Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {SUMMARY_DEFS.map(rd => {
-                        // A cumulative metric shouldn't be summed across months (that double-counts);
-                        // its "year total" is the latest month's cumulative value.
-                        const isCumulative = rd.key === 'cumulativeBookedRevenue';
-                        const lastVal = [...sum[rd.key]].reverse().find(v => v !== null) ?? null;
-                        const yearTotal = isCumulative ? (lastVal ?? 0) : sum[rd.key].reduce((a: number, v) => a + (v || 0), 0);
-                        const anyYear = sum[rd.key].some(v => v !== null);
-                        return (
-                          <tr key={rd.key} style={{ borderTop: '0.5px solid #F1EFE8' }}>
-                            <td style={{ padding: '6px 12px', color: rd.key === 'totalCommission' ? '#2C2C2A' : '#64748b', fontWeight: rd.key === 'totalCommission' ? 600 : 400, position: 'sticky', left: 0, background: '#fff' }}>{rd.label}</td>
-                            {MONTHS.map((_, i) => {
-                              const v = sum[rd.key][i];
-                              return (
-                                <td key={i} style={{
-                                  padding: '6px 10px', textAlign: 'right',
-                                  color: rd.kind === 'delta' && typeof v === 'number' && v < 0 ? '#A32D2D' : rd.kind === 'delta' && typeof v === 'number' && v > 0 ? '#1D9E75' : rd.key === 'totalCommission' ? '#2C2C2A' : '#444441',
-                                  fontWeight: rd.key === 'totalCommission' ? 600 : 400,
-                                }}>{v === null ? '—' : fmt(v)}</td>
-                              );
-                            })}
-                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600, color: rd.key === 'totalCommission' ? '#1D9E75' : '#2C2C2A', background: '#FCFBF9' }}>{anyYear ? fmt(yearTotal) : '—'}</td>
-                          </tr>
-                        );
-                      })}
+                      {SUMMARY_DEFS.map(rd => (
+                        <tr key={rd.key} style={{ borderTop: '0.5px solid #F1EFE8' }}>
+                          <td style={{ padding: '6px 12px', color: rd.key === 'totalCommission' ? '#2C2C2A' : '#64748b', fontWeight: rd.key === 'totalCommission' ? 600 : 400, position: 'sticky', left: 0, background: '#fff' }}>{rd.label}</td>
+                          {MONTHS.map((_, i) => {
+                            const v = sum[rd.key][i];
+                            return (
+                              <td key={i} style={{
+                                padding: '6px 10px', textAlign: 'right',
+                                color: rd.kind === 'delta' && typeof v === 'number' && v < 0 ? '#A32D2D' : rd.kind === 'delta' && typeof v === 'number' && v > 0 ? '#1D9E75' : rd.key === 'totalCommission' ? '#2C2C2A' : '#444441',
+                                fontWeight: rd.key === 'totalCommission' ? 600 : 400,
+                              }}>{v === null ? '—' : fmt(v)}</td>
+                            );
+                          })}
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
