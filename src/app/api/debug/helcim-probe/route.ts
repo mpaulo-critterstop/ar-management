@@ -54,13 +54,13 @@ export async function GET(req: NextRequest) {
 
   if (action === 'create-invoice') {
     const invoiceNumber = sp.get('invoiceNumber') || '';
-    const customerCode = sp.get('customerCode') || '';
+    const customerId = sp.get('customerId'); // Helcim internal customer id (links the invoice to the customer)
     const amount = parseFloat(sp.get('amount') || '0');
     const desc = sp.get('desc') || 'Service';
-    // Helcim invoices need line items. Build one line for the full amount.
+    // Helcim invoices need line items. Build one line for the full amount. Link to customer via customerId.
     const bodyObj: any = {
       invoiceNumber,
-      ...(customerCode ? { customerCode } : {}),
+      ...(customerId ? { customerId: parseInt(customerId) } : {}),
       currency: 'USD',
       lineItems: [{ description: desc, quantity: 1, price: amount, total: amount }],
     };
