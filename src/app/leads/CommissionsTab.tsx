@@ -112,6 +112,75 @@ export function CommissionsTab() {
         <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>No commission plans. Add a structure to a PM in Manage PMs.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {(() => {
+            // Summary totals across all PMs, per month, for the requested metrics.
+            const SUMMARY_DEFS: { key: string; label: string; kind?: 'delta' }[] = [
+              { key: 'bookedRevenue', label: 'Booked Revenue' },
+              { key: 'cumulativeBookedRevenue', label: 'Total Cumulative Booked Rev.' },
+              { key: 'prePeriodDelta', label: 'Pre-Period Delta', kind: 'delta' },
+              { key: 'adjustedRevenue', label: 'Adj. Booked Revenue' },
+              { key: 'wildlifeCommission', label: 'Wildlife Commission' },
+              { key: 'pestControlComm', label: 'Pest Control Commission' },
+              { key: 'otherAdjustment', label: 'Other Adjustments', kind: 'delta' },
+              { key: 'totalCommission', label: 'Total Commission' },
+            ];
+            // sum[key][monthIdx] = total across PMs (null if no PM had a value that month)
+            const sum: Record<string, (number | null)[]> = {};
+            for (const rd of SUMMARY_DEFS) {
+              sum[rd.key] = MONTHS.map((_, i) => {
+                let total = 0; let any = false;
+                for (const pm of rows) {
+                  const v = cell(pm.months[i], rd.key);
+                  if (typeof v === 'number') { total += v; any = true; }
+                }
+                return any ? total : null;
+              });
+            }
+            return (
+              <div style={{ border: '0.5px solid #1D9E75', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+                <div style={{ padding: '10px 14px', background: '#ECF7F2', fontWeight: 600, fontSize: 14, color: '#2C2C2A', borderBottom: '0.5px solid #CDE9DD' }}>
+                  All PMs — Summary Totals
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: '#FCFBF9' }}>
+                        <th style={{ textAlign: 'left', padding: '6px 12px', color: '#888780', fontWeight: 500, position: 'sticky', left: 0, background: '#FCFBF9', minWidth: 170 }}>Metric</th>
+                        {MONTHS.map(m => <th key={m} style={{ textAlign: 'right', padding: '6px 10px', color: '#888780', fontWeight: 500, minWidth: 78, whiteSpace: 'nowrap' }}>{m}</th>)}
+                        <th style={{ textAlign: 'right', padding: '6px 12px', color: '#2C2C2A', fontWeight: 600, minWidth: 90, whiteSpace: 'nowrap', background: '#FCFBF9' }}>Year Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {SUMMARY_DEFS.map(rd => {
+                        // A cumulative metric shouldn't be summed across months (that double-counts);
+                        // its "year total" is the latest month's cumulative value.
+                        const isCumulative = rd.key === 'cumulativeBookedRevenue';
+                        const lastVal = [...sum[rd.key]].reverse().find(v => v !== null) ?? null;
+                        const yearTotal = isCumulative ? (lastVal ?? 0) : sum[rd.key].reduce((a: number, v) => a + (v || 0), 0);
+                        const anyYear = sum[rd.key].some(v => v !== null);
+                        return (
+                          <tr key={rd.key} style={{ borderTop: '0.5px solid #F1EFE8' }}>
+                            <td style={{ padding: '6px 12px', color: rd.key === 'totalCommission' ? '#2C2C2A' : '#64748b', fontWeight: rd.key === 'totalCommission' ? 600 : 400, position: 'sticky', left: 0, background: '#fff' }}>{rd.label}</td>
+                            {MONTHS.map((_, i) => {
+                              const v = sum[rd.key][i];
+                              return (
+                                <td key={i} style={{
+                                  padding: '6px 10px', textAlign: 'right',
+                                  color: rd.kind === 'delta' && typeof v === 'number' && v < 0 ? '#A32D2D' : rd.kind === 'delta' && typeof v === 'number' && v > 0 ? '#1D9E75' : rd.key === 'totalCommission' ? '#2C2C2A' : '#444441',
+                                  fontWeight: rd.key === 'totalCommission' ? 600 : 400,
+                                }}>{v === null ? '—' : fmt(v)}</td>
+                              );
+                            })}
+                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600, color: rd.key === 'totalCommission' ? '#1D9E75' : '#2C2C2A', background: '#FCFBF9' }}>{anyYear ? fmt(yearTotal) : '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
           {rows.map((pm: any) => (
             <div key={pm.pmName} style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
               <div style={{ padding: '10px 14px', background: '#F8F7F4', fontWeight: 600, fontSize: 14, color: '#2C2C2A', borderBottom: '0.5px solid #E8E7E3' }}>
