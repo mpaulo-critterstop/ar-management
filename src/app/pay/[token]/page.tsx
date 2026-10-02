@@ -37,12 +37,24 @@ export default function PayPage() {
   useEffect(() => {
     function onMsg(e: MessageEvent) {
       if (!info?.checkoutToken) return;
-      if (e.data?.eventName === `helcim-pay-js-${info.checkoutToken}`) {
-        const msg = e.data.eventMessage;
-        if (typeof msg === 'string' && msg.includes('failed')) { setErr('Payment was not completed. Please try again.'); return; }
-        // Success — the webhook records it in FR. Show confirmation.
-        setStatus('paid');
+      if (e.data?.eventName !== `helcim-pay-js-${info.checkoutToken}`) return;
+      const msg = e.data.eventMessage;
+
+      // Failure message is a string containing "failed".
+      if (typeof msg === 'string' && msg.toLowerCase().includes('failed')) { setErr('Payment was not completed. Please try again.'); return; }
+
+      // Parse the transaction response. Only an APPROVED transaction counts as paid.
+      let resp: any = msg;
+      try { if (typeof msg === 'string') resp = JSON.parse(msg); } catch { resp = null; }
+      // Helcim nests the transaction data; look for an approved status / transactionId.
+      const data = resp?.data?.data || resp?.data || resp;
+      const statusStr = String(data?.status || data?.response || '').toUpperCase();
+      const approved = data && (statusStr === 'APPROVED' || data.transactionId || data.approvalCode);
+
+      if (approved) {
+        setStatus('paid'); // webhook records it in FR
       }
+      // Any other message (hide/cancel/close) → do nothing; stay on the payment screen.
     }
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
