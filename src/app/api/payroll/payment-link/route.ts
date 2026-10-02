@@ -64,8 +64,25 @@ export async function POST(req: NextRequest) {
     const name = cu ? `${cu.fname || ''} ${cu.lname || ''}`.trim() : 'Customer';
     const email = cu?.email || cu?.billingEmail || '';
 
-    // Upsert Helcim customer.
-    await upsertHelcimCustomer(apiToken, custId, name, email, cu?.phone1 || '', { street1: cu?.billingAddress, city: cu?.billingCity, state: cu?.billingState, postalCode: cu?.billingZip });
+    // Upsert Helcim customer (returns Helcim internal id for invoice linking).
+    const helcimCustomerId = await upsertHelcimCustomer(apiToken, custId, name, email, cu?.phone1 || '', { street1: cu?.billingAddress, city: cu?.billingCity, state: cu?.billingState, postalCode: cu?.billingZip });
+
+    // Create the Helcim invoice carrying the FR invoice number (so the payment comes back matchable to FR).
+    // Build it from the FR ticket's breakdown: service charge + items + tax. Idempotent: if it already exists
+    // (e.g. a prior link / partial payment), Helcim returns "already existed" — we just reuse that invoiceNumber.
+    const hHeaders = { accept: 'application/json', 'api-token': apiToken, 'content-type': 'application/json' };
+    const lineItems: any[] = [];
+    const svc = parseFloat(tk.serviceCharge || '0');
+    if (svc > 0) {
+      let svcName = `Service (${tk.serviceID})`;
+      try { const str = await fetch(`${FR_BASE}/serviceType/get?serviceTypeIDs=${tk.serviceID},${tk.serviceID}&authenticationKey=${fr.key}&authenticationToken=${fr.token}`); const stj = await str.json(); const st = (stj.serviceTypes || [])[0]; if (st?.description) svcName = st.description; } catch {}
+      lineItems.push({ description: svcName, quantity: 1, price: svc, total: svc });
+    }
+    for (const it of (tk.items || [])) { const a = parseFloat(it.amount || '0'); const q = parseFloat(it.quantity || '1'); lineItems.push({ description: it.description || 'Item', quantity: q, price: a, total: a * q }); }
+    const invTax = parseFloat(tk.taxAmount || '0');
+    const invBody: any = { invoiceNumber: invoiceNumber, ...(helcimCustomerId ? { customerId: helcimCustomerId } : {}), currency: 'USD', lineItems: lineItems.length ? lineItems : [{ description: 'Service', quantity: 1, price: parseFloat(tk.subTotal || tk.total || '0'), total: parseFloat(tk.subTotal || tk.total || '0') }], ...(invTax > 0 ? { tax: { amount: invTax, details: 'Sales Tax' } } : {}) };
+    try { await fetch(`${HELCIM_BASE}/invoices`, { method: 'POST', headers: hHeaders, body: JSON.stringify(invBody) }); } catch {}
+    // (If it already existed, that's fine — the invoiceNumber is what matters for the checkout + matching.)
 
     const token = crypto.randomBytes(8).toString('hex');
     await prisma.paymentLinkRequest.create({

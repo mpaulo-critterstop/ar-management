@@ -19,12 +19,10 @@ export async function POST(req: NextRequest) {
   const payload: any = {
     paymentType: 'purchase', amount: plr.amount, currency: 'USD',
     customerCode: plr.helcimCustomerCode || plr.frCustomerId,
+    invoiceNumber: plr.frInvoiceNumber, // pre-created at link time → carries the FR invoice # back for matching
+    allowPartial: 1, // the amount collected may be less than the invoice total (deposits / 50% splits)
     paymentMethod: (req.nextUrl.searchParams.get('cc') === '1') ? 'cc' : 'cc-ach',
   };
-  // invoiceNumber must reference an EXISTING due Helcim invoice; our links don't pre-create one, so omit it
-  // (Helcim creates an invoice on payment). We still match to FR via customerCode + the amount/reference.
-  if (req.nextUrl.searchParams.get('withInvoice') === '1') payload.invoiceNumber = plr.frInvoiceNumber;
-
   const r = await fetch(`${HELCIM_BASE}/helcim-pay/initialize`, { method: 'POST', headers: { accept: 'application/json', 'api-token': apiToken, 'content-type': 'application/json' }, body: JSON.stringify(payload) });
   const j = await r.json();
   if (!j?.checkoutToken) return NextResponse.json({ error: 'could not start payment', helcim: j, sent: payload }, { status: 502 });
