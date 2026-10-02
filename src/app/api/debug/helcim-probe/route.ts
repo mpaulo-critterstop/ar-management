@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
       ...(customerId ? { customerId: parseInt(customerId) } : {}),
       currency: 'USD',
       lineItems: [{ description: desc, quantity: 1, price: subTotal, total: subTotal }],
-      ...(taxAmount > 0 ? { tax: { amount: taxAmount } } : {}),
+      ...(taxAmount > 0 ? { tax: { amount: taxAmount, details: sp.get('taxDetails') || 'Sales Tax' } } : {}),
     };
     const r = await fetch(`${BASE}/invoices`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(bodyObj) });
     const t = await r.text(); let j: any; try { j = JSON.parse(t); } catch { j = t.slice(0, 500); }
