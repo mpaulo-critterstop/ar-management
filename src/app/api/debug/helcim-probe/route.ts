@@ -91,6 +91,48 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ action: 'update-customer', httpStatus: r.status, sent: bodyObj, result: j });
   }
 
+  // Build a complete Helcim invoice from an FR ticket: all line items (service charge + products) + total tax.
+  if (action === 'create-invoice-from-fr') {
+    const ticketId = sp.get('ticket');
+    const customerId = sp.get('customerId');
+    const office = sp.get('office') || 'DFW';
+    if (!ticketId) return NextResponse.json({ error: 'ticket required' }, { status: 400 });
+    const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
+    const FR: Record<string, { key?: string; token?: string }> = {
+      DFW: { key: process.env.FIELDROUTES_KEY_DFW, token: process.env.FIELDROUTES_TOKEN_DFW },
+      ATX: { key: process.env.FIELDROUTES_KEY_ATX, token: process.env.FIELDROUTES_TOKEN_ATX },
+      OKC: { key: process.env.FIELDROUTES_KEY_OKC, token: process.env.FIELDROUTES_TOKEN_OKC },
+      CStat: { key: process.env.FIELDROUTES_KEY_CSTAT, token: process.env.FIELDROUTES_TOKEN_CSTAT },
+    };
+    const fr = FR[office];
+    if (!fr?.key) return NextResponse.json({ error: 'bad office' }, { status: 400 });
+    // Read the FR ticket.
+    const tr = await fetch(`${FR_BASE}/ticket/get?ticketIDs=${ticketId},${ticketId}&authenticationKey=${fr.key}&authenticationToken=${fr.token}`);
+    const tj = await tr.json();
+    const tk = (tj.tickets || [])[0];
+    if (!tk) return NextResponse.json({ error: 'FR ticket not found' }, { status: 404 });
+
+    // Build line items: base service charge (if > 0) + each product item.
+    const lineItems: any[] = [];
+    const svc = parseFloat(tk.serviceCharge || '0');
+    if (svc > 0) lineItems.push({ description: sp.get('serviceDesc') || `Service (${tk.serviceID})`, quantity: 1, price: svc, total: svc });
+    for (const it of (tk.items || [])) {
+      const amt = parseFloat(it.amount || '0');
+      lineItems.push({ description: it.description || 'Item', quantity: parseFloat(it.quantity || '1'), price: amt, total: amt * parseFloat(it.quantity || '1') });
+    }
+    const taxAmount = parseFloat(tk.taxAmount || '0');
+    const bodyObj: any = {
+      invoiceNumber: String(tk.ticketID),
+      ...(customerId ? { customerId: parseInt(customerId) } : {}),
+      currency: 'USD',
+      lineItems,
+      ...(taxAmount > 0 ? { tax: { amount: taxAmount, details: 'Sales Tax' } } : {}),
+    };
+    const r = await fetch(`${BASE}/invoices`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(bodyObj) });
+    const t = await r.text(); let j: any; try { j = JSON.parse(t); } catch { j = t.slice(0, 500); }
+    return NextResponse.json({ action: 'create-invoice-from-fr', httpStatus: r.status, frSubTotal: tk.subTotal, frTax: tk.taxAmount, frTotal: tk.total, sent: bodyObj, result: j });
+  }
+
   if (action === 'create-invoice') {
     const invoiceNumber = sp.get('invoiceNumber') || '';
     const customerId = sp.get('customerId'); // Helcim internal customer id (links the invoice to the customer)
