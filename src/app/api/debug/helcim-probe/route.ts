@@ -39,5 +39,35 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ action: 'transactions', httpStatus: r.status, count: Array.isArray(txns) ? txns.length : 0, transactions: slim, _rawShape: Array.isArray(j) ? 'array' : (j && typeof j === 'object' ? Object.keys(j) : typeof j) });
   }
 
+  if (action === 'create-customer') {
+    const customerCode = sp.get('customerCode') || '';
+    const contactName = sp.get('contactName') || '';
+    const businessName = sp.get('businessName') || '';
+    if (!contactName && !businessName) return NextResponse.json({ error: 'contactName or businessName required' }, { status: 400 });
+    const bodyObj: any = { customerCode };
+    if (contactName) bodyObj.contactName = contactName;
+    if (businessName) bodyObj.businessName = businessName;
+    const r = await fetch(`${BASE}/customers`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(bodyObj) });
+    const t = await r.text(); let j: any; try { j = JSON.parse(t); } catch { j = t.slice(0, 500); }
+    return NextResponse.json({ action: 'create-customer', httpStatus: r.status, sent: bodyObj, result: j });
+  }
+
+  if (action === 'create-invoice') {
+    const invoiceNumber = sp.get('invoiceNumber') || '';
+    const customerCode = sp.get('customerCode') || '';
+    const amount = parseFloat(sp.get('amount') || '0');
+    const desc = sp.get('desc') || 'Service';
+    // Helcim invoices need line items. Build one line for the full amount.
+    const bodyObj: any = {
+      invoiceNumber,
+      ...(customerCode ? { customerCode } : {}),
+      currency: 'USD',
+      lineItems: [{ description: desc, quantity: 1, price: amount, total: amount }],
+    };
+    const r = await fetch(`${BASE}/invoices`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(bodyObj) });
+    const t = await r.text(); let j: any; try { j = JSON.parse(t); } catch { j = t.slice(0, 500); }
+    return NextResponse.json({ action: 'create-invoice', httpStatus: r.status, sent: bodyObj, result: j });
+  }
+
   return NextResponse.json({ error: 'unknown action' }, { status: 400 });
 }
