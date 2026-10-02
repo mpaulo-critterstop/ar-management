@@ -120,7 +120,14 @@ export async function GET(req: NextRequest) {
       const t = await fetch(`${BASE}/ticket/get?ticketIDs=${ticketId},${ticketId}&${auth}`);
       const tj = await t.json();
       const tk = (tj.tickets || [])[0];
-      out.ticket = tk ? { ticketID: tk.ticketID, customerID: tk.customerID, total: tk.total, balance: tk.balance, serviceID: tk.serviceID, invoiceDate: tk.invoiceDate, _keys: Object.keys(tk) } : { notFound: true };
+      out.ticket = tk ? {
+        ticketID: tk.ticketID, customerID: tk.customerID,
+        subTotal: tk.subTotal, taxAmount: tk.taxAmount, taxRate: tk.taxRate, total: tk.total, balance: tk.balance,
+        serviceCharge: tk.serviceCharge, serviceTaxable: tk.serviceTaxable,
+        serviceID: tk.serviceID, invoiceDate: tk.invoiceDate,
+        items: tk.items,
+        _keys: Object.keys(tk),
+      } : { notFound: true };
     }
     if (custId) {
       const c = await fetch(`${BASE}/customer/get?customerIDs=${custId},${custId}&${auth}`);
