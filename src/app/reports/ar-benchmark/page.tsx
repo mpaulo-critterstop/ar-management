@@ -25,9 +25,9 @@ export default function ArBenchmarkPage() {
   ];
   const WINDOWS = [{ k: 'd30', label: '30-day' }, { k: 'd60', label: '60-day' }, { k: 'd90', label: '90-day' }];
 
-  const th: React.CSSProperties = { textAlign: 'right', padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#888780', borderBottom: '0.5px solid #E8E7E3' };
+  const th: React.CSSProperties = { textAlign: 'center', padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#888780', borderBottom: '0.5px solid #E8E7E3' };
   const thL: React.CSSProperties = { ...th, textAlign: 'left' };
-  const td: React.CSSProperties = { textAlign: 'right', padding: '10px 14px', fontSize: 14, borderBottom: '0.5px solid #F1EFE8' };
+  const td: React.CSSProperties = { textAlign: 'center', padding: '10px 14px', fontSize: 14, borderBottom: '0.5px solid #F1EFE8' };
   const tdL: React.CSSProperties = { ...td, textAlign: 'left' };
 
   return (
