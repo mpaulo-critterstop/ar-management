@@ -34,6 +34,11 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  // Insulation can't be identified by serviceId (it's line-item based: productID 10/43). Use DispatchJob.hasFAR,
+  // which flags insulation/FAR jobs and links to the invoice. Build a set of insulation invoiceIds.
+  const farJobs = await prisma.dispatchJob.findMany({ where: { hasFAR: true, invoiceId: { not: null } }, select: { invoiceId: true } });
+  const insulationInvoiceIds = new Set(farJobs.map(j => j.invoiceId));
+
   // Classify + compute days-to-pay for fully-paid invoices.
   const buckets: Record<string, number[]> = { pest: [], wildlife: [], insulation: [] };
   let considered = 0, paidCount = 0;
@@ -57,8 +62,9 @@ export async function GET(req: NextRequest) {
     if (d < 0 || d > 365) continue; // guard against bad data (prepaid/credits/refunds)
 
     const sid = Number(inv.serviceId);
-    const isInsulation = INSULATION_IDS.has(sid);
-    const isWildlife = WILDLIFE_IDS.has(sid) && !isInsulation;
+    // Insulation = invoice tied to a FAR dispatch job (line-item based, not serviceId).
+    const isInsulation = insulationInvoiceIds.has(inv.id);
+    const isWildlife = !isInsulation && WILDLIFE_IDS.has(sid);
     // Pest = neither wildlife nor insulation
     if (isInsulation) buckets.insulation.push(d);
     else if (isWildlife) buckets.wildlife.push(d);
