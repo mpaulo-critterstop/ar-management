@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if ((session.user as any)?.role !== 'Admin') return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 });
 
   // Counts + total amount by status.
   const grouped = await prisma.helcimPayment.groupBy({
