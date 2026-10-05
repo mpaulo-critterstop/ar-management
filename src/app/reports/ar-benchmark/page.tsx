@@ -56,7 +56,7 @@ export default function ArBenchmarkPage() {
                   <td style={{ ...tdL, fontWeight: 600, color: l.color }}>{l.label}</td>
                   {WINDOWS.map(w => {
                     const s = data.data[w.k]?.[l.key];
-                    return <td key={w.k} style={{ ...td, fontWeight: 600 }}>{s?.avg != null ? d1(s.avg) : '—'}<span style={{ fontSize: 11, color: '#B4B2A9', fontWeight: 400 }}> (n={s?.n ?? 0})</span></td>;
+                    return <td key={w.k} style={{ ...td, fontWeight: 600 }}>{s?.avg != null ? d1(s.avg) : '—'}<span style={{ fontSize: 11, color: '#B4B2A9', fontWeight: 400 }}> · {(s?.n ?? 0).toLocaleString()} invoices</span></td>;
                   })}
                 </tr>
               ))}
@@ -81,7 +81,7 @@ export default function ArBenchmarkPage() {
         </div>
 
         <div style={{ fontSize: 12, color: '#888780', lineHeight: 1.6, background: '#FBF9F5', border: '0.5px solid #EDEAE2', borderRadius: 10, padding: '12px 14px' }}>
-          <b>Reading this:</b> Shorter windows (30-day) tend to <b>understate</b> payment time — slow-paying invoices from recent weeks haven't fully resolved yet, so only fast-payers are counted. The <b>90-day window is the most reliable</b>, especially for Wildlife and Insulation (bigger tickets, slower to pay). Insulation has a smaller sample, so treat it as directional.
+          <b>Reading this:</b> Shorter windows (30-day) tend to <b>understate</b> payment time — slow-paying invoices from recent weeks haven't fully resolved yet, so only fast-payers are counted. The <b>90-day window is the most reliable</b>, especially for Wildlife and Insulation (bigger tickets, slower to pay). The invoice count next to each number shows how much data it's based on — the more invoices, the more reliable the average. Insulation is based on fewer invoices, so treat it as directional.
         </div>
       </>)}
     </div>
