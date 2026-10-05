@@ -820,6 +820,17 @@ model PaymentLinkRequest {
   @@map("payment_link_requests")
 }
 
+// AR Benchmark — weekly (Sat–Fri) snapshot of actual days-to-pay by service line, at 30/60/90-day trailing.
+model ArBenchmark {
+  id          String   @id @default(cuid())
+  weekKey     String   @unique
+  weekLabel   String
+  computedAt  DateTime @default(now())
+  data        Json
+
+  @@map("ar_benchmarks")
+}
+
 model AppSetting {
   key       String   @id
   value     String

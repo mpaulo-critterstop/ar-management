@@ -4,6 +4,12 @@ type Report = { title: string; desc: string; href?: string; status: 'available' 
 
 const REPORTS: Report[] = [
   {
+    title: 'AR Benchmark',
+    desc: 'Actual days-to-pay by service line — Pest Control, Wildlife, and Insulation — at 30/60/90-day trailing. The real basis for what AR should be. Updated weekly (Sat–Fri).',
+    href: '/reports/ar-benchmark',
+    status: 'available',
+  },
+  {
     title: 'Insulation Revenue per Tech',
     desc: 'Weekly & monthly FAR + Top-Off revenue per job, crew size from the route, and revenue per tech. Direct Labor columns for manual entry.',
     href: '/reports/insulation-revenue',
