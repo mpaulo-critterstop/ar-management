@@ -48,7 +48,8 @@ export default function ArBenchmarkPage() {
         {/* Average (headline) table */}
         <div style={{ fontSize: 13, fontWeight: 600, color: '#2C2C2A', marginBottom: 8 }}>Average days to pay</div>
         <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff', marginBottom: 24 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup><col style={{ width: '28%' }} /><col style={{ width: '24%' }} /><col style={{ width: '24%' }} /><col style={{ width: '24%' }} /></colgroup>
             <thead><tr><th style={thL}>Service Line</th>{WINDOWS.map(w => <th key={w.k} style={th}>{w.label}</th>)}</tr></thead>
             <tbody>
               {LINES.map(l => (
@@ -56,7 +57,12 @@ export default function ArBenchmarkPage() {
                   <td style={{ ...tdL, fontWeight: 600, color: l.color }}>{l.label}</td>
                   {WINDOWS.map(w => {
                     const s = data.data[w.k]?.[l.key];
-                    return <td key={w.k} style={{ ...td, fontWeight: 600 }}>{s?.avg != null ? d1(s.avg) : '—'}<span style={{ fontSize: 11, color: '#B4B2A9', fontWeight: 400 }}> · {(s?.n ?? 0).toLocaleString()} invoices</span></td>;
+                    return (
+                      <td key={w.k} style={{ ...td, fontWeight: 600 }}>
+                        <div>{s?.avg != null ? d1(s.avg) : '—'}</div>
+                        <div style={{ fontSize: 11, color: '#B4B2A9', fontWeight: 400, marginTop: 2 }}>{(s?.n ?? 0).toLocaleString()} invoices</div>
+                      </td>
+                    );
                   })}
                 </tr>
               ))}
@@ -67,7 +73,8 @@ export default function ArBenchmarkPage() {
         {/* Median table */}
         <div style={{ fontSize: 13, fontWeight: 600, color: '#2C2C2A', marginBottom: 8 }}>Median days to pay <span style={{ fontWeight: 400, color: '#888780' }}>(typical customer — less skewed by slow payers)</span></div>
         <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff', marginBottom: 24 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup><col style={{ width: '28%' }} /><col style={{ width: '24%' }} /><col style={{ width: '24%' }} /><col style={{ width: '24%' }} /></colgroup>
             <thead><tr><th style={thL}>Service Line</th>{WINDOWS.map(w => <th key={w.k} style={th}>{w.label}</th>)}</tr></thead>
             <tbody>
               {LINES.map(l => (
