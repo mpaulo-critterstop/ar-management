@@ -99,21 +99,15 @@ async function revenueAndAR(asOf: Date = new Date()) {
     if (line === 'insulation' && ageDays <= 91) rev.insulation13w += amt;
   }
 
-  // Actual AR. The stored `paid` field is authoritative (it includes credits/adjustments that aren't recorded
-  // as Payment rows — the Payment table is incomplete, so summing it overstates AR). So for the CURRENT week
-  // we use amount - paid. For PAST weeks we can't reliably reconstruct historical AR (paid field is point-in-
-  // time "now", Payment rows are incomplete), so historical Actual AR is left null.
-  const isCurrentWeek = Math.abs(now - Date.now()) < 7 * 86400000;
-  let actualAR: number | null = null;
-  if (isCurrentWeek) {
-    const allInv = await prisma.invoice.findMany({ select: { amount: true, paid: true } });
-    let ar = 0;
-    for (const inv of allInv) { const bal = Number(inv.amount) - Number(inv.paid); if (bal > 0.01) ar += bal; }
-    actualAR = Math.round(ar * 100) / 100;
-  }
+  // Actual AR snapshot (live, right now) via the stored `paid` field — authoritative (includes credits/
+  // adjustments not in the incomplete Payment table; NEVER sum Payment rows — that overstates AR badly).
+  // This is only a candidate value; the caller decides whether to store it (first capture) or keep the frozen one.
+  const allInv = await prisma.invoice.findMany({ select: { amount: true, paid: true } });
+  let liveAR = 0;
+  for (const inv of allInv) { const bal = Number(inv.amount) - Number(inv.paid); if (bal > 0.01) liveAR += bal; }
 
   const round = (n: number) => Math.round(n * 100) / 100;
-  return { rev: { pest4w: round(rev.pest4w), wildlife8w: round(rev.wildlife8w), insulation13w: round(rev.insulation13w), all13w: round(rev.all13w) }, actualAR };
+  return { rev: { pest4w: round(rev.pest4w), wildlife8w: round(rev.wildlife8w), insulation13w: round(rev.insulation13w), all13w: round(rev.all13w) }, liveAR: round(liveAR) };
 }
 
 // The AR benchmark formula (Chisam's structure), parameterized so we can run it with actual or theoretical inputs.
@@ -146,7 +140,7 @@ async function computeAndStoreWeek(friday: Date) {
   const weekLabel = `Week of ${monSat.toISOString().slice(0, 10)} – ${weekKey} (Sat–Fri)`;
 
   const timing = await computeWindows(friday);
-  const { rev, actualAR } = await revenueAndAR(friday);
+  const { rev, liveAR } = await revenueAndAR(friday);
 
   const actPestPay = timing.d30.pest.avg ?? 9;
   const actWildPay = timing.d60.wildlife.avg ?? 15;
@@ -158,12 +152,14 @@ async function computeAndStoreWeek(friday: Date) {
   const actualVersion = benchmarkFormula({ ...common, pestWeightedDays: actPestPay, wildOpsDays: wildOps, wildPayDays: actWildPay, insOpsDays: insOps, insPayDays: actInsPay });
   const chisamVersion = benchmarkFormula({ ...common, pestWeightedDays: 0.4 * 0 + 0.6 * 15, wildOpsDays: wildOps, wildPayDays: 15, insOpsDays: insOps, insPayDays: 15 });
 
-  // Freeze Actual AR at first capture: if this week already has an actualAR stored, keep it (don't overwrite
-  // with a live recompute — that would drift as payments come in after the Friday close). Everything else
-  // (timing, revenue, benchmark) still refreshes.
+  // Actual AR is captured ONCE and frozen:
+  //  - If this week already has a stored actualAR → keep it (never overwrite; no drift).
+  //  - Else, only capture the live AR for the CURRENT week (the one that just closed). Past backfill weeks
+  //    get null (we can't reconstruct their historical AR — set it manually via setAR if known).
   const existing = await prisma.arBenchmark.findUnique({ where: { weekKey } });
   const existingAR = (existing?.data as any)?.actualAR;
-  const finalAR = (existingAR != null) ? existingAR : actualAR;
+  const isCurrentWeek = Math.abs(friday.getTime() - currentFriday().getTime()) < 86400000;
+  const finalAR = (existingAR != null) ? existingAR : (isCurrentWeek ? liveAR : null);
 
   const data = {
     ...timing, revenue: rev, actualAR: finalAR,
