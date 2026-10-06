@@ -170,6 +170,19 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  // Set a known Actual AR for a specific week (authoritative historical values provided manually).
+  //   ?setAR=1&week=2026-08-14&ar=1309351
+  if (sp.get('setAR') === '1') {
+    const wk = sp.get('week'); const ar = parseFloat(sp.get('ar') || '');
+    if (!wk || isNaN(ar)) return NextResponse.json({ error: 'week + ar required' }, { status: 400 });
+    const row = await prisma.arBenchmark.findUnique({ where: { weekKey: wk } });
+    if (!row) return NextResponse.json({ error: `week ${wk} not found` }, { status: 404 });
+    const data: any = row.data;
+    data.actualAR = ar;
+    await prisma.arBenchmark.update({ where: { weekKey: wk }, data: { data } });
+    return NextResponse.json({ ok: true, week: wk, actualAR: ar });
+  }
+
   // Backfill the last N Sat–Fri weeks (default 8).
   if (sp.get('backfill')) {
     const n = Math.min(parseInt(sp.get('backfill') || '8') || 8, 26);
