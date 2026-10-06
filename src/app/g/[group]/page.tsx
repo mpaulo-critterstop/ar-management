@@ -8,7 +8,7 @@ import { canAccessModule, type ModuleKey } from '@/lib/access';
 function fmt(n: number) { return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 
 const GROUP_OF: Record<string, 'operations' | 'management' | 'reports'> = {
-  leads: 'operations', 'pest-sales': 'operations', 'csr-pest-sales': 'operations', cancellations: 'operations',
+  leads: 'operations', 'pest-sales': 'operations', 'pest-inspections': 'operations', 'csr-pest-sales': 'operations', cancellations: 'operations',
   'service-pool': 'operations', 'lsa-leads': 'operations', dispatch: 'operations', ar: 'operations',
   dialpad: 'operations', 'field-performance': 'management', csr: 'operations', helcim: 'operations', reports: 'reports', payroll: 'management',
 };
@@ -83,7 +83,7 @@ export default function GroupPage() {
       stats: null,
     },
     {
-      module: 'pest-sales' as ModuleKey,
+      module: 'pest-inspections' as ModuleKey,
       icon: '🔍',
       title: 'Pest Inspection Tracker',
       desc: 'Pest & termite inspections per PM, marked sold or inspected \u2014 with per-PM close rate.',
