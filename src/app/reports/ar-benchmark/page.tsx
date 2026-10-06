@@ -47,7 +47,7 @@ export default function ArBenchmarkPage() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <select value={selWeek} onChange={e => pickWeek(e.target.value)} style={{ fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '0.5px solid #E8E7E3', background: '#fff', minWidth: 230 }}>
             {!weeks.length && <option value="">Latest</option>}
-            {weeks.map(w => <option key={w.weekKey} value={w.weekKey}>{w.weekLabel}</option>)}
+            {weeks.map(w => { const [y, m, dd] = w.weekKey.split('-'); return <option key={w.weekKey} value={w.weekKey}>Week of {m}/{dd}/{y.slice(2)}</option>; })}
           </select>
           <button onClick={refresh} disabled={refreshing} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: refreshing ? 'wait' : 'pointer' }}>{refreshing ? 'Computing…' : '↻ Refresh this week'}</button>
         </div>
@@ -55,7 +55,7 @@ export default function ArBenchmarkPage() {
       <p style={{ fontSize: 13, color: '#888780', margin: '0 0 6px', lineHeight: 1.6 }}>
         Actual days from invoice to full payment, by service line, at 30/60/90-day trailing windows. Pest invoices are due the service day, so this reflects true collection speed.
       </p>
-      {data?.weekLabel && <p style={{ fontSize: 12, color: '#B4B2A9', margin: '0 0 20px' }}>{data.weekLabel} · computed {data.computedAt ? new Date(data.computedAt).toLocaleString() : '—'}</p>}
+      {data?.weekKey && <p style={{ fontSize: 12, color: '#B4B2A9', margin: '0 0 20px' }}>{(() => { const [y, m, dd] = data.weekKey.split('-'); return `Week of ${m}/${dd}/${y.slice(2)} (Sat–Fri)`; })()} · computed {data.computedAt ? new Date(data.computedAt).toLocaleString() : '—'}</p>}
 
       {loading ? <div style={{ color: '#888780' }}>Loading…</div> : !data?.data ? (
         <div style={{ color: '#888780', fontSize: 14, padding: 20, background: '#fff', borderRadius: 12, border: '0.5px solid #E8E7E3' }}>No benchmark computed yet. Click "Refresh this week".</div>
