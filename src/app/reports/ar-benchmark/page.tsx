@@ -18,12 +18,12 @@ export default function ArBenchmarkPage() {
     setRefreshing(false); load();
   }
 
+  // Each line uses its own trailing window (matched to the revenue window in the benchmark formula).
   const LINES = [
-    { key: 'pest', label: 'Pest Control', color: '#185FA5' },
-    { key: 'wildlife', label: 'Wildlife', color: '#1D9E75' },
-    { key: 'insulation', label: 'Insulation', color: '#BA7517' },
+    { key: 'pest', label: 'Pest Control', color: '#185FA5', win: 'd30', winLabel: '4 weeks' },
+    { key: 'wildlife', label: 'Wildlife', color: '#1D9E75', win: 'd60', winLabel: '8 weeks' },
+    { key: 'insulation', label: 'Insulation', color: '#BA7517', win: 'd90', winLabel: '13 weeks' },
   ];
-  const WINDOWS = [{ k: 'd30', label: '30-day' }, { k: 'd60', label: '60-day' }, { k: 'd90', label: '90-day' }];
 
   const th: React.CSSProperties = { textAlign: 'center', padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#888780', borderBottom: '0.5px solid #E8E7E3' };
   const thL: React.CSSProperties = { ...th, textAlign: 'left' };
@@ -45,44 +45,25 @@ export default function ArBenchmarkPage() {
       {loading ? <div style={{ color: '#888780' }}>Loading…</div> : !data?.data ? (
         <div style={{ color: '#888780', fontSize: 14, padding: 20, background: '#fff', borderRadius: 12, border: '0.5px solid #E8E7E3' }}>No benchmark computed yet. Click "Refresh this week".</div>
       ) : (<>
-        {/* Average (headline) table */}
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#2C2C2A', marginBottom: 8 }}>Average days to pay</div>
+        {/* Payment timing — one row per line, using each line's own trailing window */}
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#2C2C2A', marginBottom: 8 }}>Days to pay <span style={{ fontWeight: 400, color: '#888780' }}>— each line over its own trailing window</span></div>
         <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff', marginBottom: 24 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col style={{ width: '28%' }} /><col style={{ width: '24%' }} /><col style={{ width: '24%' }} /><col style={{ width: '24%' }} /></colgroup>
-            <thead><tr><th style={thL}>Service Line</th>{WINDOWS.map(w => <th key={w.k} style={th}>{w.label}</th>)}</tr></thead>
+            <colgroup><col style={{ width: '28%' }} /><col style={{ width: '18%' }} /><col style={{ width: '18%' }} /><col style={{ width: '18%' }} /><col style={{ width: '18%' }} /></colgroup>
+            <thead><tr><th style={thL}>Service Line</th><th style={th}>Window</th><th style={th}>Average</th><th style={th}>Median</th><th style={th}>Invoices</th></tr></thead>
             <tbody>
-              {LINES.map(l => (
-                <tr key={l.key}>
-                  <td style={{ ...tdL, fontWeight: 600, color: l.color }}>{l.label}</td>
-                  {WINDOWS.map(w => {
-                    const s = data.data[w.k]?.[l.key];
-                    return (
-                      <td key={w.k} style={{ ...td, fontWeight: 600 }}>
-                        <div>{s?.avg != null ? d1(s.avg) : '—'}</div>
-                        <div style={{ fontSize: 11, color: '#B4B2A9', fontWeight: 400, marginTop: 2 }}>{(s?.n ?? 0).toLocaleString()} invoices</div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Median table */}
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#2C2C2A', marginBottom: 8 }}>Median days to pay <span style={{ fontWeight: 400, color: '#888780' }}>(typical customer — less skewed by slow payers)</span></div>
-        <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff', marginBottom: 24 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col style={{ width: '28%' }} /><col style={{ width: '24%' }} /><col style={{ width: '24%' }} /><col style={{ width: '24%' }} /></colgroup>
-            <thead><tr><th style={thL}>Service Line</th>{WINDOWS.map(w => <th key={w.k} style={th}>{w.label}</th>)}</tr></thead>
-            <tbody>
-              {LINES.map(l => (
-                <tr key={l.key}>
-                  <td style={{ ...tdL, fontWeight: 600, color: l.color }}>{l.label}</td>
-                  {WINDOWS.map(w => { const s = data.data[w.k]?.[l.key]; return <td key={w.k} style={td}>{s?.median != null ? d1(s.median) : '—'}</td>; })}
-                </tr>
-              ))}
+              {LINES.map(l => {
+                const s = data.data[l.win]?.[l.key];
+                return (
+                  <tr key={l.key}>
+                    <td style={{ ...tdL, fontWeight: 600, color: l.color }}>{l.label}</td>
+                    <td style={{ ...td, color: '#888780', fontSize: 12 }}>{l.winLabel}</td>
+                    <td style={{ ...td, fontWeight: 600 }}>{s?.avg != null ? d1(s.avg) : '—'}</td>
+                    <td style={td}>{s?.median != null ? d1(s.median) : '—'}</td>
+                    <td style={{ ...td, color: '#888780', fontSize: 12 }}>{(s?.n ?? 0).toLocaleString()}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -132,7 +113,7 @@ export default function ArBenchmarkPage() {
         })()}
 
         <div style={{ fontSize: 12, color: '#888780', lineHeight: 1.6, background: '#FBF9F5', border: '0.5px solid #EDEAE2', borderRadius: 10, padding: '12px 14px' }}>
-          <b>Reading this:</b> Shorter windows (30-day) tend to <b>understate</b> payment time — slow-paying invoices from recent weeks haven't fully resolved yet, so only fast-payers are counted. The <b>90-day window is the most reliable</b>, especially for Wildlife and Insulation (bigger tickets, slower to pay). The invoice count next to each number shows how much data it's based on — the more invoices, the more reliable the average. Insulation is based on fewer invoices, so treat it as directional.
+          <b>Reading this:</b> Each line's payment timing uses its own trailing window — matched to the revenue window in the benchmark formula (Pest 4wk, Wildlife 8wk, Insulation 13wk). Average is what the benchmark uses; median shows the typical customer (less skewed by slow payers). The invoice count shows how much data each figure is based on — Insulation has the fewest, so treat it as directional. Note: shorter windows can slightly understate timing, since very recent slow-payers haven't fully resolved yet.
         </div>
       </>)}
     </div>
