@@ -30,26 +30,31 @@ function currentFriday(): Date {
   return f;
 }
 
-async function computeWindows() {
-  // Pull once at the widest window (90d) + classify, then bucket per window.
-  const since90 = new Date(); since90.setDate(since90.getDate() - 90);
+async function computeWindows(asOf: Date = new Date()) {
+  // Pull at the widest window (90d) ending at asOf + classify, then bucket per window.
+  const since90 = new Date(asOf); since90.setDate(since90.getDate() - 90);
   const invoices = await prisma.invoice.findMany({
-    where: { date: { gte: since90 } },
+    where: { date: { gte: since90, lte: asOf } },
     select: { id: true, date: true, amount: true, paid: true, serviceId: true, payments: { select: { date: true, amount: true }, orderBy: { date: 'asc' } } },
   });
   const farJobs = await prisma.dispatchJob.findMany({ where: { hasFAR: true, invoiceId: { not: null } }, select: { invoiceId: true } });
   const insIds = new Set(farJobs.map(j => j.invoiceId));
 
-  const now = Date.now();
+  const now = asOf.getTime();
   const WINDOWS = [30, 60, 90];
   const result: any = {};
   for (const w of WINDOWS) result[`d${w}`] = { pest: [] as number[], wildlife: [] as number[], insulation: [] as number[] };
 
   for (const inv of invoices) {
-    const amount = Number(inv.amount), paid = Number(inv.paid);
-    if (amount <= 0 || paid < amount - 0.01) continue;
+    const amount = Number(inv.amount);
+    if (amount <= 0) continue;
+    // Fully-paid only counts if it happened on/before asOf (so past weeks reflect what was true then).
     let cum = 0, fullyPaid: Date | null = null;
-    for (const p of inv.payments) { cum += Number(p.amount); if (cum >= amount - 0.01) { fullyPaid = p.date; break; } }
+    for (const p of inv.payments) {
+      if (p.date.getTime() > now) continue; // ignore payments after the as-of date
+      cum += Number(p.amount);
+      if (cum >= amount - 0.01) { fullyPaid = p.date; break; }
+    }
     if (!fullyPaid) continue;
     const d = daysBetween(inv.date, fullyPaid);
     if (d < 0 || d > 365) continue;
@@ -71,15 +76,15 @@ async function computeWindows() {
 }
 
 // Revenue by service line over a trailing number of WEEKS, + current actual AR (outstanding balance).
-async function revenueAndAR() {
-  const since = new Date(); since.setDate(since.getDate() - 13 * 7); // widest window = 13 weeks
+async function revenueAndAR(asOf: Date = new Date()) {
+  const since = new Date(asOf); since.setDate(since.getDate() - 13 * 7); // widest window = 13 weeks
   const invoices = await prisma.invoice.findMany({
-    where: { date: { gte: since } },
+    where: { date: { gte: since, lte: asOf } },
     select: { id: true, date: true, amount: true, paid: true, serviceId: true },
   });
   const farJobs = await prisma.dispatchJob.findMany({ where: { hasFAR: true, invoiceId: { not: null } }, select: { invoiceId: true } });
   const insIds = new Set(farJobs.map(j => j.invoiceId));
-  const now = Date.now();
+  const now = asOf.getTime();
   const lineOf = (inv: any) => insIds.has(inv.id) ? 'insulation' : (WILDLIFE_IDS.has(Number(inv.serviceId)) ? 'wildlife' : 'pest');
 
   // Trailing revenue per line at the windows the formula uses: pest 4wk, wildlife 8wk, insulation 13wk.
@@ -94,10 +99,20 @@ async function revenueAndAR() {
     if (line === 'insulation' && ageDays <= 91) rev.insulation13w += amt;
   }
 
-  // Actual current AR = sum of outstanding (amount - paid) across all not-fully-paid invoices (all time).
-  const openAgg = await prisma.invoice.findMany({ where: {}, select: { amount: true, paid: true } });
+  // Actual AR as of asOf = invoices that existed by asOf and were NOT fully paid by asOf (using payment dates).
+  const allInv = await prisma.invoice.findMany({
+    where: { date: { lte: asOf } },
+    select: { amount: true, date: true, payments: { select: { date: true, amount: true } } },
+  });
   let actualAR = 0;
-  for (const inv of openAgg) { const bal = Number(inv.amount) - Number(inv.paid); if (bal > 0.01) actualAR += bal; }
+  for (const inv of allInv) {
+    const amount = Number(inv.amount);
+    if (amount <= 0) continue;
+    let paidAsOf = 0;
+    for (const p of inv.payments) if (p.date.getTime() <= now) paidAsOf += Number(p.amount);
+    const bal = amount - paidAsOf;
+    if (bal > 0.01) actualAR += bal;
+  }
 
   const round = (n: number) => Math.round(n * 100) / 100;
   return { rev: { pest4w: round(rev.pest4w), wildlife8w: round(rev.wildlife8w), insulation13w: round(rev.insulation13w), all13w: round(rev.all13w) }, actualAR: round(actualAR) };
@@ -126,9 +141,49 @@ function benchmarkFormula(p: {
   return { pest: round(pest), wildlife: round(wildlife), insulation: round(insulation), badDebt: round(badDebt), total: round(pest + wildlife + insulation + badDebt) };
 }
 
+// Compute + store the benchmark for the week ending on `friday` (as-of that date). Reusable by refresh + backfill.
+async function computeAndStoreWeek(friday: Date) {
+  const weekKey = friday.toISOString().slice(0, 10);
+  const monSat = new Date(friday); monSat.setUTCDate(friday.getUTCDate() - 6);
+  const weekLabel = `Week of ${monSat.toISOString().slice(0, 10)} – ${weekKey} (Sat–Fri)`;
+
+  const timing = await computeWindows(friday);
+  const { rev, actualAR } = await revenueAndAR(friday);
+
+  const actPestPay = timing.d30.pest.avg ?? 9;
+  const actWildPay = timing.d60.wildlife.avg ?? 15;
+  const actInsPay = timing.d90.insulation.avg ?? 15;
+  const financedPct = 0.075, depositSplit = 0.5, badDebtPct = 0.01;
+  const wildOps = 35, insOps = 75;
+
+  const common = { revPest4w: rev.pest4w, revWild8w: rev.wildlife8w, revIns13w: rev.insulation13w, revAll13w: rev.all13w, financedPct, depositSplit, badDebtPct };
+  const actualVersion = benchmarkFormula({ ...common, pestWeightedDays: actPestPay, wildOpsDays: wildOps, wildPayDays: actWildPay, insOpsDays: insOps, insPayDays: actInsPay });
+  const chisamVersion = benchmarkFormula({ ...common, pestWeightedDays: 0.4 * 0 + 0.6 * 15, wildOpsDays: wildOps, wildPayDays: 15, insOpsDays: insOps, insPayDays: 15 });
+
+  const data = {
+    ...timing, revenue: rev, actualAR,
+    benchmark: { actual: actualVersion, chisam: chisamVersion, inputs: { actPestPay, actWildPay, actInsPay, wildOps, insOps, financedPct, depositSplit, badDebtPct } },
+  };
+  const row = await prisma.arBenchmark.upsert({ where: { weekKey }, create: { weekKey, weekLabel, data }, update: { weekLabel, data, computedAt: new Date() } });
+  return { weekKey, weekLabel, computedAt: row.computedAt, data };
+}
+
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Backfill the last N Sat–Fri weeks (default 8).
+  if (sp.get('backfill')) {
+    const n = Math.min(parseInt(sp.get('backfill') || '8') || 8, 26);
+    const base = currentFriday();
+    const done: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const f = new Date(base); f.setUTCDate(base.getUTCDate() - i * 7); f.setUTCHours(12, 0, 0, 0);
+      const r = await computeAndStoreWeek(f);
+      done.push(r.weekKey);
+    }
+    return NextResponse.json({ backfilled: done.length, weeks: done });
+  }
 
   const friday = currentFriday();
   const weekKey = sp.get('week') || friday.toISOString().slice(0, 10);
@@ -136,51 +191,8 @@ export async function GET(req: NextRequest) {
   const weekLabel = `Week of ${monSat.toISOString().slice(0, 10)} – ${weekKey} (Sat–Fri)`;
 
   if (sp.get('refresh') === '1') {
-    const timing = await computeWindows();
-    const { rev, actualAR } = await revenueAndAR();
-
-    // Actual payment timing — each line uses ITS OWN trailing window to match the revenue window in the formula
-    // (pest 4wk ≈ d30, wildlife 8wk ≈ d60, insulation 13wk ≈ d90). Consistent window per line.
-    const actPestPay = timing.d30.pest.avg ?? 9;        // pest: 4-week trailing
-    const actWildPay = timing.d60.wildlife.avg ?? 15;   // wildlife: 8-week trailing
-    const actInsPay = timing.d90.insulation.avg ?? 15;  // insulation: 13-week trailing
-
-    // Chisam's structural assumptions (his current formula's values).
-    const financedPct = 0.075, depositSplit = 0.5, badDebtPct = 0.01;
-    const wildOps = 35, insOps = 75; // his operational-timeline assumptions (kept; payment timing is what we update)
-
-    // Version A — ACTUALS: real payment timing from the Hub, same ops timelines + structural assumptions.
-    const actualVersion = benchmarkFormula({
-      revPest4w: rev.pest4w, revWild8w: rev.wildlife8w, revIns13w: rev.insulation13w, revAll13w: rev.all13w,
-      pestWeightedDays: actPestPay,            // actual avg pest days-to-pay (replaces 0.4*0+0.6*15=9)
-      wildOpsDays: wildOps, wildPayDays: actWildPay,   // actual wildlife payment timing (replaces +15)
-      insOpsDays: insOps, insPayDays: actInsPay,       // actual insulation payment timing (replaces +15)
-      financedPct, depositSplit, badDebtPct,
-    });
-
-    // Version B — CHISAM'S: his exact theoretical values.
-    const chisamVersion = benchmarkFormula({
-      revPest4w: rev.pest4w, revWild8w: rev.wildlife8w, revIns13w: rev.insulation13w, revAll13w: rev.all13w,
-      pestWeightedDays: 0.4 * 0 + 0.6 * 15,    // = 9
-      wildOpsDays: wildOps, wildPayDays: 15,
-      insOpsDays: insOps, insPayDays: 15,
-      financedPct, depositSplit, badDebtPct,
-    });
-
-    const data = {
-      ...timing,
-      revenue: rev,
-      actualAR,
-      benchmark: {
-        actual: actualVersion,
-        chisam: chisamVersion,
-        inputs: { actPestPay, actWildPay, actInsPay, wildOps, insOps, financedPct, depositSplit, badDebtPct },
-      },
-    };
-    const row = await prisma.arBenchmark.upsert({
-      where: { weekKey }, create: { weekKey, weekLabel, data }, update: { weekLabel, data, computedAt: new Date() },
-    });
-    return NextResponse.json({ refreshed: true, weekKey, weekLabel, computedAt: row.computedAt, data });
+    const r = await computeAndStoreWeek(currentFriday());
+    return NextResponse.json({ refreshed: true, ...r });
   }
 
   // List available weeks (for the dropdown).
