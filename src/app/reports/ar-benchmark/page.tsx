@@ -8,14 +8,23 @@ export default function ArBenchmarkPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [weeks, setWeeks] = useState<any[]>([]);
+  const [selWeek, setSelWeek] = useState('');
 
-  const load = () => fetch('/api/cron/ar-benchmark?token=critterstop2026').then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
-  useEffect(() => { load(); }, []);
+  const load = (week?: string) => {
+    setLoading(true);
+    const q = week ? `&week=${week}` : '';
+    return fetch(`/api/cron/ar-benchmark?token=critterstop2026${q}`).then(r => r.json()).then(d => { setData(d); if (!week && d.weekKey) setSelWeek(d.weekKey); setLoading(false); }).catch(() => setLoading(false));
+  };
+  const loadWeeks = () => fetch('/api/cron/ar-benchmark?token=critterstop2026&weeks=1').then(r => r.json()).then(d => setWeeks(d.weeks || [])).catch(() => {});
+  useEffect(() => { load(); loadWeeks(); }, []);
+
+  function pickWeek(w: string) { setSelWeek(w); load(w); }
 
   async function refresh() {
     setRefreshing(true);
     await fetch('/api/cron/ar-benchmark?token=critterstop2026&refresh=1').then(r => r.json()).catch(() => {});
-    setRefreshing(false); load();
+    setRefreshing(false); await loadWeeks(); load();
   }
 
   // Each line uses its own trailing window (matched to the revenue window in the benchmark formula).
@@ -35,7 +44,13 @@ export default function ArBenchmarkPage() {
       <a href="/reports" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← Reports</a>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>AR Benchmark — Payment Timing</h1>
-        <button onClick={refresh} disabled={refreshing} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: refreshing ? 'wait' : 'pointer' }}>{refreshing ? 'Computing…' : '↻ Refresh this week'}</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select value={selWeek} onChange={e => pickWeek(e.target.value)} style={{ fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '0.5px solid #E8E7E3', background: '#fff', minWidth: 230 }}>
+            {!weeks.length && <option value="">Latest</option>}
+            {weeks.map(w => <option key={w.weekKey} value={w.weekKey}>{w.weekLabel}</option>)}
+          </select>
+          <button onClick={refresh} disabled={refreshing} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: refreshing ? 'wait' : 'pointer' }}>{refreshing ? 'Computing…' : '↻ Refresh this week'}</button>
+        </div>
       </div>
       <p style={{ fontSize: 13, color: '#888780', margin: '0 0 6px', lineHeight: 1.6 }}>
         Actual days from invoice to full payment, by service line, at 30/60/90-day trailing windows. Pest invoices are due the service day, so this reflects true collection speed.

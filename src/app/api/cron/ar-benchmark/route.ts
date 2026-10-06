@@ -183,6 +183,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ refreshed: true, weekKey, weekLabel, computedAt: row.computedAt, data });
   }
 
+  // List available weeks (for the dropdown).
+  if (sp.get('weeks') === '1') {
+    const rows = await prisma.arBenchmark.findMany({ orderBy: { weekKey: 'desc' }, take: 104, select: { weekKey: true, weekLabel: true } });
+    return NextResponse.json({ weeks: rows });
+  }
+
   // Read: specific week, or latest.
   const row = sp.get('week')
     ? await prisma.arBenchmark.findUnique({ where: { weekKey } })
