@@ -1,6 +1,8 @@
 'use client';
+import { useSession } from 'next-auth/react';
+import { canAccessModule, type ModuleKey } from '@/lib/access';
 
-type Report = { title: string; desc: string; href?: string; status: 'available' | 'coming-soon' };
+type Report = { title: string; desc: string; href?: string; status: 'available' | 'coming-soon'; module: ModuleKey };
 
 const REPORTS: Report[] = [
   {
@@ -8,16 +10,21 @@ const REPORTS: Report[] = [
     desc: 'Actual days-to-pay by service line — Pest Control, Wildlife, and Insulation — at 30/60/90-day trailing. The real basis for what AR should be. Updated weekly (Sat–Fri).',
     href: '/reports/ar-benchmark',
     status: 'available',
+    module: 'report-ar-benchmark',
   },
   {
     title: 'Insulation Revenue per Tech',
     desc: 'Weekly & monthly FAR + Top-Off revenue per job, crew size from the route, and revenue per tech. Direct Labor columns for manual entry.',
     href: '/reports/insulation-revenue',
     status: 'available',
+    module: 'report-insulation',
   },
 ];
 
 export default function ReportsPage() {
+  const { data: session } = useSession();
+  const user = session?.user as any;
+  const visibleReports = REPORTS.filter(r => canAccessModule(user, r.module));
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
@@ -27,7 +34,7 @@ export default function ReportsPage() {
       <p style={{ fontSize: 14, color: '#888780', margin: '0 0 24px' }}>Operational and financial reports.</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-        {REPORTS.map(r => {
+        {visibleReports.map(r => {
           const inner = (
             <div style={{
               border: '0.5px solid #E8E7E3', borderRadius: 12, padding: 18, background: '#fff', height: '100%',

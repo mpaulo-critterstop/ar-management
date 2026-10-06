@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { ALL_MODULES } from '@/lib/access';
+import { ALL_MODULES, MODULE_LABELS } from '@/lib/access';
 
 const ROLES = ['Admin', 'Manager', 'Accounts Receivable', 'Dispatch', 'CSR', 'Technician', 'Project Manager'];
 const PERM_FLAGS = [
@@ -114,13 +114,13 @@ export default function UsersAdminPage() {
         <div style={{ marginBottom: 12 }}>
           <label style={label}>Modules (leave all unchecked to use role defaults)</label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {ALL_MODULES.map(m => (
+            {ALL_MODULES.filter(m => m !== 'reports').map(m => (
               <button key={m} onClick={() => toggleModule(m)} type="button"
                 style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
                   border: form.modules.includes(m) ? '1px solid #0052cc' : '0.5px solid #D3D1C7',
                   background: form.modules.includes(m) ? '#EAF1FC' : '#fff',
                   color: form.modules.includes(m) ? '#0052cc' : '#64748b', fontWeight: form.modules.includes(m) ? 600 : 400 }}>
-                {m}
+                {MODULE_LABELS[m] || m}
               </button>
             ))}
           </div>

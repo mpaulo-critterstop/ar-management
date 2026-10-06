@@ -1,7 +1,17 @@
 // Shared access-control logic (feature #5). Used server-side (API gating) and client-side (nav hiding).
 // Broad tiers via `role`; fine-grained via `modules` allowlist + `permissions` sub-flags + identity links.
 
-export const ALL_MODULES = ['ar', 'dispatch', 'leads', 'csr', 'field-performance', 'dialpad', 'kpi', 'pest-sales', 'lsa-leads', 'csr-pest-sales', 'cancellations', 'service-pool', 'reports', 'payroll', 'helcim'] as const;
+export const ALL_MODULES = ['ar', 'dispatch', 'leads', 'csr', 'field-performance', 'dialpad', 'kpi', 'pest-sales', 'lsa-leads', 'csr-pest-sales', 'cancellations', 'service-pool', 'reports', 'report-insulation', 'report-ar-benchmark', 'payroll', 'helcim'] as const;
+
+// Friendly labels for the module toggles in user settings (falls back to the raw key if not listed).
+export const MODULE_LABELS: Record<string, string> = {
+  ar: 'Accounts Receivable', dispatch: 'Dispatcher', leads: 'Leads Tracker', csr: 'CSR Leads Tracker',
+  'field-performance': 'Field Performance', dialpad: 'Dialpad Analytics', kpi: 'KPI', 'pest-sales': 'Pest Control Sales',
+  'lsa-leads': 'LSA Leads', 'csr-pest-sales': 'CSR Pest Sales', cancellations: 'Pest Cancellations',
+  'service-pool': 'Pest Control Job Pool', reports: 'Reports (section)',
+  'report-insulation': 'Report: Insulation Revenue', 'report-ar-benchmark': 'Report: AR Benchmark',
+  payroll: 'Payroll', helcim: 'Helcim Payments',
+};
 export type ModuleKey = typeof ALL_MODULES[number];
 
 // Roles that see every MODULE regardless of the allowlist. Admin and Manager both get all modules;
@@ -30,6 +40,8 @@ export function canAccessModule(user: AccessUser | null | undefined, moduleKey: 
   if (user.role && FULL_ACCESS_ROLES.includes(user.role)) return true;
   // If no allowlist is set at all, fall back to role-based legacy behavior (don't lock out existing users).
   if (!user.modules || user.modules.length === 0) return legacyRoleAccess(user.role, moduleKey);
+  // The Reports section is visible if the user has the section OR any individual report under it.
+  if (moduleKey === 'reports') return user.modules.some(m => m === 'reports' || m.startsWith('report-'));
   return user.modules.includes(moduleKey);
 }
 
