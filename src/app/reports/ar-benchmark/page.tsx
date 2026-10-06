@@ -125,7 +125,7 @@ export default function ArBenchmarkPage() {
                 </table>
               </div>
               <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 8, lineHeight: 1.6 }}>
-                Actuals uses payment timing of ~{b.inputs.actPestPay}d pest, ~{b.inputs.actWildPay}d wildlife, ~{b.inputs.actInsPay}d insulation (90-day actuals). Operational timelines ({b.inputs.wildOps}d wildlife, {b.inputs.insOps}d insulation), {Math.round(b.inputs.financedPct * 100)}% financed, {Math.round(b.inputs.depositSplit * 100)}% deposit, {Math.round(b.inputs.badDebtPct * 100)}% bad debt carried from Chisam's formula.
+                Actuals uses payment timing of ~{b.inputs.actPestPay}d pest (4wk trailing), ~{b.inputs.actWildPay}d wildlife (8wk), ~{b.inputs.actInsPay}d insulation (13wk) — each matched to its revenue window. Operational timelines ({b.inputs.wildOps}d wildlife, {b.inputs.insOps}d insulation), {Math.round(b.inputs.financedPct * 100)}% financed, {Math.round(b.inputs.depositSplit * 100)}% deposit, {Math.round(b.inputs.badDebtPct * 100)}% bad debt carried from Chisam's formula.
               </div>
             </div>
           );

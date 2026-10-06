@@ -139,10 +139,11 @@ export async function GET(req: NextRequest) {
     const timing = await computeWindows();
     const { rev, actualAR } = await revenueAndAR();
 
-    // Actual payment timing (from the 90-day window — most reliable), used for the "actuals-based" benchmark.
-    const actPestPay = timing.d90.pest.avg ?? 9;
-    const actWildPay = timing.d90.wildlife.avg ?? 15;
-    const actInsPay = timing.d90.insulation.avg ?? 15;
+    // Actual payment timing — each line uses ITS OWN trailing window to match the revenue window in the formula
+    // (pest 4wk ≈ d30, wildlife 8wk ≈ d60, insulation 13wk ≈ d90). Consistent window per line.
+    const actPestPay = timing.d30.pest.avg ?? 9;        // pest: 4-week trailing
+    const actWildPay = timing.d60.wildlife.avg ?? 15;   // wildlife: 8-week trailing
+    const actInsPay = timing.d90.insulation.avg ?? 15;  // insulation: 13-week trailing
 
     // Chisam's structural assumptions (his current formula's values).
     const financedPct = 0.075, depositSplit = 0.5, badDebtPct = 0.01;
