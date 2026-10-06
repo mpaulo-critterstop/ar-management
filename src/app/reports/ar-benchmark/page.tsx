@@ -87,6 +87,50 @@ export default function ArBenchmarkPage() {
           </table>
         </div>
 
+        {data.data.benchmark && (() => {
+          const b = data.data.benchmark; const money = (n: number) => '$' + (n ?? 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+          const rows = [
+            { k: 'pest', label: 'Pest Control' }, { k: 'wildlife', label: 'Wildlife' },
+            { k: 'insulation', label: 'Insulation' }, { k: 'badDebt', label: 'Bad Debt (1%)' },
+          ];
+          const actualAR = data.data.actualAR;
+          return (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#2C2C2A', margin: '8px 0' }}>AR Benchmark — Expected AR</div>
+              <div style={{ fontSize: 12, color: '#888780', marginBottom: 12, lineHeight: 1.6 }}>What AR <i>should</i> be, using Chisam's formula. <b>Actuals</b> uses real payment timing from the Hub; <b>Chisam's</b> uses the theoretical values in the current scorecard formula.</div>
+              <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                  <colgroup><col style={{ width: '34%' }} /><col style={{ width: '33%' }} /><col style={{ width: '33%' }} /></colgroup>
+                  <thead><tr><th style={thL}>Component</th><th style={th}>Actuals-based</th><th style={th}>Chisam's (theoretical)</th></tr></thead>
+                  <tbody>
+                    {rows.map(r => (
+                      <tr key={r.k}>
+                        <td style={tdL}>{r.label}</td>
+                        <td style={td}>{money(b.actual[r.k])}</td>
+                        <td style={td}>{money(b.chisam[r.k])}</td>
+                      </tr>
+                    ))}
+                    <tr style={{ borderTop: '1.5px solid #E8E7E3' }}>
+                      <td style={{ ...tdL, fontWeight: 700 }}>Expected AR (total)</td>
+                      <td style={{ ...td, fontWeight: 700, color: '#185FA5' }}>{money(b.actual.total)}</td>
+                      <td style={{ ...td, fontWeight: 700 }}>{money(b.chisam.total)}</td>
+                    </tr>
+                    {actualAR != null && (
+                      <tr style={{ background: '#FBF9F5' }}>
+                        <td style={{ ...tdL, fontWeight: 600 }}>Actual AR (now)</td>
+                        <td style={{ ...td, fontWeight: 600 }} colSpan={2}>{money(actualAR)}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 8, lineHeight: 1.6 }}>
+                Actuals uses payment timing of ~{b.inputs.actPestPay}d pest, ~{b.inputs.actWildPay}d wildlife, ~{b.inputs.actInsPay}d insulation (90-day actuals). Operational timelines ({b.inputs.wildOps}d wildlife, {b.inputs.insOps}d insulation), {Math.round(b.inputs.financedPct * 100)}% financed, {Math.round(b.inputs.depositSplit * 100)}% deposit, {Math.round(b.inputs.badDebtPct * 100)}% bad debt carried from Chisam's formula.
+              </div>
+            </div>
+          );
+        })()}
+
         <div style={{ fontSize: 12, color: '#888780', lineHeight: 1.6, background: '#FBF9F5', border: '0.5px solid #EDEAE2', borderRadius: 10, padding: '12px 14px' }}>
           <b>Reading this:</b> Shorter windows (30-day) tend to <b>understate</b> payment time — slow-paying invoices from recent weeks haven't fully resolved yet, so only fast-payers are counted. The <b>90-day window is the most reliable</b>, especially for Wildlife and Insulation (bigger tickets, slower to pay). The invoice count next to each number shows how much data it's based on — the more invoices, the more reliable the average. Insulation is based on fewer invoices, so treat it as directional.
         </div>
