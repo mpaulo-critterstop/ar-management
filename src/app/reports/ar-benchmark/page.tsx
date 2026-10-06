@@ -120,8 +120,8 @@ export default function ArBenchmarkPage() {
                     {actualAR != null && actualAR > 0 && (
                       <tr style={{ borderTop: '1.5px solid #E8E7E3' }}>
                         <td style={{ ...tdL, fontWeight: 700 }}>AR Benchmark %</td>
-                        <td style={{ ...td, fontWeight: 700, color: '#185FA5' }}>{Math.round((b.actual.total / actualAR) * 1000) / 10}%</td>
-                        <td style={{ ...td, fontWeight: 700 }}>{Math.round((b.chisam.total / actualAR) * 1000) / 10}%</td>
+                        <td style={{ ...td, fontWeight: 700, color: '#185FA5' }}>{b.actual.total > 0 ? Math.round((actualAR / b.actual.total) * 1000) / 10 : '—'}%</td>
+                        <td style={{ ...td, fontWeight: 700 }}>{b.chisam.total > 0 ? Math.round((actualAR / b.chisam.total) * 1000) / 10 : '—'}%</td>
                       </tr>
                     )}
                   </tbody>
