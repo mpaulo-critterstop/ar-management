@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { ALL_MODULES, MODULE_LABELS } from '@/lib/access';
 
-const ROLES = ['Admin', 'Manager', 'Accounts Receivable', 'Dispatch', 'CSR', 'Technician', 'Project Manager'];
+const ROLES = ['Admin', 'Manager', 'Service Manager', 'Site Leader', 'Crew Leader', 'Accounts Receivable', 'Dispatch', 'CSR', 'Technician', 'Project Manager'];
 const PERM_FLAGS = [
   { key: 'hidePmKpis', label: 'Hide PM KPIs table' },
   { key: 'hideCommissions', label: 'Hide Commissions table' },
