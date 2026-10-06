@@ -99,23 +99,21 @@ async function revenueAndAR(asOf: Date = new Date()) {
     if (line === 'insulation' && ageDays <= 91) rev.insulation13w += amt;
   }
 
-  // Actual AR as of asOf = invoices that existed by asOf and were NOT fully paid by asOf (using payment dates).
-  const allInv = await prisma.invoice.findMany({
-    where: { date: { lte: asOf } },
-    select: { amount: true, date: true, payments: { select: { date: true, amount: true } } },
-  });
-  let actualAR = 0;
-  for (const inv of allInv) {
-    const amount = Number(inv.amount);
-    if (amount <= 0) continue;
-    let paidAsOf = 0;
-    for (const p of inv.payments) if (p.date.getTime() <= now) paidAsOf += Number(p.amount);
-    const bal = amount - paidAsOf;
-    if (bal > 0.01) actualAR += bal;
+  // Actual AR. The stored `paid` field is authoritative (it includes credits/adjustments that aren't recorded
+  // as Payment rows — the Payment table is incomplete, so summing it overstates AR). So for the CURRENT week
+  // we use amount - paid. For PAST weeks we can't reliably reconstruct historical AR (paid field is point-in-
+  // time "now", Payment rows are incomplete), so historical Actual AR is left null.
+  const isCurrentWeek = Math.abs(now - Date.now()) < 7 * 86400000;
+  let actualAR: number | null = null;
+  if (isCurrentWeek) {
+    const allInv = await prisma.invoice.findMany({ select: { amount: true, paid: true } });
+    let ar = 0;
+    for (const inv of allInv) { const bal = Number(inv.amount) - Number(inv.paid); if (bal > 0.01) ar += bal; }
+    actualAR = Math.round(ar * 100) / 100;
   }
 
   const round = (n: number) => Math.round(n * 100) / 100;
-  return { rev: { pest4w: round(rev.pest4w), wildlife8w: round(rev.wildlife8w), insulation13w: round(rev.insulation13w), all13w: round(rev.all13w) }, actualAR: round(actualAR) };
+  return { rev: { pest4w: round(rev.pest4w), wildlife8w: round(rev.wildlife8w), insulation13w: round(rev.insulation13w), all13w: round(rev.all13w) }, actualAR };
 }
 
 // The AR benchmark formula (Chisam's structure), parameterized so we can run it with actual or theoretical inputs.
