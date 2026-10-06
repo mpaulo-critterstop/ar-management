@@ -158,8 +158,15 @@ async function computeAndStoreWeek(friday: Date) {
   const actualVersion = benchmarkFormula({ ...common, pestWeightedDays: actPestPay, wildOpsDays: wildOps, wildPayDays: actWildPay, insOpsDays: insOps, insPayDays: actInsPay });
   const chisamVersion = benchmarkFormula({ ...common, pestWeightedDays: 0.4 * 0 + 0.6 * 15, wildOpsDays: wildOps, wildPayDays: 15, insOpsDays: insOps, insPayDays: 15 });
 
+  // Freeze Actual AR at first capture: if this week already has an actualAR stored, keep it (don't overwrite
+  // with a live recompute — that would drift as payments come in after the Friday close). Everything else
+  // (timing, revenue, benchmark) still refreshes.
+  const existing = await prisma.arBenchmark.findUnique({ where: { weekKey } });
+  const existingAR = (existing?.data as any)?.actualAR;
+  const finalAR = (existingAR != null) ? existingAR : actualAR;
+
   const data = {
-    ...timing, revenue: rev, actualAR,
+    ...timing, revenue: rev, actualAR: finalAR,
     benchmark: { actual: actualVersion, chisam: chisamVersion, inputs: { actPestPay, actWildPay, actInsPay, wildOps, insOps, financedPct, depositSplit, badDebtPct } },
   };
   const row = await prisma.arBenchmark.upsert({ where: { weekKey }, create: { weekKey, weekLabel, data }, update: { weekLabel, data, computedAt: new Date() } });
