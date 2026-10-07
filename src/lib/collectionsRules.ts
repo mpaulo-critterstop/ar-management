@@ -27,8 +27,10 @@ export const DEFAULT_CONFIG: CollectionsConfig = {
   finalWarningDaysLeft: 7,
   respondedExtensionDays: 15,
   promisedExtensionDays: 30,
-  badDebtDaysAfterARM: 45,    // ⚠ still pending ARM historical turnaround (Chisam floated 45 — adjustable)
-  badDebtDaysAfterSCC: 60,
+  // ARM marks accounts "Treatment complete" ~day 59-60 after being sent; set the bad-debt-proposal
+  // trigger to 60d so it fires when ARM has actually finished, not before. Total: 120d Collections.
+  badDebtDaysAfterARM: 60,
+  badDebtDaysAfterSCC: 60,    // SCC post-filing window; adjustable if court/SCC turnaround data suggests otherwise
 };
 
 export async function getConfig(): Promise<CollectionsConfig> {
