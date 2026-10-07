@@ -19,13 +19,15 @@ export type CollectionsConfig = {
 
 export const DEFAULT_CONFIG: CollectionsConfig = {
   amountCutoff: 750,
-  collectionsEntryDays: 30,   // ⚠ pending Chisam A/B — A: 30 (total 45 to ARM)
-  sccEntryDays: 45,           // ⚠ pending Chisam A/B — A: 45 (total 60 to SCC)
+  // CONFIRMED by Chisam (Interpretation B): countdown STARTS at 45d (Collections) / 60d (SCC) past due,
+  // + 15-day countdown → ARM at day 60, SCC filed at day 75.
+  collectionsEntryDays: 45,
+  sccEntryDays: 60,
   countdownDays: 15,
   finalWarningDaysLeft: 7,
   respondedExtensionDays: 15,
   promisedExtensionDays: 30,
-  badDebtDaysAfterARM: 45,    // ⚠ pending ARM historical turnaround (Chisam floated 45)
+  badDebtDaysAfterARM: 45,    // ⚠ still pending ARM historical turnaround (Chisam floated 45 — adjustable)
   badDebtDaysAfterSCC: 60,
 };
 
