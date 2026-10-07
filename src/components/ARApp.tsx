@@ -216,7 +216,7 @@ export default function ARApp() {
     {id:"callsheet",label:"Call Sheet"},
     {id:"blitz",label:"AR Blitz"},
     ...(isAdmin ? [{id:"tracking",label:"Tracking"}] : []),
-    {id:"stages",label:"Collections / SCC / Bad Debt"},
+    {id:"stages",label:"Collections / SCC / Bad Debt",href:"/ar/collections"},
     {id:"customers",label:"Customers"},
     {id:"invoices",label:"Invoices"},
     {id:"payments",label:"Payments"},
@@ -240,7 +240,9 @@ export default function ARApp() {
       <div style={{display:"flex",gap:8,marginBottom:"1.5rem",alignItems:"center",justifyContent:"space-between",paddingTop:20,flexWrap:"wrap"}}>
         <div style={{display:"inline-flex",alignItems:"center",gap:2,padding:4,borderRadius:12,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
           {PAGES.map(p=>(
-            <button key={p.id} onClick={()=>setPage(p.id)} style={{padding:"7px 14px",borderRadius:9,fontSize:13,fontWeight:500,color:page===p.id?"#2C2C2A":"#888780",background:page===p.id?"#ffffff":"transparent",border:page===p.id?"0.5px solid #D3D1C7":"0.5px solid transparent",boxShadow:page===p.id?"0 1px 3px rgba(44,44,42,0.08)":"none",cursor:"pointer",whiteSpace:"nowrap"}}>
+            (p as any).href
+              ? <a key={p.id} href={(p as any).href} style={{padding:"7px 14px",borderRadius:9,fontSize:13,fontWeight:500,color:"#888780",background:"transparent",border:"0.5px solid transparent",cursor:"pointer",whiteSpace:"nowrap",textDecoration:"none"}}>{p.label}</a>
+              : <button key={p.id} onClick={()=>setPage(p.id)} style={{padding:"7px 14px",borderRadius:9,fontSize:13,fontWeight:500,color:page===p.id?"#2C2C2A":"#888780",background:page===p.id?"#ffffff":"transparent",border:page===p.id?"0.5px solid #D3D1C7":"0.5px solid transparent",boxShadow:page===p.id?"0 1px 3px rgba(44,44,42,0.08)":"none",cursor:"pointer",whiteSpace:"nowrap"}}>
               {p.label}
             </button>
           ))}

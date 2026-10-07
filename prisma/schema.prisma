@@ -831,6 +831,52 @@ model ArBenchmark {
   @@map("ar_benchmarks")
 }
 
+// Automated Collections / Small-Claims / Bad-Debt tracker.
+// Invoices auto-enter a track by amount (< $750 = COLLECTIONS, >= $750 = SCC) once past due by the
+// configured entry days. A 15-day countdown runs; the AR team logs engagement (Responded/Promised) which
+// extends it; at 7-days-left and 0-days the row flags for action. At 0 the team makes a final call then
+// marks Sent-to-ARM / SCC-Filed. If still unpaid after the post-action window, it becomes a Bad-Debt
+// PROPOSAL for Chisam to approve (never auto-marked). Config days live in app_settings (parameterized).
+model CollectionsTracker {
+  id              String   @id @default(cuid())
+  invoiceId       String   @unique
+  invoiceNumber   String?
+  customerId      String?
+  customerName    String?
+  office          String?
+  amount          Float
+  dueDate         DateTime?
+  track           String   // 'COLLECTIONS' | 'SCC'
+  // stage lifecycle
+  stage           String   @default("COUNTDOWN")
+  // COUNTDOWN | FINAL_WARNING (<=7d left) | ACTION_DUE (0d, not yet sent) | SENT (ARM sent / SCC filed)
+  // | BAD_DEBT_PROPOSED | BAD_DEBT_APPROVED | PAID | REMOVED
+  enteredAt       DateTime @default(now()) // when it entered the track
+  countdownEnd    DateTime // current deadline (entry + 15d, extended by engagement)
+  // engagement (logged by AR team; each applied once)
+  respondedAt     DateTime?   // actual date customer responded (date-picker)
+  respondedLoggedAt DateTime?
+  promisedAt      DateTime?   // actual date customer promised to pay
+  promisedLoggedAt DateTime?
+  // final-call + action
+  finalCallMadeAt DateTime?
+  sentAt          DateTime?   // Sent-to-ARM date (COLLECTIONS) or SCC-Filed date (SCC)
+  // bad debt
+  badDebtProposedAt DateTime?
+  badDebtApprovedAt DateTime?
+  badDebtApprovedBy String?
+  // payment
+  paidInFull      Boolean  @default(false)
+  lastPaymentAt   DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([track, stage])
+  @@index([stage])
+  @@map("collections_tracker")
+}
+
 model AppSetting {
   key       String   @id
   value     String
