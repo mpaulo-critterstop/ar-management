@@ -119,6 +119,7 @@ enum InvoiceStatus {
   PAYMENT_PLAN
   DISPUTED
   PAID
+  VOID_DELETED   // ticket was deleted/voided in FieldRoutes — excluded from AR, collections, PestAI outreach
 }
 
 model Payment {
