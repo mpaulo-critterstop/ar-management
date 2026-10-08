@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   const trackedIds = new Set(tracked.map(t => t.invoiceId));
 
   const overdue = await prisma.invoice.findMany({
-    where: { due: { not: null, lte: now }, status: { not: 'CANCELLED' as any } },
+    where: { due: { not: null, lte: now }, status: { notIn: ['PAID', 'VOID_DELETED'] as any } },
     select: {
       id: true, externalId: true, amount: true, paid: true, due: true, office: true,
       customerId: true, customer: { select: { name: true } },

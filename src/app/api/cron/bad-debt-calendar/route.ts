@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   const now = new Date();
 
   const invoices = await prisma.invoice.findMany({
-    where: { due: { not: null, lte: now }, status: { not: 'CANCELLED' as any } },
+    where: { due: { not: null, lte: now }, status: { notIn: ['PAID', 'VOID_DELETED'] as any } },
     select: { id: true, externalId: true, amount: true, paid: true, due: true, office: true, customer: { select: { name: true } } },
     take: 50000,
   });
