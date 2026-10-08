@@ -20,7 +20,7 @@ import { waitUntil } from '@vercel/functions';
 // log). Pro allows 800s. Each stage chains as its OWN request, so each gets a fresh 800s budget.
 export const maxDuration = 800;
 
-const STAGES = ['ar', 'leads', 'csr', 'dispatch'] as const;
+const STAGES = ['ar', 'leads', 'csr', 'dispatch', 'deletions'] as const;
 type Stage = typeof STAGES[number];
 
 export async function GET(req: NextRequest) {
@@ -79,6 +79,14 @@ export async function GET(req: NextRequest) {
       await fetch(`${baseUrl}/api/leads/csr-backfill?token=critterstop2026&mode=incremental`, { signal: AbortSignal.timeout(295000) }).catch(e => console.error('[cron/sync] csr-backfill:', e));
     } else if (stage === 'dispatch') {
       await fetch(`${baseUrl}/api/dispatch/sync`, { method: 'POST', headers, body, signal: AbortSignal.timeout(295000) });
+    } else if (stage === 'deletions') {
+      // Catch FR-deleted invoices that linger in the Hub (would otherwise keep driving AR/PestAI outreach).
+      // Bounded + throttled (FR 60/min): prioritize outreach-driving invoices (onlyOverdue). A rolling batch
+      // each hourly run cycles through the active book over the day without straining a single sync.
+      const delOffices = office ? [office] : ['DFW', 'ATX', 'OKC', 'CStat'];
+      for (const o of delOffices) {
+        await fetch(`${baseUrl}/api/cron/detect-deleted-invoices?token=critterstop2026&office=${o}&onlyOverdue=1&max=50`, { signal: AbortSignal.timeout(180000) }).catch(e => console.error(`[cron/sync] detect-deleted ${o}:`, e));
+      }
     }
   };
 

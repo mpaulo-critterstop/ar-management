@@ -69,7 +69,9 @@ export async function GET(req: NextRequest) {
   const invoices = await prisma.invoice.findMany({
     where,
     select: { id: true, externalId: true, status: true, customer: { select: { name: true } } },
-    orderBy: { updatedAt: 'asc' }, // check stalest first
+    // Never-checked (null) first, then oldest-checked — so a rolling hourly batch advances through the whole
+    // book instead of re-checking the same rows each run.
+    orderBy: [{ deletionCheckedAt: { sort: 'asc', nulls: 'first' } }],
     take: single ? 5 : max,
   });
 
@@ -82,8 +84,12 @@ export async function GET(req: NextRequest) {
     // If inconclusive (likely a transient rate-limit/network blip), pause and retry ONCE before giving up —
     // we never void on an inconclusive result, so a false "deleted" is impossible.
     if (exists === null) { await sleep(1200); exists = await frTicketExists(office, inv.externalId); }
-    if (exists === null) { inconclusive++; await sleep(300); continue; }
-    if (exists) { stillValid++; await sleep(1100); continue; } // ~55 checks/min, under FR's 60 limit
+    if (exists === null) { inconclusive++; await sleep(300); continue; } // don't stamp — retry next run
+    if (exists) {
+      stillValid++;
+      if (!dry && !single) await prisma.invoice.update({ where: { id: inv.id }, data: { deletionCheckedAt: now } }).catch(() => {});
+      await sleep(1100); continue; // ~55 checks/min, under FR's 60 limit
+    }
 
     // FR confirms deleted → void it in the Hub.
     voided++;
