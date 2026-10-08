@@ -26,7 +26,9 @@ export async function GET(req: NextRequest) {
     amount: r.amount, dueDate: r.dueDate, track: r.track, stage: r.stage,
     enteredAt: r.enteredAt, countdownEnd: r.countdownEnd,
     respondedAt: r.respondedAt, promisedAt: r.promisedAt, finalCallMadeAt: r.finalCallMadeAt,
-    sentAt: r.sentAt, badDebtProposedAt: r.badDebtProposedAt, badDebtApprovedAt: r.badDebtApprovedAt,
+    sentAt: r.sentAt, armSubtype: r.armSubtype, badDebtProposedAt: r.badDebtProposedAt, badDebtApprovedAt: r.badDebtApprovedAt,
+    // recommended ARM routing for Collections rows not yet sent (what the Send button will do)
+    recommendedArm: r.track === 'COLLECTIONS' ? (r.amount >= cfg.contingencyThreshold ? 'CONTINGENCY' : 'FLAT_RATE') : null,
     ...deriveState(cfg, r, now),
   }));
 
@@ -87,8 +89,10 @@ export async function POST(req: NextRequest) {
     }
     case 'sentToARM': {
       if (row.track !== 'COLLECTIONS') return NextResponse.json({ error: 'not a collections row' }, { status: 400 });
-      await prisma.collectionsTracker.update({ where: { id }, data: { stage: 'SENT', sentAt: new Date(), finalCallMadeAt: row.finalCallMadeAt || new Date() } });
-      return NextResponse.json({ ok: true });
+      const { armSubtypeFor } = await import('@/lib/collectionsRules');
+      const subtype = armSubtypeFor(cfg, row.amount); // < $250 flat rate, $250–$750 contingency
+      await prisma.collectionsTracker.update({ where: { id }, data: { stage: 'SENT', sentAt: new Date(), armSubtype: subtype, finalCallMadeAt: row.finalCallMadeAt || new Date() } });
+      return NextResponse.json({ ok: true, armSubtype: subtype });
     }
     case 'sccFiled': {
       if (row.track !== 'SCC') return NextResponse.json({ error: 'not an SCC row' }, { status: 400 });

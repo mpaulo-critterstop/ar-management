@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 // Defaulting to Interpretation A (his original-design restatement). Flip ENTRY_* if he confirms B.
 export type CollectionsConfig = {
   amountCutoff: number;        // < cutoff → COLLECTIONS, >= cutoff → SCC
+  contingencyThreshold: number; // within COLLECTIONS at ARM-send: < this → flat rate, >= this → contingency
   collectionsEntryDays: number; // days past due to enter COLLECTIONS
   sccEntryDays: number;         // days past due to enter SCC
   countdownDays: number;        // base countdown once entered
@@ -19,6 +20,7 @@ export type CollectionsConfig = {
 
 export const DEFAULT_CONFIG: CollectionsConfig = {
   amountCutoff: 750,
+  contingencyThreshold: 250, // < $250 → flat rate slot; $250–$750 → straight to contingency (No Recovery No Fee)
   // CONFIRMED by Chisam (Interpretation B): countdown STARTS at 45d (Collections) / 60d (SCC) past due,
   // + 15-day countdown → ARM at day 60, SCC filed at day 75.
   collectionsEntryDays: 45,
@@ -90,4 +92,11 @@ export function deriveState(cfg: CollectionsConfig, row: {
 // The track an invoice belongs to by amount.
 export function trackFor(cfg: CollectionsConfig, amount: number): 'COLLECTIONS' | 'SCC' {
   return amount >= cfg.amountCutoff ? 'SCC' : 'COLLECTIONS';
+}
+
+// Within the Collections track, how the account goes to ARM at the send point:
+//   < contingencyThreshold ($250) → FLAT_RATE (uses a purchased slot)
+//   >= threshold (and < amountCutoff) → CONTINGENCY (No Recovery No Fee, % on collection)
+export function armSubtypeFor(cfg: CollectionsConfig, amount: number): 'FLAT_RATE' | 'CONTINGENCY' {
+  return amount >= cfg.contingencyThreshold ? 'CONTINGENCY' : 'FLAT_RATE';
 }

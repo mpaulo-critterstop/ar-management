@@ -33,7 +33,8 @@ export default function CollectionsTrackerPage() {
   function statusCell(row: any) {
     if (row.stage === 'SENT') {
       const bd = row.badDebtDueInDays;
-      return <span style={{ fontSize: 12, color: '#888780' }}>{row.track === 'SCC' ? 'SCC filed' : 'Sent to ARM'} {fmt(row.sentAt)} · bad-debt in {bd}d</span>;
+      const armTag = row.track === 'COLLECTIONS' && row.armSubtype ? ` (${row.armSubtype === 'CONTINGENCY' ? 'Contingency' : 'Flat rate'})` : '';
+      return <span style={{ fontSize: 12, color: '#888780' }}>{row.track === 'SCC' ? 'SCC filed' : 'Sent to ARM'}{armTag} {fmt(row.sentAt)} · bad-debt in {bd}d</span>;
     }
     if (row.stage === 'BAD_DEBT_PROPOSED') return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#FCEBEB', color: '#b91c1c', fontWeight: 600 }}>Bad Debt — pending approval</span>;
     if (row.stage === 'BAD_DEBT_APPROVED') return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#EFEDE6', color: '#64748b' }}>Bad Debt approved {fmt(row.badDebtApprovedAt)}</span>;
@@ -67,7 +68,11 @@ export default function CollectionsTrackerPage() {
     els.push(<button key="pr" style={btn('#F1EFE8', '#888780')} onClick={() => setModal({ id: row.id, kind: 'partial', date: todayStr() })}>Partial pmt</button>);
     if (row.actionDue) {
       if (!row.finalCallMadeAt) els.push(<button key="fc" style={btn('#FBF3E5', '#BA7517')} onClick={() => act(row.id, 'finalCall')}>✓ Final call made</button>);
-      else els.push(<button key="send" style={btn('#b91c1c', '#fff')} onClick={() => { if (confirm(row.track === 'SCC' ? 'Mark SCC Filed?' : 'Mark Sent to ARM?')) act(row.id, row.track === 'SCC' ? 'sccFiled' : 'sentToARM'); }}>{row.track === 'SCC' ? 'File SCC' : 'Send to ARM'}</button>);
+      else {
+        const armLabel = row.track === 'SCC' ? 'File SCC' : row.recommendedArm === 'CONTINGENCY' ? 'Send to ARM (Contingency)' : 'Send to ARM (Flat rate)';
+        const confirmMsg = row.track === 'SCC' ? 'Mark SCC Filed?' : `Send to ARM as ${row.recommendedArm === 'CONTINGENCY' ? 'CONTINGENCY (No Recovery No Fee)' : 'FLAT RATE (uses a slot)'}?`;
+        els.push(<button key="send" style={btn('#b91c1c', '#fff')} onClick={() => { if (confirm(confirmMsg)) act(row.id, row.track === 'SCC' ? 'sccFiled' : 'sentToARM'); }}>{armLabel}</button>);
+      }
     }
     return <span style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>{els}</span>;
   }

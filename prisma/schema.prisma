@@ -863,6 +863,7 @@ model CollectionsTracker {
   // final-call + action
   finalCallMadeAt DateTime?
   sentAt          DateTime?   // Sent-to-ARM date (COLLECTIONS) or SCC-Filed date (SCC)
+  armSubtype      String?     // for COLLECTIONS sent to ARM: 'FLAT_RATE' (<$250) | 'CONTINGENCY' ($250–$750)
   // bad debt
   badDebtProposedAt DateTime?
   badDebtApprovedAt DateTime?
