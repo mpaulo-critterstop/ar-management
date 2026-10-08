@@ -50,15 +50,21 @@ export async function GET(req: NextRequest) {
   const office = sp.get('office') || 'DFW';
   const dry = sp.get('dry') === '1';
   const single = sp.get('invoice');
-  const max = Math.min(parseInt(sp.get('max') || '400', 10), 2000);
+  const onlyOverdue = sp.get('onlyOverdue') === '1'; // daily mode: check only outreach-driving invoices
+  // Respect FR's 60 reads/min. Default batch stays safely under it; sweep the rest on subsequent runs.
+  const max = Math.min(parseInt(sp.get('max') || '50', 10), 55);
   const now = new Date();
+  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
   // Build the candidate set: still-"live" invoices in the Hub (these are the ones that matter — a deleted
   // one lingering here is what drives bad outreach). Skip already-PAID/VOID. For the targeted single check,
   // just that one.
+  const liveStatuses = onlyOverdue
+    ? ['OVERDUE', 'COLLECTIONS', 'PAYMENT_PLAN', 'DISPUTED']  // daily: just the outreach-driving ones
+    : ['CURRENT', 'OVERDUE', 'COLLECTIONS', 'PAYMENT_PLAN', 'DISPUTED'];
   const where: any = single
     ? { externalId: String(single), office }
-    : { office, status: { in: ['CURRENT', 'OVERDUE', 'COLLECTIONS', 'PAYMENT_PLAN', 'DISPUTED'] as any }, arReopened: false };
+    : { office, status: { in: liveStatuses as any }, arReopened: false };
 
   const invoices = await prisma.invoice.findMany({
     where,
@@ -72,9 +78,12 @@ export async function GET(req: NextRequest) {
 
   for (const inv of invoices) {
     if (!inv.externalId) continue;
-    const exists = await frTicketExists(office, inv.externalId);
-    if (exists === null) { inconclusive++; continue; }
-    if (exists) { stillValid++; continue; }
+    let exists = await frTicketExists(office, inv.externalId);
+    // If inconclusive (likely a transient rate-limit/network blip), pause and retry ONCE before giving up —
+    // we never void on an inconclusive result, so a false "deleted" is impossible.
+    if (exists === null) { await sleep(1200); exists = await frTicketExists(office, inv.externalId); }
+    if (exists === null) { inconclusive++; await sleep(300); continue; }
+    if (exists) { stillValid++; await sleep(1100); continue; } // ~55 checks/min, under FR's 60 limit
 
     // FR confirms deleted → void it in the Hub.
     voided++;
@@ -90,6 +99,7 @@ export async function GET(req: NextRequest) {
         data: { stage: 'REMOVED', notes: `Auto-removed ${now.toISOString().slice(0, 10)}: ticket deleted in FieldRoutes` },
       }).catch(() => {});
     }
+    await sleep(1100); // throttle after a void too
   }
 
   if (!dry && !single) {
