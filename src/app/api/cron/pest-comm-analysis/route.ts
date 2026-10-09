@@ -81,11 +81,16 @@ export async function GET(req: NextRequest) {
   // Chisam's rough idea: 20% ≤$5K, 30% $5–10K, 40% $10K+. We test his idea (marginal + flat) plus a couple
   // of tuned variants, and report which lands slightly above current.
   const candidates: { name: string; mode: 'marginal' | 'flat'; tiers: Tier[] }[] = [
-    { name: 'Chisam idea (marginal) 20/30/40', mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.20 }, { upTo: 10000, rate: 0.30 }, { upTo: null, rate: 0.40 }] },
-    { name: 'Chisam idea (flat) 20/30/40',     mode: 'flat',     tiers: [{ upTo: 5000, rate: 0.20 }, { upTo: 10000, rate: 0.30 }, { upTo: null, rate: 0.40 }] },
-    { name: 'Variant A (marginal) 25/35/45',   mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.25 }, { upTo: 10000, rate: 0.35 }, { upTo: null, rate: 0.45 }] },
-    { name: 'Variant B (marginal) 30/40/50',   mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.30 }, { upTo: 10000, rate: 0.40 }, { upTo: null, rate: 0.50 }] },
-    { name: 'Variant C (flat) 30/40/50',       mode: 'flat',     tiers: [{ upTo: 5000, rate: 0.30 }, { upTo: 10000, rate: 0.40 }, { upTo: null, rate: 0.50 }] },
+    // Current blended rate is ~15.4%. Target "slightly higher" (~16-17% effective). All MARGINAL (smoother,
+    // and it still rewards high-CV months by lifting the top-dollar rate — fixing the bundle-vs-standalone flaw).
+    { name: 'P1 marginal 12/17/22',  mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.12 }, { upTo: 10000, rate: 0.17 }, { upTo: null, rate: 0.22 }] },
+    { name: 'P2 marginal 13/18/25',  mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.13 }, { upTo: 10000, rate: 0.18 }, { upTo: null, rate: 0.25 }] },
+    { name: 'P3 marginal 14/19/26',  mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.14 }, { upTo: 10000, rate: 0.19 }, { upTo: null, rate: 0.26 }] },
+    { name: 'P4 marginal 12/18/28',  mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.12 }, { upTo: 10000, rate: 0.18 }, { upTo: null, rate: 0.28 }] },
+    { name: 'P5 marginal 15/20/25',  mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.15 }, { upTo: 10000, rate: 0.20 }, { upTo: null, rate: 0.25 }] },
+    // A 4-tier option that pushes reward further up-market (bigger gap for $10k+ sellers) while keeping the
+    // base low so small months don't overpay.
+    { name: 'P6 marginal 12/16/22/30 (4-tier @15k)', mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.12 }, { upTo: 10000, rate: 0.16 }, { upTo: 15000, rate: 0.22 }, { upTo: null, rate: 0.30 }] },
   ];
 
   let currentTotal = 0;
