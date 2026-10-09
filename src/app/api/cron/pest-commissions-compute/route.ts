@@ -45,14 +45,30 @@ async function runCompute(onlyMonth: string | null, dry: boolean, debugPm?: stri
     select: { pmName: true, category: true, contractValue: true, initialCompletedAt: true, commissionMonth: true },
   });
 
+  // Per-PM commission override: PMs whose signed offer letter only covered Pest Control + Termite (no Rodent
+  // Bundle structure) get their Rodent Bundle sales treated as Pest Control (the 30/40/50 count tiers) —
+  // honoring what they signed. Stored in app_settings key 'pest_comm_rodent_as_pestcontrol_pms' (JSON array
+  // of exact pmNames); defaults to Ryan. Effective from an optional month (YYYY-MM) so it's go-forward only.
+  let rodentAsPestControlPms: string[] = ['Ryan Fitzsimmons'];
+  let overrideEffectiveFrom = '2026-10'; // Ryan: go-forward from Oct (no Sep pest sales to adjust)
+  try {
+    const cfg = await prisma.appSetting.findUnique({ where: { key: 'pest_comm_rodent_as_pestcontrol_pms' } });
+    if (cfg?.value) { const p = JSON.parse(cfg.value); if (Array.isArray(p.pms)) rodentAsPestControlPms = p.pms; if (p.effectiveFrom) overrideEffectiveFrom = p.effectiveFrom; }
+  } catch { /* use defaults */ }
+
   // Group by pmName + commissionMonth
   const groups = new Map<string, { pm: string; month: string; sales: any[] }>();
   for (const s of sales) {
     if (!s.pmName || !s.commissionMonth) continue;
+    // Apply the per-PM override: for configured PMs, from the effective month onward, remap Rodent Bundle → Pest Control.
+    let cat = s.category as PestCommCategory;
+    if (cat === 'Rodent Bundle' && rodentAsPestControlPms.includes(s.pmName) && s.commissionMonth >= overrideEffectiveFrom) {
+      cat = 'Pest Control';
+    }
     const key = `${s.pmName}||${s.commissionMonth}`;
     if (!groups.has(key)) groups.set(key, { pm: s.pmName, month: s.commissionMonth, sales: [] });
     groups.get(key)!.sales.push({
-      category: s.category as PestCommCategory,
+      category: cat,
       cv: s.contractValue || 0,
       initialCompletedAt: s.initialCompletedAt,
     });
