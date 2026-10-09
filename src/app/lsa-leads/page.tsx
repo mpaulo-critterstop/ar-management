@@ -8,13 +8,14 @@ import LagReportView from './LagReportView';
 const PESTAI_SEND_ENABLED = false;
 
 const STAGES = PESTAI_SEND_ENABLED
-  ? ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Sent to Pest AI', 'Booked', 'Lost']
-  : ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Booked', 'Lost'];
+  ? ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Moved to DialPad', 'Sent to Pest AI', 'Booked', 'Lost']
+  : ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Moved to DialPad', 'Booked', 'Lost'];
 const stageColor: Record<string, { bg: string; fg: string }> = {
   'New': { bg: '#e6f0ff', fg: '#0052cc' },
   'Awaiting Customer': { bg: '#fef9e6', fg: '#a16207' },
   'Customer Replied': { bg: '#e6f7ff', fg: '#0891b2' },
   'Need Follow-up': { bg: '#fee2e2', fg: '#b91c1c' },
+  'Moved to DialPad': { bg: '#e0f2f1', fg: '#0d7a6f' },
   'Sent to Pest AI': { bg: '#ede9fb', fg: '#6D28D9' },
   'Booked': { bg: '#e6f9ec', fg: '#128a3f' },
   'Lost': { bg: '#f1efe8', fg: '#888780' },
@@ -50,7 +51,7 @@ export default function LsaLeadsPage() {
   const [sending, setSending] = useState<Record<string, boolean>>({}); // leadId -> true while sending to Pest AI
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  async function tagLead(leadId: string, tag: 'Booked' | 'Lost', priorStatus: string) {
+  async function tagLead(leadId: string, tag: 'Booked' | 'Lost' | 'Moved to DialPad', priorStatus: string) {
     await fetch('/api/lsa-leads', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ leadId, action: 'tag', tag }),
@@ -235,7 +236,7 @@ export default function LsaLeadsPage() {
                           × untag
                         </button>
                       </div>
-                    ) : (l.status === 'Booked' || l.status === 'Lost') ? (
+                    ) : (l.status === 'Booked' || l.status === 'Lost' || l.status === 'Moved to DialPad') ? (
                       // already tagged terminal — offer release back to automatic (only meaningful if manual)
                       l.manualOverride ? (
                         <button onClick={() => untagLead(l.leadId)}
@@ -252,6 +253,10 @@ export default function LsaLeadsPage() {
                         <button onClick={() => tagLead(l.leadId, 'Lost', l.status)}
                           style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #B4B2A9', background: '#f1efe8', color: '#888780', cursor: 'pointer' }}>
                           ✕ Lost
+                        </button>
+                        <button onClick={() => tagLead(l.leadId, 'Moved to DialPad', l.status)} title="Lead gave a phone # but went quiet in LSA — continue follow-ups in DialPad"
+                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #0d7a6f', background: '#e0f2f1', color: '#0d7a6f', cursor: 'pointer' }}>
+                          → DialPad
                         </button>
                         {PESTAI_SEND_ENABLED && (
                           <button onClick={() => sendToPestAI(l.leadId)} disabled={sending[l.leadId]} title={l.pestAiSentAt ? `Last sent ${new Date(l.pestAiSentAt).toLocaleString()}` : 'Send this lead to Pest AI'}

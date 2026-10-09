@@ -7,7 +7,7 @@ import { deriveLsaStage } from '@/lib/lsaStage';
 
 export const dynamic = 'force-dynamic';
 
-const STAGES = ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Sent to Pest AI', 'Booked', 'Lost'];
+const STAGES = ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Moved to DialPad', 'Sent to Pest AI', 'Booked', 'Lost'];
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     if (l.leadType === 'PHONE_CALL') continue; // exclude call leads from pipeline counts
     if (byStage[l.status] !== undefined) byStage[l.status] = (byStage[l.status] || 0) + 1;
     if (l.status === 'Need Follow-up') followupNeeded++;
-    if (l.leadType === 'MESSAGE' && !['Booked', 'Lost'].includes(l.status)) messageOpen++;
+    if (l.leadType === 'MESSAGE' && !['Booked', 'Lost', 'Moved to DialPad', 'Sent to Pest AI'].includes(l.status)) messageOpen++;
   }
 
   return NextResponse.json({ leads, stages: STAGES, byStage, messageOpen, followupNeeded, total: all.length, locations });
@@ -98,10 +98,12 @@ export async function PATCH(req: NextRequest) {
 
   if (action === 'tag') {
     // Manual Booked/Lost tag — overrides automation.
-    if (tag !== 'Booked' && tag !== 'Lost') return NextResponse.json({ error: 'tag must be Booked or Lost' }, { status: 400 });
+    // Manual stage tags that override automation. "Moved to DialPad" = follow-up continues in DialPad (the
+    // lead gave a phone # but went quiet in LSA), so freeze LSA auto-derivation + clear the stale flag.
+    if (!['Booked', 'Lost', 'Moved to DialPad'].includes(tag)) return NextResponse.json({ error: 'invalid tag' }, { status: 400 });
     data.status = tag;
     data.manualOverride = true;
-    data.staleFlagged = false; // no longer needs follow-up
+    data.staleFlagged = false; // no longer needs LSA follow-up
   } else if (action === 'untag') {
     // Release back to automatic: clear override and re-derive the stage from stored activity.
     const derived = deriveLsaStage({
