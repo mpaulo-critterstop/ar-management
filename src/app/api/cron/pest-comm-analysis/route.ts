@@ -45,10 +45,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const from = sp.get('from') || '2025-12';
+  const month = sp.get('month'); // e.g. 2026-09 → analyze ONLY that commission month (read-only)
   const wantMonth = sp.get('byMonth') === '1';
 
+  const where: any = { sellerType: 'pm', initialDone: true };
+  if (month) where.commissionMonth = month;
+  else where.commissionMonth = { not: null, gte: from };
+
   const sales = await prisma.pestSale.findMany({
-    where: { sellerType: 'pm', initialDone: true, commissionMonth: { not: null, gte: from } },
+    where,
     select: { pmName: true, category: true, contractValue: true, commissionMonth: true },
   });
 
