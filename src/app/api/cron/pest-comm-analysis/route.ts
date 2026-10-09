@@ -81,16 +81,9 @@ export async function GET(req: NextRequest) {
   // Chisam's rough idea: 20% ≤$5K, 30% $5–10K, 40% $10K+. We test his idea (marginal + flat) plus a couple
   // of tuned variants, and report which lands slightly above current.
   const candidates: { name: string; mode: 'marginal' | 'flat'; tiers: Tier[] }[] = [
-    // Current blended rate is ~15.4%. Target "slightly higher" (~16-17% effective). All MARGINAL (smoother,
-    // and it still rewards high-CV months by lifting the top-dollar rate — fixing the bundle-vs-standalone flaw).
-    { name: 'P1 marginal 12/17/22',  mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.12 }, { upTo: 10000, rate: 0.17 }, { upTo: null, rate: 0.22 }] },
-    { name: 'P2 marginal 13/18/25',  mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.13 }, { upTo: 10000, rate: 0.18 }, { upTo: null, rate: 0.25 }] },
+    // Finalists — both land "slightly higher than current" (current blended ~15.4%).
     { name: 'P3 marginal 14/19/26',  mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.14 }, { upTo: 10000, rate: 0.19 }, { upTo: null, rate: 0.26 }] },
-    { name: 'P4 marginal 12/18/28',  mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.12 }, { upTo: 10000, rate: 0.18 }, { upTo: null, rate: 0.28 }] },
     { name: 'P5 marginal 15/20/25',  mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.15 }, { upTo: 10000, rate: 0.20 }, { upTo: null, rate: 0.25 }] },
-    // A 4-tier option that pushes reward further up-market (bigger gap for $10k+ sellers) while keeping the
-    // base low so small months don't overpay.
-    { name: 'P6 marginal 12/16/22/30 (4-tier @15k)', mode: 'marginal', tiers: [{ upTo: 5000, rate: 0.12 }, { upTo: 10000, rate: 0.16 }, { upTo: 15000, rate: 0.22 }, { upTo: null, rate: 0.30 }] },
   ];
 
   let currentTotal = 0;
@@ -118,6 +111,23 @@ export async function GET(req: NextRequest) {
     if (wantMonth) byMonth.push(row);
   }
 
+  // Per-PM rollup: sum current vs each finalist across all their months → who gains/loses (the distribution
+  // shift that is the whole point of the redesign — rewards high-CV sellers, trims cheap-standalone gamers).
+  const perPm = new Map<string, any>();
+  for (const g of groups.values()) {
+    const combinedRev = [...g.gpc, ...g.rodent].reduce((a, b) => a + b, 0);
+    if (combinedRev === 0) continue;
+    if (!perPm.has(g.pm)) { const o: any = { pm: g.pm, months: 0, revenue: 0, current: 0 }; candidates.forEach(c => o[c.name] = 0); perPm.set(g.pm, o); }
+    const o = perPm.get(g.pm);
+    o.months++; o.revenue += combinedRev; o.current += currentPestRodentComm(g);
+    for (const c of candidates) o[c.name] += c.mode === 'marginal' ? tieredMarginal(combinedRev, c.tiers) : tieredFlat(combinedRev, c.tiers);
+  }
+  const pmRollup = [...perPm.values()].map(o => {
+    const r: any = { pm: o.pm, months: o.months, revenue: Math.round(o.revenue), current: Math.round(o.current) };
+    for (const c of candidates) { r[c.name] = Math.round(o[c.name]); r[`${c.name} Δ`] = Math.round(o[c.name] - o.current); }
+    return r;
+  }).sort((a, b) => b.revenue - a.revenue);
+
   const summary = {
     period: `${from} → latest`,
     pmMonthsAnalyzed: pmMonthCount,
@@ -133,5 +143,5 @@ export async function GET(req: NextRequest) {
     note: 'Combines GPC + Rodent Bundle into one monthly-revenue-tiered commission. Termite excluded here (stays as-is). "Slightly higher than current" = pick the proposal with a small positive vsCurrentPct. Marginal = each $ slice taxed at its tier (recommended, smoother); flat = whole amount at the bracket rate (cliff edges).',
   };
 
-  return NextResponse.json({ ...summary, byMonth: wantMonth ? byMonth.sort((a, b) => b.combinedRevenue - a.combinedRevenue).slice(0, 300) : undefined });
+  return NextResponse.json({ ...summary, perPmRollup: pmRollup, byMonth: wantMonth ? byMonth.sort((a, b) => b.combinedRevenue - a.combinedRevenue).slice(0, 300) : undefined });
 }
