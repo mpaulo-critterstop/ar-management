@@ -31,7 +31,9 @@ export async function GET(req: NextRequest) {
   const trackedIds = new Set(tracked.map(t => t.invoiceId));
 
   const overdue = await prisma.invoice.findMany({
-    where: { due: { not: null, lte: now }, status: { notIn: ['PAID', 'VOID_DELETED'] as any } },
+    // Exclude customers flagged out of automation (commercial / multi-property / Paid by Check) — they must
+    // not enter the collections/ARM/SCC pipeline. Paid-by-Check especially: their check is in transit.
+    where: { due: { not: null, lte: now }, status: { notIn: ['PAID', 'VOID_DELETED'] as any }, customer: { excludeFromAutomation: false } },
     select: {
       id: true, externalId: true, amount: true, paid: true, due: true, office: true,
       customerId: true, customer: { select: { name: true } },
@@ -70,6 +72,14 @@ export async function GET(req: NextRequest) {
   });
 
   for (const row of active) {
+    // If the customer has since been flagged out of automation (e.g. newly "Paid by Check"), remove them
+    // from the tracker — their check is in transit; don't keep escalating toward ARM.
+    const custExcluded = row.customerId ? await prisma.customer.findUnique({ where: { id: row.customerId }, select: { excludeFromAutomation: true } }) : null;
+    if (custExcluded?.excludeFromAutomation) {
+      if (!dry) await prisma.collectionsTracker.update({ where: { id: row.id }, data: { stage: 'REMOVED', notes: `Removed ${now.toISOString().slice(0, 10)}: customer excluded from automation (e.g. Paid by Check)` } });
+      details.push({ action: 'REMOVED_EXCLUDED', invoice: row.invoiceNumber });
+      continue;
+    }
     // Refresh payment status from the invoice.
     const inv = await prisma.invoice.findUnique({ where: { id: row.invoiceId }, select: { amount: true, paid: true } });
     if (inv) {
