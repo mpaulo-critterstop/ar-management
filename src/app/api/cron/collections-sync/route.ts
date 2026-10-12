@@ -7,6 +7,7 @@
 //   /api/cron/collections-sync?token=critterstop2026&dry=1      (preview, no writes)
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isPaidByCheck } from '@/lib/paidByCheck';
 import { getConfig, computeCountdownEnd, trackFor, daysBetween } from '@/lib/collectionsRules';
 
 export const dynamic = 'force-dynamic';
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
     where: { due: { not: null, lte: now }, status: { notIn: ['PAID', 'VOID_DELETED'] as any }, customer: { excludeFromAutomation: false } },
     select: {
       id: true, externalId: true, amount: true, paid: true, due: true, office: true,
-      customerId: true, customer: { select: { name: true } },
+      customerId: true, customer: { select: { name: true, externalId: true } },
     },
     take: 20000,
   });
@@ -51,6 +52,14 @@ export async function GET(req: NextRequest) {
     const track = trackFor(cfg, amount);
     const entryDays = track === 'SCC' ? cfg.sccEntryDays : cfg.collectionsEntryDays;
     if (daysPastDue < entryDays) continue; // not yet eligible
+
+    // Live AR-exclusion check at entry (only for invoices actually about to enter — a small set). Skips
+    // Paid-by-Check / Financing customers (money coming another way; don't escalate to ARM/SCC). Fresh at
+    // the moment of entry, so we don't need a separate full-book flag sweep.
+    if (await isPaidByCheck(inv.office || 'DFW', inv.customer?.externalId, inv.customerId)) {
+      res.skippedExcluded = (res.skippedExcluded || 0) + 1;
+      continue;
+    }
 
     res.entered++;
     details.push({ action: 'ENTER', track, invoice: inv.externalId, amount, daysPastDue });
