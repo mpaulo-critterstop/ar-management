@@ -34,36 +34,36 @@ export async function GET(req: NextRequest) {
   if (!creds) return NextResponse.json({ error: `no creds for ${office}` }, { status: 400 });
   const auth = `authenticationKey=${creds.key}&authenticationToken=${creds.token}`;
 
-  // 1. Page through ALL customer-flag records, collecting FR customerIDs with "Paid by Check" = On.
-  // FR returns up to 1000 flag records per call. The first call (no customerIDs) returns page 1 + the FULL
-  // list of remaining customer IDs in customerIDsNoDataExported. We then chunk through ALL of those remaining
-  // IDs (passing them as customerIDs) — NOT stopping at the first page whose noDataExported is 0, since a
-  // scoped page's noDataExported is always 0. Loop until every remaining ID has been fetched.
-  const paidByCheckFrIds = new Set<string>();
-  const collect = (recs: any[]) => { for (const f of recs) { if (f.flag === PAID_BY_CHECK_FLAG && String(f.flagValue).toLowerCase() === 'on') paidByCheckFrIds.add(String(f.customerID)); } };
+  // FR's customerFlag/search is unreliable for bulk retrieval (caps at 1000 records, no working offset, and
+  // scoping by a list of customerIDs truncates to ~1 record — verified). BUT per-customer lookup is reliable.
+  // So instead of scanning all ~17,775 flagged customers, we only check the customers that could actually get
+  // collection outreach: those with an OVERDUE/unpaid invoice. That's a small set, checked one at a time.
+  const overdueCustomerIds = await prisma.invoice.findMany({
+    where: { office, due: { not: null, lte: now }, status: { notIn: ['PAID', 'VOID_DELETED'] as any } },
+    select: { customerId: true },
+    distinct: ['customerId'],
+  });
+  const custIds = [...new Set(overdueCustomerIds.map(i => i.customerId).filter(Boolean))] as string[];
 
-  let pages = 0, totalRecords = 0;
-  // Page 1 — unscoped.
-  const first = await fetch(`${FR_BASE}/customerFlag/search?${auth}&includeData=1`).then(r => r.json());
-  pages++;
-  if (first.success === true) {
-    collect(first.customerFlags || []);
-    totalRecords += (first.customerFlags || []).length;
-  }
-  // Remaining customer IDs → chunk through them all (1000/call).
-  const remainingIds: string[] = (first.customerIDsNoDataExported || []).map(String);
-  for (let i = 0; i < remainingIds.length && pages < 60; i += 1000) {
-    const chunk = remainingIds.slice(i, i + 1000);
-    const j = await fetch(`${FR_BASE}/customerFlag/search?${auth}&customerIDs=${chunk.join(',')}&includeData=1`).then(r => r.json());
-    pages++;
-    if (j.success === true) { collect(j.customerFlags || []); totalRecords += (j.customerFlags || []).length; }
-  }
-
-  // 2. Map FR customerIDs → Hub customers (externalId), and reconcile paidByCheck on/off.
   const hubCustomers = await prisma.customer.findMany({
-    where: { office, externalSource: 'fieldroutes' },
+    where: { id: { in: custIds } },
     select: { id: true, externalId: true, paidByCheck: true, commercialAccount: true, masterAccountId: true, billToAccountId: true },
   });
+
+  // Check each overdue customer's "Paid by Check" flag directly (reliable per-customer).
+  const paidByCheckFrIds = new Set<string>();
+  let pages = 0, totalRecords = 0;
+  for (const c of hubCustomers) {
+    if (!c.externalId) continue;
+    pages++;
+    const j = await fetch(`${FR_BASE}/customerFlag/search?${auth}&customerIDs=${c.externalId}&includeData=1`).then(r => r.json()).catch(() => null);
+    if (!j || j.success !== true) continue;
+    const recs = j.customerFlags || [];
+    totalRecords += recs.length;
+    if (recs.some((f: any) => f.flag === PAID_BY_CHECK_FLAG && String(f.flagValue).toLowerCase() === 'on')) {
+      paidByCheckFrIds.add(c.externalId);
+    }
+  }
 
   let setOn = 0, setOff = 0;
   const nowOn: string[] = [];
