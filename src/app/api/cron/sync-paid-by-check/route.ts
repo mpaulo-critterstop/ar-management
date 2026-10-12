@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const office = sp.get('office') || 'DFW';
+  const now = new Date();
   const dry = sp.get('dry') === '1';
   const creds = OFFICE_CREDS[office];
   if (!creds) return NextResponse.json({ error: `no creds for ${office}` }, { status: 400 });
