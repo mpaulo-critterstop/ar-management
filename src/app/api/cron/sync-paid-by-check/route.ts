@@ -21,7 +21,13 @@ const OFFICE_CREDS: Record<string, { key: string; token: string }> = {
     token: 'uinj35806p728f9bktr984gsml74a8to077g6ufpjcvlk7v5g0bgqe256l2nn5gb',
   },
 };
-const PAID_BY_CHECK_FLAG = 'Paid by Check';
+// Flags that mean "don't chase for payment" — Paid by Check (check in transit) + Financing (Regions/Wisetack,
+// billed to the partner at closeout). Override via app_settings 'ar_exclusion_flags'.
+const DEFAULT_EXCLUSION_FLAGS = ['Paid by Check', 'Financing'];
+async function getExclusionFlags(): Promise<string[]> {
+  try { const row = await prisma.appSetting.findUnique({ where: { key: 'ar_exclusion_flags' } }); if (row?.value) { const a = JSON.parse(row.value); if (Array.isArray(a) && a.length) return a; } } catch {}
+  return DEFAULT_EXCLUSION_FLAGS;
+}
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
@@ -52,6 +58,7 @@ export async function GET(req: NextRequest) {
   });
 
   // Check each overdue customer's "Paid by Check" flag directly (reliable per-customer).
+  const exclusionFlags = (await getExclusionFlags()).map(s => s.toLowerCase());
   const paidByCheckFrIds = new Set<string>();
   let pages = 0, totalRecords = 0;
   for (const c of hubCustomers) {
@@ -61,7 +68,7 @@ export async function GET(req: NextRequest) {
     if (!j || j.success !== true) continue;
     const recs = j.customerFlags || [];
     totalRecords += recs.length;
-    if (recs.some((f: any) => f.flag === PAID_BY_CHECK_FLAG && String(f.flagValue).toLowerCase() === 'on')) {
+    if (recs.some((f: any) => exclusionFlags.includes(String(f.flag).toLowerCase()) && String(f.flagValue).toLowerCase() === 'on')) {
       paidByCheckFrIds.add(c.externalId);
     }
   }

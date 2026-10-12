@@ -11,7 +11,19 @@ const OFFICE_CREDS: Record<string, { key: string; token: string }> = {
     token: 'uinj35806p728f9bktr984gsml74a8to077g6ufpjcvlk7v5g0bgqe256l2nn5gb',
   },
 };
-const PAID_BY_CHECK_FLAG = 'Paid by Check';
+// FR flags that mean "do not chase this customer for payment" — their money is coming another way.
+//   "Paid by Check"  → check is in transit (mail→deposit lag of days to weeks)
+//   "Financing"      → customer financed via Regions Bank / Wisetack; we bill the partner at closeout, not the customer
+// Exact FR flag text (case-insensitive match). Override via app_settings 'ar_exclusion_flags' (JSON string[]).
+const DEFAULT_EXCLUSION_FLAGS = ['Paid by Check', 'Financing'];
+
+async function getExclusionFlags(): Promise<string[]> {
+  try {
+    const row = await prisma.appSetting.findUnique({ where: { key: 'ar_exclusion_flags' } });
+    if (row?.value) { const a = JSON.parse(row.value); if (Array.isArray(a) && a.length) return a; }
+  } catch { /* default */ }
+  return DEFAULT_EXCLUSION_FLAGS;
+}
 
 // Returns true if the customer is currently flagged "Paid by Check" in FR. Also updates the Hub's
 // paidByCheck + excludeFromAutomation so the state persists. On any FR error returns `null` (inconclusive —
@@ -25,7 +37,9 @@ export async function isPaidByCheck(office: string, customerExternalId: string |
   try {
     const j = await fetch(`${FR_BASE}/customerFlag/search?${auth}&customerIDs=${customerExternalId}&includeData=1`).then(r => r.json());
     if (j?.success !== true) return false; // inconclusive → don't block the send; backstops handle it
-    const flagged = (j.customerFlags || []).some((f: any) => f.flag === PAID_BY_CHECK_FLAG && String(f.flagValue).toLowerCase() === 'on');
+    const exclusionFlags = (await getExclusionFlags()).map(s => s.toLowerCase());
+    const flagged = (j.customerFlags || []).some((f: any) =>
+      exclusionFlags.includes(String(f.flag).toLowerCase()) && String(f.flagValue).toLowerCase() === 'on');
     // Persist to the Hub so other surfaces (collections tracker, reports) stay consistent.
     if (customerHubId) {
       const c = await prisma.customer.findUnique({ where: { id: customerHubId }, select: { paidByCheck: true, commercialAccount: true, masterAccountId: true, billToAccountId: true } });
