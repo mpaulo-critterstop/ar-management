@@ -54,39 +54,48 @@ export async function GET(req: NextRequest) {
 
   const hubCustomers = await prisma.customer.findMany({
     where: { id: { in: custIds } },
-    select: { id: true, externalId: true, paidByCheck: true, commercialAccount: true, masterAccountId: true, billToAccountId: true },
+    select: { id: true, externalId: true, paidByCheck: true, commercialAccount: true, masterAccountId: true, billToAccountId: true, flagCheckedAt: true },
   });
 
   // Check each overdue customer's "Paid by Check" flag directly (reliable per-customer).
   const exclusionFlags = (await getExclusionFlags()).map(s => s.toLowerCase());
   const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
   const paidByCheckFrIds = new Set<string>();
-  const conclusivelyChecked = new Set<string>(); // customers we got a definitive FR answer for this run
-  let pages = 0, totalRecords = 0, inconclusive = 0;
-  for (const c of hubCustomers) {
-    if (!c.externalId) continue;
+  const conclusivelyChecked = new Set<string>();
+  let totalRecords = 0, inconclusive = 0;
+
+  // 235 FR calls at FR's 60/min cap would take ~4 min and blow the function timeout. So process a bounded
+  // ROLLING BATCH per invocation (default 45, ~1 min, safe) ordered by staleness via flagCheckedAt, and
+  // advance through the whole overdue book over successive runs. Pass &max= to tune, &all=1 to force one pass.
+  const max = Math.min(parseInt(sp.get('max') || '45', 10), 55);
+  const ordered = [...hubCustomers]
+    .filter(c => c.externalId)
+    .sort((a: any, b: any) => (a.flagCheckedAt?.getTime() || 0) - (b.flagCheckedAt?.getTime() || 0))
+    .slice(0, max);
+  let pages = 0;
+  for (const c of ordered) {
     pages++;
-    // Throttled per-customer check (~55/min, under FR's 60/min). Retry once on failure so a transient
-    // rate-limit/network blip doesn't silently drop a customer who should be excluded.
     let j = await fetch(`${FR_BASE}/customerFlag/search?${auth}&customerIDs=${c.externalId}&includeData=1`).then(r => r.json()).catch(() => null);
-    if (!j || j.success !== true) { await sleep(1200); j = await fetch(`${FR_BASE}/customerFlag/search?${auth}&customerIDs=${c.externalId}&includeData=1`).then(r => r.json()).catch(() => null); }
-    if (!j || j.success !== true) { inconclusive++; await sleep(300); continue; } // couldn't verify — leave unchanged, don't flip off
+    if (!j || j.success !== true) { await sleep(900); j = await fetch(`${FR_BASE}/customerFlag/search?${auth}&customerIDs=${c.externalId}&includeData=1`).then(r => r.json()).catch(() => null); }
+    if (!j || j.success !== true) { inconclusive++; await sleep(300); continue; }
     const recs = j.customerFlags || [];
     totalRecords += recs.length;
-    conclusivelyChecked.add(c.externalId); // we got a definitive answer for this customer
+    conclusivelyChecked.add(c.externalId!);
     if (recs.some((f: any) => exclusionFlags.includes(String(f.flag).toLowerCase()) && String(f.flagValue).toLowerCase() === 'on')) {
-      paidByCheckFrIds.add(c.externalId);
+      paidByCheckFrIds.add(c.externalId!);
     }
-    await sleep(1050);
+    if (!dry) await prisma.customer.update({ where: { id: c.id }, data: { flagCheckedAt: now } }).catch(() => {});
+    await sleep(1000); // ~55/min
   }
+  // Only reconcile the customers checked THIS run (the bounded batch).
+  const checkedThisRun = new Set(ordered.map(c => c.id));
 
   let setOn = 0, setOff = 0;
   const nowOn: string[] = [];
   for (const c of hubCustomers) {
+    if (!checkedThisRun.has(c.id)) continue; // only reconcile the bounded batch we actually checked this run
     const shouldBeOn = c.externalId ? paidByCheckFrIds.has(c.externalId) : false;
-    // SAFETY: never flip a customer OFF based on an inconclusive (rate-limited/errored) check — only act on
-    // customers we got a definitive FR answer for. An inconclusive check leaves their current state intact,
-    // so a transient FR hiccup can't accidentally re-expose a check/financing customer to collections.
+    // SAFETY: never flip a customer OFF based on an inconclusive (rate-limited/errored) check.
     if (!shouldBeOn && c.paidByCheck && !conclusivelyChecked.has(c.externalId || '')) { continue; }
     if (shouldBeOn === c.paidByCheck) continue; // no change
     if (shouldBeOn) { setOn++; nowOn.push(c.externalId!); } else setOff++;
@@ -111,7 +120,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     office, dry, pagesScanned: pages, flagRecordsScanned: totalRecords,
     paidByCheckCustomersInFR: paidByCheckFrIds.size,
-    hubCustomersSetOn: setOn, hubCustomersSetOff: setOff, inconclusive,
+    hubCustomersSetOn: setOn, hubCustomersSetOff: setOff, inconclusive, batchSize: ordered.length, totalOverdueCustomers: custIds.length,
     note: 'Customers flagged "Paid by Check" in FR are now excluded from AR/PestAI collections outreach (excludeFromAutomation=true) until the flag is removed.',
     sampleNewlyExcluded: nowOn.slice(0, 20),
   });
