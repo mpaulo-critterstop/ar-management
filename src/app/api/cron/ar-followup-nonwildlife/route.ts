@@ -9,6 +9,7 @@
 //   optional: &office=ATX (default: only offices with a configured webhook), &limit=200, &days=1
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isPaidByCheck } from '@/lib/paidByCheck';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -108,9 +109,17 @@ export async function GET(req: NextRequest) {
   const results: any[] = [];
   let sent = 0, failed = 0, skippedNoWebhook = 0;
 
+  let skippedPaidByCheck = 0;
   for (const inv of invoices) {
     const webhook = OFFICE_WEBHOOKS[inv.office];
     if (!webhook) { skippedNoWebhook++; continue; }
+
+    // Fresh Paid-by-Check check at send time — don't chase a customer whose check is in transit.
+    if (await isPaidByCheck(inv.office, inv.customerExternalId, inv.customerId)) {
+      skippedPaidByCheck++;
+      results.push({ office: inv.office, invoiceId: inv.externalId, customer: inv.customerName, status: 'skipped_paid_by_check' });
+      continue;
+    }
 
     const nameParts = (inv.customerName || '').trim().split(' ');
     const fname = nameParts[0] || '';
@@ -158,5 +167,5 @@ export async function GET(req: NextRequest) {
     await new Promise(r => setTimeout(r, 1000)); // throttle
   }
 
-  return NextResponse.json({ dryRun: dry, offices: activeOffices, total: invoices.length, sent, failed, skippedNoWebhook, results });
+  return NextResponse.json({ dryRun: dry, offices: activeOffices, total: invoices.length, sent, failed, skippedNoWebhook, skippedPaidByCheck, results });
 }

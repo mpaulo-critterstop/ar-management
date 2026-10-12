@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isPaidByCheck } from '@/lib/paidByCheck';
 
 const AR_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/804c863a-a07d-4e18-804d-ab399061cdf9';
 
@@ -55,7 +56,15 @@ export async function GET(req: NextRequest) {
   let sent = 0;
   let failed = 0;
 
+  let skippedPaidByCheck = 0;
   for (const inv of overdueInvoices) {
+    // Fresh "Paid by Check" check at send time — their check is in transit, don't chase them. Honored
+    // immediately (not only after the nightly sync).
+    if (await isPaidByCheck(inv.office, inv.customerExternalId, inv.customerId)) {
+      skippedPaidByCheck++;
+      results.push({ invoiceId: inv.externalId, customer: inv.customerName, status: 'skipped_paid_by_check' });
+      continue;
+    }
     const nameParts = (inv.customerName || '').trim().split(' ');
     const fname = nameParts[0] || '';
     const lname = nameParts.slice(1).join(' ') || '';
@@ -108,5 +117,5 @@ export async function GET(req: NextRequest) {
     await new Promise(r => setTimeout(r, 1000));
   }
 
-  return NextResponse.json({ dryRun: dry, total: overdueInvoices.length, sent, failed, results });
+  return NextResponse.json({ dryRun: dry, total: overdueInvoices.length, sent, failed, skippedPaidByCheck, results });
 }
