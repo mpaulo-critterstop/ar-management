@@ -405,9 +405,10 @@ async function syncCustomers(
 
   const existing = await prisma.customer.findMany({
     where: { office, externalId: { not: null } },
-    select: { externalId: true, id: true },
+    select: { externalId: true, id: true, paidByCheck: true },
   });
   const existingMap = new Map(existing.map((c: any) => [c.externalId!, c.id]));
+  const existingCustomerMap = new Map(existing.map((c: any) => [c.externalId!, { paidByCheck: c.paidByCheck }]));
 
   const customers = await fetchInBatches('customer/get', 'customerIDs', allIds, key, token);
 
@@ -441,7 +442,11 @@ async function syncCustomers(
       const isMaster = masterIds.has(custId); // this account IS a master (has children) → also exclude
       const billToRaw = String(c.billToAccountID ?? custId);
       const billsElsewhere = billToRaw !== '0' && billToRaw !== '' && billToRaw !== custId;
-      const excludeFromAutomation = commercial || hasMaster || isMaster || billsElsewhere;
+      // Preserve the Paid-by-Check exclusion (synced separately via sync-paid-by-check) so the main sync
+      // doesn't clobber it. We OR it in; the paidByCheck flag itself is left untouched by this upsert.
+      const existingCust = existingCustomerMap?.get(String(c.customerID));
+      const paidByCheck = existingCust?.paidByCheck || false;
+      const excludeFromAutomation = commercial || hasMaster || isMaster || billsElsewhere || paidByCheck;
 
       const customerData = {
         name,

@@ -53,7 +53,8 @@ model Customer {
   commercialAccount     Boolean @default(false)
   masterAccountId       String?  // FR masterAccount (parent this rolls up to), if any
   billToAccountId       String?  // FR billToAccountID (who receives the bill)
-  excludeFromAutomation Boolean @default(false)  // computed: commercial OR any multi-property linkage
+  paidByCheck  Boolean        @default(false)  // FR "Paid by Check" flag — exclude from AR/PestAI collections outreach (check in transit)
+  excludeFromAutomation Boolean @default(false)  // computed: commercial OR multi-property OR paidByCheck
   externalSource String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
