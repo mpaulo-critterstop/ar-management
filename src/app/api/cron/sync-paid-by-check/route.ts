@@ -34,28 +34,29 @@ export async function GET(req: NextRequest) {
   if (!creds) return NextResponse.json({ error: `no creds for ${office}` }, { status: 400 });
   const auth = `authenticationKey=${creds.key}&authenticationToken=${creds.token}`;
 
-  // 1. Page through all customer-flag records, collecting FR customerIDs with "Paid by Check" = On.
+  // 1. Page through ALL customer-flag records, collecting FR customerIDs with "Paid by Check" = On.
+  // FR returns up to 1000 flag records per call. The first call (no customerIDs) returns page 1 + the FULL
+  // list of remaining customer IDs in customerIDsNoDataExported. We then chunk through ALL of those remaining
+  // IDs (passing them as customerIDs) — NOT stopping at the first page whose noDataExported is 0, since a
+  // scoped page's noDataExported is always 0. Loop until every remaining ID has been fetched.
   const paidByCheckFrIds = new Set<string>();
-  let url = `${FR_BASE}/customerFlag/search?${auth}&includeData=1`;
+  const collect = (recs: any[]) => { for (const f of recs) { if (f.flag === PAID_BY_CHECK_FLAG && String(f.flagValue).toLowerCase() === 'on') paidByCheckFrIds.add(String(f.customerID)); } };
+
   let pages = 0, totalRecords = 0;
-  while (url && pages < 40) {
+  // Page 1 — unscoped.
+  const first = await fetch(`${FR_BASE}/customerFlag/search?${auth}&includeData=1`).then(r => r.json());
+  pages++;
+  if (first.success === true) {
+    collect(first.customerFlags || []);
+    totalRecords += (first.customerFlags || []).length;
+  }
+  // Remaining customer IDs → chunk through them all (1000/call).
+  const remainingIds: string[] = (first.customerIDsNoDataExported || []).map(String);
+  for (let i = 0; i < remainingIds.length && pages < 60; i += 1000) {
+    const chunk = remainingIds.slice(i, i + 1000);
+    const j = await fetch(`${FR_BASE}/customerFlag/search?${auth}&customerIDs=${chunk.join(',')}&includeData=1`).then(r => r.json());
     pages++;
-    const r = await fetch(url);
-    const j = await r.json();
-    if (j.success !== true) break;
-    const recs = j.customerFlags || [];
-    totalRecords += recs.length;
-    for (const f of recs) {
-      if (f.flag === PAID_BY_CHECK_FLAG && String(f.flagValue).toLowerCase() === 'on') {
-        paidByCheckFrIds.add(String(f.customerID));
-      }
-    }
-    const remaining = j.customerIDsNoDataExported || [];
-    if (remaining.length > 0) {
-      url = `${FR_BASE}/customerFlag/search?${auth}&customerIDs=${remaining.slice(0, 1000).join(',')}&includeData=1`;
-    } else {
-      url = '';
-    }
+    if (j.success === true) { collect(j.customerFlags || []); totalRecords += (j.customerFlags || []).length; }
   }
 
   // 2. Map FR customerIDs → Hub customers (externalId), and reconcile paidByCheck on/off.
