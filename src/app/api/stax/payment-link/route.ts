@@ -88,16 +88,21 @@ export async function POST(req: NextRequest) {
   const invRes = await sx('/invoice', 'POST', {
     customer_id: staxCustomerId,
     total: amount,
-    url: `hub-${token}`, // merchant-side reference slug
+    // `url` is where the hosted invoice page lives — use Stax's own hosted bill page base so the emailed link
+    // resolves to a real payable page. (Passing a bare slug made the link unreachable.)
+    url: 'https://app.staxpayments.com/#/bill/',
     meta: { fr_invoice: invoiceNumber, memo: `Critter Stop invoice #${invoiceNumber}`, reference: invoiceNumber },
     is_partial_payment_enabled: true,
   });
   if (!invRes.ok || !invRes.json?.id) return NextResponse.json({ error: 'could not create Stax invoice', detail: invRes.json }, { status: 502 });
   const staxInvoiceId = invRes.json.id;
 
-  // The hosted payment URL: Stax invoices are payable at app.staxpayments.com/#/pay-invoice/<id> (or the
-  // payment_link_url the API returns). Prefer whatever the API returns; fall back to the standard pattern.
-  const payUrl = invRes.json.payment_link_url || invRes.json.url || `https://app.staxpayments.com/#/pay-invoice/${staxInvoiceId}`;
+  // Stax hosts the payable invoice page at app.staxpayments.com/#/bill/<invoice_id>.
+  const payUrl = `https://app.staxpayments.com/#/bill/${staxInvoiceId}`;
+
+  // Also trigger Stax's native invoice email as a reliable fallback (it embeds the correct pay link). We still
+  // send our own branded email/SMS below; this ensures the customer can pay even if our URL pattern drifts.
+  if (b.staxNativeSend) { await sx(`/invoice/${staxInvoiceId}/send/email`, 'PUT').catch(() => {}); }
 
   // 4) Store a PaymentLinkRequest row (processor=stax) for tracking.
   await prisma.paymentLinkRequest.create({
