@@ -20,8 +20,8 @@ export default function HelcimPaymentsPage() {
   const [err, setErr] = useState('');
   const [links, setLinks] = useState<any[]>([]);
 
-  const loadLinks = () => fetch('/api/helcim/payment-link').then(r => r.json()).then(d => setLinks(d.links || [])).catch(() => {});
-  const loadReport = () => fetch('/api/helcim/status').then(r => r.json()).then(setReport).catch(() => {});
+  const loadLinks = () => fetch('/api/stax/payment-link').then(r => r.json()).then(d => setLinks(d.links || [])).catch(() => {});
+  const loadReport = () => fetch('/api/stax/status').then(r => r.json()).then(setReport).catch(() => {});
   useEffect(() => { loadLinks(); loadReport(); }, []);
   async function runSync() { setSyncing(true); await fetch('/api/cron/helcim-sync?token=critterstop2026').catch(() => {}); setSyncing(false); loadReport(); }
 
@@ -30,7 +30,7 @@ export default function HelcimPaymentsPage() {
     if (!invoice.trim() || !amount || parseFloat(amount) <= 0) { setErr('Enter an invoice # and a positive amount.'); return; }
     setSending(true);
     try {
-      const r = await fetch('/api/helcim/payment-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', office, invoiceNumber: invoice.trim(), amount: parseFloat(amount), delivery }) });
+      const r = await fetch('/api/stax/payment-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', office, invoiceNumber: invoice.trim(), amount: parseFloat(amount), delivery }) });
       const d = await r.json();
       if (d.error) { setErr(d.error); setSending(false); return; }
       setResult(d); loadLinks();
@@ -46,7 +46,7 @@ export default function HelcimPaymentsPage() {
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
       <a href="/" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← Home</a>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>💳 Helcim Payments</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>💳 Stax Payments</h1>
       <p style={{ fontSize: 13, color: '#888780', margin: '0 0 20px' }}>Send a customer a payment link for a specific invoice. Payments record back into FieldRoutes automatically.</p>
 
       <div style={{ display: 'flex', gap: 4, background: '#f1efe8', borderRadius: 8, padding: 3, width: 'fit-content', marginBottom: 24 }}>

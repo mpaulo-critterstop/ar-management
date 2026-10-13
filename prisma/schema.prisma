@@ -816,6 +816,9 @@ model PaymentLinkRequest {
   status          String    @default("sent") // sent | viewed | paid | expired
   paidAt          DateTime?
   helcimTransactionId String?
+  processor       String?   @default("helcim") // 'helcim' | 'stax' — which processor generated this link
+  payUrl          String?   // hosted pay URL (Stax provides one; Helcim uses /pay/<token>)
+  staxInvoiceId   String?
   createdBy       String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
