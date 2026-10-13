@@ -127,5 +127,15 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
     where: { id: ledger.id },
     data: { status: 'written', office: inv.office, frCustomerId: inv.customerID, frPaymentId, frPaymentMethod: method, failReason: null, processedAt: new Date() },
   });
+
+  // 5) Auto-flip any matching payment link (same FR invoice #) to Paid — the webhook carries the invoice #, and
+  //    so does the link, so we sync them automatically. No manual sync needed.
+  try {
+    await prisma.paymentLinkRequest.updateMany({
+      where: { frInvoiceNumber: String(frInvoice), status: { in: ['sent', 'viewed'] } },
+      data: { status: 'paid', paidAt: new Date(), helcimTransactionId: staxTransactionId },
+    });
+  } catch { /* non-fatal — payment is recorded regardless */ }
+
   return { status: 'written' };
 }
