@@ -23,7 +23,13 @@ export default function HelcimPaymentsPage() {
   const loadLinks = () => fetch('/api/stax/payment-link').then(r => r.json()).then(d => setLinks(d.links || [])).catch(() => {});
   const loadReport = () => fetch('/api/stax/status').then(r => r.json()).then(setReport).catch(() => {});
   useEffect(() => { loadLinks(); loadReport(); }, []);
-  async function runSync() { setSyncing(true); await fetch('/api/cron/helcim-sync?token=critterstop2026').catch(() => {}); setSyncing(false); loadReport(); }
+  // "Sync statuses" → checks each pending link's Stax invoice and flips Sent → Paid when paid. (The webhook
+  // already records payments to FR; this keeps the Payment Links status column current.)
+  async function runSync() {
+    setSyncing(true);
+    try { await fetch('/api/stax/payment-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reconcile' }) }); } catch {}
+    setSyncing(false); loadLinks(); loadReport();
+  }
 
   async function send() {
     setErr(''); setResult(null);
@@ -40,6 +46,11 @@ export default function HelcimPaymentsPage() {
 
   const th: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#888780', borderBottom: '0.5px solid #E8E7E3', whiteSpace: 'nowrap' };
   const td: React.CSSProperties = { textAlign: 'left', padding: '7px 10px', fontSize: 13, borderBottom: '0.5px solid #F1EFE8', whiteSpace: 'nowrap' };
+  // Centered variants (aligned columns for the tabs).
+  const thC: React.CSSProperties = { ...th, textAlign: 'center' };
+  const tdC: React.CSSProperties = { ...td, textAlign: 'center' };
+  const thR: React.CSSProperties = { ...th, textAlign: 'right' };
+  const tdR: React.CSSProperties = { ...td, textAlign: 'right' };
   const inp: React.CSSProperties = { display: 'block', width: '100%', fontSize: 14, padding: '10px 12px', borderRadius: 8, border: '0.5px solid #E8E7E3', marginTop: 4, boxSizing: 'border-box' };
   const statusPill = (s: string) => { const c: any = { sent: ['#FBF3E5', '#BA7517'], viewed: ['#E6F1FB', '#185FA5'], paid: ['#E1F5EE', '#0F6E56'], expired: ['#F1EFE8', '#888780'] }; const [bg, fg] = c[s] || c.expired; return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: bg, color: fg }}>{s}</span>; };
 
@@ -82,28 +93,31 @@ export default function HelcimPaymentsPage() {
         </div>
       )}
 
-      {tab === 'links' && (
+      {tab === 'links' && (<>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <button onClick={runSync} disabled={syncing} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: syncing ? 'wait' : 'pointer' }}>{syncing ? 'Syncing…' : '↻ Sync statuses'}</button>
+        </div>
         <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr><th style={th}>Created</th><th style={th}>Customer</th><th style={th}>Invoice #</th><th style={{ ...th, textAlign: 'right' }}>Amount</th><th style={th}>Status</th><th style={th}>Via</th><th style={th}>By</th><th style={th}>Link</th></tr></thead>
+            <thead><tr><th style={thC}>Created</th><th style={thC}>Customer</th><th style={thC}>Invoice #</th><th style={thR}>Amount</th><th style={thC}>Status</th><th style={thC}>Via</th><th style={thC}>By</th><th style={thC}>Link</th></tr></thead>
             <tbody>
               {links.map(l => (
                 <tr key={l.id}>
-                  <td style={td}>{fmt(l.createdAt)}</td>
-                  <td style={td}>{l.customerName || '—'}</td>
-                  <td style={td}>{l.frInvoiceNumber}</td>
-                  <td style={{ ...td, textAlign: 'right' }}>{money(l.amount)}</td>
-                  <td style={td}>{statusPill(l.status)}</td>
-                  <td style={td}>{l.deliveryMethod}</td>
-                  <td style={td}>{l.createdBy || '—'}</td>
-                  <td style={td}><button onClick={() => navigator.clipboard.writeText(l.url)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#185FA5', cursor: 'pointer' }}>Copy</button></td>
+                  <td style={tdC}>{fmt(l.createdAt)}</td>
+                  <td style={tdC}>{l.customerName || '—'}</td>
+                  <td style={tdC}>{l.frInvoiceNumber}</td>
+                  <td style={tdR}>{money(l.amount)}</td>
+                  <td style={tdC}>{statusPill(l.status)}</td>
+                  <td style={tdC}>{l.deliveryMethod}</td>
+                  <td style={tdC}>{l.createdBy || '—'}</td>
+                  <td style={tdC}><button onClick={() => navigator.clipboard.writeText(l.url)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#185FA5', cursor: 'pointer' }}>Copy</button></td>
                 </tr>
               ))}
-              {!links.length && <tr><td colSpan={8} style={{ ...td, color: '#888780', padding: 20 }}>No payment links yet.</td></tr>}
+              {!links.length && <tr><td colSpan={8} style={{ ...tdC, color: '#888780', padding: 20 }}>No payment links yet.</td></tr>}
             </tbody>
           </table>
         </div>
-      )}
+      </>)}
 
       {tab === 'report' && report && (() => {
         const s = report.summary || {};
@@ -114,33 +128,27 @@ export default function HelcimPaymentsPage() {
             <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 2 }}>{money(s[key]?.total ?? 0)}</div>
           </div>
         );
+        const attention = report.attention || [];
         return (<>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-            <button onClick={runSync} disabled={syncing} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: syncing ? 'wait' : 'pointer' }}>{syncing ? 'Syncing…' : '↻ Run sync now'}</button>
-          </div>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
             {card('Written', 'written', '#128a3f')}{card('Flagged', 'flagged', s.flagged?.count ? '#b91c1c' : '#888780')}{card('Failed', 'failed', s.failed?.count ? '#b91c1c' : '#888780')}{card('Skipped', 'skipped', '#888780')}{card('Pending', 'pending', '#BA7517')}
           </div>
-          <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap', fontSize: 12, color: '#888780' }}>
-            <div style={{ flex: 1, minWidth: 260, border: '0.5px solid #E8E7E3', borderRadius: 8, padding: '10px 12px', background: '#fff' }}><b style={{ color: '#2C2C2A' }}>Last webhook:</b> {report.webhookLast || 'none yet'}</div>
-            <div style={{ flex: 1, minWidth: 260, border: '0.5px solid #E8E7E3', borderRadius: 8, padding: '10px 12px', background: '#fff' }}><b style={{ color: '#2C2C2A' }}>Last sync:</b> {report.pollStatus || 'none yet'}</div>
-          </div>
-          {report.attentionCount > 0 && (<>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#b91c1c', marginBottom: 8 }}>⚠ Needs attention ({report.attentionCount})</div>
+          {attention.length > 0 && (<>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#b91c1c', marginBottom: 8 }}>⚠ Needs attention ({attention.length})</div>
             <div style={{ border: '0.5px solid #F7C1C1', borderRadius: 12, overflow: 'auto', background: '#fff', marginBottom: 24 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr><th style={th}>Helcim Txn</th><th style={th}>Amount</th><th style={th}>Invoice #</th><th style={th}>Status</th><th style={th}>Reason</th></tr></thead>
-                <tbody>{(report.attention || []).map((r: any) => (<tr key={r.id}><td style={td}>{r.helcimTransactionId}</td><td style={td}>{money(r.amount)}</td><td style={td}>{r.helcimInvoiceNumber || '—'}</td><td style={td}>{r.status}</td><td style={{ ...td, whiteSpace: 'normal', maxWidth: 320 }}>{r.failReason || '—'}</td></tr>))}</tbody>
+                <thead><tr><th style={thC}>Stax Txn</th><th style={thR}>Amount</th><th style={thC}>Invoice #</th><th style={thC}>Status</th><th style={thC}>Reason</th></tr></thead>
+                <tbody>{attention.map((r: any) => (<tr key={r.id}><td style={tdC}>{r.staxTransactionId}</td><td style={tdR}>{money(r.amount)}</td><td style={tdC}>{r.frInvoiceNumber || '—'}</td><td style={tdC}>{r.status}</td><td style={{ ...tdC, whiteSpace: 'normal', maxWidth: 320 }}>{r.failReason || '—'}</td></tr>))}</tbody>
               </table>
             </div>
           </>)}
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Recent recorded payments</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, textAlign: 'center' }}>Recent recorded payments</div>
           <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr><th style={th}>Helcim Txn</th><th style={th}>Amount</th><th style={th}>Office</th><th style={th}>Invoice #</th><th style={th}>FR Payment</th><th style={th}>Method</th><th style={th}>Via</th><th style={th}>When</th></tr></thead>
+              <thead><tr><th style={thC}>Stax Txn</th><th style={thR}>Amount</th><th style={thC}>Office</th><th style={thC}>Invoice #</th><th style={thC}>FR Payment</th><th style={thC}>Method</th><th style={thC}>Via</th><th style={thC}>When</th></tr></thead>
               <tbody>
-                {(report.recentWritten || []).map((r: any) => (<tr key={r.helcimTransactionId}><td style={td}>{r.helcimTransactionId}</td><td style={td}>{money(r.amount)}</td><td style={td}>{r.office || '—'}</td><td style={td}>{r.helcimInvoiceNumber || '—'}</td><td style={td}>{r.frPaymentId || '—'}</td><td style={td}>{method(r.frPaymentMethod)}</td><td style={td}>{r.source}</td><td style={td}>{fmt(r.processedAt)}</td></tr>))}
-                {!report.recentWritten?.length && <tr><td colSpan={8} style={{ ...td, color: '#888780', padding: 16 }}>No payments recorded yet.</td></tr>}
+                {(report.recentWritten || []).map((r: any) => (<tr key={r.staxTransactionId}><td style={tdC}>{r.staxTransactionId}</td><td style={tdR}>{money(r.amount)}</td><td style={tdC}>{r.office || '—'}</td><td style={tdC}>{r.frInvoiceNumber || '—'}</td><td style={tdC}>{r.frPaymentId || '—'}</td><td style={tdC}>{method(r.frPaymentMethod)}</td><td style={tdC}>{r.source}</td><td style={tdC}>{fmt(r.processedAt)}</td></tr>))}
+                {!report.recentWritten?.length && <tr><td colSpan={8} style={{ ...tdC, color: '#888780', padding: 16 }}>No payments recorded yet.</td></tr>}
               </tbody>
             </table>
           </div>

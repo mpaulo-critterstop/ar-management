@@ -50,6 +50,33 @@ export async function POST(req: NextRequest) {
   if (!process.env.STAX_API_KEY) return NextResponse.json({ error: 'STAX_API_KEY not set' }, { status: 500 });
   const b = await req.json();
 
+  // Reconcile pending links → flip to Paid when their Stax invoice shows paid. (The webhook records the payment
+  // to FR; this keeps the Payment Links tab's status column in sync.)
+  if (b.action === 'reconcile') {
+    const pending = await prisma.paymentLinkRequest.findMany({
+      where: { status: { in: ['sent', 'viewed'] }, ...( { processor: 'stax' } as any) },
+      take: 200,
+    }).catch(() => [] as any[]);
+    let flipped = 0, checked = 0;
+    for (const l of pending as any[]) {
+      const sid = l.staxInvoiceId;
+      if (!sid) continue;
+      checked++;
+      const inv = await sx(`/invoice/${sid}`);
+      if (!inv.ok) continue;
+      const st = String(inv.json?.status || '').toUpperCase();
+      const paidAt = inv.json?.paid_at;
+      const totalPaid = Number(inv.json?.total_paid || 0);
+      if (st === 'PAID' || paidAt || totalPaid >= Number(l.amount || 0)) {
+        await prisma.paymentLinkRequest.update({ where: { id: l.id }, data: { status: 'paid', paidAt: paidAt ? new Date(paidAt) : new Date() } }).catch(() => {});
+        flipped++;
+      } else if (inv.json?.viewed_at && l.status === 'sent') {
+        await prisma.paymentLinkRequest.update({ where: { id: l.id }, data: { status: 'viewed' } }).catch(() => {});
+      }
+    }
+    return NextResponse.json({ ok: true, checked, flipped });
+  }
+
   if (b.action !== 'create') return NextResponse.json({ error: 'unknown action' }, { status: 400 });
 
   const office = b.office || 'DFW';

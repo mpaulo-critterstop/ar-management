@@ -223,7 +223,7 @@ export default function HomePage() {
     {
       module: 'helcim' as ModuleKey,
       icon: '💳',
-      title: 'Helcim Payments',
+      title: 'Stax Payments',
       desc: 'Send customers payment links for invoices; payments record back into FieldRoutes automatically.',
       href: '/helcim',
       accentColor: '#185FA5',
