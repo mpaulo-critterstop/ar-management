@@ -32,7 +32,7 @@ type HelcimTxn = {
 };
 
 // Find which FR office owns a given invoice (ticket) number, returning office + customerID + balance.
-async function findInvoiceInFR(invoiceNumber: string): Promise<{ office: string; customerID: string; balance: number } | null> {
+export async function findInvoiceInFR(invoiceNumber: string): Promise<{ office: string; customerID: string; balance: number } | null> {
   for (const [office, cfg] of Object.entries(FR_OFFICES)) {
     if (!cfg.key) continue;
     try {

@@ -882,6 +882,34 @@ model CollectionsTracker {
   @@map("collections_tracker")
 }
 
+// Stax payment ledger — dedup + audit for the Stax→FieldRoutes bridge (mirror of helcim_payments).
+model StaxPayment {
+  id                String   @id @default(cuid())
+  staxTransactionId String   @unique
+  office            String?
+  amount            Float
+  currency          String?
+  cardType          String?
+  cardHolderName    String?
+  staxType          String?
+  staxStatus        String?
+  staxCustomerId    String?
+  frInvoiceNumber   String?
+  staxCreatedAt     DateTime?
+  source            String?  // 'webhook' | 'poll'
+  status            String   @default("pending") // pending | written | flagged | failed | skipped
+  frCustomerId      String?
+  frPaymentId       String?
+  frPaymentMethod   Int?
+  failReason        String?
+  processedAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status])
+  @@map("stax_payments")
+}
+
 model AppSetting {
   key       String   @id
   value     String
