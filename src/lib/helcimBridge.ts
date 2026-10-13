@@ -87,7 +87,7 @@ export async function processHelcimTransaction(txn: HelcimTxn, source: 'webhook'
   const cfg = FR_OFFICES[inv.office];
   const method = frPaymentMethod(txn.type);
   const ref = `HELCIM-${helcimTransactionId}`;
-  const qs = `doCharge=0&customerID=${inv.customerID}&amount=${amount.toFixed(2)}&paymentMethod=${method}&transactionID=${encodeURIComponent(ref)}&checkNumber=${encodeURIComponent(ref)}`;
+  const qs = `doCharge=0&customerID=${inv.customerID}&amount=${amount.toFixed(2)}&paymentMethod=${method}&notes=${encodeURIComponent(ref)}`;
   let frPaymentId: string | null = null;
   try {
     const r = await fetch(`${FR_BASE}/payment/create?authenticationKey=${cfg.key}&authenticationToken=${cfg.token}&${qs}`);
@@ -104,7 +104,7 @@ export async function processHelcimTransaction(txn: HelcimTxn, source: 'webhook'
         if (ids.length) {
           const g = await fetch(`${FR_BASE}/payment/get?paymentIDs=${ids.join(',')}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`);
           const gj = await g.json();
-          const match = (gj.payments || []).find((p: any) => String(p.transactionID) === ref || String(p.checkNumber) === ref);
+          const match = (gj.payments || []).find((p: any) => String(p.notes) === ref);
           if (match) frPaymentId = String(match.paymentID);
         }
       } catch { /* non-fatal — payment still recorded, just no id captured */ }

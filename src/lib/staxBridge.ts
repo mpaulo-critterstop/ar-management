@@ -87,9 +87,10 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
   const cfg = FR_OFFICES[inv.office];
   const method = frPaymentMethodFromStax(txn);
   const ref = `STAX-${staxTransactionId}`;
-  // Write the Stax reference to FR's dedicated transactionID field (the right home for an external-processor
-  // reference — shows as "Transaction ID" in FR). Also set checkNumber as a secondary fallback for lookups.
-  const qs = `doCharge=0&customerID=${inv.customerID}&amount=${amount.toFixed(2)}&paymentMethod=${method}&transactionID=${encodeURIComponent(ref)}&checkNumber=${encodeURIComponent(ref)}`;
+  // FR's payment/create ignores transactionID + checkNumber on a doCharge=0 recorded payment (they're
+  // read-only / gateway-only), but it DOES persist `notes` — verified. So the Stax reference goes in notes,
+  // which is where it'll actually show + be searchable for the audit trail / dedup fallback.
+  const qs = `doCharge=0&customerID=${inv.customerID}&amount=${amount.toFixed(2)}&paymentMethod=${method}&notes=${encodeURIComponent(ref)}`;
   const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
   let frPaymentId: string | null = null;
   try {
@@ -106,7 +107,7 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
         if (ids.length) {
           const g = await fetch(`${FR_BASE}/payment/get?paymentIDs=${ids.join(',')}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`);
           const gj = await g.json();
-          const match = (gj.payments || []).find((p: any) => String(p.transactionID) === ref || String(p.checkNumber) === ref);
+          const match = (gj.payments || []).find((p: any) => String(p.notes) === ref);
           if (match) frPaymentId = String(match.paymentID);
         }
       } catch { /* non-fatal */ }
