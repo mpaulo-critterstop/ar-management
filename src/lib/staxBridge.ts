@@ -87,10 +87,16 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
   const cfg = FR_OFFICES[inv.office];
   const method = frPaymentMethodFromStax(txn);
   const ref = `STAX-${staxTransactionId}`;
+  // Card last-four + type from the Stax payment method (FR persists both `lastFour` and `cardType` — verified).
+  const pm = txn?.payment_method || {};
+  const lastFour = pm.card_last_four || txn?.card_last_four || pm.bin_type || '';
+  const cardType = pm.card_type || txn?.card_type || '';
   // FR's payment/create ignores transactionID + checkNumber on a doCharge=0 recorded payment (they're
-  // read-only / gateway-only), but it DOES persist `notes` — verified. So the Stax reference goes in notes,
-  // which is where it'll actually show + be searchable for the audit trail / dedup fallback.
-  const qs = `doCharge=0&customerID=${inv.customerID}&amount=${amount.toFixed(2)}&paymentMethod=${method}&notes=${encodeURIComponent(ref)}`;
+  // read-only / gateway-only), but it DOES persist `notes`, `lastFour`, and `cardType` — verified. So the Stax
+  // reference goes in notes, plus the real card last-four + type for a complete record.
+  let qs = `doCharge=0&customerID=${inv.customerID}&amount=${amount.toFixed(2)}&paymentMethod=${method}&notes=${encodeURIComponent(ref)}`;
+  if (lastFour) qs += `&lastFour=${encodeURIComponent(String(lastFour).slice(-4))}`;
+  if (cardType) qs += `&cardType=${encodeURIComponent(cardType)}`;
   const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
   let frPaymentId: string | null = null;
   try {
