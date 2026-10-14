@@ -131,26 +131,33 @@ export async function computeArrivalsForImei(
       if (miles < MIN_TRIP_MILES_FOR_STARTOFDAY && !known) continue;
       if (known) { startOfDay = tripEnd; break; }
     }
-    // ── DEPARTURE = START of the LAST trip that departed FROM a known stop ──
-    // i.e. when the tech pulled away from their final customer/job (the drive home starts here). This is NOT
-    // the arrival-at-home time (last trip END), which is what the old logic wrongly captured.
+    // ── DEPARTURE = START of the trip that leaves the LAST customer/known stop of the continuous workday ──
+    // We walk trips in order after arrival. Each time a trip STARTS at a known stop (tech leaving a
+    // customer/business), that trip's start is a candidate "departure". We stop extending the workday once the
+    // tech has gone HOME — detected as a trip that ENDS at an UNKNOWN location (not a customer/business) after
+    // which there's a long gap (>90 min) before any next trip, OR no next trip. This prevents evening/personal
+    // trips (e.g. Megan's 8:08pm errand after getting home at 6:35pm) from being counted as end-of-day.
+    const HOME_GAP_MS = 90 * 60 * 1000;
     let endOfDay: Date | null = null;
     if (startOfDay) {
-      for (const trip of dayTrips) {
+      for (let i = 0; i < dayTrips.length; i++) {
+        const trip = dayTrips[i];
         const ep = extractEndpoints(trip); if (!ep) continue;
-        const tripStart = new Date(trip.startTime);
-        if (tripStart <= startOfDay) continue; // must be after arrival
-        // the trip must START at a known stop (leaving a customer/business)
-        if (isBusiness(ep.startLat, ep.startLng) || isCustomer(ep.startLat, ep.startLng, customerCoords)) {
-          if (!endOfDay || tripStart > endOfDay) endOfDay = tripStart;
-        }
-      }
-      // Fallback: if no trip departed from a known stop after arrival (e.g. only one stop all day), use the
-      // start of the last trip of the day that began at/after arrival (best proxy for "left the last place").
-      if (!endOfDay) {
-        for (const trip of dayTrips) {
-          const tripStart = new Date(trip.startTime);
-          if (tripStart > startOfDay && (!endOfDay || tripStart > endOfDay)) endOfDay = tripStart;
+        const tripStart = new Date(trip.startTime), tripEnd = new Date(trip.endTime);
+        if (tripStart < startOfDay) continue; // only within the workday (at/after arrival)
+
+        const startsAtKnown = isBusiness(ep.startLat, ep.startLng) || isCustomer(ep.startLat, ep.startLng, customerCoords);
+        const endsAtKnown = isBusiness(ep.endLat, ep.endLng) || isCustomer(ep.endLat, ep.endLng, customerCoords);
+
+        // A trip leaving a known stop is a candidate end-of-day (departure from a customer/job).
+        if (startsAtKnown) endOfDay = tripStart;
+
+        // Did the tech go home here? Trip ends at an UNKNOWN location (likely home) AND either it's the last
+        // trip, or the next trip starts after a long gap (they stayed home). If so, the workday is over — stop.
+        if (!endsAtKnown) {
+          const next = dayTrips[i + 1];
+          const wentHome = !next || (new Date(next.startTime).getTime() - tripEnd.getTime() > HOME_GAP_MS);
+          if (wentHome) break;
         }
       }
     }
