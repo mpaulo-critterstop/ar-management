@@ -83,11 +83,11 @@ export async function POST(req: NextRequest) {
   const maxD = new Date(Math.max(...dates.map(d => d.getTime()))); maxD.setDate(maxD.getDate() + 2);
   const startISO = minD.toISOString(), endISO = maxD.toISOString();
 
-  // Geocoded customers (for arrival detection) — pulled once, bounded to the techs' offices.
-  const offices = [...new Set(techs.map(t => t.office).filter(Boolean))];
+  // Geocoded customers (for arrival/departure stop detection) — pull ALL of them (not office-filtered), so a
+  // tech working another office's customers (or an office mismatch on the tech record) is never missed.
   const custRows = await prisma.customer.findMany({
-    where: { office: { in: offices as string[] }, lat: { not: null }, lng: { not: null } },
-    select: { lat: true, lng: true }, take: 60000,
+    where: { lat: { not: null }, lng: { not: null } },
+    select: { lat: true, lng: true }, take: 100000,
   });
   const customerCoords = custRows.map(c => ({ lat: c.lat!, lng: c.lng! }));
 
@@ -113,7 +113,10 @@ export async function POST(req: NextRequest) {
       clockIn: p.clockIn?.toISOString() || null, clockOut: p.clockOut?.toISOString() || null,
       totalHours: p.totalHours, matched: true,
     };
-    if (!day || !day.arrival) return { ...base, status: 'NO_BOUNCIE', note: 'No Bouncie arrival computed for this day (no matched stops / truck off)' };
+    if (!day || !day.arrival) {
+      const diag = day ? `${day.tripCount} trips that day, but none ended at a recognized stop` : 'no Bouncie trips found for this truck/day';
+      return { ...base, status: 'NO_BOUNCIE', note: `No arrival computed — ${diag}` };
+    }
 
     const arrival = new Date(day.arrival), departure = day.departure ? new Date(day.departure) : null;
     const inGapMin = p.clockIn ? Math.round((arrival.getTime() - p.clockIn.getTime()) / 60000) : null;

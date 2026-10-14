@@ -95,7 +95,7 @@ async function bouncieFetch(path: string, token: string, params: Record<string, 
 
 const localDateStr = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: TIME_ZONE }); // YYYY-MM-DD in Central
 
-export type DayArrival = { date: string; arrival: Date | null; departure: Date | null };
+export type DayArrival = { date: string; arrival: Date | null; departure: Date | null; tripCount: number; firstTripEndKnown: boolean };
 
 // Compute arrival/departure per day for one vehicle (imei) across a date range. Pulls trips once, groups by
 // Central day. Returns a map keyed by YYYY-MM-DD.
@@ -121,25 +121,40 @@ export async function computeArrivalsForImei(
 
   for (const [day, dayTrips] of byDay) {
     dayTrips.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-    let startOfDay: Date | null = null, endOfDay: Date | null = null;
+    // ── ARRIVAL = first trip END at a known stop (customer/business) ──
+    let startOfDay: Date | null = null;
     for (const trip of dayTrips) {
       const ep = extractEndpoints(trip); if (!ep) continue;
-      const tripEnd = new Date(trip.endTime), tripStart = new Date(trip.startTime);
+      const tripEnd = new Date(trip.endTime);
       const miles = parseFloat(trip.distance || '0');
-      if (startOfDay === null) {
-        const known = isBusiness(ep.endLat, ep.endLng) || isCustomer(ep.endLat, ep.endLng, customerCoords);
-        if (miles < MIN_TRIP_MILES_FOR_STARTOFDAY && !known) continue;
-        if (known) startOfDay = tripEnd; else continue;
+      const known = isBusiness(ep.endLat, ep.endLng) || isCustomer(ep.endLat, ep.endLng, customerCoords);
+      if (miles < MIN_TRIP_MILES_FOR_STARTOFDAY && !known) continue;
+      if (known) { startOfDay = tripEnd; break; }
+    }
+    // ── DEPARTURE = START of the LAST trip that departed FROM a known stop ──
+    // i.e. when the tech pulled away from their final customer/job (the drive home starts here). This is NOT
+    // the arrival-at-home time (last trip END), which is what the old logic wrongly captured.
+    let endOfDay: Date | null = null;
+    if (startOfDay) {
+      for (const trip of dayTrips) {
+        const ep = extractEndpoints(trip); if (!ep) continue;
+        const tripStart = new Date(trip.startTime);
+        if (tripStart <= startOfDay) continue; // must be after arrival
+        // the trip must START at a known stop (leaving a customer/business)
+        if (isBusiness(ep.startLat, ep.startLng) || isCustomer(ep.startLat, ep.startLng, customerCoords)) {
+          if (!endOfDay || tripStart > endOfDay) endOfDay = tripStart;
+        }
       }
-      // end of day = latest trip start/end at a known location
-      if (isBusiness(ep.startLat, ep.startLng) || isCustomer(ep.startLat, ep.startLng, customerCoords)) {
-        if (!endOfDay || tripStart > endOfDay) endOfDay = tripStart;
-      }
-      if (isBusiness(ep.endLat, ep.endLng) || isCustomer(ep.endLat, ep.endLng, customerCoords)) {
-        if (startOfDay && tripEnd > startOfDay && (!endOfDay || tripEnd > endOfDay)) endOfDay = tripEnd;
+      // Fallback: if no trip departed from a known stop after arrival (e.g. only one stop all day), use the
+      // start of the last trip of the day that began at/after arrival (best proxy for "left the last place").
+      if (!endOfDay) {
+        for (const trip of dayTrips) {
+          const tripStart = new Date(trip.startTime);
+          if (tripStart > startOfDay && (!endOfDay || tripStart > endOfDay)) endOfDay = tripStart;
+        }
       }
     }
-    out.set(day, { date: day, arrival: startOfDay, departure: endOfDay });
+    out.set(day, { date: day, arrival: startOfDay, departure: endOfDay, tripCount: dayTrips.length, firstTripEndKnown: startOfDay !== null });
   }
   return out;
 }
