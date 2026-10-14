@@ -921,6 +921,26 @@ model AppSetting {
   @@map("app_settings")
 }
 
+// Payroll attendance — Mon–Sun arrival/departure computed ON DEMAND by the reliability algorithm in
+// mode=payroll, stored separately from TechDayAttendance so the Field Performance cron (Sat–Fri) is never
+// touched. Feeds the US Payroll "Clock-In vs Arrival" comparison.
+model PayrollAttendance {
+  id           String    @id @default(cuid())
+  techId       String
+  techName     String?
+  date         DateTime  // the calendar day (Central)
+  weekStart    DateTime  // Monday of the payroll week this run covered
+  weekEnd      DateTime  // Sunday
+  startTime    DateTime? // arrival (first stop)
+  finishTime   DateTime? // departure (left last stop)
+  computedAt   DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([techId, date])
+  @@index([weekStart, weekEnd])
+  @@map("payroll_attendance")
+}
+
 model TechDayAttendance {
   id              String     @id @default(cuid())
   technicianId    String

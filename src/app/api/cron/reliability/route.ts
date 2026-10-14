@@ -326,6 +326,11 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
 
+  // PAYROLL MODE: same algorithm, but write results to payroll_attendance (Mon–Sun, on demand) instead of
+  // TechDayAttendance — so the Field Performance cron is never touched. Pass mode:'payroll' + a Sunday weekEnd
+  // (weekStart is derived as weekEnd-6 = Monday).
+  const payrollMode = body.mode === 'payroll' || new URL(req.url).searchParams.get('mode') === 'payroll';
+
   const weekEnd = body.weekEnd
     ? new Date(body.weekEnd + 'T00:00:00.000Z')
     : (() => {
@@ -672,6 +677,15 @@ export async function POST(req: NextRequest) {
 
         log.push(`  ${tech.name} ${date}: start=${startOfDay.toLocaleTimeString('en-US', {timeZone})}, end=${endOfDay.toLocaleTimeString('en-US', {timeZone})}, late=${minutesLate.toFixed(0)}min, util=${(utilization*100).toFixed(0)}%`);
 
+        if (payrollMode) {
+          // Write to the SEPARATE payroll_attendance table — never touch TechDayAttendance.
+          await prisma.payrollAttendance.upsert({
+            where: { techId_date: { techId: tech.techId, date: dateObj } },
+            update: { techName: tech.name, startTime: startOfDay, finishTime: endOfDay, weekStart, weekEnd, updatedAt: new Date() },
+            create: { techId: tech.techId, techName: tech.name, date: dateObj, weekStart, weekEnd, startTime: startOfDay, finishTime: endOfDay },
+          });
+          continue; // skip the TechDayAttendance write below
+        }
         await prisma.techDayAttendance.upsert({
           where: { techId_date: { techId: tech.techId, date: dateObj } },
           update: {

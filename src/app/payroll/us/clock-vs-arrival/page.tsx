@@ -24,9 +24,18 @@ function parseCSV(text: string): string[][] {
 export default function ClockVsArrivalPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [err, setErr] = useState('');
   const [fileName, setFileName] = useState('');
   const [onlyFlags, setOnlyFlags] = useState(false);
+  const [csvRows, setCsvRows] = useState<any[]>([]);
+
+  async function compare(rows: any[]) {
+    const resp = await fetch('/api/payroll/clock-vs-arrival', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows }) });
+    const j = await resp.json();
+    if (j.error) { setErr(j.error); return null; }
+    setData(j); return j;
+  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
@@ -44,12 +53,24 @@ export default function ClockVsArrivalPage() {
         totalHours: iTot >= 0 ? parseFloat(r[iTot]) : null,
         firstPunchIn: r[iIn]?.trim(), lastPunchOut: iOut >= 0 ? r[iOut]?.trim() : null,
       })).filter(r => r.employeeName && r.date);
-      const resp = await fetch('/api/payroll/clock-vs-arrival', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows }) });
-      const j = await resp.json();
-      if (j.error) { setErr(j.error); setLoading(false); return; }
-      setData(j);
+      setCsvRows(rows);
+      await compare(rows); // show the comparison vs. whatever Bouncie data already exists
     } catch (e: any) { setErr('Failed to parse/upload: ' + String(e).slice(0, 120)); }
     setLoading(false);
+  }
+
+  // Sync Bouncie for the CSV's week(s) → recompute arrival/departure → re-compare.
+  async function syncBouncie() {
+    if (!csvRows.length) return;
+    setSyncing(true); setErr('');
+    try {
+      const dates = [...new Set(csvRows.map(r => r.date))];
+      const r = await fetch('/api/payroll/clock-vs-arrival', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'sync', dates }) });
+      const j = await r.json();
+      if (j.error) { setErr('Sync failed: ' + j.error); setSyncing(false); return; }
+      await compare(csvRows); // re-compare now that arrival data is populated
+    } catch (e: any) { setErr('Sync failed: ' + String(e).slice(0, 120)); }
+    setSyncing(false);
   }
 
   const th: React.CSSProperties = { textAlign: 'center', padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#888780', borderBottom: '0.5px solid #E8E7E3', whiteSpace: 'nowrap', background: '#fff', position: 'sticky', top: 0 };
@@ -74,11 +95,19 @@ export default function ClockVsArrivalPage() {
         Upload the OnTheClock time-card CSV. The Hub compares each tech's clock-in/out against their actual arrival at the first stop and departure from the last stop (from Bouncie GPS), and flags any gap over 10 minutes — e.g. clocked in well before the truck reached the first customer.
       </p>
 
-      <label style={{ display: 'inline-block', fontSize: 13, padding: '10px 18px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>
-        {loading ? 'Processing…' : '↑ Upload OnTheClock CSV'}
-        <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} disabled={loading} />
-      </label>
-      {fileName && <span style={{ fontSize: 12, color: '#888780', marginLeft: 12 }}>{fileName}</span>}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label style={{ display: 'inline-block', fontSize: 13, padding: '10px 18px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>
+          {loading ? 'Processing…' : '↑ Upload OnTheClock CSV'}
+          <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} disabled={loading} />
+        </label>
+        {csvRows.length > 0 && (
+          <button onClick={syncBouncie} disabled={syncing} style={{ fontSize: 13, padding: '10px 18px', borderRadius: 8, border: 'none', background: '#185FA5', color: '#fff', fontWeight: 600, cursor: syncing ? 'wait' : 'pointer' }}>
+            {syncing ? 'Syncing Bouncie… (may take a minute)' : '↻ Sync Bouncie & Compare'}
+          </button>
+        )}
+        {fileName && <span style={{ fontSize: 12, color: '#888780' }}>{fileName}</span>}
+      </div>
+      <p style={{ fontSize: 12, color: '#B4B2A9', margin: '8px 0 0' }}>Upload shows clock times immediately. Click <b>Sync Bouncie</b> to pull GPS arrival/departure for the CSV's week(s) and fill in the comparison.</p>
       {err && <div style={{ fontSize: 13, color: '#b91c1c', background: '#FCEBEB', border: '0.5px solid #F7C1C1', borderRadius: 8, padding: '10px 12px', marginTop: 14 }}>{err}</div>}
 
       {data && (<>

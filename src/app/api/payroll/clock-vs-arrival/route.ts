@@ -38,10 +38,41 @@ const normName = (s: string) => {
   return n.replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim();
 };
 
+// Sunday that ends the Mon–Sun payroll week containing a given date (local).
+function sundayWeekEnd(d: Date): Date {
+  const x = new Date(d); const day = x.getDay(); // 0=Sun..6=Sat
+  const add = day === 0 ? 0 : 7 - day; // days until Sunday
+  x.setDate(x.getDate() + add); x.setHours(0, 0, 0, 0);
+  return x;
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json();
+
+  // ── SYNC action: run the reliability algorithm in payroll mode for the Mon–Sun week(s) covering the CSV's
+  // dates, writing to payroll_attendance. Triggered by the "Sync Bouncie & Compare" button after upload.
+  if (body.action === 'sync') {
+    const dateList: string[] = body.dates || [];
+    if (!dateList.length) return NextResponse.json({ error: 'no dates' }, { status: 400 });
+    // Distinct Sunday week-ends covering all CSV dates.
+    const weekEnds = [...new Set(dateList.map(d => sundayWeekEnd(new Date(d)).toISOString().slice(0, 10)))];
+    const base = process.env.NEXTAUTH_URL || `https://${req.headers.get('host')}`;
+    const results: any[] = [];
+    for (const we of weekEnds) {
+      try {
+        const r = await fetch(`${base}/api/cron/reliability?token=critterstop2026&mode=payroll`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: 'payroll', weekEnd: we }), signal: AbortSignal.timeout(300000),
+        });
+        const j = await r.json();
+        results.push({ weekEnd: we, status: j.status || 'done', techsUpdated: j.techsUpdated });
+      } catch (e: any) { results.push({ weekEnd: we, status: 'error', error: String(e).slice(0, 120) }); }
+    }
+    return NextResponse.json({ ok: true, synced: results });
+  }
+
   const rows: any[] = body.rows || [];
   if (!rows.length) return NextResponse.json({ error: 'no rows' }, { status: 400 });
 
@@ -64,9 +95,9 @@ export async function POST(req: NextRequest) {
     const dts = matched.map(p => new Date(p.date)).filter(d => !isNaN(d.getTime()));
     const minD = new Date(Math.min(...dts.map(d => d.getTime()))); minD.setHours(0, 0, 0, 0);
     const maxD = new Date(Math.max(...dts.map(d => d.getTime()))); maxD.setHours(23, 59, 59, 999);
-    const att = await prisma.techDayAttendance.findMany({
+    const att = await prisma.payrollAttendance.findMany({
       where: { techId: { in: matched.map(p => p.tech.techId) }, date: { gte: minD, lte: maxD } },
-      select: { techId: true, date: true, startTime: true, finishTime: true, status: true },
+      select: { techId: true, date: true, startTime: true, finishTime: true },
     });
     for (const a of att) attByKey.set(`${a.techId}|${a.date.toISOString().slice(0, 10)}`, a);
   }
@@ -79,7 +110,7 @@ export async function POST(req: NextRequest) {
       techName: p.tech.name, office: p.tech.office, matched: true,
       clockIn: p.clockIn?.toISOString() || null, clockOut: p.clockOut?.toISOString() || null, totalHours: p.totalHours,
     };
-    if (!att || !att.startTime) return { ...base, status: 'NO_BOUNCIE', note: 'No arrival on record for this day — run the reliability sync for this date, or the truck had no matched stops' };
+    if (!att || !att.startTime) return { ...base, status: 'NO_BOUNCIE', note: 'No arrival computed — click Sync Bouncie, or the truck had no matched stops that day' };
     const arrival = new Date(att.startTime), departure = att.finishTime ? new Date(att.finishTime) : null;
     const inGapMin = p.clockIn ? Math.round((arrival.getTime() - p.clockIn.getTime()) / 60000) : null;
     const outGapMin = (p.clockOut && departure) ? Math.round((p.clockOut.getTime() - departure.getTime()) / 60000) : null;
