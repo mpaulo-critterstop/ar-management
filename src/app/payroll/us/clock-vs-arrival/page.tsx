@@ -61,14 +61,14 @@ export default function ClockVsArrivalPage() {
   function statusCell(r: any) {
     if (r.status === 'FLAG') return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#FCEBEB', color: '#b91c1c', fontWeight: 600 }}>⚑ Flag</span>;
     if (r.status === 'OK') return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#E1F5EE', color: '#0F6E56' }}>OK</span>;
-    if (r.status === 'NO_TECH_MATCH') return <span style={{ fontSize: 11, color: '#BA7517' }}>No tech match</span>;
+    if (r.status === 'NO_MATCH') return <span style={{ fontSize: 11, color: '#BA7517' }}>No match</span>;
     if (r.status === 'NO_BOUNCIE') return <span style={{ fontSize: 11, color: '#888780' }}>No GPS data</span>;
     return r.status;
   }
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
-      <a href="/payroll/international" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← International Payroll</a>
+      <a href="/payroll/us" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← US Payroll</a>
       <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>Clock-In vs. Arrival</h1>
       <p style={{ fontSize: 13, color: '#888780', margin: '0 0 20px', lineHeight: 1.6 }}>
         Upload the OnTheClock time-card CSV. The Hub compares each tech's clock-in/out against their actual arrival at the first stop and departure from the last stop (from Bouncie GPS), and flags any gap over 10 minutes — e.g. clocked in well before the truck reached the first customer.
@@ -83,7 +83,7 @@ export default function ClockVsArrivalPage() {
 
       {data && (<>
         <div style={{ display: 'flex', gap: 12, margin: '20px 0', flexWrap: 'wrap' }}>
-          {[['Rows', data.summary.total, '#2C2C2A'], ['Flagged', data.summary.flagged, data.summary.flagged ? '#b91c1c' : '#888780'], ['Paid-not-working (min)', data.summary.totalPaidNotWorkingMin, data.summary.totalPaidNotWorkingMin ? '#BA7517' : '#888780'], ['No tech match', data.summary.noTech, '#888780'], ['No GPS data', data.summary.noBouncie, '#888780']].map(([label, val, color]: any) => (
+          {[['Rows', data.summary.total, '#2C2C2A'], ['Flagged', data.summary.flagged, data.summary.flagged ? '#b91c1c' : '#888780'], ['Paid-not-working (min)', data.summary.totalPaidNotWorkingMin, data.summary.totalPaidNotWorkingMin ? '#BA7517' : '#888780'], ['No match', data.summary.noMatch, '#888780'], ['No GPS data', data.summary.noBouncie, '#888780']].map(([label, val, color]: any) => (
             <div key={label} style={{ border: '0.5px solid #E8E7E3', borderRadius: 10, padding: '12px 16px', background: '#fff', minWidth: 110 }}>
               <div style={{ fontSize: 22, fontWeight: 700, color }}>{val}</div>
               <div style={{ fontSize: 11, color: '#888780' }}>{label}</div>

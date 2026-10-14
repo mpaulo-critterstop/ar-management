@@ -4,7 +4,6 @@ export const dynamic = 'force-dynamic';
 const SECTIONS = [
   { title: 'Employee and Raise Tracker', desc: 'International employee pay, positions, and raise history.', href: '/payroll/international/raises', status: 'available' as const },
   { title: 'PTO Tracker', desc: 'PTO and holiday allotments, used, and remaining.', href: '/payroll/international/pto', status: 'available' as const },
-  { title: 'Clock-In vs. Arrival', desc: 'Compare OnTheClock clock-in/out against actual Bouncie arrival at first stop. Flags gaps over 10 min.', href: '/payroll/international/clock-vs-arrival', status: 'available' as const },
 ];
 
 export default function InternationalPayrollPage() {
