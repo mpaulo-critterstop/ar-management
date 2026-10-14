@@ -121,15 +121,24 @@ export async function computeArrivalsForImei(
 
   for (const [day, dayTrips] of byDay) {
     dayTrips.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-    // ── ARRIVAL = first trip END at a known stop (customer/business) ──
+    // ── ARRIVAL = first trip END at a known stop WHERE THE TECH ACTUALLY DWELLED ──
+    // A genuine arrival means they stopped and stayed. If the next trip starts almost immediately (< DWELL
+    // min), the "stop" was a pass-through / fragment near a geofenced location while still en route — NOT the
+    // real first job. (Fixes Megan's 7:01am "arrival" that was mid-drive 6:54→7:07.)
+    const DWELL_MS = 5 * 60 * 1000; // must stay >=5 min for it to count as a real stop
     let startOfDay: Date | null = null;
-    for (const trip of dayTrips) {
+    for (let i = 0; i < dayTrips.length; i++) {
+      const trip = dayTrips[i];
       const ep = extractEndpoints(trip); if (!ep) continue;
       const tripEnd = new Date(trip.endTime);
       const miles = parseFloat(trip.distance || '0');
       const known = isBusiness(ep.endLat, ep.endLng) || isCustomer(ep.endLat, ep.endLng, customerCoords);
       if (miles < MIN_TRIP_MILES_FOR_STARTOFDAY && !known) continue;
-      if (known) { startOfDay = tripEnd; break; }
+      if (!known) continue;
+      // Confirm a real dwell: the next trip must not start right away (otherwise this was a pass-through).
+      const next = dayTrips[i + 1];
+      const dwelled = !next || (new Date(next.startTime).getTime() - tripEnd.getTime() >= DWELL_MS);
+      if (dwelled) { startOfDay = tripEnd; break; }
     }
     // ── DEPARTURE = START of the trip that leaves the LAST customer/known stop of the continuous workday ──
     // We walk trips in order after arrival. Each time a trip STARTS at a known stop (tech leaving a
