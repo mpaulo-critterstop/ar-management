@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
         try { j = JSON.parse(text); } catch { results.push({ weekEnd: we, status: 'reliability_error', httpStatus: r.status, detail: text.slice(0, 200) }); continue; }
         const logLines = (j.log || '').split('\n');
         const routeCacheLine = logLines.find((l: string) => l.includes('route customer cache')) || '(no route cache line)';
-        results.push({ weekEnd: we, status: j.status || 'done', techsUpdated: j.techsUpdated, routeCacheLine });
+        const meganLines = logLines.filter((l: string) => l.includes("Delph")).slice(0, 15); results.push({ weekEnd: we, status: j.status || "done", techsUpdated: j.techsUpdated, routeCacheLine, meganLines });
       } catch (e: any) { results.push({ weekEnd: we, status: 'error', error: String(e).slice(0, 120) }); }
     }
     return NextResponse.json({ ok: true, computed: results });
@@ -138,8 +138,7 @@ export async function POST(req: NextRequest) {
       techName: p.tech.name, office: p.tech.office, matched: true,
       clockIn: p.clockIn?.toISOString() || null, clockOut: p.clockOut?.toISOString() || null, totalHours: p.totalHours,
     };
-    if (!att) return { ...base, status: 'NO_BOUNCIE', note: 'No data for this day — click Sync Bouncie to compute' };
-    if (!att.startTime) return { ...base, status: 'NO_ROUTE', note: 'No route this day (event / training / off / fill-in) — not comparable' };
+    if (!att || !att.startTime) return { ...base, status: 'NO_BOUNCIE', note: 'No arrival computed for this day' };
     const arrival = new Date(att.startTime), departure = att.finishTime ? new Date(att.finishTime) : null;
     const inGapMin = p.clockIn ? Math.round((arrival.getTime() - p.clockIn.getTime()) / 60000) : null;
     const outGapMin = (p.clockOut && departure) ? Math.round((p.clockOut.getTime() - departure.getTime()) / 60000) : null;
