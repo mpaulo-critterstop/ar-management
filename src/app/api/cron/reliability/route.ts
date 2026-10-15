@@ -462,6 +462,20 @@ export async function POST(req: NextRequest) {
           }
         }
         const combinedDayCoords = [...dayRouteCoords, ...otherDayCoords];
+        // PAYROLL MODE: if the tech has NO OWN route customers this day, it's an event/training (CEU)/off/
+        // fill-in day — there's no normal route to compare against. Record it as a no-route day (startTime=null)
+        // rather than falling back to all-customers (which produces garbage arrival/departure). The comparison
+        // then shows it as "No route day — not comparable" instead of a false flag.
+        if (payrollMode && dayRouteCoords.length === 0) {
+          const noRouteDateObj = new Date(date + 'T12:00:00.000Z');
+          await prisma.payrollAttendance.upsert({
+            where: { techId_date: { techId: tech.techId, date: noRouteDateObj } },
+            update: { techName: tech.name, startTime: null, finishTime: null, weekStart, weekEnd, updatedAt: new Date() },
+            create: { techId: tech.techId, techName: tech.name, date: noRouteDateObj, weekStart, weekEnd, startTime: null, finishTime: null },
+          }).catch(() => {});
+          log.push(`  ${tech.name}: no own route for ${date} — PAYROLL: marked no-route day (event/off), skipped`);
+          continue;
+        }
         const matchCoords = combinedDayCoords.length > 0 ? combinedDayCoords : customerCoords;
 
         if (dayRouteCoords.length > 0) {

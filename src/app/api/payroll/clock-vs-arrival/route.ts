@@ -138,7 +138,8 @@ export async function POST(req: NextRequest) {
       techName: p.tech.name, office: p.tech.office, matched: true,
       clockIn: p.clockIn?.toISOString() || null, clockOut: p.clockOut?.toISOString() || null, totalHours: p.totalHours,
     };
-    if (!att || !att.startTime) return { ...base, status: 'NO_BOUNCIE', note: 'No arrival computed — click Sync Bouncie, or the truck had no matched stops that day' };
+    if (!att) return { ...base, status: 'NO_BOUNCIE', note: 'No data for this day — click Sync Bouncie to compute' };
+    if (!att.startTime) return { ...base, status: 'NO_ROUTE', note: 'No route this day (event / training / off / fill-in) — not comparable' };
     const arrival = new Date(att.startTime), departure = att.finishTime ? new Date(att.finishTime) : null;
     const inGapMin = p.clockIn ? Math.round((arrival.getTime() - p.clockIn.getTime()) / 60000) : null;
     const outGapMin = (p.clockOut && departure) ? Math.round((p.clockOut.getTime() - departure.getTime()) / 60000) : null;
@@ -164,6 +165,7 @@ export async function POST(req: NextRequest) {
       total: all.length, matched: out.length,
       flagged: out.filter((o: any) => o.status === 'FLAG').length,
       noMatch: unmatched.length,
+      noRoute: out.filter((o: any) => o.status === "NO_ROUTE").length,
       noBouncie: out.filter((o: any) => o.status === 'NO_BOUNCIE').length,
       totalPaidNotWorkingMin: out.filter((o: any) => o.inFlag).reduce((s: number, o: any) => s + (o.inGapMin || 0), 0),
       gapThreshold: GAP_MIN,

@@ -96,6 +96,7 @@ export default function ClockVsArrivalPage() {
     if (r.status === 'FLAG') return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#FCEBEB', color: '#b91c1c', fontWeight: 600 }}>⚑ Flag</span>;
     if (r.status === 'OK') return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#E1F5EE', color: '#0F6E56' }}>OK</span>;
     if (r.status === 'NO_MATCH') return <span style={{ fontSize: 11, color: '#BA7517' }}>No match</span>;
+    if (r.status === 'NO_ROUTE') return <span style={{ fontSize: 11, color: '#888780' }}>No route (event/off)</span>;
     if (r.status === 'NO_BOUNCIE') return <span style={{ fontSize: 11, color: '#888780' }}>No GPS data</span>;
     return r.status;
   }
