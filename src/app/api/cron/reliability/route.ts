@@ -468,11 +468,16 @@ export async function POST(req: NextRequest) {
         //    start/end fall back to the raw-trip + BUSINESS-location logic only (no all-customers pollution).
         //    A trip that ends at a business/office or is a real first-movement still sets the day; the regular
         //    trip logic handles it. (The old all-customers fallback caused the frozen-neighbor/home garbage.)
-        const noRouteToday = combinedDayCoords.length === 0;
-        const matchCoords = combinedDayCoords.length > 0
-          ? combinedDayCoords
-          : (payrollMode ? [] : customerCoords); // payroll: empty → business-only matching on raw trips
-        if (payrollMode) log.push(`  ${tech.name} ${date}: dayRoute=${dayRouteCoords.length}, otherRoute=${otherDayCoords.length}${noRouteToday ? ' (NO ROUTE — raw-trip/business-only matching)' : ''}`);
+        // Match set for arrival/departure:
+        //  - Tech HAS own route customers → use them (precise).
+        //  - NO own route (additional/helper tech) → match against ALL customers SCHEDULED that day company-wide
+        //    (otherDayCoords = every other tech's route customers for the date). So a helper who rode along to
+        //    customer 46445 (on another tech's route) still matches it. The tight 50m geofence keeps this precise.
+        const hasOwnRoute = dayRouteCoords.length > 0;
+        const matchCoords = hasOwnRoute ? dayRouteCoords
+          : (otherDayCoords.length > 0 ? otherDayCoords : (payrollMode ? [] : customerCoords));
+        const noRouteToday = !hasOwnRoute && otherDayCoords.length === 0; // truly nothing scheduled (event/off day)
+        if (payrollMode) log.push(`  ${tech.name} ${date}: ownRoute=${dayRouteCoords.length}, allScheduled=${otherDayCoords.length}${!hasOwnRoute ? (noRouteToday ? ' (NO SCHEDULE — raw-trip)' : ' (helper — matching all scheduled customers)') : ''}`);
 
         if (dayRouteCoords.length > 0) {
           log.push(`  ${tech.name}: using ${dayRouteCoords.length} own + ${otherDayCoords.length} other techs' route customers for ${date}`);
