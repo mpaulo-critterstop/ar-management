@@ -1,5 +1,14 @@
 {
   "functions": {
+    "src/app/api/payroll/clock-vs-arrival/route.ts": {
+      "maxDuration": 800
+    },
+    "src/app/api/cron/reliability/route.ts": {
+      "maxDuration": 800
+    },
+    "src/app/api/field-performance/routeCustomers/route.ts": {
+      "maxDuration": 800
+    },
     "src/app/api/sync/auto/route.ts": {
       "maxDuration": 800
     },

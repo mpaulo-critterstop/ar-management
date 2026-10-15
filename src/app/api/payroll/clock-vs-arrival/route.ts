@@ -13,7 +13,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120;
+export const maxDuration = 800;
 const GAP_MIN = 10;
 
 function parseCentralToUTC(s: string): Date | null {
@@ -82,9 +82,15 @@ export async function POST(req: NextRequest) {
         // STEP 2 — run the reliability algorithm in payroll mode (writes payroll_attendance, Mon–Sun).
         const r = await fetch(`${base}/api/cron/reliability?token=critterstop2026&mode=payroll`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mode: 'payroll', weekEnd: we }), signal: AbortSignal.timeout(300000),
+          body: JSON.stringify({ mode: 'payroll', weekEnd: we }), signal: AbortSignal.timeout(800000),
         });
-        const j = await r.json();
+        const text = await r.text();
+        let j: any;
+        try { j = JSON.parse(text); }
+        catch { // non-JSON (timeout/500 page) — surface the real status + snippet instead of crashing
+          results.push({ weekEnd: we, routeCustomers, status: 'reliability_error', httpStatus: r.status, detail: text.slice(0, 200) });
+          continue;
+        }
         results.push({ weekEnd: we, routeCustomers, status: j.status || 'done', techsUpdated: j.techsUpdated });
       } catch (e: any) { results.push({ weekEnd: we, status: 'error', error: String(e).slice(0, 120) }); }
     }
