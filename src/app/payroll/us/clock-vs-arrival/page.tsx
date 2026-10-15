@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 
-const fmtTime = (iso: string | null) => iso ? new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—';
+const fmtTime = (iso: string | null) => iso ? new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }) : '—';
 const fmtDate = (d: string) => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
 
 // Minimal CSV parser handling quoted fields (OnTheClock quotes names with commas).

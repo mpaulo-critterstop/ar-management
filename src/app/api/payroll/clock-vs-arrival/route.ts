@@ -130,8 +130,16 @@ export async function POST(req: NextRequest) {
     for (const a of att) attByKey.set(`${a.techId}|${a.date.toISOString().slice(0, 10)}`, a);
   }
 
+  // Normalize the CSV date "M/D/YYYY" (or ISO) to a stable YYYY-MM-DD key WITHOUT timezone drift.
+  const toDayKey = (s: string): string => {
+    const t = String(s).trim();
+    const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+    const iso = t.match(/^(\d{4}-\d{2}-\d{2})/); if (iso) return iso[1];
+    return new Date(t).toLocaleDateString('en-CA');
+  };
   const out = matched.map(p => {
-    const dayKey = new Date(p.date).toLocaleDateString('en-CA');
+    const dayKey = toDayKey(p.date);
     const att = attByKey.get(`${p.tech.techId}|${dayKey}`);
     const base: any = {
       employeeName: p.employeeName, employeeNumber: p.employeeNumber, date: dayKey,
@@ -143,10 +151,11 @@ export async function POST(req: NextRequest) {
     const inGapMin = p.clockIn ? Math.round((arrival.getTime() - p.clockIn.getTime()) / 60000) : null;
     const outGapMin = (p.clockOut && departure) ? Math.round((p.clockOut.getTime() - departure.getTime()) / 60000) : null;
     const inFlag = inGapMin !== null && inGapMin > GAP_MIN;
+    const _dbg = { arrivalISO: arrival.toISOString(), departureISO: departure?.toISOString() || null, dayKey };
     const outFlag = outGapMin !== null && outGapMin > GAP_MIN;
     return {
       ...base, arrival: arrival.toISOString(), departure: departure?.toISOString() || null,
-      inGapMin, outGapMin, inFlag, outFlag,
+      inGapMin, outGapMin, inFlag, outFlag, _dbg,
       status: (inFlag || outFlag) ? 'FLAG' : 'OK',
       note: inFlag ? `Clocked in ${inGapMin} min before arriving at first stop` : outFlag ? `Clocked out ${outGapMin} min after leaving last stop` : 'Within tolerance',
     };
