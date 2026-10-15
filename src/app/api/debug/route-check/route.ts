@@ -5,21 +5,34 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const date = sp.get('date') || '2026-10-05';
+  const weekEnd = sp.get('weekEnd') || '2026-10-11';
   const dateObj = new Date(date + 'T12:00:00.000Z');
-  const rows = await prisma.$queryRaw<Array<{ techId: string; cnt: bigint }>>`
-    SELECT "techId", COUNT(*)::bigint as cnt FROM tech_route_customers WHERE "date" = ${dateObj} GROUP BY "techId" ORDER BY cnt DESC`;
-  const megan = await prisma.technician.findMany({
-    where: { name: { contains: 'Delph' } },
-    select: { techId: true, name: true, office: true, status: true, frEmployeeId: true },
+
+  // 1. The cached FR route list for the week (what routeCustomers fetched). Shows assignedTech per route.
+  const routeListCache = await prisma.appSetting.findUnique({ where: { key: `rc_routelist_DFW_${weekEnd}` } });
+  const routeList = routeListCache?.value ? JSON.parse(routeListCache.value) : [];
+  // routes on this date + their assignedTech (FR id)
+  const routesThisDate = routeList.filter((r: any) => r.date === date).map((r: any) => ({ routeID: r.routeID, assignedTech: r.assignedTech }));
+  const assignedTechIds = [...new Set(routesThisDate.map((r: any) => String(r.assignedTech)))];
+
+  // 2. All techs with frEmployeeId in that assignedTech set (to see the mapping)
+  const techs = await prisma.technician.findMany({
+    where: { frEmployeeId: { in: assignedTechIds.map(Number).filter(n => !isNaN(n)) } },
+    select: { techId: true, name: true, status: true, frEmployeeId: true, office: true },
   });
-  // also: does ANY row exist for date regardless of exact timestamp? (date-format check)
-  const anyForDay = await prisma.$queryRaw<Array<{ d: string; cnt: bigint }>>`
-    SELECT to_char("date",'YYYY-MM-DD HH24:MI:SS') as d, COUNT(*)::bigint as cnt FROM tech_route_customers
-    WHERE "date" >= ${new Date(date + 'T00:00:00Z')} AND "date" < ${new Date(date + 'T23:59:59Z')} GROUP BY "date" ORDER BY cnt DESC LIMIT 5`;
+
+  // 3. Is Megan's FR id (10171) among the assignedTechs on her routes?
+  const meganFrId = 10171;
+  const meganRoutes = routesThisDate.filter((r: any) => String(r.assignedTech) === String(meganFrId));
+
   return NextResponse.json({
-    date,
-    routeCustomersByTech: rows.map(r => ({ techId: r.techId, count: Number(r.cnt) })),
-    distinctDateTimestamps: anyForDay.map(r => ({ storedAs: r.d, count: Number(r.cnt) })),
-    meganRecords: megan,
+    date, weekEnd,
+    totalRoutesInCache: routeList.length,
+    routesThisDate: routesThisDate.length,
+    assignedTechIdsThisDate: assignedTechIds,
+    techsMatchingThoseIds: techs,
+    meganFrId,
+    meganRoutesThisDate: meganRoutes,
+    note: 'If meganRoutesThisDate is empty, Megan\'s FR id 10171 is NOT on any route this date — her route is assigned to a different FR employee id, OR routes aren\'t assigned to her at all.',
   });
 }
