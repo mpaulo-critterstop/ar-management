@@ -91,7 +91,11 @@ export async function POST(req: NextRequest) {
           results.push({ weekEnd: we, routeCustomers, status: 'reliability_error', httpStatus: r.status, detail: text.slice(0, 200) });
           continue;
         }
-        results.push({ weekEnd: we, routeCustomers, status: j.status || 'done', techsUpdated: j.techsUpdated });
+        // Pull out the route-cache line + a sample of the start/end matches so we can verify route matching.
+        const logLines = (j.log || '').split('\n');
+        const routeCacheLine = logLines.find((l: string) => l.includes('route customer cache')) || '(no route cache line)';
+        const sampleMatches = logLines.filter((l: string) => /start matched|end pushed|could not determine|using \d+ own/.test(l)).slice(0, 25);
+        results.push({ weekEnd: we, routeCustomers, status: j.status || 'done', techsUpdated: j.techsUpdated, routeCacheLine, sampleMatches });
       } catch (e: any) { results.push({ weekEnd: we, status: 'error', error: String(e).slice(0, 120) }); }
     }
     return NextResponse.json({ ok: true, synced: results });
