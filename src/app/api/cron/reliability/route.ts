@@ -165,7 +165,7 @@ const BUSINESS_LOCATIONS = [
   { name: 'Lowes OKC W Memorial',         lat: 35.606458,  lng: -97.556346  },
 ];
 
-const GEOFENCE_RADIUS_M = 500;          // customer locations
+const GEOFENCE_RADIUS_M = 50;           // customer locations — tight: must be AT the address (excludes nearby/neighbor/gas-station false matches)
 const BUSINESS_GEOFENCE_RADIUS_M = 300; // business locations (large parking lots, GPS drift)
 const MIN_TRIP_MILES_FOR_STARTOFDAY = 1.0; // ignore trips under 1 mile when finding start of day
 
@@ -462,10 +462,17 @@ export async function POST(req: NextRequest) {
           }
         }
         const combinedDayCoords = [...dayRouteCoords, ...otherDayCoords];
-        const matchCoords = combinedDayCoords.length > 0 ? combinedDayCoords : customerCoords;
-        // PAYROLL diagnostic: record per-day route-customer counts so we can see which days actually have route
-        // data (the key question behind the NO_ROUTE issue).
-        if (payrollMode) log.push(`  ${tech.name} ${date}: dayRoute=${dayRouteCoords.length}, otherRoute=${otherDayCoords.length}`);
+        // Match set for arrival/departure detection:
+        //  - If the tech HAS route customers → use them (precise, their actual scheduled stops).
+        //  - If NO route (additional/helper tech, or event day) → in payroll mode use an EMPTY customer set, so
+        //    start/end fall back to the raw-trip + BUSINESS-location logic only (no all-customers pollution).
+        //    A trip that ends at a business/office or is a real first-movement still sets the day; the regular
+        //    trip logic handles it. (The old all-customers fallback caused the frozen-neighbor/home garbage.)
+        const noRouteToday = combinedDayCoords.length === 0;
+        const matchCoords = combinedDayCoords.length > 0
+          ? combinedDayCoords
+          : (payrollMode ? [] : customerCoords); // payroll: empty → business-only matching on raw trips
+        if (payrollMode) log.push(`  ${tech.name} ${date}: dayRoute=${dayRouteCoords.length}, otherRoute=${otherDayCoords.length}${noRouteToday ? ' (NO ROUTE — raw-trip/business-only matching)' : ''}`);
 
         if (dayRouteCoords.length > 0) {
           log.push(`  ${tech.name}: using ${dayRouteCoords.length} own + ${otherDayCoords.length} other techs' route customers for ${date}`);
@@ -517,6 +524,15 @@ export async function POST(req: NextRequest) {
             const custCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, matchCoords);
             const isKnown = bizCheck.match || custCheck;
 
+            // NO-ROUTE DAY (payroll, additional/helper tech): we can't verify customers, so use the raw trip —
+            // the first SUBSTANTIAL trip's end is their first stop (first place they drove to after home).
+            if (noRouteToday && payrollMode) {
+              if (tripMiles < MIN_TRIP_MILES_FOR_STARTOFDAY) continue; // skip short home/driveway moves
+              startOfDay = tripEnd;
+              log.push(`    ${date} start (no-route raw): ${tripEnd.toLocaleTimeString('en-US',{timeZone})} (${tripMiles.toFixed(1)} mi)`);
+              continue;
+            }
+
             // Skip short trips ONLY if the endpoint is unknown (likely home/driveway movement)
             // If endpoint is a known customer/business, use it regardless of distance
             if (tripMiles < MIN_TRIP_MILES_FOR_STARTOFDAY && !isKnown) {
@@ -534,19 +550,26 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // ── END OF DAY: latest trip start OR end at a known location ──
-          const bizStartCheck = isBusinessLocation(endpoints.startLat, endpoints.startLng);
-          const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, matchCoords);
-          if (bizStartCheck.match || custStartCheck) {
-            if (!endOfDay || tripStart > endOfDay) endOfDay = tripStart;
-          }
-
-          const bizEndCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
-          const custEndCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, matchCoords);
-          if (bizEndCheck.match || custEndCheck) {
-            // Only use trip end if it's after start of day and after current endOfDay
-            if (startOfDay && tripEnd > startOfDay && (!endOfDay || tripEnd > endOfDay)) {
-              endOfDay = tripEnd;
+          // ── END OF DAY ──
+          if (noRouteToday && payrollMode) {
+            // No-route raw-trip: end of day = the START of the last SUBSTANTIAL trip after arrival (when they
+            // pulled away from their last stop to head home). The long drive-home trip's start marks it.
+            if (startOfDay && tripStart > startOfDay && tripMiles >= MIN_TRIP_MILES_FOR_STARTOFDAY) {
+              if (!endOfDay || tripStart > endOfDay) endOfDay = tripStart;
+            }
+          } else {
+            // latest trip start OR end at a known location
+            const bizStartCheck = isBusinessLocation(endpoints.startLat, endpoints.startLng);
+            const custStartCheck = isCustomerLocation(endpoints.startLat, endpoints.startLng, matchCoords);
+            if (bizStartCheck.match || custStartCheck) {
+              if (!endOfDay || tripStart > endOfDay) endOfDay = tripStart;
+            }
+            const bizEndCheck = isBusinessLocation(endpoints.endLat, endpoints.endLng);
+            const custEndCheck = isCustomerLocation(endpoints.endLat, endpoints.endLng, matchCoords);
+            if (bizEndCheck.match || custEndCheck) {
+              if (startOfDay && tripEnd > startOfDay && (!endOfDay || tripEnd > endOfDay)) {
+                endOfDay = tripEnd;
+              }
             }
           }
         }
