@@ -4,8 +4,8 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 const AUTH='https://auth.bouncie.com/oauth/token';
 async function getToken(){const[t,e,r]=await Promise.all([prisma.appSetting.findUnique({where:{key:'bouncie_access_token'}}),prisma.appSetting.findUnique({where:{key:'bouncie_token_expires_at'}}),prisma.appSetting.findUnique({where:{key:'bouncie_refresh_token'}})]);if(!t||!r)throw new Error('nc');if(e&&new Date(e.value).getTime()-Date.now()>3e5)return t.value;const res=await fetch(AUTH,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_id:'critter-stop-',client_secret:process.env.BOUNCIE_CLIENT_SECRET,grant_type:'refresh_token',refresh_token:r.value})});const tk=await res.json();await prisma.appSetting.update({where:{key:'bouncie_access_token'},data:{value:tk.access_token}});await prisma.appSetting.update({where:{key:'bouncie_refresh_token'},data:{value:tk.refresh_token}});await prisma.appSetting.update({where:{key:'bouncie_token_expires_at'},data:{value:new Date(Date.now()+(tk.expires_in||3600)*1e3).toISOString()}});return tk.access_token;}
-const norm=(s)=>(s||'').toLowerCase().replace(/[^a-z]/g,'');
-export async function GET(req) {
+const norm=(s:string)=>(s||'').toLowerCase().replace(/[^a-z]/g,'');
+export async function GET(req: NextRequest) {
   const sp=req.nextUrl.searchParams;
   if(sp.get('token')!=='critterstop2026')return NextResponse.json({error:'Unauthorized'},{status:401});
   const apply=sp.get('apply')==='1';
