@@ -51,54 +51,54 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json();
 
-  // ── SYNC action: run the reliability algorithm in payroll mode for the Mon–Sun week(s) covering the CSV's
-  // dates, writing to payroll_attendance. Triggered by the "Sync Bouncie & Compare" button after upload.
-  if (body.action === 'sync') {
+  const base = process.env.NEXTAUTH_URL || `https://${req.headers.get('host')}`;
+  const OFFICES = ['DFW', 'ATX', 'OKC', 'CStat'];
+
+  // ── STEP 1: BUILD ROUTES — populate tech_route_customers for the CSV's Mon–Sun week(s). One office per
+  // call (resumable from the client) so no single request times out. Returns per-office route counts.
+  if (body.action === 'buildRoutes') {
     const dateList: string[] = body.dates || [];
     if (!dateList.length) return NextResponse.json({ error: 'no dates' }, { status: 400 });
-    // Distinct Sunday week-ends covering all CSV dates.
     const weekEnds = [...new Set(dateList.map(d => sundayWeekEnd(new Date(d)).toISOString().slice(0, 10)))];
-    const base = process.env.NEXTAUTH_URL || `https://${req.headers.get('host')}`;
-    const offices = ['DFW', 'ATX', 'OKC', 'CStat'];
+    const office = body.office || 'DFW';
+    const built: any[] = [];
+    for (const we of weekEnds) {
+      let rowsSaved = 0, totalRoutes = 0;
+      for (let offset = 0, guard = 0; guard < 30; offset += 30, guard++) {
+        const reset = offset === 0 ? '&reset=true' : '';
+        const rr = await fetch(`${base}/api/field-performance/routeCustomers?token=critterstop2026&weekEnd=${we}&office=${office}&offset=${offset}&limit=30${reset}`, { signal: AbortSignal.timeout(300000) });
+        const rj = await rr.json().catch(() => ({} as any));
+        totalRoutes = rj.totalRoutes || totalRoutes;
+        const m = (rj.log || '').match(/Total: (\d+) tech_route_customer rows/);
+        if (m) rowsSaved += parseInt(m[1]);
+        if (!totalRoutes || offset + 30 >= totalRoutes) break;
+      }
+      built.push({ weekEnd: we, office, totalRoutes, rowsSaved });
+    }
+    return NextResponse.json({ ok: true, office, built, offices: OFFICES });
+  }
+
+  // ── STEP 2: COMPUTE — run reliability in payroll mode (routes already built) → payroll_attendance.
+  if (body.action === 'compute') {
+    const dateList: string[] = body.dates || [];
+    if (!dateList.length) return NextResponse.json({ error: 'no dates' }, { status: 400 });
+    const weekEnds = [...new Set(dateList.map(d => sundayWeekEnd(new Date(d)).toISOString().slice(0, 10)))];
     const results: any[] = [];
     for (const we of weekEnds) {
       try {
-        // STEP 1 — build each tech's ACTUAL ROUTE customers for this Mon–Sun week (FR appointments), so the
-        // arrival/departure matching uses the customers the tech was really scheduled to visit — NOT all
-        // customers (which caused frozen/near-home customers to be matched as fake start/end of day).
-        // Paginated (30 techs/batch) to avoid timeouts; reset on the first office+batch of the week.
-        let routeCustomers = 0;
-        for (let oi = 0; oi < offices.length; oi++) {
-          const office = offices[oi];
-          for (let offset = 0, guard = 0; guard < 25; offset += 30, guard++) {
-            const reset = offset === 0 ? '&reset=true' : '';
-            const rr = await fetch(`${base}/api/field-performance/routeCustomers?token=critterstop2026&weekEnd=${we}&office=${office}&offset=${offset}&limit=30${reset}`, { signal: AbortSignal.timeout(120000) });
-            const rj = await rr.json().catch(() => ({}));
-            routeCustomers += rj.daysProcessed || 0;
-            const total = rj.totalRoutes || 0;
-            if (offset + 30 >= total) break; // processed all of this office's routes
-          }
-        }
-        // STEP 2 — run the reliability algorithm in payroll mode (writes payroll_attendance, Mon–Sun).
         const r = await fetch(`${base}/api/cron/reliability?token=critterstop2026&mode=payroll`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mode: 'payroll', weekEnd: we }), signal: AbortSignal.timeout(800000),
         });
         const text = await r.text();
         let j: any;
-        try { j = JSON.parse(text); }
-        catch { // non-JSON (timeout/500 page) — surface the real status + snippet instead of crashing
-          results.push({ weekEnd: we, routeCustomers, status: 'reliability_error', httpStatus: r.status, detail: text.slice(0, 200) });
-          continue;
-        }
-        // Pull out the route-cache line + a sample of the start/end matches so we can verify route matching.
+        try { j = JSON.parse(text); } catch { results.push({ weekEnd: we, status: 'reliability_error', httpStatus: r.status, detail: text.slice(0, 200) }); continue; }
         const logLines = (j.log || '').split('\n');
         const routeCacheLine = logLines.find((l: string) => l.includes('route customer cache')) || '(no route cache line)';
-        const sampleMatches = logLines.filter((l: string) => /start matched|end pushed|could not determine|using \d+ own/.test(l)).slice(0, 25);
-        results.push({ weekEnd: we, routeCustomers, status: j.status || 'done', techsUpdated: j.techsUpdated, routeCacheLine, sampleMatches });
+        results.push({ weekEnd: we, status: j.status || 'done', techsUpdated: j.techsUpdated, routeCacheLine });
       } catch (e: any) { results.push({ weekEnd: we, status: 'error', error: String(e).slice(0, 120) }); }
     }
-    return NextResponse.json({ ok: true, synced: results });
+    return NextResponse.json({ ok: true, computed: results });
   }
 
   const rows: any[] = body.rows || [];

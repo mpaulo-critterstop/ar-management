@@ -59,18 +59,31 @@ export default function ClockVsArrivalPage() {
     setLoading(false);
   }
 
-  // Sync Bouncie for the CSV's week(s) → recompute arrival/departure → re-compare.
+  const [syncStep, setSyncStep] = useState('');
+  // Full sync: build routes (one office at a time, client-driven so no single request times out) → compute → compare.
   async function syncBouncie() {
     if (!csvRows.length) return;
     setSyncing(true); setErr('');
+    const dates = [...new Set(csvRows.map(r => r.date))];
+    const offices = ['DFW', 'ATX', 'OKC', 'CStat'];
     try {
-      const dates = [...new Set(csvRows.map(r => r.date))];
-      const r = await fetch('/api/payroll/clock-vs-arrival', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'sync', dates }) });
-      const j = await r.json();
-      if (j.error) { setErr('Sync failed: ' + j.error); setSyncing(false); return; }
-      await compare(csvRows); // re-compare now that arrival data is populated
+      // Step 1 — build routes per office (separate requests avoid the timeout cascade).
+      for (const office of offices) {
+        setSyncStep(`Building routes: ${office}…`);
+        const rr = await fetch('/api/payroll/clock-vs-arrival', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'buildRoutes', dates, office }) });
+        const rj = await rr.json().catch(() => ({}));
+        if (rj.error) { setErr(`Route build failed (${office}): ${rj.error}`); setSyncing(false); setSyncStep(''); return; }
+      }
+      // Step 2 — compute reliability (routes now loaded).
+      setSyncStep('Computing arrival/departure from GPS…');
+      const cr = await fetch('/api/payroll/clock-vs-arrival', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'compute', dates }) });
+      const cj = await cr.json().catch(() => ({}));
+      if (cj.error) { setErr('Compute failed: ' + cj.error); setSyncing(false); setSyncStep(''); return; }
+      // Step 3 — re-compare.
+      setSyncStep('Comparing…');
+      await compare(csvRows);
     } catch (e: any) { setErr('Sync failed: ' + String(e).slice(0, 120)); }
-    setSyncing(false);
+    setSyncing(false); setSyncStep('');
   }
 
   const th: React.CSSProperties = { textAlign: 'center', padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#888780', borderBottom: '0.5px solid #E8E7E3', whiteSpace: 'nowrap', background: '#fff', position: 'sticky', top: 0 };
@@ -102,7 +115,7 @@ export default function ClockVsArrivalPage() {
         </label>
         {csvRows.length > 0 && (
           <button onClick={syncBouncie} disabled={syncing} style={{ fontSize: 13, padding: '10px 18px', borderRadius: 8, border: 'none', background: '#185FA5', color: '#fff', fontWeight: 600, cursor: syncing ? 'wait' : 'pointer' }}>
-            {syncing ? 'Syncing Bouncie… (may take a minute)' : '↻ Sync Bouncie & Compare'}
+            {syncing ? (syncStep || 'Syncing…') : '↻ Sync Bouncie & Compare'}
           </button>
         )}
         {fileName && <span style={{ fontSize: 12, color: '#888780' }}>{fileName}</span>}
