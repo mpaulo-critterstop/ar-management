@@ -36,10 +36,33 @@ export async function GET(req: NextRequest) {
   const techId = searchParams.get('techId') || 'P-013';
   const date = searchParams.get('date') || '2026-06-12';
 
-  // Get Bouncie token from AppSetting (same as reliability cron)
-  const tokenSetting = await prisma.appSetting.findUnique({ where: { key: 'bouncie_access_token' } });
-  if (!tokenSetting?.value) return NextResponse.json({ error: 'Bouncie token not found — run reliability cron first' });
-  const bouncieToken = tokenSetting.value;
+  // Get a FRESH Bouncie token (refresh if expired) — same as reliability cron.
+  let bouncieToken: string;
+  {
+    const [tokenSetting, expiresSetting, refreshSetting] = await Promise.all([
+      prisma.appSetting.findUnique({ where: { key: 'bouncie_access_token' } }),
+      prisma.appSetting.findUnique({ where: { key: 'bouncie_token_expires_at' } }),
+      prisma.appSetting.findUnique({ where: { key: 'bouncie_refresh_token' } }),
+    ]);
+    if (!tokenSetting || !refreshSetting) return NextResponse.json({ error: 'Bouncie not connected' });
+    const expiresAt = expiresSetting ? new Date(expiresSetting.value) : new Date(0);
+    if (expiresAt.getTime() - Date.now() > 5 * 60 * 1000) {
+      bouncieToken = tokenSetting.value;
+    } else {
+      const res = await fetch('https://auth.bouncie.com/oauth/token', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: 'critter-stop-', client_secret: process.env.BOUNCIE_CLIENT_SECRET, grant_type: 'refresh_token', refresh_token: refreshSetting.value }),
+      });
+      if (!res.ok) return NextResponse.json({ error: 'Token refresh failed: ' + res.status });
+      const tokens = await res.json();
+      await Promise.all([
+        prisma.appSetting.update({ where: { key: 'bouncie_access_token' }, data: { value: tokens.access_token } }),
+        prisma.appSetting.update({ where: { key: 'bouncie_refresh_token' }, data: { value: tokens.refresh_token } }),
+        prisma.appSetting.update({ where: { key: 'bouncie_token_expires_at' }, data: { value: new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString() } }),
+      ]);
+      bouncieToken = tokens.access_token;
+    }
+  }
 
   // Get vehicles
   const vehicles = await bouncieFetch('/vehicles', bouncieToken);
