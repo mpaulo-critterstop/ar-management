@@ -59,15 +59,33 @@ export async function POST(req: NextRequest) {
     // Distinct Sunday week-ends covering all CSV dates.
     const weekEnds = [...new Set(dateList.map(d => sundayWeekEnd(new Date(d)).toISOString().slice(0, 10)))];
     const base = process.env.NEXTAUTH_URL || `https://${req.headers.get('host')}`;
+    const offices = ['DFW', 'ATX', 'OKC', 'CStat'];
     const results: any[] = [];
     for (const we of weekEnds) {
       try {
+        // STEP 1 — build each tech's ACTUAL ROUTE customers for this Mon–Sun week (FR appointments), so the
+        // arrival/departure matching uses the customers the tech was really scheduled to visit — NOT all
+        // customers (which caused frozen/near-home customers to be matched as fake start/end of day).
+        // Paginated (30 techs/batch) to avoid timeouts; reset on the first office+batch of the week.
+        let routeCustomers = 0;
+        for (let oi = 0; oi < offices.length; oi++) {
+          const office = offices[oi];
+          for (let offset = 0, guard = 0; guard < 25; offset += 30, guard++) {
+            const reset = offset === 0 ? '&reset=true' : '';
+            const rr = await fetch(`${base}/api/field-performance/routeCustomers?token=critterstop2026&weekEnd=${we}&office=${office}&offset=${offset}&limit=30${reset}`, { signal: AbortSignal.timeout(120000) });
+            const rj = await rr.json().catch(() => ({}));
+            routeCustomers += rj.daysProcessed || 0;
+            const total = rj.totalRoutes || 0;
+            if (offset + 30 >= total) break; // processed all of this office's routes
+          }
+        }
+        // STEP 2 — run the reliability algorithm in payroll mode (writes payroll_attendance, Mon–Sun).
         const r = await fetch(`${base}/api/cron/reliability?token=critterstop2026&mode=payroll`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mode: 'payroll', weekEnd: we }), signal: AbortSignal.timeout(300000),
         });
         const j = await r.json();
-        results.push({ weekEnd: we, status: j.status || 'done', techsUpdated: j.techsUpdated });
+        results.push({ weekEnd: we, routeCustomers, status: j.status || 'done', techsUpdated: j.techsUpdated });
       } catch (e: any) { results.push({ weekEnd: we, status: 'error', error: String(e).slice(0, 120) }); }
     }
     return NextResponse.json({ ok: true, synced: results });
