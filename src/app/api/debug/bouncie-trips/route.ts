@@ -86,11 +86,13 @@ export async function GET(req: NextRequest) {
 
   if (!vehicle) return NextResponse.json({ error: 'Vehicle not found', techName: tech.name, techBouncieName, techDeviceId, vehicles: vehicles.map((v: any) => ({ nickName: v.nickName, imei: v.imei })) });
 
-  // Get route customer cache
-  const cacheKey = `rc_customers_DFW_${date}`;
-  const cached = await prisma.appSetting.findUnique({ where: { key: cacheKey } });
-  const routeMap = cached?.value ? JSON.parse(cached.value) : {};
-  const routeCoords: Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }> = routeMap[techId] || [];
+  // Read route customers from the SAME table reliability uses (tech_route_customers), matched on this tech+day.
+  const rcRows = await prisma.$queryRaw<Array<{ lat: number; lng: number; customerId: string; frAppointmentId: string }>>`
+    SELECT "lat","lng","customerId","frAppointmentId" FROM tech_route_customers
+    WHERE "techId" = ${techId} AND "date" = ${new Date(date + 'T12:00:00.000Z')}
+  `;
+  const routeCoords: Array<{ lat: number; lng: number; customerId?: string; frAppointmentId?: string }> =
+    rcRows.map(r => ({ lat: r.lat, lng: r.lng, customerId: r.customerId, frAppointmentId: r.frAppointmentId }));
 
   // Fetch trips for the day - extend to 6AM UTC next day to capture late night trips
   const dayStart = new Date(`${date}T00:00:00.000Z`);
