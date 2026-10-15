@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
         }
       }
       if (startMatch === 'unknown') {
-        const custMatch = routeCoords.find(c => haversineDistance(startLat, startLng, c.lat, c.lng) <= 500);
+        const custMatch = routeCoords.find(c => haversineDistance(startLat, startLng, c.lat, c.lng) <= 150);
         if (custMatch) startMatch = `customer (${custMatch.customerId})`;
       }
     }
@@ -148,7 +148,7 @@ export async function GET(req: NextRequest) {
         }
       }
       if (endMatch === 'unknown') {
-        const custMatch = routeCoords.find(c => haversineDistance(endLat, endLng, c.lat, c.lng) <= 500);
+        const custMatch = routeCoords.find(c => haversineDistance(endLat, endLng, c.lat, c.lng) <= 150);
         if (custMatch) endMatch = `customer (${custMatch.customerId})`;
       }
     }
