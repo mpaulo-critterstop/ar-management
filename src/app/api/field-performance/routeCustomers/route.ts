@@ -172,6 +172,10 @@ export async function GET(req: NextRequest) {
       // customers credited to her even though she isn't the assignedTech.
       const crew: string[] = (route as any).crew || (route.assignedTech ? [route.assignedTech] : []);
       const crewTechIds = crew.map(frId => frIdToTechId.get(frId)).filter(Boolean) as string[];
+      // DIAGNOSTIC: log the crew mapping for route 62872 (Megan's route) specifically.
+      if (String(route.routeID) === '62872') {
+        log.push(`  ROUTE 62872: crew=[${crew.join(',')}] -> techIds=[${crewTechIds.join(',')}] (crew field ${Array.isArray((route as any).crew) ? 'present' : 'MISSING from cache!'})`);
+      }
       if (crewTechIds.length === 0) continue;
 
       const appts = await getRouteCustomerIds(route.routeID, cfg.key, cfg.token, rl);
