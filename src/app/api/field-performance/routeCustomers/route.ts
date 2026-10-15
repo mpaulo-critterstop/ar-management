@@ -48,14 +48,20 @@ async function getRoutesForDateRange(
   const routeSearch = await rl(`${BASE_URL}/route/search?${auth}`);
   const allRouteIDs: string[] = routeSearch.routeIDs || [];
   const recentIDs = allRouteIDs.slice(-5000);
-  const matching: Array<{ routeID: string; date: string; assignedTech: string }> = [];
+  const matching: Array<{ routeID: string; date: string; assignedTech: string; crew: string[] }> = [];
 
   for (let i = 0; i < recentIDs.length; i += 100) {
     const batch = recentIDs.slice(i, i + 100).join(',');
     const routeData = await rl(`${BASE_URL}/route/get?routeIDs=${batch}${auth}`);
     (routeData.routes || []).forEach((r: any) => {
-      if (r.date >= dateStart && r.date <= dateEnd && r.assignedTech && r.assignedTech !== '0') {
-        matching.push({ routeID: String(r.routeID), date: r.date, assignedTech: String(r.assignedTech) });
+      if (r.date >= dateStart && r.date <= dateEnd) {
+        // CREW = additionalTechs (helpers like Megan on someone else's route) + the assignedTech (primary).
+        // Same pattern as the insulation revenue report. A tech with no own route still gets credited the
+        // route's customers when they're listed as an additional tech.
+        const crew = (r.additionalTechs ? String(r.additionalTechs).split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+        if (r.assignedTech && String(r.assignedTech) !== '0') crew.push(String(r.assignedTech));
+        if (crew.length === 0) return;
+        matching.push({ routeID: String(r.routeID), date: r.date, assignedTech: String(r.assignedTech || ''), crew: [...new Set(crew)] });
       }
     });
   }
@@ -137,7 +143,9 @@ export async function GET(req: NextRequest) {
     if (offset === 0 || reset) {
       // First chunk — fetch from FR and cache route list for subsequent chunks
       const allRoutes = await getRoutesForDateRange(weekStartStr, weekEndStr, cfg.key, cfg.token, rl);
-      officeRoutes = allRoutes.filter(r => offriceFrIds.has(r.assignedTech));
+      // Keep a route if ANY crew member (assigned OR additional tech) belongs to this office — so a helper's
+      // route isn't dropped just because the primary tech is elsewhere.
+      officeRoutes = allRoutes.filter((r: any) => (r.crew || [r.assignedTech]).some((id: string) => offriceFrIds.has(id)));
       await prisma.appSetting.upsert({
         where: { key: routeListCacheKey },
         update: { value: JSON.stringify(officeRoutes) },
@@ -160,17 +168,22 @@ export async function GET(req: NextRequest) {
     const techDateAppts = new Map<string, Map<string, Map<string, string>>>();
 
     for (const route of chunk) {
-      const techId = frIdToTechId.get(route.assignedTech);
-      if (!techId) continue;
+      // Map EVERY crew member (primary + additional techs) to a Hub tech. A helper like Megan gets the route's
+      // customers credited to her even though she isn't the assignedTech.
+      const crew: string[] = (route as any).crew || (route.assignedTech ? [route.assignedTech] : []);
+      const crewTechIds = crew.map(frId => frIdToTechId.get(frId)).filter(Boolean) as string[];
+      if (crewTechIds.length === 0) continue;
 
       const appts = await getRouteCustomerIds(route.routeID, cfg.key, cfg.token, rl);
-      const date = route.date; // e.g. "2026-06-08"
+      const date = route.date;
 
       if (!techDateAppts.has(date)) techDateAppts.set(date, new Map());
       const dateMap = techDateAppts.get(date)!;
-      if (!dateMap.has(techId)) dateMap.set(techId, new Map());
-      for (const { customerId, frAppointmentId } of appts) {
-        dateMap.get(techId)!.set(customerId, frAppointmentId);
+      for (const techId of crewTechIds) {
+        if (!dateMap.has(techId)) dateMap.set(techId, new Map());
+        for (const { customerId, frAppointmentId } of appts) {
+          dateMap.get(techId)!.set(customerId, frAppointmentId);
+        }
       }
     }
     log.push(`Collected routes for ${techDateAppts.size} days`);
