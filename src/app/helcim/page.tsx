@@ -21,6 +21,8 @@ export default function StaxPaymentsPage() {
   const [refundModal, setRefundModal] = useState<any>(null);
   const [refunding, setRefunding] = useState(false);
   const [refundAmt, setRefundAmt] = useState('');
+  const [linkSearch, setLinkSearch] = useState('');
+  const [reportSearch, setReportSearch] = useState('');
   async function doRefund(full: boolean) {
     if (!refundModal) return;
     setRefunding(true);
@@ -72,16 +74,20 @@ export default function StaxPaymentsPage() {
         ))}
       </div>
 
-      {tab === 'links' && (<>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-          <button onClick={openModal} style={{ fontSize: 13, padding: '9px 18px', borderRadius: 8, border: 'none', background: '#185FA5', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>+ Send Payment Link</button>
+      {tab === 'links' && (() => {
+        const q = linkSearch.trim().toLowerCase();
+        const filteredLinks = q ? links.filter(l => (l.customerName || '').toLowerCase().includes(q) || String(l.frInvoiceNumber || '').toLowerCase().includes(q)) : links;
+        return (<>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 12 }}>
+          <input value={linkSearch} onChange={e => setLinkSearch(e.target.value)} placeholder="Search by customer name or invoice #…" style={{ flex: 1, maxWidth: 360, fontSize: 13, padding: '9px 12px', borderRadius: 8, border: '0.5px solid #E8E7E3', boxSizing: 'border-box' }} />
+          <button onClick={openModal} style={{ fontSize: 13, padding: '9px 18px', borderRadius: 8, border: 'none', background: '#185FA5', color: '#fff', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>+ Send Payment Link</button>
         </div>
         <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
           <div style={{ maxHeight: 520, overflowY: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr><th style={thC}>Created</th><th style={thC}>Customer</th><th style={thC}>Invoice #</th><th style={thR}>Amount</th><th style={thC}>Status</th><th style={thC}>Via</th><th style={thC}>By</th><th style={thC}>Link</th></tr></thead>
               <tbody>
-                {links.map(l => (
+                {filteredLinks.map(l => (
                   <tr key={l.id}>
                     <td style={tdC}>{fmt(l.createdAt)}</td>
                     <td style={tdC}>{l.customerName || '—'}</td>
@@ -93,12 +99,13 @@ export default function StaxPaymentsPage() {
                     <td style={tdC}><button onClick={() => navigator.clipboard.writeText(l.url)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#185FA5', cursor: 'pointer' }}>Copy</button></td>
                   </tr>
                 ))}
-                {!links.length && <tr><td colSpan={8} style={{ ...tdC, color: '#888780', padding: 20 }}>No payment links yet.</td></tr>}
+                {!filteredLinks.length && <tr><td colSpan={8} style={{ ...tdC, color: '#888780', padding: 20 }}>{q ? 'No matches.' : 'No payment links yet.'}</td></tr>}
               </tbody>
             </table>
           </div>
         </div>
-      </>)}
+      </>);
+      })()}
 
       {tab === 'report' && report && (() => {
         const s = report.summary || {};
@@ -125,13 +132,16 @@ export default function StaxPaymentsPage() {
               </div>
             </div>
           </>)}
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Recent recorded payments</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Recent recorded payments</div>
+            <input value={reportSearch} onChange={e => setReportSearch(e.target.value)} placeholder="Search by invoice #…" style={{ maxWidth: 240, fontSize: 13, padding: '8px 11px', borderRadius: 8, border: '0.5px solid #E8E7E3', boxSizing: 'border-box' }} />
+          </div>
           <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
             <div style={{ maxHeight: 460, overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr><th style={thC}>Stax Txn</th><th style={thR}>Amount</th><th style={thC}>Office</th><th style={thC}>Invoice #</th><th style={thC}>FR Payment</th><th style={thC}>Method</th><th style={thC}>Via</th><th style={thC}>When</th><th style={thC}>Refund</th></tr></thead>
                 <tbody>
-                  {(report.recentWritten || []).map((r: any) => (<tr key={r.staxTransactionId}><td style={tdC}>{r.staxTransactionId}</td><td style={tdR}>{money(r.amount)}</td><td style={tdC}>{r.office || '—'}</td><td style={tdC}>{r.frInvoiceNumber || '—'}</td><td style={tdC}>{r.frPaymentId || '—'}</td><td style={tdC}>{method(r.frPaymentMethod)}</td><td style={tdC}>{r.source}</td><td style={tdC}>{fmt(r.processedAt)}</td><td style={tdC}><button onClick={() => setRefundModal({ txnId: r.staxTransactionId, invoice: r.frInvoiceNumber, amount: r.amount })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #b91c1c', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Refund</button></td></tr>))}
+                  {(report.recentWritten || []).filter((r: any) => { const q = reportSearch.trim().toLowerCase(); return !q || String(r.frInvoiceNumber || '').toLowerCase().includes(q); }).map((r: any) => (<tr key={r.staxTransactionId}><td style={tdC}>{r.staxTransactionId}</td><td style={tdR}>{money(r.amount)}</td><td style={tdC}>{r.office || '—'}</td><td style={tdC}>{r.frInvoiceNumber || '—'}</td><td style={tdC}>{r.frPaymentId || '—'}</td><td style={tdC}>{method(r.frPaymentMethod)}</td><td style={tdC}>{r.source}</td><td style={tdC}>{fmt(r.processedAt)}</td><td style={tdC}><button onClick={() => setRefundModal({ txnId: r.staxTransactionId, invoice: r.frInvoiceNumber, amount: r.amount })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #b91c1c', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Refund</button></td></tr>))}
                   {!report.recentWritten?.length && <tr><td colSpan={9} style={{ ...tdC, color: '#888780', padding: 16 }}>No payments recorded yet.</td></tr>}
                 </tbody>
               </table>
