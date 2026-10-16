@@ -106,7 +106,17 @@ export async function refundStaxTransaction(staxTransactionId: string, opts: { t
   // Mark the refund ledger row written (so webhook skips it regardless of match outcome).
   await prisma.staxPayment.update({ where: { staxTransactionId: refundLedgerId }, data: { status: 'written', frPaymentId, office: null, processedAt: new Date() } }).catch(() => {});
 
-  return { ok: true, status: 'refunded', refundAmount, frInvoice, matched, frPaymentId, detail: refJson } as any;
+  // Send the customer a REFUND RECEIPT. Stax auto-sends a receipt on a sale but NOT on a refund, so we trigger
+  // it: PUT /transaction/{refundTxnId}/receipt/email. Use the refund transaction's own id.
+  let receiptSent = false;
+  if (refundTxnId) {
+    try {
+      const rc = await fetch(`${STAX_BASE}/transaction/${refundTxnId}/receipt/email`, { method: 'PUT', headers });
+      receiptSent = rc.ok;
+    } catch { /* non-fatal — refund succeeded regardless */ }
+  }
+
+  return { ok: true, status: 'refunded', refundAmount, frInvoice, matched, frPaymentId, receiptSent, detail: refJson } as any;
 }
 
 // Process one Stax transaction (from webhook or poll). Idempotent via the stax_payments ledger.
