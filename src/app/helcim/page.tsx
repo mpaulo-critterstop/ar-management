@@ -70,7 +70,7 @@ export default function StaxPaymentsPage() {
   const thR: React.CSSProperties = { ...thC, textAlign: 'right' };
   const tdR: React.CSSProperties = { ...tdC, textAlign: 'right' };
   const inp: React.CSSProperties = { display: 'block', width: '100%', fontSize: 14, padding: '10px 12px', borderRadius: 8, border: '0.5px solid #E8E7E3', marginTop: 4, boxSizing: 'border-box' };
-  const statusPill = (s: string) => { const c: any = { sent: ['#FBF3E5', '#BA7517'], viewed: ['#E6F1FB', '#185FA5'], paid: ['#E1F5EE', '#0F6E56'], expired: ['#F1EFE8', '#888780'] }; const [bg, fg] = c[s] || c.expired; return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: bg, color: fg }}>{s}</span>; };
+  const statusPill = (s: string) => { const c: any = { sent: ['#FBF3E5', '#BA7517'], viewed: ['#E6F1FB', '#185FA5'], paid: ['#E1F5EE', '#0F6E56'], refunded: ['#EFEDE6', '#64748b'], expired: ['#F1EFE8', '#888780'] }; const [bg, fg] = c[s] || c.expired; return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: bg, color: fg }}>{s}</span>; };
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
@@ -106,7 +106,7 @@ export default function StaxPaymentsPage() {
                     <td style={tdC}>{statusPill(l.status)}</td>
                     <td style={tdC}>{l.deliveryMethod}</td>
                     <td style={tdC}>{l.createdBy || '—'}</td>
-                    <td style={tdC}><span style={{ display: 'inline-flex', gap: 4 }}><button onClick={() => navigator.clipboard.writeText(l.url)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#185FA5', cursor: 'pointer' }}>Copy</button>{l.status !== 'paid' && <button onClick={() => deleteLink(l)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #b91c1c', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Delete</button>}</span></td>
+                    <td style={tdC}><span style={{ display: 'inline-flex', gap: 4 }}><button onClick={() => navigator.clipboard.writeText(l.url)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#185FA5', cursor: 'pointer' }}>Copy</button>{(l.status === 'sent' || l.status === 'viewed' || l.status === 'expired') && <button onClick={() => deleteLink(l)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #b91c1c', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Delete</button>}</span></td>
                   </tr>
                 ))}
                 {!filteredLinks.length && <tr><td colSpan={8} style={{ ...tdC, color: '#888780', padding: 20 }}>{q ? 'No matches.' : 'No payment links yet.'}</td></tr>}
