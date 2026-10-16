@@ -185,7 +185,10 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
   // FR's payment/create ignores transactionID + checkNumber on a doCharge=0 recorded payment (they're
   // read-only / gateway-only), but it DOES persist `notes`, `lastFour`, and `cardType` — verified. So the Stax
   // reference goes in notes, plus the real card last-four + type for a complete record.
+  // Apply the payment to the SPECIFIC invoice it was for (ticketID) — otherwise FR applies it to the oldest
+  // open invoice (which misapplied a 276345 payment to 276344). frInvoice is the FR ticket id from meta.
   let qs = `doCharge=0&customerID=${inv.customerID}&amount=${amount.toFixed(2)}&paymentMethod=${method}&notes=${encodeURIComponent(ref)}`;
+  if (frInvoice) qs += `&ticketID=${encodeURIComponent(String(frInvoice))}`;
   if (lastFour) qs += `&lastFour=${encodeURIComponent(String(lastFour).slice(-4))}`;
   if (cardType) qs += `&cardType=${encodeURIComponent(cardType)}`;
   const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
