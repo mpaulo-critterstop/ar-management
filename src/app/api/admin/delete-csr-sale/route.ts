@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
   const matches = await prisma.pestSale.findMany({
     where,
-    select: { id: true, externalKey: true, customerId: true, customerName: true, category: true, soldByName: true, contractValue: true, saleDate: true, office: true },
+    select: { id: true, externalKey: true, customerId: true, customerName: true, category: true, sellerName: true, soldByFrId: true, contractValue: true, saleDate: true, office: true },
   });
 
   if (!apply) {
