@@ -74,12 +74,15 @@ export async function refundStaxTransaction(staxTransactionId: string, opts: { t
     create: { staxTransactionId: refundLedgerId, amount: -refundAmount, staxType: 'refund', status: 'written', frInvoiceNumber: frInvoice, source: 'hub', processedAt: new Date() },
     update: { status: 'written', processedAt: new Date() },
   }).catch(() => {});
-  if (refundTxnId) {
-    // This row makes the webhook's own-id dedup check hit immediately.
+  // Only write a second marker when the refund has its OWN distinct transaction id. Stax's void-or-refund often
+  // returns the SAME transaction id as the original charge (a void mutates the original rather than creating a
+  // new txn) — writing a marker there would OVERWRITE the original charge row and corrupt it. The refund:<origId>
+  // marker above is sufficient for detection, so skip this when ids match.
+  if (refundTxnId && String(refundTxnId) !== String(staxTransactionId)) {
     await prisma.staxPayment.upsert({
       where: { staxTransactionId: String(refundTxnId) },
       create: { staxTransactionId: String(refundTxnId), amount: -refundAmount, staxType: 'refund', status: 'written', frInvoiceNumber: frInvoice, source: 'hub', processedAt: new Date() },
-      update: { status: 'written', staxType: 'refund', source: 'hub', processedAt: new Date() },
+      update: {}, // never mutate an existing row here (don't clobber a real charge)
     }).catch(() => {});
   }
 

@@ -9,7 +9,9 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 const SELECT = { id: true, staxTransactionId: true, amount: true, office: true, frInvoiceNumber: true, frPaymentId: true, frPaymentMethod: true, staxCustomerId: true, status: true, staxType: true, failReason: true, source: true, processedAt: true, createdAt: true } as const;
-const isRefundMarker = (r: any) => String(r.staxTransactionId || '').startsWith('refund:') || r.staxType === 'refund';
+// A row is a refund-dedup MARKER only if its id is prefixed 'refund:'. A real charge/payment row (even one
+// whose staxType got mislabeled) has a real Stax transaction id (no prefix) and typically an frPaymentId.
+const isRefundMarker = (r: any) => String(r.staxTransactionId || '').startsWith('refund:');
 
 export async function GET(_req: NextRequest) {
   const session = await getServerSession(authOptions);
