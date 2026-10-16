@@ -88,6 +88,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(res);
   }
 
+  // Delete an UNPAID payment link: soft-delete the Stax invoice + remove the Hub record. Never deletes a paid
+  // link (that would erase a record of money received).
+  //   { action:'delete', id:'<paymentLinkRequest id>' }
+  if (b.action === 'delete') {
+    const id = String(b.id || '').trim();
+    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+    const link = await prisma.paymentLinkRequest.findUnique({ where: { id } });
+    if (!link) return NextResponse.json({ error: 'link not found' }, { status: 404 });
+    if (link.status === 'paid') return NextResponse.json({ error: 'Cannot delete a PAID link — it records a received payment.' }, { status: 400 });
+
+    // Soft-delete the Stax invoice (if we have its id).
+    const staxInvoiceId = (link as any).staxInvoiceId;
+    let staxResult: any = 'no stax invoice id on record';
+    if (staxInvoiceId) {
+      const r = await fetch(`${STAX_BASE}/invoice/${staxInvoiceId}`, { method: 'DELETE', headers: staxHeaders() });
+      const j = await r.json().catch(() => null);
+      staxResult = r.ok ? 'deleted' : (j?.deleted_at ? 'already deleted' : `error ${r.status}`);
+    }
+    // Remove the Hub record.
+    await prisma.paymentLinkRequest.delete({ where: { id } }).catch(() => {});
+    return NextResponse.json({ ok: true, staxResult, deleted: { invoice: link.frInvoiceNumber, customer: link.customerName } });
+  }
+
   if (b.action !== 'create') return NextResponse.json({ error: 'unknown action' }, { status: 400 });
 
   const office = b.office || 'DFW';

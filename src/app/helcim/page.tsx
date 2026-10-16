@@ -55,6 +55,15 @@ export default function StaxPaymentsPage() {
     setSending(false);
   }
   function openModal() { setModalOpen(true); setResult(null); setErr(''); setInvoice(''); setAmount(''); }
+  async function deleteLink(l: any) {
+    if (!confirm(`Delete the unpaid payment link for invoice ${l.frInvoiceNumber} (${l.customerName || ''})? This removes it here and voids the Stax invoice.`)) return;
+    try {
+      const r = await fetch('/api/stax/payment-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id: l.id }) });
+      const j = await r.json();
+      if (j.error) { alert('Delete failed: ' + j.error); return; }
+      loadLinks();
+    } catch (e: any) { alert('Delete error: ' + String(e).slice(0, 120)); }
+  }
 
   const thC: React.CSSProperties = { textAlign: 'center', padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#888780', borderBottom: '0.5px solid #E8E7E3', whiteSpace: 'nowrap', background: '#fff', position: 'sticky', top: 0, zIndex: 1 };
   const tdC: React.CSSProperties = { textAlign: 'center', padding: '7px 10px', fontSize: 13, borderBottom: '0.5px solid #F1EFE8', whiteSpace: 'nowrap' };
@@ -97,7 +106,7 @@ export default function StaxPaymentsPage() {
                     <td style={tdC}>{statusPill(l.status)}</td>
                     <td style={tdC}>{l.deliveryMethod}</td>
                     <td style={tdC}>{l.createdBy || '—'}</td>
-                    <td style={tdC}><button onClick={() => navigator.clipboard.writeText(l.url)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#185FA5', cursor: 'pointer' }}>Copy</button></td>
+                    <td style={tdC}><span style={{ display: 'inline-flex', gap: 4 }}><button onClick={() => navigator.clipboard.writeText(l.url)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#185FA5', cursor: 'pointer' }}>Copy</button>{l.status !== 'paid' && <button onClick={() => deleteLink(l)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #b91c1c', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Delete</button>}</span></td>
                   </tr>
                 ))}
                 {!filteredLinks.length && <tr><td colSpan={8} style={{ ...tdC, color: '#888780', padding: 20 }}>{q ? 'No matches.' : 'No payment links yet.'}</td></tr>}
