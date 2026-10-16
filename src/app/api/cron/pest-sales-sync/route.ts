@@ -219,12 +219,18 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
     }
   }
 
-  let upserted = 0;
+  // Skip manually-excluded sales (e.g. a CSR sale deleted because it was miscredited) so re-syncs don't
+  // recreate them. Keys live in app_settings 'pest_sale_excluded_keys'.
+  const exRow = await prisma.appSetting.findUnique({ where: { key: 'pest_sale_excluded_keys' } }).catch(() => null);
+  const excluded = new Set<string>(exRow?.value ? JSON.parse(exRow.value) : []);
+
+  let upserted = 0, skippedExcluded = 0;
   for (const r of rows) {
+    if (excluded.has(r.externalKey)) { skippedExcluded++; continue; }
     await prisma.pestSale.upsert({ where: { externalKey: r.externalKey }, create: r, update: r });
     upserted++;
   }
-  return { office, subsScanned: subs.length, upserted, staleCsrCleaned };
+  return { office, subsScanned: subs.length, upserted, skippedExcluded, staleCsrCleaned };
 }
 
 export async function GET(req: NextRequest) {
