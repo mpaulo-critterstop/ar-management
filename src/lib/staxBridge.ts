@@ -62,25 +62,37 @@ export async function refundStaxTransaction(staxTransactionId: string, opts: { t
 
   const refundAmount = opts.total && opts.total > 0 ? opts.total : (origTotal - alreadyRefunded);
 
-  // 3) Record the refund to FR as a negative payment on the original invoice (if we can match it).
+  // DEDUP: mark this refund as handled-by-Hub so the inbound webhook (which WILL fire for this same refund)
+  // does NOT write a second negative payment to FR. We use a ledger row keyed by the refund ref.
+  const refundLedgerId = `refund:${staxTransactionId}`;
+  await prisma.staxPayment.upsert({
+    where: { staxTransactionId: refundLedgerId },
+    create: { staxTransactionId: refundLedgerId, amount: -refundAmount, staxType: 'refund', status: 'pending', frInvoiceNumber: frInvoice, source: 'hub' },
+    update: { status: 'pending' },
+  }).catch(() => {});
+
+  // Record the refund to FR as a negative payment (once).
   let frPaymentId: string | null = null;
+  let matched = false;
   if (frInvoice) {
     const inv = await findInvoiceInFR(String(frInvoice));
     if (inv) {
+      matched = true;
       const cfg = FR_OFFICES[inv.office];
       const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
       const ref = `STAX-REFUND-${staxTransactionId}`;
-      // FR records a refund as a negative-amount payment, doCharge=0 (external processor did the refund).
       const qs = `doCharge=0&customerID=${inv.customerID}&amount=-${refundAmount.toFixed(2)}&paymentMethod=3&notes=${encodeURIComponent(ref)}`;
       try {
         const r = await fetch(`${FR_BASE}/payment/create?authenticationKey=${cfg.key}&authenticationToken=${cfg.token}&${qs}`);
         const j = await r.json();
         frPaymentId = (j?.paymentID || j?.paymentIDs?.[0]) ? String(j.paymentID || j.paymentIDs[0]) : null;
-      } catch { /* non-fatal — refund succeeded on Stax regardless */ }
+      } catch { /* non-fatal */ }
     }
   }
+  // Mark the refund ledger row written (so webhook skips it regardless of match outcome).
+  await prisma.staxPayment.update({ where: { staxTransactionId: refundLedgerId }, data: { status: 'written', frPaymentId, office: null, processedAt: new Date() } }).catch(() => {});
 
-  return { ok: true, status: 'refunded', refundAmount, frInvoice, frPaymentId, detail: refJson } as any;
+  return { ok: true, status: 'refunded', refundAmount, frInvoice, matched, frPaymentId, detail: refJson } as any;
 }
 
 // Process one Stax transaction (from webhook or poll). Idempotent via the stax_payments ledger.
@@ -118,8 +130,16 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
     return { status, reason };
   };
 
-  // 2a) REFUND/VOID coming from Stax (done outside the Hub) → record a NEGATIVE payment to FR, then stop.
+  // 2a) REFUND/VOID coming from Stax → record a NEGATIVE payment to FR, then stop.
   if (type === 'refund' || type === 'void' || type === 'credit' || txn?.is_refund === 1 || txn?.is_voided === 1) {
+    // DEDUP: if the Hub issued this refund (via refundStaxTransaction), it already wrote the FR negative payment.
+    // The refund is keyed by the ORIGINAL transaction id. A Stax refund txn references its parent via
+    // parent_transaction / child_captures; check both the refund's own id and its parent for a Hub ledger row.
+    const parentId = txn?.parent_transaction || txn?.parent_transaction_id || null;
+    const refundKeys = [`refund:${staxTransactionId}`, parentId ? `refund:${parentId}` : null].filter(Boolean) as string[];
+    const already = await prisma.staxPayment.findFirst({ where: { staxTransactionId: { in: refundKeys }, status: 'written' } }).catch(() => null);
+    if (already) return { status: 'already_written', reason: 'refund already recorded by Hub' };
+
     const frInvoiceR = frInvoiceFromStax(txn);
     if (!frInvoiceR) return fail('refund with no fr_invoice — cannot match to FR', 'flagged');
     const invR = await findInvoiceInFR(String(frInvoiceR));
