@@ -1,5 +1,6 @@
-// Stax→FR bridge monitoring. Summarizes the stax_payments ledger (counts + totals by status) + the
-// attention queue (flagged/failed) + recent written. Mirrors /api/helcim/status.
+// Stax->FR bridge monitoring. Separate lists per status: recorded (written), flagged, failed, pending.
+// Refunded charges are marked (refunded=true); refund-marker rows are excluded so a refund doesn't show as its
+// own payment row. 'skipped' is excluded entirely.
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -7,26 +8,39 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+const SELECT = { id: true, staxTransactionId: true, amount: true, office: true, frInvoiceNumber: true, frPaymentId: true, frPaymentMethod: true, staxCustomerId: true, status: true, staxType: true, failReason: true, source: true, processedAt: true, createdAt: true } as const;
+const isRefundMarker = (r: any) => String(r.staxTransactionId || '').startsWith('refund:') || r.staxType === 'refund';
+
 export async function GET(_req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if ((session.user as any)?.role !== 'Admin') return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 });
 
-  const grouped = await prisma.staxPayment.groupBy({ by: ['status'], _count: { _all: true }, _sum: { amount: true } }).catch(() => [] as any[]);
-  const summary: Record<string, { count: number; total: number }> = {};
-  for (const g of grouped) summary[g.status] = { count: g._count._all, total: Math.round((g._sum.amount || 0) * 100) / 100 };
+  const [writtenRaw, flaggedRaw, failedRaw, pendingRaw] = await Promise.all([
+    prisma.staxPayment.findMany({ where: { status: 'written' }, orderBy: { processedAt: 'desc' }, take: 500, select: SELECT }).catch(() => [] as any[]),
+    prisma.staxPayment.findMany({ where: { status: 'flagged' }, orderBy: { createdAt: 'desc' }, take: 200, select: SELECT }).catch(() => [] as any[]),
+    prisma.staxPayment.findMany({ where: { status: 'failed' }, orderBy: { createdAt: 'desc' }, take: 200, select: SELECT }).catch(() => [] as any[]),
+    prisma.staxPayment.findMany({ where: { status: 'pending' }, orderBy: { createdAt: 'desc' }, take: 200, select: SELECT }).catch(() => [] as any[]),
+  ]);
 
-  const attention = await prisma.staxPayment.findMany({
-    where: { status: { in: ['flagged', 'failed'] } },
-    orderBy: { createdAt: 'desc' }, take: 100,
-    select: { id: true, staxTransactionId: true, amount: true, frInvoiceNumber: true, staxCustomerId: true, status: true, failReason: true, source: true, createdAt: true },
-  }).catch(() => [] as any[]);
+  const refundedOrigIds = new Set<string>();
+  for (const m of writtenRaw.filter(isRefundMarker)) {
+    const id = String(m.staxTransactionId || '');
+    if (id.startsWith('refund:')) refundedOrigIds.add(id.slice('refund:'.length));
+  }
 
-  const recentWritten = await prisma.staxPayment.findMany({
-    where: { status: 'written' },
-    orderBy: { processedAt: 'desc' }, take: 25,
-    select: { staxTransactionId: true, amount: true, office: true, frInvoiceNumber: true, frPaymentId: true, frPaymentMethod: true, source: true, processedAt: true },
-  }).catch(() => [] as any[]);
+  const recorded = writtenRaw.filter((r: any) => !isRefundMarker(r)).map((r: any) => ({ ...r, refunded: refundedOrigIds.has(String(r.staxTransactionId)) }));
+  const clean = (arr: any[]) => arr.filter((r: any) => !isRefundMarker(r));
+  const flagged = clean(flaggedRaw), failed = clean(failedRaw), pending = clean(pendingRaw);
+  const sum = (arr: any[]) => Math.round(arr.reduce((s, r) => s + (r.amount || 0), 0) * 100) / 100;
 
-  return NextResponse.json({ summary, attention, recentWritten });
+  return NextResponse.json({
+    summary: {
+      recorded: { count: recorded.length, total: sum(recorded) },
+      flagged: { count: flagged.length, total: sum(flagged) },
+      failed: { count: failed.length, total: sum(failed) },
+      pending: { count: pending.length, total: sum(pending) },
+    },
+    recorded, flagged, failed, pending,
+  });
 }
