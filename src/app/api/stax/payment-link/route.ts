@@ -77,6 +77,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, checked, flipped });
   }
 
+  // Refund (or void) a Stax transaction + record it to FR as a negative payment.
+  //   { action:'refund', staxTransactionId, total?, invoiceNumber? }
+  if (b.action === 'refund') {
+    if ((session.user as any)?.role !== 'Admin') return NextResponse.json({ error: 'Admin only for refunds' }, { status: 403 });
+    const { refundStaxTransaction } = await import('@/lib/staxBridge');
+    const sid = String(b.staxTransactionId || '').trim();
+    if (!sid) return NextResponse.json({ error: 'staxTransactionId required' }, { status: 400 });
+    const res = await refundStaxTransaction(sid, { total: b.total ? parseFloat(b.total) : undefined, frInvoice: b.invoiceNumber });
+    return NextResponse.json(res);
+  }
+
   if (b.action !== 'create') return NextResponse.json({ error: 'unknown action' }, { status: 400 });
 
   const office = b.office || 'DFW';
