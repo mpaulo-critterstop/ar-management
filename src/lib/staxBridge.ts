@@ -262,8 +262,10 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
   // 5) Auto-flip any matching payment link (same FR invoice #) to Paid — the webhook carries the invoice #, and
   //    so does the link, so we sync them automatically. No manual sync needed.
   try {
+    // Include 'refunded' — a refunded link is still payable (Stax invoices stay live); if the customer pays it
+    // again, flip it back to 'paid' to reflect the new payment.
     await prisma.paymentLinkRequest.updateMany({
-      where: { frInvoiceNumber: String(frInvoice), status: { in: ['sent', 'viewed'] } },
+      where: { frInvoiceNumber: String(frInvoice), status: { in: ['sent', 'viewed', 'refunded'] } },
       data: { status: 'paid', paidAt: new Date(), helcimTransactionId: staxTransactionId },
     });
   } catch { /* non-fatal — payment is recorded regardless */ }
