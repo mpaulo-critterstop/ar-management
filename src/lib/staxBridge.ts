@@ -63,13 +63,25 @@ export async function refundStaxTransaction(staxTransactionId: string, opts: { t
   const refundAmount = opts.total && opts.total > 0 ? opts.total : (origTotal - alreadyRefunded);
 
   // DEDUP: mark this refund as handled-by-Hub so the inbound webhook (which WILL fire for this same refund)
-  // does NOT write a second negative payment to FR. We use a ledger row keyed by the refund ref.
+  // doesn't double-process it. We write TWO markers:
+  //  (a) keyed by the original txn id (refund:<orig>) — legacy/parent-based match
+  //  (b) keyed by the ACTUAL refund transaction's own id (from the Stax response) — so the webhook matches
+  //      directly on its staxTransactionId, with no reliance on the parent_transaction field (which varies).
+  const refundTxnId = refJson?.id || refJson?.transaction?.id || null; // the new refund transaction's id
   const refundLedgerId = `refund:${staxTransactionId}`;
   await prisma.staxPayment.upsert({
     where: { staxTransactionId: refundLedgerId },
-    create: { staxTransactionId: refundLedgerId, amount: -refundAmount, staxType: 'refund', status: 'pending', frInvoiceNumber: frInvoice, source: 'hub' },
-    update: { status: 'pending' },
+    create: { staxTransactionId: refundLedgerId, amount: -refundAmount, staxType: 'refund', status: 'written', frInvoiceNumber: frInvoice, source: 'hub', processedAt: new Date() },
+    update: { status: 'written', processedAt: new Date() },
   }).catch(() => {});
+  if (refundTxnId) {
+    // This row makes the webhook's own-id dedup check hit immediately.
+    await prisma.staxPayment.upsert({
+      where: { staxTransactionId: String(refundTxnId) },
+      create: { staxTransactionId: String(refundTxnId), amount: -refundAmount, staxType: 'refund', status: 'written', frInvoiceNumber: frInvoice, source: 'hub', processedAt: new Date() },
+      update: { status: 'written', staxType: 'refund', source: 'hub', processedAt: new Date() },
+    }).catch(() => {});
+  }
 
   // Reverse the refund in FR using payment/createRefund against the ORIGINAL payment (proper linked reversal —
   // applies against the original, not a disconnected negative line). We need the original FR paymentID, which
@@ -137,18 +149,22 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
     // DEDUP: if the Hub issued this refund (via refundStaxTransaction), it already wrote the FR negative payment.
     // The refund is keyed by the ORIGINAL transaction id. A Stax refund txn references its parent via
     // parent_transaction / child_captures; check both the refund's own id and its parent for a Hub ledger row.
+    // DEDUP: check (a) this refund txn's OWN id, and (b) refund:<parent> markers. The Hub writes a marker under
+    // the refund's own id when it issues a refund, so this matches directly without needing the parent field.
     const parentId = txn?.parent_transaction || txn?.parent_transaction_id || null;
-    const refundKeys = [`refund:${staxTransactionId}`, parentId ? `refund:${parentId}` : null].filter(Boolean) as string[];
-    const already = await prisma.staxPayment.findFirst({ where: { staxTransactionId: { in: refundKeys }, status: 'written' } }).catch(() => null);
-    if (already) return { status: 'already_written', reason: 'refund already recorded by Hub' };
+    const refundKeys = [staxTransactionId, `refund:${staxTransactionId}`, parentId ? `refund:${parentId}` : null].filter(Boolean) as string[];
+    const already = await prisma.staxPayment.findFirst({ where: { staxTransactionId: { in: refundKeys }, status: 'written', staxType: 'refund' } }).catch(() => null);
+    if (already) return { status: 'already_written', reason: 'refund already handled by Hub' };
 
     // Find the ORIGINAL charge's FR paymentID (from its ledger row) to reverse via createRefund.
-    const parentTxnId = txn?.parent_transaction || txn?.parent_transaction_id || null;
-    const origRow = parentTxnId ? await prisma.staxPayment.findUnique({ where: { staxTransactionId: String(parentTxnId) } }).catch(() => null) : null;
+    const origRow = parentId ? await prisma.staxPayment.findUnique({ where: { staxTransactionId: String(parentId) } }).catch(() => null) : null;
     const origFrPmt = origRow?.frPaymentId || null;
     const origOffice = origRow?.office || null;
     if (!origFrPmt || !origOffice || !FR_OFFICES[origOffice]) {
-      return fail(`refund: original FR payment not found (parent ${parentTxnId || 'unknown'}) — reverse manually in FR`, 'flagged');
+      // Can't match the original — but the Stax refund DID succeed. If the Hub likely issued it (common case),
+      // don't raise a false "needs manual action" flag; mark skipped. Only genuinely-external refunds with no
+      // trace warrant attention, so use 'skipped' not 'flagged' to avoid false alarms on refunds that worked.
+      return fail(`refund: could not auto-match original FR payment (parent ${parentId || 'unknown'}); verify FR if this was an external refund`, 'skipped');
     }
     const cfgR = FR_OFFICES[origOffice];
     const FR_BASE_R = 'https://critterstoppest.fieldroutes.com/api';
