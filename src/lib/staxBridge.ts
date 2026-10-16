@@ -71,23 +71,25 @@ export async function refundStaxTransaction(staxTransactionId: string, opts: { t
     update: { status: 'pending' },
   }).catch(() => {});
 
-  // Record the refund to FR as a negative payment (once).
+  // Reverse the refund in FR using payment/createRefund against the ORIGINAL payment (proper linked reversal —
+  // applies against the original, not a disconnected negative line). We need the original FR paymentID, which
+  // we stored on the charge's ledger row (frPaymentId).
   let frPaymentId: string | null = null;
   let matched = false;
-  if (frInvoice) {
-    const inv = await findInvoiceInFR(String(frInvoice));
-    if (inv) {
-      matched = true;
-      const cfg = FR_OFFICES[inv.office];
-      const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
-      const ref = `STAX-REFUND-${staxTransactionId}`;
-      const qs = `doCharge=0&customerID=${inv.customerID}&amount=-${refundAmount.toFixed(2)}&paymentMethod=3&notes=${encodeURIComponent(ref)}`;
-      try {
-        const r = await fetch(`${FR_BASE}/payment/create?authenticationKey=${cfg.key}&authenticationToken=${cfg.token}&${qs}`);
-        const j = await r.json();
-        frPaymentId = (j?.paymentID || j?.paymentIDs?.[0]) ? String(j.paymentID || j.paymentIDs[0]) : null;
-      } catch { /* non-fatal */ }
-    }
+  const origLedger = await prisma.staxPayment.findUnique({ where: { staxTransactionId } }).catch(() => null);
+  const origFrPaymentId = origLedger?.frPaymentId || null;
+  const office = origLedger?.office || (frInvoice ? (await findInvoiceInFR(String(frInvoice)))?.office : null) || null;
+  if (origFrPaymentId && office && FR_OFFICES[office]) {
+    const cfg = FR_OFFICES[office];
+    const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
+    // createRefund: paymentID (required) refunds the original; add amount for partial (full if omitted).
+    let qs = `paymentID=${origFrPaymentId}`;
+    if (opts.total && opts.total > 0) qs += `&amount=${opts.total.toFixed(2)}`;
+    try {
+      const r = await fetch(`${FR_BASE}/payment/createRefund?authenticationKey=${cfg.key}&authenticationToken=${cfg.token}&${qs}`);
+      const j = await r.json();
+      if (j?.success !== false) { matched = true; frPaymentId = origFrPaymentId; }
+    } catch { /* non-fatal — Stax refund succeeded regardless */ }
   }
   // Mark the refund ledger row written (so webhook skips it regardless of match outcome).
   await prisma.staxPayment.update({ where: { staxTransactionId: refundLedgerId }, data: { status: 'written', frPaymentId, office: null, processedAt: new Date() } }).catch(() => {});
@@ -140,19 +142,26 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
     const already = await prisma.staxPayment.findFirst({ where: { staxTransactionId: { in: refundKeys }, status: 'written' } }).catch(() => null);
     if (already) return { status: 'already_written', reason: 'refund already recorded by Hub' };
 
-    const frInvoiceR = frInvoiceFromStax(txn);
-    if (!frInvoiceR) return fail('refund with no fr_invoice — cannot match to FR', 'flagged');
-    const invR = await findInvoiceInFR(String(frInvoiceR));
-    if (!invR) return fail(`refund: FR invoice ${frInvoiceR} not found`, 'flagged');
-    const cfgR = FR_OFFICES[invR.office];
+    // Find the ORIGINAL charge's FR paymentID (from its ledger row) to reverse via createRefund.
+    const parentTxnId = txn?.parent_transaction || txn?.parent_transaction_id || null;
+    const origRow = parentTxnId ? await prisma.staxPayment.findUnique({ where: { staxTransactionId: String(parentTxnId) } }).catch(() => null) : null;
+    const origFrPmt = origRow?.frPaymentId || null;
+    const origOffice = origRow?.office || null;
+    if (!origFrPmt || !origOffice || !FR_OFFICES[origOffice]) {
+      return fail(`refund: original FR payment not found (parent ${parentTxnId || 'unknown'}) — reverse manually in FR`, 'flagged');
+    }
+    const cfgR = FR_OFFICES[origOffice];
     const FR_BASE_R = 'https://critterstoppest.fieldroutes.com/api';
     const refAmt = Math.abs(amount) || Math.abs(Number(txn?.total_refunded || 0));
-    const refRef = `STAX-REFUND-${staxTransactionId}`;
     try {
-      await fetch(`${FR_BASE_R}/payment/create?authenticationKey=${cfgR.key}&authenticationToken=${cfgR.token}&doCharge=0&customerID=${invR.customerID}&amount=-${refAmt.toFixed(2)}&paymentMethod=${frPaymentMethodFromStax(txn)}&notes=${encodeURIComponent(refRef)}`);
+      let qs = `paymentID=${origFrPmt}`;
+      if (refAmt > 0) qs += `&amount=${refAmt.toFixed(2)}`;
+      const r = await fetch(`${FR_BASE_R}/payment/createRefund?authenticationKey=${cfgR.key}&authenticationToken=${cfgR.token}&${qs}`);
+      const j = await r.json();
+      if (j?.success === false) return fail(`refund createRefund error: ${j?.errorMessage || 'unknown'}`);
     } catch (e: any) { return fail(`refund FR write threw: ${String(e).slice(0, 120)}`); }
-    await prisma.staxPayment.update({ where: { id: ledger.id }, data: { status: 'written', office: invR.office, frCustomerId: invR.customerID, staxType: 'refund', failReason: null, processedAt: new Date() } }).catch(() => {});
-    return { status: 'written', reason: 'refund recorded' };
+    await prisma.staxPayment.update({ where: { id: ledger.id }, data: { status: 'written', office: origOffice, staxType: 'refund', failReason: null, processedAt: new Date() } }).catch(() => {});
+    return { status: 'written', reason: 'refund reversed via createRefund' };
   }
 
   // 2) VALIDATE — only record successful CHARGES with a real amount + an FR invoice.
