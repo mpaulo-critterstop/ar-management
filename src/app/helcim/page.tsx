@@ -18,6 +18,22 @@ export default function StaxPaymentsPage() {
   const [err, setErr] = useState('');
   const [links, setLinks] = useState<any[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [refundModal, setRefundModal] = useState<any>(null);
+  const [refunding, setRefunding] = useState(false);
+  const [refundAmt, setRefundAmt] = useState('');
+  async function doRefund(full: boolean) {
+    if (!refundModal) return;
+    setRefunding(true);
+    try {
+      const bodyObj: any = { action: 'refund', staxTransactionId: refundModal.txnId, invoiceNumber: refundModal.invoice };
+      if (!full && refundAmt) bodyObj.total = parseFloat(refundAmt);
+      const r = await fetch('/api/stax/payment-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyObj) });
+      const j = await r.json();
+      if (j.error || j.ok === false) { alert('Refund failed: ' + (j.error || j.status || 'unknown')); }
+      else { alert('Refund successful: $' + (j.refundAmount || refundModal.amount) + (j.frPaymentId ? ' (recorded to FR)' : ' (Stax only — FR not matched)')); loadReport(); }
+    } catch (e: any) { alert('Refund error: ' + String(e).slice(0,120)); }
+    setRefunding(false); setRefundModal(null); setRefundAmt('');
+  }
 
   const loadLinks = () => fetch('/api/stax/payment-link').then(r => r.json()).then(d => setLinks(d.links || [])).catch(() => {});
   const loadReport = () => fetch('/api/stax/status').then(r => r.json()).then(setReport).catch(() => {});
@@ -113,10 +129,10 @@ export default function StaxPaymentsPage() {
           <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
             <div style={{ maxHeight: 460, overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr><th style={thC}>Stax Txn</th><th style={thR}>Amount</th><th style={thC}>Office</th><th style={thC}>Invoice #</th><th style={thC}>FR Payment</th><th style={thC}>Method</th><th style={thC}>Via</th><th style={thC}>When</th></tr></thead>
+                <thead><tr><th style={thC}>Stax Txn</th><th style={thR}>Amount</th><th style={thC}>Office</th><th style={thC}>Invoice #</th><th style={thC}>FR Payment</th><th style={thC}>Method</th><th style={thC}>Via</th><th style={thC}>When</th><th style={thC}>Refund</th></tr></thead>
                 <tbody>
-                  {(report.recentWritten || []).map((r: any) => (<tr key={r.staxTransactionId}><td style={tdC}>{r.staxTransactionId}</td><td style={tdR}>{money(r.amount)}</td><td style={tdC}>{r.office || '—'}</td><td style={tdC}>{r.frInvoiceNumber || '—'}</td><td style={tdC}>{r.frPaymentId || '—'}</td><td style={tdC}>{method(r.frPaymentMethod)}</td><td style={tdC}>{r.source}</td><td style={tdC}>{fmt(r.processedAt)}</td></tr>))}
-                  {!report.recentWritten?.length && <tr><td colSpan={8} style={{ ...tdC, color: '#888780', padding: 16 }}>No payments recorded yet.</td></tr>}
+                  {(report.recentWritten || []).map((r: any) => (<tr key={r.staxTransactionId}><td style={tdC}>{r.staxTransactionId}</td><td style={tdR}>{money(r.amount)}</td><td style={tdC}>{r.office || '—'}</td><td style={tdC}>{r.frInvoiceNumber || '—'}</td><td style={tdC}>{r.frPaymentId || '—'}</td><td style={tdC}>{method(r.frPaymentMethod)}</td><td style={tdC}>{r.source}</td><td style={tdC}>{fmt(r.processedAt)}</td><td style={tdC}><button onClick={() => setRefundModal({ txnId: r.staxTransactionId, invoice: r.frInvoiceNumber, amount: r.amount })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #b91c1c', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Refund</button></td></tr>))}
+                  {!report.recentWritten?.length && <tr><td colSpan={9} style={{ ...tdC, color: '#888780', padding: 16 }}>No payments recorded yet.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -151,6 +167,21 @@ export default function StaxPaymentsPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {refundModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }} onClick={() => setRefundModal(null)}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: 24, width: 420, maxWidth: '100%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: '#2C2C2A', marginBottom: 6 }}>Refund Payment</div>
+            <div style={{ fontSize: 13, color: '#888780', marginBottom: 4 }}>Stax txn: {refundModal.txnId}</div>
+            <div style={{ fontSize: 13, color: '#888780', marginBottom: 2 }}>Invoice: {refundModal.invoice || '—'} · Original: {money(refundModal.amount)}</div>
+            <div style={{ fontSize: 12, color: '#B4B2A9', marginBottom: 16 }}>Voids if unsettled, refunds if settled. Records a negative payment back to the FieldRoutes invoice.</div>
+            <label style={{ fontSize: 12, color: '#888780' }}>Partial amount (leave blank for full refund)<input type="number" step="0.01" value={refundAmt} onChange={e => setRefundAmt(e.target.value)} placeholder={`Full: ${money(refundModal.amount)}`} style={{ display: 'block', width: '100%', fontSize: 14, padding: '10px 12px', borderRadius: 8, border: '0.5px solid #E8E7E3', marginTop: 4, boxSizing: 'border-box' }} /></label>
+            <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+              <button onClick={() => setRefundModal(null)} style={{ flex: 1, fontSize: 13, padding: '11px', borderRadius: 8, border: '0.5px solid #E8E7E3', background: '#fff', color: '#888780', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => doRefund(!refundAmt)} disabled={refunding} style={{ flex: 1.4, fontSize: 13, padding: '11px', borderRadius: 8, border: 'none', background: '#b91c1c', color: '#fff', fontWeight: 600, cursor: refunding ? 'wait' : 'pointer' }}>{refunding ? 'Processing…' : (refundAmt ? `Refund ${money(parseFloat(refundAmt) || 0)}` : 'Refund Full Amount')}</button>
+            </div>
           </div>
         </div>
       )}
