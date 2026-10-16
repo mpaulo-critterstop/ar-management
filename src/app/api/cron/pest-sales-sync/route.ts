@@ -225,12 +225,30 @@ async function syncOffice(office: string, since: string, empMap: Map<string, str
   const excluded = new Set<string>(exRow?.value ? JSON.parse(exRow.value) : []);
 
   let upserted = 0, skippedExcluded = 0;
+  const builtKeys = new Set<string>();
   for (const r of rows) {
     if (excluded.has(r.externalKey)) { skippedExcluded++; continue; }
+    // update: r refreshes an existing row with the CURRENT FR data — so a corrected soldBy (CSR->PM, or a
+    // different seller) overwrites the old sellerType/sellerName/pmName on re-sync. This handles the common fix.
     await prisma.pestSale.upsert({ where: { externalKey: r.externalKey }, create: r, update: r });
+    builtKeys.add(r.externalKey);
     upserted++;
   }
-  return { office, subsScanned: subs.length, upserted, skippedExcluded, staleCsrCleaned };
+
+  // RECONCILE: for every subscription we actually scanned this run, if the Hub still has a pest-sale row for it
+  // but FR no longer produces one (e.g. the sale was corrected so it no longer qualifies — reassigned to a
+  // non-seller, re-categorized, or excluded), delete the orphaned Hub row so it doesn't linger with stale data.
+  // Scoped to scanned subscriptionIDs only (never touches sales outside this sync window).
+  const scannedKeys = new Set<string>();
+  for (const [customerID, arr] of byCust) for (const s of arr) scannedKeys.add(`${office}:${customerID}:${s.subscriptionID}`);
+  const orphanKeys = [...scannedKeys].filter(k => !builtKeys.has(k) && !excluded.has(k));
+  let reconciled = 0;
+  if (orphanKeys.length) {
+    const del = await prisma.pestSale.deleteMany({ where: { externalKey: { in: orphanKeys } } });
+    reconciled = del.count;
+  }
+
+  return { office, subsScanned: subs.length, upserted, skippedExcluded, staleCsrCleaned, reconciledRemoved: reconciled };
 }
 
 export async function GET(req: NextRequest) {
