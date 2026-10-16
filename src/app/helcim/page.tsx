@@ -23,6 +23,7 @@ export default function StaxPaymentsPage() {
   const [refundAmt, setRefundAmt] = useState('');
   const [linkSearch, setLinkSearch] = useState('');
   const [reportSearch, setReportSearch] = useState('');
+  const [reportStatus, setReportStatus] = useState<'recorded'|'refunded'|'flagged'|'failed'|'pending'>('recorded');
   async function doRefund(full: boolean) {
     if (!refundModal) return;
     setRefunding(true);
@@ -111,59 +112,62 @@ export default function StaxPaymentsPage() {
         const s = report.summary || {};
         const q = reportSearch.trim().toLowerCase();
         const byInv = (arr: any[]) => (arr || []).filter((r: any) => !q || String(r.frInvoiceNumber || '').toLowerCase().includes(q));
-        const card = (label: string, data: any, color: string) => (
-          <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 10, padding: '12px 16px', background: '#fff', minWidth: 120 }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color }}>{data?.count ?? 0}</div>
-            <div style={{ fontSize: 11, color: '#888780' }}>{label}</div>
-            <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 2 }}>{money(data?.total ?? 0)}</div>
-          </div>
-        );
-        const statusTable = (title: string, rows: any[], color: string, opts: { withRefund?: boolean; withReason?: boolean } = {}) => (
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color }}>{title} ({rows.length})</div>
-            <div style={{ border: `0.5px solid ${color === '#b91c1c' ? '#F7C1C1' : '#E8E7E3'}`, borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
-              <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead><tr>
-                    <th style={thC}>Stax Txn</th><th style={thR}>Amount</th><th style={thC}>Office</th><th style={thC}>Invoice #</th><th style={thC}>FR Payment</th><th style={thC}>Method</th><th style={thC}>Via</th><th style={thC}>When</th>
-                    {opts.withReason && <th style={thC}>Reason</th>}
-                    {opts.withRefund && <th style={thC}>Refund</th>}
-                  </tr></thead>
-                  <tbody>
-                    {rows.map((r: any) => (
-                      <tr key={r.id || r.staxTransactionId} style={{ background: r.refunded ? '#F7F7F5' : undefined }}>
-                        <td style={tdC}>{r.staxTransactionId}</td>
-                        <td style={tdR}>{money(r.amount)}</td>
-                        <td style={tdC}>{r.office || '—'}</td>
-                        <td style={tdC}>{r.frInvoiceNumber || '—'}</td>
-                        <td style={tdC}>{r.frPaymentId || '—'}</td>
-                        <td style={tdC}>{method(r.frPaymentMethod)}</td>
-                        <td style={tdC}>{r.source}</td>
-                        <td style={tdC}>{fmt(r.processedAt || r.createdAt)}</td>
-                        {opts.withReason && <td style={{ ...tdC, whiteSpace: 'normal', maxWidth: 300 }}>{r.failReason || '—'}</td>}
-                        {opts.withRefund && <td style={tdC}>{r.refunded
-                          ? <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#EFEDE6', color: '#888780' }}>Refunded</span>
-                          : <button onClick={() => setRefundModal({ txnId: r.staxTransactionId, invoice: r.frInvoiceNumber, amount: r.amount })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #b91c1c', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Refund</button>}</td>}
-                      </tr>
-                    ))}
-                    {!rows.length && <tr><td colSpan={opts.withReason || opts.withRefund ? 9 : 8} style={{ ...tdC, color: '#888780', padding: 16 }}>{q ? 'No matches.' : 'None.'}</td></tr>}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        );
+        const tiles: Array<{ key: typeof reportStatus; label: string; color: string }> = [
+          { key: 'recorded', label: 'Recorded in FR', color: '#128a3f' },
+          { key: 'refunded', label: 'Refunded', color: '#64748b' },
+          { key: 'flagged', label: 'Flagged', color: s.flagged?.count ? '#b91c1c' : '#888780' },
+          { key: 'failed', label: 'Failed', color: s.failed?.count ? '#b91c1c' : '#888780' },
+          { key: 'pending', label: 'Pending', color: '#BA7517' },
+        ];
+        const active = tiles.find(t => t.key === reportStatus)!;
+        const rows = byInv(report[reportStatus] || []);
+        const withReason = reportStatus === 'flagged' || reportStatus === 'failed';
+        const withRefund = reportStatus === 'recorded';
         return (<>
           <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-            {card('Recorded in FR', s.recorded, '#128a3f')}{card('Flagged', s.flagged, s.flagged?.count ? '#b91c1c' : '#888780')}{card('Failed', s.failed, s.failed?.count ? '#b91c1c' : '#888780')}{card('Pending', s.pending, '#BA7517')}
+            {tiles.map(t => {
+              const d = s[t.key]; const sel = reportStatus === t.key;
+              return (
+                <button key={t.key} onClick={() => setReportStatus(t.key)} style={{ textAlign: 'left', border: sel ? `1.5px solid ${t.color}` : '0.5px solid #E8E7E3', borderRadius: 10, padding: '12px 16px', background: sel ? '#FBFBF9' : '#fff', minWidth: 125, cursor: 'pointer', boxShadow: sel ? '0 1px 4px rgba(44,44,42,0.1)' : 'none' }}>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: t.color }}>{d?.count ?? 0}</div>
+                  <div style={{ fontSize: 11, color: '#888780' }}>{t.label}</div>
+                  <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 2 }}>{money(d?.total ?? 0)}</div>
+                </button>
+              );
+            })}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 12 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: active.color }}>{active.label} ({rows.length})</div>
             <input value={reportSearch} onChange={e => setReportSearch(e.target.value)} placeholder="Search by invoice #…" style={{ maxWidth: 260, fontSize: 13, padding: '8px 11px', borderRadius: 8, border: '0.5px solid #E8E7E3', boxSizing: 'border-box' }} />
           </div>
-          {statusTable('Recorded in FR', byInv(report.recorded), '#128a3f', { withRefund: true })}
-          {statusTable('Flagged', byInv(report.flagged), '#b91c1c', { withReason: true })}
-          {statusTable('Failed', byInv(report.failed), '#b91c1c', { withReason: true })}
-          {statusTable('Pending', byInv(report.pending), '#BA7517', { withReason: true })}
+          <div style={{ border: `0.5px solid ${active.color === '#b91c1c' ? '#F7C1C1' : '#E8E7E3'}`, borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+            <div style={{ maxHeight: 520, overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead><tr>
+                  <th style={thC}>Stax Txn</th><th style={thR}>Amount</th><th style={thC}>Office</th><th style={thC}>Invoice #</th><th style={thC}>FR Payment</th><th style={thC}>Method</th><th style={thC}>Via</th><th style={thC}>When</th>
+                  {withReason && <th style={thC}>Reason</th>}
+                  {withRefund && <th style={thC}>Refund</th>}
+                </tr></thead>
+                <tbody>
+                  {rows.map((r: any) => (
+                    <tr key={r.id || r.staxTransactionId}>
+                      <td style={tdC}>{r.staxTransactionId}</td>
+                      <td style={tdR}>{money(r.amount)}</td>
+                      <td style={tdC}>{r.office || '—'}</td>
+                      <td style={tdC}>{r.frInvoiceNumber || '—'}</td>
+                      <td style={tdC}>{r.frPaymentId || '—'}</td>
+                      <td style={tdC}>{method(r.frPaymentMethod)}</td>
+                      <td style={tdC}>{r.source}</td>
+                      <td style={tdC}>{fmt(r.processedAt || r.createdAt)}</td>
+                      {withReason && <td style={{ ...tdC, whiteSpace: 'normal', maxWidth: 300 }}>{r.failReason || '—'}</td>}
+                      {withRefund && <td style={tdC}><button onClick={() => setRefundModal({ txnId: r.staxTransactionId, invoice: r.frInvoiceNumber, amount: r.amount })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #b91c1c', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Refund</button></td>}
+                    </tr>
+                  ))}
+                  {!rows.length && <tr><td colSpan={8 + (withReason ? 1 : 0) + (withRefund ? 1 : 0)} style={{ ...tdC, color: '#888780', padding: 18 }}>{q ? 'No matches.' : 'None.'}</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </>);
       })()}
 
