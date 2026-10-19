@@ -58,12 +58,12 @@ const fmt = (d: Date) => d.toISOString().split('T')[0];
 async function searchApptIdsByServiceTypes(cfg: any, extraParams: string, serviceIds: number[]): Promise<number[]> {
   const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
   const all = new Set<number>();
-  for (const sid of serviceIds) {
-    // FR filters appointments by service TYPE via the 'type' param. 'serviceIDs' is a different concept and
-    // returns almost nothing — which made recent weeks (e.g. all of October) report zero insulation jobs.
-    const s = await fr(`${BASE_URL}/appointment/search?${extraParams}&type=${sid}&${auth}`);
-    for (const id of (s.appointmentIDs || [])) all.add(Number(id));
-  }
+  // NOTE: FR's appointment/search ignores both 'type' and 'serviceIDs' as type filters (verified: type=624 still
+  // returns appts of type 541, 1075, 1002...). So a per-type loop just fetches the SAME full set 6x — wasteful
+  // and, under load, triggers rate-limiting that drops batches and undercounts jobs. Search ONCE for the window;
+  // the caller narrows to real insulation types via INS_TYPES.has() after fetching appointment details.
+  const s = await fr(`${BASE_URL}/appointment/search?${extraParams}&${auth}`);
+  for (const id of (s.appointmentIDs || [])) all.add(Number(id));
   return [...all];
 }
 
