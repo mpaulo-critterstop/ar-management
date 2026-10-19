@@ -4,7 +4,7 @@
       "maxDuration": 800
     },
     "src/app/api/cron/reliability/route.ts": {
-      "maxDuration": 800
+      "maxDuration": 300
     },
     "src/app/api/field-performance/routeCustomers/route.ts": {
       "maxDuration": 800
@@ -34,9 +34,6 @@
       "maxDuration": 300
     },
     "src/app/api/cron/tc-accountability/route.ts": {
-      "maxDuration": 300
-    },
-    "src/app/api/cron/reliability/route.ts": {
       "maxDuration": 300
     },
     "src/app/api/cron/bouncie/route.ts": {
@@ -74,6 +71,12 @@
     },
     "src/app/api/cron/lsa-sync/route.ts": {
       "maxDuration": 300
+    },
+    "src/app/api/cron/insulation-revenue-refresh/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/insulation-revenue/route.ts": {
+      "maxDuration": 800
     }
   },
   "crons": [
@@ -84,6 +87,10 @@
     {
       "path": "/api/leads/commissions/finalize",
       "schedule": "0 6 1 * *"
+    },
+    {
+      "path": "/api/cron/insulation-revenue-refresh",
+      "schedule": "0 5 * * 1-6"
     }
   ]
 }

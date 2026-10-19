@@ -43,8 +43,15 @@ export default function InsulationRevenueReport() {
   useEffect(() => {
     if (!sel) return;
     setLoading(true);
+    // Guard against races: if period/sel/office changes before this fetch resolves, a stale response could
+    // overwrite fresh data (the "shows for a second then goes to zero" flicker). Only apply the LATEST request.
+    let cancelled = false;
+    const reqKey = `${period}|${sel}|${office}`;
     fetch(`/api/cron/insulation-revenue?token=critterstop2026&period=${period}&date=${sel}&office=${office}`)
-      .then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
+      .then(r => r.json())
+      .then(d => { if (!cancelled && `${period}|${sel}|${office}` === reqKey) { setData(d); setLoading(false); } })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [period, sel, office]);
 
   async function refresh() {
