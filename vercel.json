@@ -77,6 +77,9 @@
     },
     "src/app/api/cron/insulation-revenue/route.ts": {
       "maxDuration": 800
+    },
+    "src/app/api/cron/insulation-revenue-backfill/route.ts": {
+      "maxDuration": 800
     }
   },
   "crons": [
