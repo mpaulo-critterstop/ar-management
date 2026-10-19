@@ -40,7 +40,9 @@ async function searchApptIdsByServiceTypes(cfg: any, extraParams: string, servic
   const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
   const all = new Set<number>();
   for (const sid of serviceIds) {
-    const s = await fr(`${BASE_URL}/appointment/search?${extraParams}&serviceIDs=${sid}&${auth}`);
+    // FR filters appointments by service TYPE via the 'type' param. 'serviceIDs' is a different concept and
+    // returns almost nothing — which made recent weeks (e.g. all of October) report zero insulation jobs.
+    const s = await fr(`${BASE_URL}/appointment/search?${extraParams}&type=${sid}&${auth}`);
     for (const id of (s.appointmentIDs || [])) all.add(Number(id));
   }
   return [...all];
