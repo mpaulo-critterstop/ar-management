@@ -28,8 +28,27 @@ const INSULATION_PRODUCT_IDS = new Set([10, 43]); // 10 Full Attic Restoration, 
 
 let chain: Promise<any> = Promise.resolve();
 function fr(url: string): Promise<any> {
-  const run = chain.then(async () => { await new Promise(r => setTimeout(r, 1100)); const r = await fetch(url); return r.json(); });
-  chain = run.catch(() => {});
+  const run = chain.then(async () => {
+    await new Promise(r => setTimeout(r, 1100));
+    // Retry on rate-limit / transient errors. FR throttles at 60 reads/min; under concurrent load (e.g. the
+    // backfill) a throttled call used to return a partial/error body silently -> inconsistent job counts
+    // (same week computing 14 jobs one run, 4 the next). Retry with backoff until we get real data.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const r = await fetch(url);
+        if (r.status === 429) { await new Promise(x => setTimeout(x, 3000 * (attempt + 1))); continue; }
+        const j = await r.json();
+        // FR signals throttle/limit inside a 200 body too — retry if it looks rate-limited.
+        const msg = String(j?.errorMessage || '').toLowerCase();
+        if (msg.includes('limit') || msg.includes('too many') || msg.includes('throttle')) {
+          await new Promise(x => setTimeout(x, 3000 * (attempt + 1))); continue;
+        }
+        return j;
+      } catch { await new Promise(x => setTimeout(x, 2000 * (attempt + 1))); }
+    }
+    return {}; // all retries exhausted — return empty rather than crash (caller handles)
+  });
+  chain = run.catch(() => ({}));
   return run;
 }
 const fmt = (d: Date) => d.toISOString().split('T')[0];
