@@ -292,14 +292,17 @@ async function runReport(period: string, start: Date, end: Date, label: string, 
     let rev = 0; let found = false;
     for (const t of tickets) {
       const items = t.items || [];
-      if (items.length) {
-        // Itemized: sum the FAR (10) + Top-Off (43) line items only (excludes bundled trapping/exclusion).
+      if (parseInt(String(t.serviceID)) === 501) {
+        // serviceID 501 (Full Attic Restoration) = the WHOLE invoice is the FAR job -> use the total, regardless
+        // of line items. These invoices sometimes carry incidental items (e.g. productID 9 Fogging) that don't
+        // represent the FAR value, and the FAR amount lives in the total — so summing only 10/43 line items
+        // wrongly returned $0 (e.g. inv 275622: $5,460.20 FAR, one $599 Fogging line, no 10/43 line).
+        rev += parseFloat(t.total || '0'); found = true;
+      } else if (items.length) {
+        // Non-501 itemized invoice: FAR may be ONE line among others -> sum only FAR (10) + Top-Off (43) lines.
         for (const it of items) {
           if (INSULATION_PRODUCT_IDS.has(parseInt(String(it.productID)))) { rev += parseFloat(it.amount || '0'); found = true; }
         }
-      } else if (parseInt(String(t.serviceID)) === 501) {
-        // Itemless AND serviceID 501 (Full Attic Restoration) = solely-insulation invoice -> use the total.
-        rev += parseFloat(t.total || '0'); found = true;
       }
     }
     job.revenue = found ? Math.round(rev * 100) / 100 : 0;
