@@ -25,6 +25,10 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number }> 
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4 },
 };
 const INSULATION_PRODUCT_IDS = new Set([10, 43]); // 10 Full Attic Restoration, 43 Insulation Top-Off
+// Ticket serviceIDs where the WHOLE invoice is an insulation job (use the ticket total as the revenue).
+// 501 Full Attic Restoration, 624 Blow-In Cellulose, 542 Blow-In Fiberglass, 479 Removal+Blow-In,
+// 1073 Removal Only, 674 Top-Off. (541 Removal-alone does not complete a job, excluded.)
+const INSULATION_SERVICE_IDS = new Set([501, 624, 542, 479, 1073, 674]);
 
 let chain: Promise<any> = Promise.resolve();
 function fr(url: string): Promise<any> {
@@ -292,14 +296,16 @@ async function runReport(period: string, start: Date, end: Date, label: string, 
     let rev = 0; let found = false;
     for (const t of tickets) {
       const items = t.items || [];
-      if (parseInt(String(t.serviceID)) === 501) {
-        // serviceID 501 (Full Attic Restoration) = the WHOLE invoice is the FAR job -> use the total, regardless
-        // of line items. These invoices sometimes carry incidental items (e.g. productID 9 Fogging) that don't
-        // represent the FAR value, and the FAR amount lives in the total — so summing only 10/43 line items
-        // wrongly returned $0 (e.g. inv 275622: $5,460.20 FAR, one $599 Fogging line, no 10/43 line).
+      const svcId = parseInt(String(t.serviceID));
+      if (INSULATION_SERVICE_IDS.has(svcId)) {
+        // The ticket's SERVICE itself is an insulation job (501 Full Attic Restoration, 624/542 Blow-In,
+        // 479 Removal+Blow-In, 1073 Removal Only, 674 Top-Off) -> the WHOLE invoice total is insulation revenue,
+        // regardless of line items. These are often itemless (e.g. inv 267968: 674 Top-Off, $1,811.90, 0 items)
+        // or carry an incidental non-FAR line (e.g. inv 275622: 501, $5,460.20, one $599 Fogging line). Summing
+        // only 10/43 line items wrongly returned $0 for both.
         rev += parseFloat(t.total || '0'); found = true;
       } else if (items.length) {
-        // Non-501 itemized invoice: FAR may be ONE line among others -> sum only FAR (10) + Top-Off (43) lines.
+        // Non-insulation-service invoice: FAR may be ONE line among others -> sum only FAR (10) + Top-Off (43).
         for (const it of items) {
           if (INSULATION_PRODUCT_IDS.has(parseInt(String(it.productID)))) { rev += parseFloat(it.amount || '0'); found = true; }
         }
