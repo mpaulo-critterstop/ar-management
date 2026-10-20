@@ -33,19 +33,20 @@ const INSULATION_SERVICE_IDS = new Set([501, 624, 542, 479, 1073, 674]);
 let chain: Promise<any> = Promise.resolve();
 function fr(url: string): Promise<any> {
   const run = chain.then(async () => {
-    await new Promise(r => setTimeout(r, 1100));
+    await new Promise(r => setTimeout(r, 1400)); // ~43 calls/min — safe headroom under FR's 60/min cap. 1100ms
+    // (~55/min) rode the edge and tipped into throttling mid-compute, returning partial data ($0 revenue).
     // Retry on rate-limit / transient errors. FR throttles at 60 reads/min; under concurrent load (e.g. the
     // backfill) a throttled call used to return a partial/error body silently -> inconsistent job counts
     // (same week computing 14 jobs one run, 4 the next). Retry with backoff until we get real data.
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
         const r = await fetch(url);
-        if (r.status === 429) { await new Promise(x => setTimeout(x, 3000 * (attempt + 1))); continue; }
+        if (r.status === 429) { await new Promise(x => setTimeout(x, 8000 * (attempt + 1))); continue; }
         const j = await r.json();
         // FR signals throttle/limit inside a 200 body too — retry if it looks rate-limited.
         const msg = String(j?.errorMessage || '').toLowerCase();
         if (msg.includes('limit') || msg.includes('too many') || msg.includes('throttle')) {
-          await new Promise(x => setTimeout(x, 3000 * (attempt + 1))); continue;
+          await new Promise(x => setTimeout(x, 8000 * (attempt + 1))); continue;
         }
         return j;
       } catch { await new Promise(x => setTimeout(x, 2000 * (attempt + 1))); }
