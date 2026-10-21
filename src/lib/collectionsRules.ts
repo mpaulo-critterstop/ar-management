@@ -16,6 +16,10 @@ export type CollectionsConfig = {
   promisedExtensionDays: number;  // +days from actual promise date (total, not additive to responded)
   badDebtDaysAfterARM: number;    // days after Sent-to-ARM with no payment → Bad Debt proposal
   badDebtDaysAfterSCC: number;    // days after SCC-Filed with no payment → Bad Debt proposal
+  // ── Go-live safety + backlog staggering ──
+  liveMode: boolean;           // false = tracking/staging only, NO new entries written (safe default until go-live)
+  maxEntriesPerRun: number;    // cap new invoices ADMITTED per run — staggers the ~357-invoice backlog so it
+                               // flows in gradually (e.g. 25/day clears it over ~2 weeks) instead of flooding ARM at once
 };
 
 export const DEFAULT_CONFIG: CollectionsConfig = {
@@ -33,6 +37,11 @@ export const DEFAULT_CONFIG: CollectionsConfig = {
   // trigger to 60d so it fires when ARM has actually finished, not before. Total: 120d Collections.
   badDebtDaysAfterARM: 60,
   badDebtDaysAfterSCC: 60,    // SCC post-filing window; adjustable if court/SCC turnaround data suggests otherwise
+  // Safe default: NOT live. Flip liveMode=true (via collections_config) to begin admitting the backlog, and
+  // tune maxEntriesPerRun to control how fast the ~357 backlog flows in. Stage transitions on already-entered
+  // rows still run regardless (so nothing stalls once an invoice is in the pipeline).
+  liveMode: false,
+  maxEntriesPerRun: 25,
 };
 
 export async function getConfig(): Promise<CollectionsConfig> {

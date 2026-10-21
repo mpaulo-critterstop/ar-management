@@ -42,6 +42,10 @@ export async function GET(req: NextRequest) {
     take: 20000,
   });
 
+  // Count eligible-but-not-entered for backlog visibility, and cap how many we admit this run.
+  let eligibleTotal = 0, enteredThisRun = 0;
+  const atEntryCap = () => enteredThisRun >= cfg.maxEntriesPerRun;
+
   for (const inv of overdue) {
     if (trackedIds.has(inv.id)) continue;
     const amount = Number(inv.amount), paid = Number(inv.paid);
@@ -53,6 +57,16 @@ export async function GET(req: NextRequest) {
     const entryDays = track === 'SCC' ? cfg.sccEntryDays : cfg.collectionsEntryDays;
     if (daysPastDue < entryDays) continue; // not yet eligible
 
+    eligibleTotal++;
+
+    // GO-LIVE GATE: until liveMode is on, never write new entries — the engine stages/reports only. This lets
+    // you run it safely (dry or live-processing of existing rows) without admitting the backlog prematurely.
+    if (!cfg.liveMode) { res.wouldEnter = (res.wouldEnter || 0) + 1; continue; }
+
+    // BACKLOG STAGGER: admit at most maxEntriesPerRun new invoices per run so the ~357-invoice backlog flows
+    // in gradually instead of flooding ARM/SCC at once. Remaining eligible invoices wait for the next run.
+    if (atEntryCap()) { res.deferredToNextRun = (res.deferredToNextRun || 0) + 1; continue; }
+
     // Live AR-exclusion check at entry (only for invoices actually about to enter — a small set). Skips
     // Paid-by-Check / Financing customers (money coming another way; don't escalate to ARM/SCC). Fresh at
     // the moment of entry, so we don't need a separate full-book flag sweep.
@@ -62,6 +76,7 @@ export async function GET(req: NextRequest) {
     }
 
     res.entered++;
+    enteredThisRun++;
     details.push({ action: 'ENTER', track, invoice: inv.externalId, amount, daysPastDue });
     if (!dry) {
       const enteredAt = now;
@@ -143,5 +158,7 @@ export async function GET(req: NextRequest) {
       update: { value: `${now.toISOString()} :: ${JSON.stringify(res)}` },
     }).catch(() => {});
   }
+  (res as any).eligibleBacklog = eligibleTotal;
+  (res as any).liveMode = cfg.liveMode;
   return NextResponse.json({ dry, config: cfg, ...res, details: details.slice(0, 200) });
 }
