@@ -137,7 +137,16 @@ export async function GET(req: NextRequest) {
       continue;
     }
     // Refresh payment status from the invoice.
-    const inv = await prisma.invoice.findUnique({ where: { id: row.invoiceId }, select: { amount: true, paid: true } });
+    const inv = await prisma.invoice.findUnique({ where: { id: row.invoiceId }, select: { amount: true, paid: true, status: true } });
+    // 4a0. Invoice left open AR entirely — gone, or status flipped to PAID / VOID_DELETED (e.g. a manual
+    //      write-off / void in FR that the invoice sync picked up). The tracker row is now orphaned → resolve it.
+    const leftAR = !inv || ['PAID', 'VOID_DELETED'].includes(String(inv.status || '').toUpperCase());
+    if (leftAR) {
+      res.resolvedLeftAR = (res.resolvedLeftAR || 0) + 1;
+      details.push({ action: 'RESOLVED_LEFT_AR', invoice: row.invoiceNumber, reason: inv ? `status=${inv.status}` : 'invoice gone' });
+      if (!dry) await prisma.collectionsTracker.update({ where: { id: row.id }, data: { stage: 'PAID', paidInFull: true, lastPaymentAt: now, notes: `Resolved ${now.toISOString().slice(0, 10)}: no longer in open AR (${inv ? inv.status : 'invoice removed'})` } });
+      continue;
+    }
     if (inv) {
       const amount = Number(inv.amount), paid = Number(inv.paid), bal = amount - paid;
       // 4a. Paid in full → drop off.
