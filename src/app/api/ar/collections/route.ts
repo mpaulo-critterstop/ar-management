@@ -37,8 +37,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     config: cfg,
     syncStatus: status?.value || null,
-    collections: shaped.filter(r => r.track === 'COLLECTIONS'),
-    scc: shaped.filter(r => r.track === 'SCC'),
+    // Active tabs exclude PAID (written-off / paid in full) — those are resolved and out of AR, so they
+    // shouldn't clutter the working lists. (badDebt rows are already filtered to their own section below.)
+    collections: shaped.filter(r => r.track === 'COLLECTIONS' && r.stage !== 'PAID' && !r.stage.startsWith('BAD_DEBT')),
+    scc: shaped.filter(r => r.track === 'SCC' && r.stage !== 'PAID' && !r.stage.startsWith('BAD_DEBT')),
     badDebt: shaped.filter(r => r.stage === 'BAD_DEBT_PROPOSED' || r.stage === 'BAD_DEBT_APPROVED'),
   });
 }
