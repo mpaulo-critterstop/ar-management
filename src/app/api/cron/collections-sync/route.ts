@@ -20,6 +20,25 @@ export async function GET(req: NextRequest) {
   if (sp.get('token') !== 'critterstop2026' && sp.get('token') !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  // ── CONFIG SETTER: flip go-live settings without DB access ──
+  //   ?action=setConfig&liveMode=true            → turn the pipeline LIVE
+  //   ?action=setConfig&liveMode=false           → pause it
+  //   &maxEntriesPerRun=25 &maxDaysPastDue=365    → tune stagger / age cap
+  if (sp.get('action') === 'setConfig') {
+    const { getConfig } = await import('@/lib/collectionsRules');
+    const current = await getConfig();
+    const next: any = { ...current };
+    if (sp.get('liveMode') !== null) next.liveMode = sp.get('liveMode') === 'true';
+    if (sp.get('maxEntriesPerRun') !== null) next.maxEntriesPerRun = parseInt(sp.get('maxEntriesPerRun')!);
+    if (sp.get('maxDaysPastDue') !== null) next.maxDaysPastDue = sp.get('maxDaysPastDue') === 'null' ? null : parseInt(sp.get('maxDaysPastDue')!);
+    await prisma.appSetting.upsert({
+      where: { key: 'collections_config' },
+      create: { key: 'collections_config', value: JSON.stringify(next) },
+      update: { value: JSON.stringify(next) },
+    });
+    return NextResponse.json({ ok: true, config: next });
+  }
+
   const dry = sp.get('dry') === '1';
   // Optional age cap: skip invoices MORE than this many days past due (stale debts that are poor ARM/SCC
   // candidates). e.g. &maxDaysPastDue=365 excludes anything over a year old.
