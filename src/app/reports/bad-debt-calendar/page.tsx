@@ -27,7 +27,10 @@ export default function BadDebtCalendarPage() {
   return (
     <div style={{ maxWidth: 1050, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
       <a href="/reports" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← Reports</a>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>🗓️ Bad-Debt Accrual Calendar</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>🗓️ Bad-Debt Accrual Calendar</h1>
+        <a href="/api/cron/bad-debt-calendar?token=critterstop2026&format=xlsx" style={{ marginTop: 10, fontSize: 13, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#128a3f', color: '#fff', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>⬇ Download Excel</a>
+      </div>
       <p style={{ fontSize: 13, color: '#888780', margin: '0 0 16px', lineHeight: 1.6 }}>
         When each unpaid overdue invoice <b>would have</b> become bad debt under our collections rules (due date → entry → 15-day countdown → ARM/SCC → post-action window), bucketed by month. This is a projection for the scorecard and the bookkeeper conversation — <b>it does not touch FieldRoutes</b>.
       </p>

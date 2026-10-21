@@ -60,12 +60,60 @@ export async function GET(req: NextRequest) {
   const grand = calendar.reduce((s, m) => s + m.total, 0);
   const alreadyAccrued = rows.filter(r => r.alreadyPassed).reduce((s, r) => s + r.amount, 0);
 
+  const sortedRows = rows.sort((a, b) => a.wouldBadDebtAt.getTime() - b.wouldBadDebtAt.getTime());
+
+  // ── EXCEL EXPORT: &format=xlsx → one tab per month + a summary tab ──
+  if (sp.get('format') === 'xlsx') {
+    const XLSX = await import('xlsx');
+    const wb = XLSX.utils.book_new();
+    const fmtDate = (d: Date) => d ? new Date(d).toISOString().slice(0, 10) : '';
+    const mLabel = (m: string) => { const [y, mo] = m.split('-'); return new Date(+y, +mo - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); };
+
+    // Summary tab
+    const sumAoA: any[][] = [
+      ['Bad-Debt Accrual Calendar — Summary'],
+      ['When each unpaid overdue invoice WOULD have become bad debt under our collections rules, by month.'],
+      ['Read-only projection (fastest path). Does NOT touch FieldRoutes. Confirm with bookkeeper before recognizing.'],
+      [],
+      ['Total projected bad debt', Math.round(grand * 100) / 100],
+      ['Should have already accrued (to date)', Math.round(alreadyAccrued * 100) / 100],
+      [],
+      ['Month', 'Invoices', 'Collections ($)', 'SCC ($)', 'Total ($)'],
+    ];
+    for (const m of calendar) sumAoA.push([mLabel(m.month), m.count, m.collections, m.scc, m.total]);
+    sumAoA.push(['TOTAL', calendar.reduce((s, m) => s + m.count, 0), Math.round(calendar.reduce((s, m) => s + m.collections, 0) * 100) / 100, Math.round(calendar.reduce((s, m) => s + m.scc, 0) * 100) / 100, Math.round(grand * 100) / 100]);
+    const ws0 = XLSX.utils.aoa_to_sheet(sumAoA);
+    ws0['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 16 }, { wch: 14 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, ws0, 'Summary');
+
+    // One tab per month
+    const byMonthRows: Record<string, any[]> = {};
+    for (const r of sortedRows) (byMonthRows[r.badDebtMonth] = byMonthRows[r.badDebtMonth] || []).push(r);
+    for (const month of Object.keys(byMonthRows).sort()) {
+      const monthRows = byMonthRows[month].sort((a, b) => b.amount - a.amount);
+      const aoa: any[][] = [[`Bad Debt Accruing — ${mLabel(month)}`], [], ['Invoice #', 'Customer', 'Office', 'Track', 'Amount ($)', 'Due Date', 'Would-be Bad Debt']];
+      for (const r of monthRows) aoa.push([r.invoice, r.customer || '', r.office || '', r.track, Math.round(r.amount * 100) / 100, fmtDate(r.due), fmtDate(r.wouldBadDebtAt)]);
+      aoa.push(['', '', '', 'TOTAL', Math.round(monthRows.reduce((s, r) => s + r.amount, 0) * 100) / 100, '', '']);
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [{ wch: 11 }, { wch: 42 }, { wch: 8 }, { wch: 12 }, { wch: 13 }, { wch: 12 }, { wch: 18 }];
+      XLSX.utils.book_append_sheet(wb, ws, mLabel(month).replace(' ', '-').slice(0, 31));
+    }
+
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    return new NextResponse(buf, {
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="Bad_Debt_Accrual_Calendar_${now.toISOString().slice(0, 10)}.xlsx"`,
+      },
+    });
+  }
+
   return NextResponse.json({
     note: 'Backdated projection using approved rules (fastest path, no engagement extensions). No FieldRoutes writes. Confirm with bookkeeper before recognizing. Day-counts PENDING Chisam A/B + ARM-history — rerun after config is final.',
     config: cfg,
     grandTotalOverdue: Math.round(grand * 100) / 100,
     alreadyShouldHaveAccrued: Math.round(alreadyAccrued * 100) / 100,
     calendar,
-    rows: rows.sort((a, b) => a.wouldBadDebtAt.getTime() - b.wouldBadDebtAt.getTime()),
+    rows: sortedRows,
   });
 }
