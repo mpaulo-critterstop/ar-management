@@ -19,6 +19,13 @@ const REPORTS: Report[] = [
     status: 'available',
     module: 'report-insulation',
   },
+  {
+    title: 'Bad-Debt Accrual Calendar',
+    desc: 'When each unpaid overdue invoice would have become bad debt under our collections rules, bucketed by month — for the scorecard baseline and the bookkeeper backdating conversation. Read-only projection; does not touch FieldRoutes.',
+    href: '/reports/bad-debt-calendar',
+    status: 'available',
+    module: 'ar',
+  },
 ];
 
 export default function ReportsPage() {
