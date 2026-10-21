@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
 
   // Count eligible-but-not-entered for backlog visibility, and cap how many we admit this run.
   let eligibleTotal = 0, enteredThisRun = 0;
+  const eligibleList: any[] = [];
   const atEntryCap = () => enteredThisRun >= cfg.maxEntriesPerRun;
 
   for (const inv of overdue) {
@@ -58,6 +59,12 @@ export async function GET(req: NextRequest) {
     if (daysPastDue < entryDays) continue; // not yet eligible
 
     eligibleTotal++;
+    // Record every eligible invoice (before the gate) so a dry run shows the full backlog list for review:
+    // invoice #, customer, amount, track (COLLECTIONS <$750 / SCC >=$750), days past due, and — for Collections
+    // — the ARM sub-routing it would get (<$250 flat-rate vs $250-750 contingency).
+    const armSub = track === 'COLLECTIONS' ? (amount < cfg.contingencyThreshold ? 'FLAT_RATE' : 'CONTINGENCY') : null;
+    eligibleList.push({ invoice: inv.externalId, customer: inv.customer?.name || '', office: inv.office, amount: Math.round(amount * 100) / 100, track, armSubtype: armSub, daysPastDue });
+    if (track === 'SCC') res.eligibleSCC = (res.eligibleSCC || 0) + 1; else res.eligibleCollections = (res.eligibleCollections || 0) + 1;
 
     // GO-LIVE GATE: until liveMode is on, never write new entries — the engine stages/reports only. This lets
     // you run it safely (dry or live-processing of existing rows) without admitting the backlog prematurely.
@@ -160,5 +167,7 @@ export async function GET(req: NextRequest) {
   }
   (res as any).eligibleBacklog = eligibleTotal;
   (res as any).liveMode = cfg.liveMode;
-  return NextResponse.json({ dry, config: cfg, ...res, details: details.slice(0, 200) });
+  // Sort the backlog list: SCC first (lawsuits — review closely), then by amount desc.
+  eligibleList.sort((a, b) => (a.track === b.track ? b.amount - a.amount : (a.track === 'SCC' ? -1 : 1)));
+  return NextResponse.json({ dry, config: cfg, ...res, eligibleList, details: details.slice(0, 200) });
 }
