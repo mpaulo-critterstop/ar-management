@@ -21,6 +21,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const dry = sp.get('dry') === '1';
+  // Optional age cap: skip invoices MORE than this many days past due (stale debts that are poor ARM/SCC
+  // candidates). e.g. &maxDaysPastDue=365 excludes anything over a year old.
+  const maxDaysPastDue = sp.get('maxDaysPastDue') ? parseInt(sp.get('maxDaysPastDue')!) : null;
   const cfg = await getConfig();
   const now = new Date();
   const res = { entered: 0, toFinalWarning: 0, toActionDue: 0, toBadDebtProposed: 0, paidFull: 0, partialReset: 0 } as any;
@@ -57,6 +60,7 @@ export async function GET(req: NextRequest) {
     const track = trackFor(cfg, amount);
     const entryDays = track === 'SCC' ? cfg.sccEntryDays : cfg.collectionsEntryDays;
     if (daysPastDue < entryDays) continue; // not yet eligible
+    if (maxDaysPastDue !== null && daysPastDue > maxDaysPastDue) { res.skippedTooOld = (res.skippedTooOld || 0) + 1; continue; } // stale — excluded by age cap
 
     eligibleTotal++;
     // Record every eligible invoice (before the gate) so a dry run shows the full backlog list for review:
