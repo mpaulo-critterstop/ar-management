@@ -18,8 +18,10 @@ export type CollectionsConfig = {
   badDebtDaysAfterSCC: number;    // days after SCC-Filed with no payment → Bad Debt proposal
   // ── Go-live safety + backlog staggering ──
   liveMode: boolean;           // false = tracking/staging only, NO new entries written (safe default until go-live)
-  maxEntriesPerRun: number;    // cap new invoices ADMITTED per run — staggers the ~357-invoice backlog so it
-                               // flows in gradually (e.g. 25/day clears it over ~2 weeks) instead of flooding ARM at once
+  maxEntriesPerRun: number;    // cap new invoices ADMITTED per run — staggers the backlog so it flows in
+                               // gradually (e.g. 25/day) instead of flooding ARM at once
+  maxDaysPastDue: number | null; // exclude invoices older than this (stale debts — poor ARM/SCC candidates).
+                                 // Applies on EVERY run (incl. scheduled cron), not just manual query param.
 };
 
 export const DEFAULT_CONFIG: CollectionsConfig = {
@@ -42,6 +44,7 @@ export const DEFAULT_CONFIG: CollectionsConfig = {
   // rows still run regardless (so nothing stalls once an invoice is in the pipeline).
   liveMode: false,
   maxEntriesPerRun: 25,
+  maxDaysPastDue: 365, // don't pursue debt over a year old through ARM/SCC (write-off candidates instead)
 };
 
 export async function getConfig(): Promise<CollectionsConfig> {

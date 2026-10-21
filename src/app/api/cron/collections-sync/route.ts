@@ -23,8 +23,10 @@ export async function GET(req: NextRequest) {
   const dry = sp.get('dry') === '1';
   // Optional age cap: skip invoices MORE than this many days past due (stale debts that are poor ARM/SCC
   // candidates). e.g. &maxDaysPastDue=365 excludes anything over a year old.
-  const maxDaysPastDue = sp.get('maxDaysPastDue') ? parseInt(sp.get('maxDaysPastDue')!) : null;
+  // Query param overrides config for ad-hoc testing; otherwise the config value applies on every run (incl cron).
+  const maxDaysPastDueParam = sp.get('maxDaysPastDue') ? parseInt(sp.get('maxDaysPastDue')!) : null;
   const cfg = await getConfig();
+  const maxDaysPastDue = maxDaysPastDueParam !== null ? maxDaysPastDueParam : cfg.maxDaysPastDue; // param overrides config
   const now = new Date();
   const res = { entered: 0, toFinalWarning: 0, toActionDue: 0, toBadDebtProposed: 0, paidFull: 0, partialReset: 0 } as any;
   const details: any[] = [];
