@@ -194,11 +194,11 @@ async function syncLeads(office: string, key: string, token: string) {
   // (e.g. lead 223414, Misty Connelly: appt is now FR status=2 'No Show'.) Only touch leads with no invoice —
   // a SOLD/invoiced lead is kept regardless.
   const completedSet = new Set(allApptIds.map(String));
-  const inspectedLeads = await prisma.lead.findMany({
+  const ghostCandidateLeads = await prisma.lead.findMany({
     where: { office, status: 'INSPECTED', invoiceId: null },
     select: { id: true, externalId: true },
   });
-  const suspects = inspectedLeads.filter(l => !completedSet.has(String(l.externalId)));
+  const suspects = ghostCandidateLeads.filter(l => !completedSet.has(String(l.externalId)));
   const ghostLeadIds: string[] = [];
   for (let k = 0; k < suspects.length; k += 100) {
     const batch = suspects.slice(k, k + 100);
