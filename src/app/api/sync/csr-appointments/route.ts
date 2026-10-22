@@ -141,6 +141,21 @@ export async function GET(req: NextRequest) {
     }
     totalCreated += created;
     log.push(`[${officeKey}] Created: ${created}`);
+
+    // RECONCILE GHOSTS: csr_appointments is insert/update-only, so an appt that was status=1 when first synced
+    // but later changed to No-Show/cancelled (status!=1) or was deleted in FR lingered as 'COMPLETED' and kept
+    // showing on the Leads Tracker as "Inspected" (e.g. appt 223414, cust 52188 Misty Connelly: FR status=2 No
+    // Show, Hub still COMPLETED). Among the CSR-type appts we fetched, any NOT status=1 is a ghost -> delete it.
+    const ghostCsrIds = appointments
+      .filter((a: any) => CSR_SERVICE_IDS.has(String(a.type)) && String(a.status) !== '1')
+      .map((a: any) => String(a.appointmentID));
+    if (ghostCsrIds.length) {
+      // Delete dependent csr_leads first (FK), then the appointments. id = csr_appt_<externalId>.
+      const rowIds = ghostCsrIds.map(id => `csr_appt_${id}`);
+      await prisma.$executeRawUnsafe(`DELETE FROM "csr_leads" WHERE "leadId" = ANY($1)`, rowIds).catch(() => {});
+      const del = await prisma.$executeRawUnsafe(`DELETE FROM "csr_appointments" WHERE "externalId" = ANY($1) AND office = $2`, ghostCsrIds, officeKey).catch(() => 0);
+      log.push(`[${officeKey}] Ghosts removed (No-Show/cancelled since sync): ${del}`);
+    }
   }
 
   // NOTE: Wildlife inspections are now sourced directly from FR appointments via their service
