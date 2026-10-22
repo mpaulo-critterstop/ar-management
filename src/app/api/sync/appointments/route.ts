@@ -187,6 +187,32 @@ async function syncLeads(office: string, key: string, token: string) {
   );
   console.log(`[${office}] New inspections after cutoff: ${newInspections.length}`);
 
+  // RECONCILE GHOST INSPECTED LEADS: a lead created from a completed appt that was LATER marked No-Show /
+  // cancelled in FR lingers as INSPECTED (the sync is insert/update-only). FR's appointment SEARCH doesn't
+  // return No-Shows, so we check INSPECTED leads (no invoice) whose externalId is NOT in the completed set, then
+  // re-verify each appt's live status; anything not status=1 (No-Show/cancelled/deleted) gets its lead removed.
+  // (e.g. lead 223414, Misty Connelly: appt is now FR status=2 'No Show'.) Only touch leads with no invoice —
+  // a SOLD/invoiced lead is kept regardless.
+  const completedSet = new Set(allApptIds.map(String));
+  const inspectedLeads = await prisma.lead.findMany({
+    where: { office, status: 'INSPECTED', invoiceId: null },
+    select: { id: true, externalId: true },
+  });
+  const suspects = inspectedLeads.filter(l => !completedSet.has(String(l.externalId)));
+  const ghostLeadIds: string[] = [];
+  for (let k = 0; k < suspects.length; k += 100) {
+    const batch = suspects.slice(k, k + 100);
+    const ids = batch.map(l => String(l.externalId));
+    const g = await frFetch('appointment/get', `appointmentIDs=${ids.length === 1 ? `${ids[0]},${ids[0]}` : ids.join(',')}`, key, token);
+    const live = new Map<string, string>();
+    for (const a of (g?.appointments || [])) live.set(String(a.appointmentID), String(a.status));
+    for (const l of batch) { if (live.get(String(l.externalId)) !== '1') ghostLeadIds.push(l.id); }
+  }
+  if (ghostLeadIds.length) {
+    await prisma.lead.deleteMany({ where: { id: { in: ghostLeadIds } } });
+    console.log(`[${office}] Ghost INSPECTED leads removed (No-Show/cancelled/deleted): ${ghostLeadIds.length} (checked ${suspects.length})`);
+  }
+
   const employeeIds = [...new Set(newInspections.map((a: any) => a.servicedBy || a.completedBy).filter(Boolean))];
   const employeeMap = new Map<string, string>();
   if (employeeIds.length > 0) {
