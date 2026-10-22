@@ -78,11 +78,38 @@ async function runSync(offices: string[]) {
 
     // 1) Pull pest/termite inspections from csr_appointments for this office.
     const allTypes = [...PEST_INSPECTION_TYPES, ...TERMITE_INSPECTION_TYPES];
-    const inspections = await prisma.$queryRawUnsafe(`
+    const inspectionsRaw = await prisma.$queryRawUnsafe(`
       SELECT "externalId", "customerId", "serviceTypeName", "appointmentDate", "servicedBy"
       FROM csr_appointments
       WHERE office = $1 AND "serviceTypeName" = ANY($2)
     `, office, allTypes) as any[];
+
+    // 1b) VERIFY current FR status. csr_appointments is insert/update-only and never removed ghosts, so an
+    //     appointment that was completed when synced but later DELETED or marked No-Show / Not Serviced in FR
+    //     lingered as a 'COMPLETED' record and wrongly counted as INSPECTED (e.g. cust 52188 Misty Connelly).
+    //     Re-check each appointment's live FR status; keep only status==='1' (completed). Drop the rest as ghosts.
+    const apptIds = inspectionsRaw.map(i => String(i.externalId)).filter(Boolean);
+    const liveStatus = new Map<string, string>();
+    for (let k = 0; k < apptIds.length; k += 100) {
+      const batch = apptIds.slice(k, k + 100);
+      const r = await frGet('appointment/get', `appointmentIDs=${batch.length === 1 ? `${batch[0]},${batch[0]}` : batch.join(',')}`, cfg.key, cfg.token);
+      for (const a of (r?.appointments || [])) liveStatus.set(String(a.appointmentID), String(a.status));
+    }
+    const ghostIds: string[] = [];
+    const inspections = inspectionsRaw.filter(i => {
+      const st = liveStatus.get(String(i.externalId));
+      const completed = st === '1'; // 1 = completed. Missing (deleted) or any other status = not a real inspection.
+      if (!completed) ghostIds.push(String(i.externalId));
+      return completed;
+    });
+    // Remove ghost PestInspection rows (deleted/No-Show in FR) so they drop off the Leads Tracker.
+    let ghostsRemoved = 0;
+    if (ghostIds.length) {
+      const del = await prisma.pestInspection.deleteMany({ where: { externalId: { in: ghostIds.map(id => String(id)) } } });
+      ghostsRemoved = del.count;
+      // Also purge from csr_appointments so they don't reappear next run.
+      await prisma.$executeRawUnsafe(`DELETE FROM csr_appointments WHERE "externalId" = ANY($1)`, ghostIds).catch(() => {});
+    }
 
     // 2) Resolve servicedBy IDs -> names (for PM attribution).
     const empIds = [...new Set(inspections.map(i => String(i.servicedBy)).filter(x => x && x !== 'null' && x !== '0'))];
@@ -157,7 +184,7 @@ async function runSync(offices: string[]) {
       if (status === 'SOLD') sold++; else inspected++;
     }
 
-    results.push({ office, inspections: inspections.length, upserted: created, sold, inspected });
+    results.push({ office, inspections: inspections.length, upserted: created, sold, inspected, ghostsRemoved });
   }
 
   return results;
