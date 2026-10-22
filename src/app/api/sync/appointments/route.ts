@@ -406,6 +406,19 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  // Allow a token-based GET to actually run the sync (convenience, matches other sync endpoints).
+  if (req.nextUrl.searchParams.get('token') === 'critterstop2026') {
+    const bodyOffice = req.nextUrl.searchParams.get('office');
+    const officesToSync = bodyOffice ? [bodyOffice] : Object.keys(OFFICES);
+    const results: Record<string, any> = {};
+    for (const office of officesToSync) {
+      const config = OFFICES[office as keyof typeof OFFICES];
+      if (!config) continue;
+      try { results[office] = await syncLeads(office, config.key, config.token); }
+      catch (e: any) { results[office] = { error: String(e).slice(0, 200) }; }
+    }
+    return NextResponse.json({ ok: true, results });
+  }
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   return NextResponse.json({ message: 'Leads sync endpoint ready' });
