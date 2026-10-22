@@ -143,18 +143,34 @@ export async function GET(req: NextRequest) {
     log.push(`[${officeKey}] Created: ${created}`);
 
     // RECONCILE GHOSTS: csr_appointments is insert/update-only, so an appt that was status=1 when first synced
-    // but later changed to No-Show/cancelled (status!=1) or was deleted in FR lingered as 'COMPLETED' and kept
-    // showing on the Leads Tracker as "Inspected" (e.g. appt 223414, cust 52188 Misty Connelly: FR status=2 No
-    // Show, Hub still COMPLETED). Among the CSR-type appts we fetched, any NOT status=1 is a ghost -> delete it.
-    const ghostCsrIds = appointments
-      .filter((a: any) => CSR_SERVICE_IDS.has(String(a.type)) && String(a.status) !== '1')
-      .map((a: any) => String(a.appointmentID));
+    // but later changed to No-Show/cancelled lingered as 'COMPLETED' and kept showing on the Leads Tracker as
+    // "Inspected" (e.g. appt 223414, cust 52188 Misty Connelly: now FR status=2 'No Show'). FR's appointment
+    // SEARCH does NOT return No-Show appts at all, so we can't spot them in the fetched set. Instead: take the
+    // Hub records that are NO LONGER in the current completed-search set, re-verify each one's LIVE status via
+    // appointment/get, and delete any that aren't status=1 (No-Show/cancelled/gone).
+    const completedIds = new Set(allIds.map(String));
+    const hubRows = await prisma.$queryRawUnsafe(
+      `SELECT "externalId" FROM "csr_appointments" WHERE office = $1`, officeKey
+    ) as { externalId: string }[];
+    const missingFromSearch = hubRows.map(r => String(r.externalId)).filter(id => !completedIds.has(id));
+    const ghostCsrIds: string[] = [];
+    for (let k = 0; k < missingFromSearch.length; k += 100) {
+      const batch = missingFromSearch.slice(k, k + 100);
+      const g = await frFetch('appointment/get', `appointmentIDs=${batch.length === 1 ? `${batch[0]},${batch[0]}` : batch.join(',')}`, office.key, office.token);
+      const live = new Map<string, string>();
+      for (const a of (g?.appointments || [])) live.set(String(a.appointmentID), String(a.status));
+      for (const id of batch) {
+        const st = live.get(id); // undefined = deleted; '2'/'3'.. = No-Show/cancelled; only '1' is a real inspection
+        if (st !== '1') ghostCsrIds.push(id);
+      }
+    }
     if (ghostCsrIds.length) {
-      // Delete dependent csr_leads first (FK), then the appointments. id = csr_appt_<externalId>.
       const rowIds = ghostCsrIds.map(id => `csr_appt_${id}`);
       await prisma.$executeRawUnsafe(`DELETE FROM "csr_leads" WHERE "leadId" = ANY($1)`, rowIds).catch(() => {});
       const del = await prisma.$executeRawUnsafe(`DELETE FROM "csr_appointments" WHERE "externalId" = ANY($1) AND office = $2`, ghostCsrIds, officeKey).catch(() => 0);
-      log.push(`[${officeKey}] Ghosts removed (No-Show/cancelled since sync): ${del}`);
+      log.push(`[${officeKey}] Ghosts removed (No-Show/cancelled/deleted since sync): ${del} (checked ${missingFromSearch.length} missing-from-search)`);
+    } else {
+      log.push(`[${officeKey}] No ghosts (checked ${missingFromSearch.length} missing-from-search)`);
     }
   }
 
