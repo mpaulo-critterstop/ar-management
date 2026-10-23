@@ -260,7 +260,39 @@ export async function GET(req: NextRequest) {
 
   const cached = await prisma.appSetting.findUnique({ where: { key: CACHE_KEY } });
   if (!cached) return NextResponse.json({ note: 'Not computed yet — run &refresh=1, then &status=1.', totals: null, rows: [] });
-  const data = JSON.parse(cached.value);
+  let data = JSON.parse(cached.value);
+
+  // RECOMPUTE: re-derive stories/rate/expected/variance from the CACHED per-job data — NO FR calls. Use this
+  // after importing/updating the story map (the FR revenue/hours/crew don't change, so no need to re-pull).
+  if (sp.get('recompute') === '1') {
+    const storiesRow = await prisma.appSetting.findUnique({ where: { key: 'exclusion_stories_map' } });
+    const storiesMap: Record<string, number> = storiesRow ? JSON.parse(storiesRow.value) : {};
+    const RATE_1 = 225, RATE_2 = 175;
+    const perJob = (data.perJob || []).map((j: any) => {
+      const stories = storiesMap[String(j.customerID)] || null;
+      const rate = stories === 1 ? RATE_1 : stories === 2 ? RATE_2 : null;
+      const schedTechHours = j.schedHours * Math.max(j.crewSize || 1, 1);
+      const expectedTechHours = rate ? Math.round((j.exclusionRevenue / rate) * 100) / 100 : null;
+      const varianceHours = expectedTechHours !== null ? Math.round((expectedTechHours - schedTechHours) * 100) / 100 : null;
+      return { ...j, stories, rate, schedTechHours, expectedTechHours, varianceHours };
+    });
+    const tagged = perJob.filter((j: any) => j.rate !== null);
+    const one = perJob.filter((j: any) => j.stories === 1), two = perJob.filter((j: any) => j.stories === 2);
+    const sumRate = (arr: any[]) => { const h = arr.reduce((s, j) => s + j.schedTechHours, 0); return h > 0 ? Math.round((arr.reduce((s, j) => s + j.exclusionRevenue, 0) / h) * 100) / 100 : 0; };
+    const sumExpected = tagged.reduce((s: number, j: any) => s + (j.expectedTechHours || 0), 0);
+    const sumSched = tagged.reduce((s: number, j: any) => s + j.schedTechHours, 0);
+    data.totals = { ...data.totals,
+      jobsTagged: tagged.length, jobsUntagged: perJob.length - tagged.length,
+      oneStoryJobs: one.length, twoStoryJobs: two.length,
+      oneStoryBlendedRate: sumRate(one), twoStoryBlendedRate: sumRate(two),
+      expectedTechHoursAtStandard: Math.round(sumExpected * 100) / 100,
+      scheduledTechHoursTagged: Math.round(sumSched * 100) / 100,
+      varianceHours: Math.round((sumExpected - sumSched) * 100) / 100,
+    };
+    data.perJob = perJob;
+    // persist so the next plain read shows the enriched version too
+    await prisma.appSetting.upsert({ where: { key: CACHE_KEY }, create: { key: CACHE_KEY, value: JSON.stringify(data) }, update: { value: JSON.stringify(data) } });
+  }
 
   if (sp.get('csv') === '1') {
     const header = 'Field Professional,Office,Jobs,Exclusion Revenue,Scheduled Tech-Hours,Rev per Sched Tech-Hour,Trapping Revenue,Fogging Revenue';
