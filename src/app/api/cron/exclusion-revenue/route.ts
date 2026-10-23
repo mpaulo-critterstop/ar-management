@@ -110,23 +110,27 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
       if (date < job.firstDay) job.firstDay = date;
       if (date > job.lastDay) job.lastDay = date;
     }
-    setStatus(`${officeName}: ${jobs.size} exclusion jobs. Pulling ticket revenue…`);
+    setStatus(`${officeName}: ${jobs.size} exclusion jobs. Pulling ticket revenue (batched)…`);
 
-    // 3) Per job: fetch its ticket(s) with line items; exclusion revenue = total − all line items.
+    // 3) Fetch ALL tickets across all jobs in BATCHES of 100 (not one call per job — that was ~413 calls).
+    const allTicketIds = [...new Set([...jobs.values()].flatMap(j => [...j.ticketIds]))];
+    const allTickets = allTicketIds.length ? await fetchByIds('ticket', 'ticketIDs', allTicketIds, cfg.key, cfg.token, '&includeData=1') : [];
+    const ticketById = new Map<string, any>(allTickets.map(t => [String(t.ticketID), t]));
+    setStatus(`${officeName}: fetched ${allTickets.length} tickets. Computing revenue…`);
+
+    // Per job: exclusion revenue = ticket total − all line items (base service charge).
     for (const job of jobs.values()) {
       let exclRev = 0, trapRev = 0, fogRev = 0;
-      if (job.ticketIds.size) {
-        const tickets = await fetchByIds('ticket', 'ticketIDs', [...job.ticketIds], cfg.key, cfg.token, '&includeData=1');
-        for (const t of tickets) {
-          const total = parseFloat(t.total || '0');
-          const items = t.items || [];
-          const itemsSum = items.reduce((s: number, it: any) => s + parseFloat(it.amount || '0'), 0);
-          exclRev += total - itemsSum; // base service charge = exclusion revenue
-          for (const it of items) {
-            const pid = parseInt(String(it.productID));
-            if (pid === TRAPPING_PRODUCT) trapRev += parseFloat(it.amount || '0');
-            else if (pid === FOGGING_PRODUCT) fogRev += parseFloat(it.amount || '0');
-          }
+      for (const tid of job.ticketIds) {
+        const t = ticketById.get(String(tid)); if (!t) continue;
+        const total = parseFloat(t.total || '0');
+        const items = t.items || [];
+        const itemsSum = items.reduce((s: number, it: any) => s + parseFloat(it.amount || '0'), 0);
+        exclRev += total - itemsSum; // base service charge = exclusion revenue
+        for (const it of items) {
+          const pid = parseInt(String(it.productID));
+          if (pid === TRAPPING_PRODUCT) trapRev += parseFloat(it.amount || '0');
+          else if (pid === FOGGING_PRODUCT) fogRev += parseFloat(it.amount || '0');
         }
       }
       exclRev = Math.round(exclRev * 100) / 100; trapRev = Math.round(trapRev * 100) / 100; fogRev = Math.round(fogRev * 100) / 100;
