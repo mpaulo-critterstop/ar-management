@@ -110,20 +110,35 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
       if (date < job.firstDay) job.firstDay = date;
       if (date > job.lastDay) job.lastDay = date;
     }
-    setStatus(`${officeName}: ${jobs.size} exclusion jobs. Pulling ticket revenue (batched)…`);
+    setStatus(`${officeName}: ${jobs.size} exclusion jobs. Resolving revenue tickets…`);
 
-    // 3) Fetch ALL tickets across all jobs in BATCHES of 100 (not one call per job — that was ~413 calls).
-    const allTicketIds = [...new Set([...jobs.values()].flatMap(j => [...j.ticketIds]))];
+    // 3) Revenue is NOT on the appointment's service ticket (that's $0) — it's on the customer's 553 REVENUE
+    //    ticket (the sale/invoice with the base charge + line items). Get each exclusion customer's invoice
+    //    externalIds from the Hub DB, then batch-fetch those tickets (100/call) and keep the 553 ones.
+    const custIds = [...jobs.keys()];
+    const invRows = await prisma.invoice.findMany({
+      where: { customer: { externalId: { in: custIds } }, externalId: { not: null } },
+      select: { externalId: true, customer: { select: { externalId: true } } },
+    });
+    const ticketIdsByCust = new Map<string, string[]>();
+    for (const inv of invRows) {
+      const c = inv.customer?.externalId; if (!c || !inv.externalId) continue;
+      (ticketIdsByCust.get(c) || ticketIdsByCust.set(c, []).get(c)!).push(inv.externalId);
+    }
+    const allTicketIds = [...new Set(invRows.map(i => i.externalId!).filter(Boolean))];
     const allTickets = allTicketIds.length ? await fetchByIds('ticket', 'ticketIDs', allTicketIds, cfg.key, cfg.token, '&includeData=1') : [];
     const ticketById = new Map<string, any>(allTickets.map(t => [String(t.ticketID), t]));
     setStatus(`${officeName}: fetched ${allTickets.length} tickets. Computing revenue…`);
 
-    // Per job: exclusion revenue = ticket total − all line items (base service charge).
+    // Per job: find the customer's 553 revenue ticket(s) (total>0), exclusion revenue = total − all line items.
     for (const job of jobs.values()) {
       let exclRev = 0, trapRev = 0, fogRev = 0;
-      for (const tid of job.ticketIds) {
+      const custTicketIds = ticketIdsByCust.get(job.customerID) || [];
+      for (const tid of custTicketIds) {
         const t = ticketById.get(String(tid)); if (!t) continue;
+        if (parseInt(String(t.serviceID)) !== EXCLUSION_TYPE) continue; // only 553 revenue tickets
         const total = parseFloat(t.total || '0');
+        if (total <= 0) continue; // skip the $0 service-visit ticket
         const items = t.items || [];
         const itemsSum = items.reduce((s: number, it: any) => s + parseFloat(it.amount || '0'), 0);
         exclRev += total - itemsSum; // base service charge = exclusion revenue
