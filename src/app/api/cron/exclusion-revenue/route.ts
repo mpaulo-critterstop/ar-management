@@ -65,9 +65,18 @@ async function fetchByIds(entity: string, idParamName: string, ids: any[], key: 
   return out;
 }
 
+// Productivity standard: a tech on a 10hr/day should generate this much exclusion revenue per hour.
+const RATE_1STORY = 225; // easy / 1-story
+const RATE_2STORY = 175; // harder / 2-story
+
 async function runReport(from: string, to: string, offices: string[], setStatus: (m: string) => void) {
   const techRows = await prisma.technician.findMany({ where: { frEmployeeId: { not: null } }, select: { frEmployeeId: true, name: true } });
   const techName = new Map<string, string>(techRows.map(t => [String(t.frEmployeeId), t.name]));
+
+  // Story-count map (FR customerID -> 1 or 2), loaded from the imported Exclusions sheet.
+  const storiesRow = await prisma.appSetting.findUnique({ where: { key: 'exclusion_stories_map' } });
+  const storiesMap: Record<string, number> = storiesRow ? JSON.parse(storiesRow.value) : {};
+  const rateFor = (cid: string): number | null => { const s = storiesMap[String(cid)]; return s === 1 ? RATE_1STORY : s === 2 ? RATE_2STORY : null; };
 
   type FPAgg = { frId: string; name: string; office: string; exclusionRevenue: number; schedHours: number; techHours: number; jobs: Set<string>; trappingRevenue: number; foggingRevenue: number; };
   const fps = new Map<string, FPAgg>();
@@ -169,10 +178,18 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
         fp.techHours += schedHours * (dayCount / Math.max(job.crewDays.length, 1)); // FP hours actually on site
         fp.jobs.add(job.customerID);
       }
+      // Stories → rate → expected tech-hours (revenue the job "earns" at standard / rate / crew) → variance.
+      const stories = storiesMap[String(job.customerID)] || null;
+      const rate = rateFor(job.customerID);
+      const crewSize = Math.max(fpDayCount.size, 1);
+      const schedTechHours = schedHours * crewSize;
+      const expectedTechHours = rate ? Math.round((exclRev / rate) * 100) / 100 : null; // total tech-hours the revenue justifies
+      const varianceHours = expectedTechHours !== null ? Math.round((expectedTechHours - schedTechHours) * 100) / 100 : null; // + = under-allotted (should've had more time), - = over-allotted
       perJob.push({ office: officeName, customerID: job.customerID, customer: job.customer, firstDay: job.firstDay, lastDay: job.lastDay,
-        schedHours, crewSize: fpDayCount.size, crew: [...fpDayCount.keys()].map(id => techName.get(id) || `FR ${id}`),
+        stories, rate, schedHours, crewSize, crew: [...fpDayCount.keys()].map(id => techName.get(id) || `FR ${id}`),
         exclusionRevenue: exclRev, trappingRevenue: trapRev, foggingRevenue: fogRev,
-        revenuePerSchedTechHour: (schedHours * fpDayCount.size) > 0 ? Math.round((exclRev / (schedHours * fpDayCount.size)) * 100) / 100 : 0 });
+        schedTechHours, expectedTechHours, varianceHours,
+        revenuePerSchedTechHour: schedTechHours > 0 ? Math.round((exclRev / schedTechHours) * 100) / 100 : 0 });
     }
   }
 
@@ -186,6 +203,10 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
     foggingRevenue: Math.round(f.foggingRevenue * 100) / 100,
   })).sort((a, b) => b.exclusionRevenue - a.exclusionRevenue);
 
+  const tagged = perJob.filter(j => j.rate !== null);
+  const one = perJob.filter(j => j.stories === 1), two = perJob.filter(j => j.stories === 2);
+  const sumExpected = tagged.reduce((s, j) => s + (j.expectedTechHours || 0), 0);
+  const sumSched = tagged.reduce((s, j) => s + j.schedTechHours, 0);
   const totals = {
     fieldProfessionals: rows.filter(r => r.frId !== 'UNATTRIBUTED').length,
     exclusionJobs: perJob.length,
@@ -194,6 +215,14 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
     totalTrappingRevenue: Math.round(rows.reduce((s, r) => s + r.trappingRevenue, 0) * 100) / 100,
     totalFoggingRevenue: Math.round(rows.reduce((s, r) => s + r.foggingRevenue, 0) * 100) / 100,
     blendedRevPerSchedTechHour: rows.reduce((s, r) => s + r.scheduledHours, 0) > 0 ? Math.round((rows.reduce((s, r) => s + r.exclusionRevenue, 0) / rows.reduce((s, r) => s + r.scheduledHours, 0)) * 100) / 100 : 0,
+    // Stories coverage + the standard-vs-scheduled picture (the blind spot):
+    jobsTagged: tagged.length, jobsUntagged: perJob.length - tagged.length,
+    oneStoryJobs: one.length, twoStoryJobs: two.length,
+    oneStoryBlendedRate: one.reduce((s, j) => s + j.schedTechHours, 0) > 0 ? Math.round((one.reduce((s, j) => s + j.exclusionRevenue, 0) / one.reduce((s, j) => s + j.schedTechHours, 0)) * 100) / 100 : 0,
+    twoStoryBlendedRate: two.reduce((s, j) => s + j.schedTechHours, 0) > 0 ? Math.round((two.reduce((s, j) => s + j.exclusionRevenue, 0) / two.reduce((s, j) => s + j.schedTechHours, 0)) * 100) / 100 : 0,
+    expectedTechHoursAtStandard: Math.round(sumExpected * 100) / 100,
+    scheduledTechHoursTagged: Math.round(sumSched * 100) / 100,
+    varianceHours: Math.round((sumExpected - sumSched) * 100) / 100, // + = jobs under-allotted overall; - = over-allotted
   };
   return { rows, totals, perJob };
 }
