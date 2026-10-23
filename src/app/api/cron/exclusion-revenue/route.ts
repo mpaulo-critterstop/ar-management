@@ -1,18 +1,22 @@
 // Exclusion Revenue by Field Professional.
-// Revenue comes from the Hub `invoice` table (serviceId + amount) — ZERO FR calls for revenue.
-//   • Exclusion revenue  = invoices with serviceId 553 (exclusion line items only, per Chisam).
-//   • Trapping (720) + Fogging (510) revenue pulled SEPARATELY (not mixed into exclusion).
-// Crew attribution comes from FR appointments + routes (the only FR calls): for each exclusion customer,
-// which Field Professionals worked the job (route additionalTechs + assignedTech). Revenue is split across
-// the crew by tech-day share so a multi-tech job doesn't double-count.
 //
-// To avoid Vercel timeouts, compute runs in the BACKGROUND (waitUntil) and caches to app_settings; the
-// default GET returns the cached result instantly.
-//   /api/cron/exclusion-revenue?token=critterstop2026&refresh=1        -> compute (background), all offices
-//   /api/cron/exclusion-revenue?token=critterstop2026                  -> read cached result (instant)
-//   /api/cron/exclusion-revenue?token=critterstop2026&refresh=1&office=DFW&from=2026-08-01&to=2026-10-31
-//   /api/cron/exclusion-revenue?token=critterstop2026&csv=1            -> cached result as CSV
-//   /api/cron/exclusion-revenue?token=critterstop2026&status=1         -> compute progress
+// Model (confirmed with Mark):
+//   • COMPLETED exclusion appointments drive the report (type 553, status=1) in the window. This naturally
+//     excludes invoiced-but-not-yet-serviced jobs.
+//   • Crew per visit = route/appointment assignedTech + additionalTechs.
+//   • Scheduled hours per job = sum of the job's exclusion appointment durations (the booked time block,
+//     e.g. 7am–12pm = 5 hrs). Actual timeIn/timeOut is NOT used (only tracks the main tech; unreliable).
+//   • Exclusion revenue per job = exclusion ticket TOTAL − ALL product line items (i.e. the base service
+//     charge). Every line item (Trapping 8, Fogging 9, Insulation 10/43, Rodent Cleanout 16, anything else)
+//     is an add-on and is excluded — only the exclusion base charge counts as exclusion revenue.
+//   • Trapping/Fogging revenue pulled separately (products 8 / 9) for Chisam's trap-check analysis.
+//   • Key metric: $ per scheduled tech-hour = exclusion revenue / (scheduled hours × crew size). This is what
+//     we measure against the standard ($225/hr easy / $175/hr hard) once story/difficulty tags are available.
+//
+// Background compute (waitUntil) + cache to app_settings to avoid Vercel timeouts.
+//   ?token=critterstop2026&refresh=1[&office=DFW][&from=2026-08-01][&to=2026-10-31]   -> compute
+//   ?token=critterstop2026                                                            -> cached result
+//   ?token=critterstop2026&status=1   ?token=...&csv=1   ?token=...&detail=1
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { waitUntil } from '@vercel/functions';
@@ -26,7 +30,8 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number }> 
   OKC:   { key: process.env.FIELDROUTES_KEY_OKC!,   token: process.env.FIELDROUTES_TOKEN_OKC!,   officeId: 3 },
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4 },
 };
-const EXCLUSION_TYPE = 553, TRAPPING_TYPE = 720, FOGGING_TYPE = 510;
+const EXCLUSION_TYPE = 553;
+const TRAPPING_PRODUCT = 8, FOGGING_PRODUCT = 9;
 const fmt = (d: Date) => d.toISOString().split('T')[0];
 
 let chain: Promise<any> = Promise.resolve();
@@ -48,12 +53,12 @@ function fr(url: string): Promise<any> {
   chain = run.catch(() => ({}));
   return run;
 }
-async function fetchByIds(entity: string, idParamName: string, ids: any[], key: string, token: string): Promise<any[]> {
+async function fetchByIds(entity: string, idParamName: string, ids: any[], key: string, token: string, extra = ''): Promise<any[]> {
   const out: any[] = [];
   for (let i = 0; i < ids.length; i += 100) {
     const chunk = ids.slice(i, i + 100);
     const idParam = chunk.length === 1 ? `${chunk[0]},${chunk[0]}` : chunk.join(',');
-    const d = await fr(`${BASE_URL}/${entity}/get?${idParamName}=${idParam}&authenticationKey=${key}&authenticationToken=${token}`);
+    const d = await fr(`${BASE_URL}/${entity}/get?${idParamName}=${idParam}&authenticationKey=${key}&authenticationToken=${token}${extra}`);
     const prop = d.propertyName || `${entity}s`;
     if (Array.isArray(d[prop])) out.push(...d[prop]);
   }
@@ -61,15 +66,14 @@ async function fetchByIds(entity: string, idParamName: string, ids: any[], key: 
 }
 
 async function runReport(from: string, to: string, offices: string[], setStatus: (m: string) => void) {
-  const start = new Date(from + 'T00:00:00Z'), end = new Date(to + 'T23:59:59Z');
   const techRows = await prisma.technician.findMany({ where: { frEmployeeId: { not: null } }, select: { frEmployeeId: true, name: true } });
   const techName = new Map<string, string>(techRows.map(t => [String(t.frEmployeeId), t.name]));
 
-  type FPAgg = { frId: string; name: string; office: string; exclusionRevenue: number; exclusionTechDays: number; exclusionJobs: Set<string>; trappingRevenue: number; foggingRevenue: number; };
+  type FPAgg = { frId: string; name: string; office: string; exclusionRevenue: number; schedHours: number; techHours: number; jobs: Set<string>; trappingRevenue: number; foggingRevenue: number; };
   const fps = new Map<string, FPAgg>();
   const getFP = (frId: string, office: string): FPAgg => {
     let f = fps.get(frId);
-    if (!f) { f = { frId, name: techName.get(frId) || `FR ${frId}`, office, exclusionRevenue: 0, exclusionTechDays: 0, exclusionJobs: new Set(), trappingRevenue: 0, foggingRevenue: 0 }; fps.set(frId, f); }
+    if (!f) { f = { frId, name: techName.get(frId) || `FR ${frId}`, office, exclusionRevenue: 0, schedHours: 0, techHours: 0, jobs: new Set(), trappingRevenue: 0, foggingRevenue: 0 }; fps.set(frId, f); }
     return f;
   };
   const perJob: any[] = [];
@@ -77,85 +81,100 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
   for (const officeName of offices) {
     const cfg = OFFICES[officeName]; if (!cfg?.key) continue;
     const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
-    setStatus(`${officeName}: loading invoices from Hub…`);
+    setStatus(`${officeName}: searching appointments…`);
 
-    // 1) Revenue straight from the Hub invoice table (no FR). Group by customer.
-    const invs = await prisma.invoice.findMany({
-      where: { office: officeName, date: { gte: start, lte: end }, serviceId: { in: [EXCLUSION_TYPE, TRAPPING_TYPE, FOGGING_TYPE] } },
-      select: { customerId: true, serviceId: true, amount: true, customer: { select: { externalId: true, name: true } } },
-    });
-    const revByCust = new Map<string, { excl: number; trap: number; fog: number; name: string; extId: string }>();
-    for (const inv of invs) {
-      const extId = inv.customer?.externalId; if (!extId) continue;
-      let r = revByCust.get(extId); if (!r) { r = { excl: 0, trap: 0, fog: 0, name: inv.customer?.name || extId, extId }; revByCust.set(extId, r); }
-      const amt = Number(inv.amount);
-      if (inv.serviceId === EXCLUSION_TYPE) r.excl += amt; else if (inv.serviceId === TRAPPING_TYPE) r.trap += amt; else if (inv.serviceId === FOGGING_TYPE) r.fog += amt;
-    }
-    // Only customers that actually have exclusion revenue drive FP attribution (trapping/fogging-only customers
-    // still contribute their revenue, but attribution is based on exclusion work days).
-    const exclCustIds = [...revByCust.entries()].filter(([, r]) => r.excl > 0).map(([id]) => id);
-    setStatus(`${officeName}: ${revByCust.size} customers w/ revenue, ${exclCustIds.length} w/ exclusion. Loading crew from FR…`);
-    if (!revByCust.size) continue;
-
-    // 2) Crew from FR: exclusion appointments in the window + their routes. One appt search for the window.
+    // 1) Completed exclusion appointments in window (FR ignores type filter — fetch window, filter to 553/status=1).
     const s = await fr(`${BASE_URL}/appointment/search?officeIDs=${cfg.officeId}&dateStart=${from}&dateEnd=${to}&${auth}`);
     const apptIds = (s.appointmentIDs || []).map(Number);
-    const appts = apptIds.length ? await fetchByIds('appointment', 'appointmentIDs', apptIds, cfg.key, cfg.token) : [];
-    const routeIds = [...new Set(appts.filter((a: any) => parseInt(String(a.type)) === EXCLUSION_TYPE).map((a: any) => String(a.routeID)).filter(x => x && x !== '0'))];
-    const routes = routeIds.length ? await fetchByIds('route', 'routeIDs', routeIds, cfg.key, cfg.token) : [];
-    const crewByRoute = new Map<string, string[]>();
-    for (const r of routes) {
-      const crew = (r.additionalTechs ? String(r.additionalTechs).split(',').map((x: string) => x.trim()).filter(Boolean) : []);
-      if (r.assignedTech && String(r.assignedTech) !== '0') crew.push(String(r.assignedTech));
-      crewByRoute.set(String(r.routeID), [...new Set(crew)]);
-    }
-    // Per customer, collect completed exclusion appt crew-days.
-    const custCrewDays = new Map<string, string[][]>();
-    for (const a of appts) {
-      if (parseInt(String(a.type)) !== EXCLUSION_TYPE || String(a.status) !== '1') continue;
-      const custID = String(a.customerID); if (!custID || custID === '0') continue;
-      const crew = crewByRoute.get(String(a.routeID)) || [];
-      (custCrewDays.get(custID) || custCrewDays.set(custID, []).get(custID)!).push(crew);
-    }
+    if (!apptIds.length) { setStatus(`${officeName}: no appts`); continue; }
+    const appts = await fetchByIds('appointment', 'appointmentIDs', apptIds, cfg.key, cfg.token);
+    const exclAppts = appts.filter((a: any) => parseInt(String(a.type)) === EXCLUSION_TYPE && String(a.status) === '1');
+    setStatus(`${officeName}: ${exclAppts.length} completed exclusion appts. Building jobs…`);
 
-    // 3) Attribute each customer's revenue to the FPs who worked their exclusion days (split by tech-day share).
-    for (const [extId, rev] of revByCust) {
-      const crewDays = custCrewDays.get(extId) || [];
-      const fpDayCount = new Map<string, number>();
-      for (const crew of crewDays) for (const tech of crew) fpDayCount.set(tech, (fpDayCount.get(tech) || 0) + 1);
-      const totalSlots = [...fpDayCount.values()].reduce((s, n) => s + n, 0);
-      if (totalSlots === 0) {
-        // Revenue exists but no crew matched (e.g. trapping/fogging-only, or appt crew missing) -> unattributed bucket.
-        const fp = getFP('UNATTRIBUTED', officeName);
-        fp.exclusionRevenue += rev.excl; fp.trappingRevenue += rev.trap; fp.foggingRevenue += rev.fog;
-        perJob.push({ office: officeName, customerID: extId, customer: rev.name, crew: [], exclusionRevenue: Math.round(rev.excl * 100) / 100, trappingRevenue: Math.round(rev.trap * 100) / 100, foggingRevenue: Math.round(rev.fog * 100) / 100, note: 'no crew matched' });
-        continue;
+    // 2) Group appts into jobs per customer; collect crew-days + scheduled durations + ticketIDs.
+    type Job = { customerID: string; customer: string; firstDay: string; lastDay: string; schedMinutes: number;
+                 crewDays: string[][]; ticketIds: Set<string>; };
+    const jobs = new Map<string, Job>();
+    for (const a of exclAppts) {
+      const custID = String(a.customerID); if (!custID || custID === '0') continue;
+      const date = String(a.date || a.dateAdded).slice(0, 10);
+      const crew = (a.additionalTechs ? String(a.additionalTechs).split(',').map((x: string) => x.trim()).filter(Boolean) : []);
+      if (a.assignedTech && String(a.assignedTech) !== '0') crew.push(String(a.assignedTech));
+      else if (a.servicedBy && String(a.servicedBy) !== '0') crew.push(String(a.servicedBy));
+      const uniqCrew = [...new Set(crew)];
+      let job = jobs.get(custID);
+      if (!job) { job = { customerID: custID, customer: a.customerName || custID, firstDay: date, lastDay: date, schedMinutes: 0, crewDays: [], ticketIds: new Set() }; jobs.set(custID, job); }
+      job.schedMinutes += parseInt(String(a.duration || '0')) || 0;
+      job.crewDays.push(uniqCrew);
+      if (a.ticketID && String(a.ticketID) !== '0') job.ticketIds.add(String(a.ticketID));
+      if (date < job.firstDay) job.firstDay = date;
+      if (date > job.lastDay) job.lastDay = date;
+    }
+    setStatus(`${officeName}: ${jobs.size} exclusion jobs. Pulling ticket revenue…`);
+
+    // 3) Per job: fetch its ticket(s) with line items; exclusion revenue = total − all line items.
+    for (const job of jobs.values()) {
+      let exclRev = 0, trapRev = 0, fogRev = 0;
+      if (job.ticketIds.size) {
+        const tickets = await fetchByIds('ticket', 'ticketIDs', [...job.ticketIds], cfg.key, cfg.token, '&includeData=1');
+        for (const t of tickets) {
+          const total = parseFloat(t.total || '0');
+          const items = t.items || [];
+          const itemsSum = items.reduce((s: number, it: any) => s + parseFloat(it.amount || '0'), 0);
+          exclRev += total - itemsSum; // base service charge = exclusion revenue
+          for (const it of items) {
+            const pid = parseInt(String(it.productID));
+            if (pid === TRAPPING_PRODUCT) trapRev += parseFloat(it.amount || '0');
+            else if (pid === FOGGING_PRODUCT) fogRev += parseFloat(it.amount || '0');
+          }
+        }
       }
+      exclRev = Math.round(exclRev * 100) / 100; trapRev = Math.round(trapRev * 100) / 100; fogRev = Math.round(fogRev * 100) / 100;
+      const schedHours = Math.round((job.schedMinutes / 60) * 100) / 100;
+
+      // 4) Attribute to FPs by tech-day share. Each appt-day contributes its crew; a tech's share = their
+      //    crew-day count / total crew-day slots on the job.
+      const fpDayCount = new Map<string, number>();
+      for (const crew of job.crewDays) for (const tech of crew) fpDayCount.set(tech, (fpDayCount.get(tech) || 0) + 1);
+      const totalSlots = [...fpDayCount.values()].reduce((s, n) => s + n, 0);
+      // Total tech-hours on the job = scheduled hours × (sum of crew sizes per day / number of days) — but
+      // simpler and exact: tech-hours = Σ over days (dayDuration × dayCrewSize). Since we summed schedMinutes
+      // across days, approximate per-FP hours = schedHours × (their day share). Good enough at job grain.
       for (const [tech, dayCount] of fpDayCount) {
         const fp = getFP(tech, officeName);
-        const share = dayCount / totalSlots;
-        fp.exclusionRevenue += rev.excl * share; fp.trappingRevenue += rev.trap * share; fp.foggingRevenue += rev.fog * share;
-        fp.exclusionTechDays += dayCount; fp.exclusionJobs.add(extId);
+        const share = totalSlots > 0 ? dayCount / totalSlots : 0;
+        fp.exclusionRevenue += exclRev * share;
+        fp.trappingRevenue += trapRev * share;
+        fp.foggingRevenue += fogRev * share;
+        fp.schedHours += schedHours * share;           // FP's share of the job's scheduled hours
+        fp.techHours += schedHours * (dayCount / Math.max(job.crewDays.length, 1)); // FP hours actually on site
+        fp.jobs.add(job.customerID);
       }
-      perJob.push({ office: officeName, customerID: extId, customer: rev.name, crew: [...fpDayCount.keys()].map(id => techName.get(id) || `FR ${id}`), exclusionRevenue: Math.round(rev.excl * 100) / 100, trappingRevenue: Math.round(rev.trap * 100) / 100, foggingRevenue: Math.round(rev.fog * 100) / 100 });
+      perJob.push({ office: officeName, customerID: job.customerID, customer: job.customer, firstDay: job.firstDay, lastDay: job.lastDay,
+        schedHours, crewSize: fpDayCount.size, crew: [...fpDayCount.keys()].map(id => techName.get(id) || `FR ${id}`),
+        exclusionRevenue: exclRev, trappingRevenue: trapRev, foggingRevenue: fogRev,
+        revenuePerSchedTechHour: (schedHours * fpDayCount.size) > 0 ? Math.round((exclRev / (schedHours * fpDayCount.size)) * 100) / 100 : 0 });
     }
   }
 
   const rows = [...fps.values()].map(f => ({
     fieldProfessional: f.name, frId: f.frId, office: f.office,
-    exclusionJobs: f.exclusionJobs.size, exclusionTechDays: f.exclusionTechDays,
+    jobs: f.jobs.size,
     exclusionRevenue: Math.round(f.exclusionRevenue * 100) / 100,
-    revenuePerTechDay: f.exclusionTechDays > 0 ? Math.round((f.exclusionRevenue / f.exclusionTechDays) * 100) / 100 : 0,
+    scheduledHours: Math.round(f.techHours * 100) / 100,
+    revenuePerSchedTechHour: f.techHours > 0 ? Math.round((f.exclusionRevenue / f.techHours) * 100) / 100 : 0,
     trappingRevenue: Math.round(f.trappingRevenue * 100) / 100,
     foggingRevenue: Math.round(f.foggingRevenue * 100) / 100,
   })).sort((a, b) => b.exclusionRevenue - a.exclusionRevenue);
+
   const totals = {
     fieldProfessionals: rows.filter(r => r.frId !== 'UNATTRIBUTED').length,
+    exclusionJobs: perJob.length,
     totalExclusionRevenue: Math.round(rows.reduce((s, r) => s + r.exclusionRevenue, 0) * 100) / 100,
-    totalExclusionTechDays: rows.reduce((s, r) => s + r.exclusionTechDays, 0),
+    totalScheduledTechHours: Math.round(rows.reduce((s, r) => s + r.scheduledHours, 0) * 100) / 100,
     totalTrappingRevenue: Math.round(rows.reduce((s, r) => s + r.trappingRevenue, 0) * 100) / 100,
     totalFoggingRevenue: Math.round(rows.reduce((s, r) => s + r.foggingRevenue, 0) * 100) / 100,
-    exclusionJobs: perJob.length,
+    blendedRevPerSchedTechHour: rows.reduce((s, r) => s + r.scheduledHours, 0) > 0 ? Math.round((rows.reduce((s, r) => s + r.exclusionRevenue, 0) / rows.reduce((s, r) => s + r.scheduledHours, 0)) * 100) / 100 : 0,
   };
   return { rows, totals, perJob };
 }
@@ -183,21 +202,21 @@ export async function GET(req: NextRequest) {
     waitUntil((async () => {
       try {
         const data = await runReport(from, to, offices, setStatus);
-        await prisma.appSetting.upsert({ where: { key: CACHE_KEY }, create: { key: CACHE_KEY, value: JSON.stringify({ from, to, offices, computedAt: new Date().toISOString(), ...data }) }, update: { value: JSON.stringify({ from, to, offices, computedAt: new Date().toISOString(), ...data }) } });
-        setStatus(`done ${from}→${to} — ${data.rows.length} FPs, ${data.totals.exclusionJobs} jobs, $${data.totals.totalExclusionRevenue.toLocaleString()} exclusion rev @ ${new Date().toISOString()}`);
+        const payload = JSON.stringify({ from, to, offices, computedAt: new Date().toISOString(), ...data });
+        await prisma.appSetting.upsert({ where: { key: CACHE_KEY }, create: { key: CACHE_KEY, value: payload }, update: { value: payload } });
+        setStatus(`done ${from}→${to} — ${data.rows.length} FPs, ${data.totals.exclusionJobs} jobs, $${data.totals.totalExclusionRevenue.toLocaleString()} excl rev, $${data.totals.blendedRevPerSchedTechHour}/sched-tech-hr @ ${new Date().toISOString()}`);
       } catch (e: any) { setStatus(`ERROR: ${String(e).slice(0, 200)}`); }
     })());
-    return NextResponse.json({ ok: true, started: true, from, to, offices, note: 'Computing in background. Check &status=1 for progress, then reload without refresh to see results (a few minutes).' });
+    return NextResponse.json({ ok: true, started: true, from, to, offices, note: 'Computing in background. Check &status=1, then reload without refresh.' });
   }
 
-  // Default: read cached result.
   const cached = await prisma.appSetting.findUnique({ where: { key: CACHE_KEY } });
-  if (!cached) return NextResponse.json({ note: 'Not computed yet — run with &refresh=1, then check &status=1.', totals: null, rows: [] });
+  if (!cached) return NextResponse.json({ note: 'Not computed yet — run &refresh=1, then &status=1.', totals: null, rows: [] });
   const data = JSON.parse(cached.value);
 
   if (sp.get('csv') === '1') {
-    const header = 'Field Professional,Office,Exclusion Jobs,Exclusion Tech-Days,Exclusion Revenue,Revenue per Tech-Day,Trapping Revenue,Fogging Revenue';
-    const lines = (data.rows || []).map((r: any) => [r.fieldProfessional, r.office, r.exclusionJobs, r.exclusionTechDays, r.exclusionRevenue, r.revenuePerTechDay, r.trappingRevenue, r.foggingRevenue].join(','));
+    const header = 'Field Professional,Office,Jobs,Exclusion Revenue,Scheduled Tech-Hours,Rev per Sched Tech-Hour,Trapping Revenue,Fogging Revenue';
+    const lines = (data.rows || []).map((r: any) => [r.fieldProfessional, r.office, r.jobs, r.exclusionRevenue, r.scheduledHours, r.revenuePerSchedTechHour, r.trappingRevenue, r.foggingRevenue].join(','));
     return new NextResponse([header, ...lines].join('\n'), { headers: { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="exclusion_revenue_${data.from}_${data.to}.csv"` } });
   }
   return NextResponse.json({ from: data.from, to: data.to, offices: data.offices, computedAt: data.computedAt, totals: data.totals, rows: data.rows, perJob: sp.get('detail') === '1' ? data.perJob : (data.perJob || []).slice(0, 50) });
