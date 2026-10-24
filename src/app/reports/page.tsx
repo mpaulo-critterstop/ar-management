@@ -20,6 +20,13 @@ const REPORTS: Report[] = [
     module: 'report-insulation',
   },
   {
+    title: 'Exclusion Productivity',
+    desc: 'Exclusion revenue per scheduled tech-hour by field professional, vs. the $225 (1-story) / $175 (2-story) standard. Shows where jobs are under- or over-allotted time — the scheduling blind spot. Base service charge only; trapping/fogging pulled separately.',
+    href: '/reports/exclusion-revenue',
+    status: 'available',
+    module: 'report-insulation',
+  },
+  {
     title: 'Bad-Debt Accrual Calendar',
     desc: 'When each unpaid overdue invoice would have become bad debt under our collections rules, bucketed by month — for the scorecard baseline and the bookkeeper backdating conversation. Read-only projection; does not touch FieldRoutes.',
     href: '/reports/bad-debt-calendar',
