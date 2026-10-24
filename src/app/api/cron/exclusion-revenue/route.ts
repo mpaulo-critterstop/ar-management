@@ -227,8 +227,35 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
   return { rows, totals, perJob };
 }
 
-const CACHE_KEY = 'exclusion_revenue_cache';
 const STATUS_KEY = 'exclusion_revenue_status';
+// Cache key per period + periodKey + office, stored in appSetting (no migration).
+//   period 'range' (default) -> the full from→to span (Aug 1–today) : key = `${from}_${to}`
+//   period 'week'  -> Monday-start week containing `date`          : key = week-start date
+//   period 'month' -> calendar month containing `date`             : key = YYYY-MM
+function cacheKey(period: string, periodKey: string, office: string) { return `exclrev:${period}:${periodKey}:${office}`; }
+
+// Resolve period -> {from, to, periodKey, label}.
+function resolvePeriod(sp: URLSearchParams): { period: string; from: string; to: string; periodKey: string; label: string } {
+  const period = sp.get('period') || 'range';
+  if (period === 'week') {
+    const d = sp.get('date') ? new Date(sp.get('date')! + 'T00:00:00Z') : new Date();
+    const dow = d.getUTCDay(); const diff = dow === 0 ? -6 : 1 - dow;
+    const start = new Date(d); start.setUTCDate(d.getUTCDate() + diff);
+    const end = new Date(start); end.setUTCDate(start.getUTCDate() + 6);
+    const from = fmt(start), to = fmt(end);
+    return { period, from, to, periodKey: from, label: `Wk of ${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}` };
+  }
+  if (period === 'month') {
+    const d = sp.get('date') ? new Date(sp.get('date')! + 'T00:00:00Z') : new Date();
+    const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+    const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
+    const pk = `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}`;
+    return { period, from: fmt(start), to: fmt(end), periodKey: pk, label: start.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) };
+  }
+  const from = sp.get('from') || '2026-08-01';
+  const to = sp.get('to') || fmt(new Date());
+  return { period: 'range', from, to, periodKey: `${from}_${to}`, label: `${from} → ${to}` };
+}
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
@@ -239,27 +266,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ status: st?.value || 'idle' });
   }
 
-  const from = sp.get('from') || '2026-08-01';
-  const to = sp.get('to') || fmt(new Date());
-  const office = sp.get('office');
-  const offices = office ? [office] : Object.keys(OFFICES);
+  const { period, from, to, periodKey, label } = resolvePeriod(sp);
+  const office = sp.get('office') || 'DFW';
+  const offices = [office];
+  const CK = cacheKey(period, periodKey, office);
 
   if (sp.get('refresh') === '1') {
     const setStatus = (m: string) => { prisma.appSetting.upsert({ where: { key: STATUS_KEY }, create: { key: STATUS_KEY, value: m }, update: { value: m } }).catch(() => {}); };
-    setStatus(`started ${from}→${to} offices=${offices.join(',')}`);
+    setStatus(`started ${label} ${office}`);
     waitUntil((async () => {
       try {
         const data = await runReport(from, to, offices, setStatus);
-        const payload = JSON.stringify({ from, to, offices, computedAt: new Date().toISOString(), ...data });
-        await prisma.appSetting.upsert({ where: { key: CACHE_KEY }, create: { key: CACHE_KEY, value: payload }, update: { value: payload } });
-        setStatus(`done ${from}→${to} — ${data.rows.length} FPs, ${data.totals.exclusionJobs} jobs, $${data.totals.totalExclusionRevenue.toLocaleString()} excl rev, $${data.totals.blendedRevPerSchedTechHour}/sched-tech-hr @ ${new Date().toISOString()}`);
+        const payload = JSON.stringify({ period, periodKey, label, from, to, offices, computedAt: new Date().toISOString(), ...data });
+        await prisma.appSetting.upsert({ where: { key: CK }, create: { key: CK, value: payload }, update: { value: payload } });
+        setStatus(`done ${label} ${office} — ${data.rows.length} FPs, ${data.totals.exclusionJobs} jobs, $${data.totals.totalExclusionRevenue.toLocaleString()} excl rev @ ${new Date().toISOString()}`);
       } catch (e: any) { setStatus(`ERROR: ${String(e).slice(0, 200)}`); }
     })());
-    return NextResponse.json({ ok: true, started: true, from, to, offices, note: 'Computing in background. Check &status=1, then reload without refresh.' });
+    return NextResponse.json({ ok: true, started: true, period, label, office, note: 'Computing in background. Check &status=1, then reload without refresh.' });
   }
 
-  const cached = await prisma.appSetting.findUnique({ where: { key: CACHE_KEY } });
-  if (!cached) return NextResponse.json({ note: 'Not computed yet — run &refresh=1, then &status=1.', totals: null, rows: [] });
+  const cached = await prisma.appSetting.findUnique({ where: { key: CK } });
+  if (!cached) return NextResponse.json({ period, label, office, note: 'Not computed yet — run &refresh=1 for this period/office, then &status=1.', totals: null, rows: [] });
   let data = JSON.parse(cached.value);
 
   // RECOMPUTE: re-derive stories/rate/expected/variance from the CACHED per-job data — NO FR calls. Use this
@@ -291,7 +318,7 @@ export async function GET(req: NextRequest) {
     };
     data.perJob = perJob;
     // persist so the next plain read shows the enriched version too
-    await prisma.appSetting.upsert({ where: { key: CACHE_KEY }, create: { key: CACHE_KEY, value: JSON.stringify(data) }, update: { value: JSON.stringify(data) } });
+    await prisma.appSetting.upsert({ where: { key: CK }, create: { key: CK, value: JSON.stringify(data) }, update: { value: JSON.stringify(data) } });
   }
 
   if (sp.get('csv') === '1') {

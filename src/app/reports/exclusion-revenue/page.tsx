@@ -5,24 +5,43 @@ import { useEffect, useState } from 'react';
 const money = (n: number) => '$' + (n ?? 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
 const money2 = (n: number) => '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// Last 10 Mondays + last 4 months, as selectable period options.
+function periodOptions() {
+  const weeks: { key: string; label: string }[] = [];
+  const d = new Date(); const dow = d.getUTCDay(); const diff = dow === 0 ? -6 : 1 - dow;
+  const mon = new Date(d); mon.setUTCDate(d.getUTCDate() + diff);
+  for (let i = 0; i < 10; i++) { const w = new Date(mon); w.setUTCDate(mon.getUTCDate() - i * 7); const k = w.toISOString().slice(0, 10); weeks.push({ key: k, label: `Wk of ${w.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}` }); }
+  const months: { key: string; label: string }[] = [];
+  for (let i = 0; i < 4; i++) { const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - i, 1)); months.push({ key: m.toISOString().slice(0, 10), label: m.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) }); }
+  return { weeks, months };
+}
+
 export default function ExclusionRevenueReport() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'fp' | 'jobs'>('fp');
   const [refreshing, setRefreshing] = useState(false);
   const [status, setStatus] = useState('');
+  const [office, setOffice] = useState('DFW');
+  const [period, setPeriod] = useState<'range' | 'week' | 'month'>('range');
+  const [date, setDate] = useState('');
+  const opts = periodOptions();
+
+  const qs = () => {
+    if (period === 'range') return `&period=range&from=2026-08-01&to=2026-10-31&office=${office}`;
+    return `&period=${period}&date=${date || (period === 'week' ? opts.weeks[0].key : opts.months[0].key)}&office=${office}`;
+  };
 
   const load = () => {
     setLoading(true);
-    fetch('/api/cron/exclusion-revenue?token=critterstop2026&detail=1')
+    fetch(`/api/cron/exclusion-revenue?token=critterstop2026&detail=1${qs()}`)
       .then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(load, [period, date, office]);
 
-  const refresh = async (office: string) => {
-    setRefreshing(true); setStatus(`Starting ${office}…`);
-    await fetch(`/api/cron/exclusion-revenue?token=critterstop2026&refresh=1&office=${office}&from=2026-08-01&to=2026-10-31`).catch(() => {});
-    // poll status
+  const refresh = async () => {
+    setRefreshing(true); setStatus(`Starting…`);
+    await fetch(`/api/cron/exclusion-revenue?token=critterstop2026&refresh=1${qs()}`).catch(() => {});
     const poll = setInterval(async () => {
       const s = await fetch('/api/cron/exclusion-revenue?token=critterstop2026&status=1').then(r => r.json()).catch(() => ({}));
       setStatus(s.status || '');
@@ -71,14 +90,29 @@ export default function ExclusionRevenueReport() {
           {tile('Scheduling shortfall', `${t.varianceHours > 0 ? '+' : ''}${Math.round(t.varianceHours).toLocaleString()} hrs`, t.varianceHours > 0 ? '#b91c1c' : '#1D6E56', '#E8E7E3', t.varianceHours > 0 ? 'under-allotted' : 'over-allotted')}
         </div>
 
-        {/* Refresh controls */}
+        {/* Controls */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: '#888780' }}>Recompute office:</span>
-          {['DFW', 'ATX', 'OKC', 'CStat'].map(o => (
-            <button key={o} onClick={() => refresh(o)} disabled={refreshing} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 7, border: '0.5px solid #D9D9D9', background: refreshing ? '#F1EFE8' : '#fff', cursor: refreshing ? 'default' : 'pointer' }}>{o}</button>
-          ))}
-          {refreshing && <span style={{ fontSize: 11, color: '#185FA5' }}>⏳ {status}</span>}
-          <a href="/api/cron/exclusion-revenue?token=critterstop2026&csv=1" style={{ fontSize: 12, padding: '5px 12px', borderRadius: 7, background: '#128a3f', color: '#fff', textDecoration: 'none', marginLeft: 'auto' }}>⬇ CSV</a>
+          <select value={office} onChange={e => setOffice(e.target.value)} style={{ fontSize: 13, padding: '6px 10px', borderRadius: 7, border: '0.5px solid #D9D9D9' }}>
+            {['DFW', 'ATX', 'OKC', 'CStat'].map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <select value={period} onChange={e => { setPeriod(e.target.value as any); setDate(''); }} style={{ fontSize: 13, padding: '6px 10px', borderRadius: 7, border: '0.5px solid #D9D9D9' }}>
+            <option value="range">Aug–Oct (full)</option>
+            <option value="week">By week</option>
+            <option value="month">By month</option>
+          </select>
+          {period === 'week' && (
+            <select value={date || opts.weeks[0].key} onChange={e => setDate(e.target.value)} style={{ fontSize: 13, padding: '6px 10px', borderRadius: 7, border: '0.5px solid #D9D9D9' }}>
+              {opts.weeks.map(w => <option key={w.key} value={w.key}>{w.label}</option>)}
+            </select>
+          )}
+          {period === 'month' && (
+            <select value={date || opts.months[0].key} onChange={e => setDate(e.target.value)} style={{ fontSize: 13, padding: '6px 10px', borderRadius: 7, border: '0.5px solid #D9D9D9' }}>
+              {opts.months.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+            </select>
+          )}
+          <button onClick={refresh} disabled={refreshing} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 7, border: 'none', background: refreshing ? '#F1EFE8' : '#1F3864', color: refreshing ? '#888' : '#fff', cursor: refreshing ? 'default' : 'pointer' }}>{refreshing ? '⏳ Computing…' : '↻ Refresh this period'}</button>
+          {refreshing && <span style={{ fontSize: 11, color: '#185FA5', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{status}</span>}
+          <a href={`/api/cron/exclusion-revenue?token=critterstop2026&csv=1${qs()}`} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 7, background: '#128a3f', color: '#fff', textDecoration: 'none', marginLeft: 'auto' }}>⬇ CSV</a>
         </div>
 
         {/* Tabs */}
