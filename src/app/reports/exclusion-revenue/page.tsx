@@ -69,29 +69,8 @@ export default function ExclusionRevenueReport() {
         Revenue generated per scheduled tech-hour vs. the standard (<b>$225/hr 1-story, $175/hr 2-story</b>). Exclusion revenue = base service charge only (trapping, fogging, insulation excluded). Based on scheduled durations.
       </p>
 
-      {loading && <div style={{ fontSize: 14, color: '#888780', padding: 20 }}>Loading…</div>}
-
-      {data && !loading && !t && (
-        <div style={{ fontSize: 14, color: '#888780', padding: 20, background: '#FBFBF9', borderRadius: 10 }}>
-          Not computed yet. Click an office below to run it.
-        </div>
-      )}
-
-      {t && (<>
-        <div style={{ fontSize: 12, color: '#B4B2A9', marginBottom: 10 }}>
-          {data.from} → {data.to} · {data.offices?.join(', ')} · {t.exclusionJobs} jobs ({t.jobsTagged} story-tagged) · computed {data.computedAt ? new Date(data.computedAt).toLocaleString() : '—'}
-        </div>
-
-        {/* Summary tiles */}
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-          {tile('Exclusion revenue', money(t.totalExclusionRevenue), '#2C2C2A', '#E8E7E3')}
-          {tile('1-story $/tech-hr', money(t.oneStoryBlendedRate), t.oneStoryBlendedRate > 225 ? '#b45309' : '#1D6E56', '#E8E7E3', `std $225 · ${t.oneStoryJobs} jobs`)}
-          {tile('2-story $/tech-hr', money(t.twoStoryBlendedRate), t.twoStoryBlendedRate > 175 ? '#b91c1c' : '#1D6E56', '#E8E7E3', `std $175 · ${t.twoStoryJobs} jobs`)}
-          {tile('Scheduling shortfall', `${t.varianceHours > 0 ? '+' : ''}${Math.round(t.varianceHours).toLocaleString()} hrs`, t.varianceHours > 0 ? '#b91c1c' : '#1D6E56', '#E8E7E3', t.varianceHours > 0 ? 'under-allotted' : 'over-allotted')}
-        </div>
-
-        {/* Controls */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+      {/* Controls — always visible, so uncomputed periods can still be run */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
           <select value={office} onChange={e => setOffice(e.target.value)} style={{ fontSize: 13, padding: '6px 10px', borderRadius: 7, border: '0.5px solid #D9D9D9' }}>
             {['DFW', 'ATX', 'OKC', 'CStat'].map(o => <option key={o} value={o}>{o}</option>)}
           </select>
@@ -113,6 +92,27 @@ export default function ExclusionRevenueReport() {
           <button onClick={refresh} disabled={refreshing} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 7, border: 'none', background: refreshing ? '#F1EFE8' : '#1F3864', color: refreshing ? '#888' : '#fff', cursor: refreshing ? 'default' : 'pointer' }}>{refreshing ? '⏳ Computing…' : '↻ Refresh this period'}</button>
           {refreshing && <span style={{ fontSize: 11, color: '#185FA5', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{status}</span>}
           <a href={`/api/cron/exclusion-revenue?token=critterstop2026&csv=1${qs()}`} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 7, background: '#128a3f', color: '#fff', textDecoration: 'none', marginLeft: 'auto' }}>⬇ CSV</a>
+      </div>
+
+      {loading && <div style={{ fontSize: 14, color: '#888780', padding: 20 }}>Loading…</div>}
+
+      {!loading && !t && (
+        <div style={{ fontSize: 14, color: '#888780', padding: 20, background: '#FBFBF9', borderRadius: 10 }}>
+          This period hasn't been computed yet. Click <b>↻ Refresh this period</b> above to run it (takes ~1–2 min).
+        </div>
+      )}
+
+      {t && (<>
+        <div style={{ fontSize: 12, color: '#B4B2A9', marginBottom: 10 }}>
+          {data.label || `${data.from} → ${data.to}`} · {data.offices?.join(', ')} · {t.exclusionJobs} jobs ({t.jobsTagged} story-tagged) · computed {data.computedAt ? new Date(data.computedAt).toLocaleString() : '—'}
+        </div>
+
+        {/* Summary tiles */}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+          {tile('Exclusion revenue', money(t.totalExclusionRevenue), '#2C2C2A', '#E8E7E3')}
+          {tile('1-story $/tech-hr', money(t.oneStoryBlendedRate), t.oneStoryBlendedRate > 225 ? '#b45309' : '#1D6E56', '#E8E7E3', `std $225 · ${t.oneStoryJobs} jobs`)}
+          {tile('2-story $/tech-hr', money(t.twoStoryBlendedRate), t.twoStoryBlendedRate > 175 ? '#b91c1c' : '#1D6E56', '#E8E7E3', `std $175 · ${t.twoStoryJobs} jobs`)}
+          {tile('Scheduling shortfall', `${t.varianceHours > 0 ? '+' : ''}${Math.round(t.varianceHours).toLocaleString()} hrs`, t.varianceHours > 0 ? '#b91c1c' : '#1D6E56', '#E8E7E3', t.varianceHours > 0 ? 'under-allotted' : 'over-allotted')}
         </div>
 
         {/* Tabs */}
