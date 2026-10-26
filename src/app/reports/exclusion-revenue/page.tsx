@@ -10,9 +10,19 @@ function periodOptions() {
   const weeks: { key: string; label: string }[] = [];
   const d = new Date(); const dow = d.getUTCDay(); const diff = dow === 0 ? -6 : 1 - dow;
   const mon = new Date(d); mon.setUTCDate(d.getUTCDate() + diff);
-  for (let i = 0; i < 10; i++) { const w = new Date(mon); w.setUTCDate(mon.getUTCDate() - i * 7); const k = w.toISOString().slice(0, 10); weeks.push({ key: k, label: `Wk of ${w.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}` }); }
+  // All Mondays from the week containing Aug 1 2026 up to the current week (newest first).
+  const firstMon = new Date(Date.UTC(2026, 7, 1)); // Aug 1
+  const fdow = firstMon.getUTCDay(); firstMon.setUTCDate(firstMon.getUTCDate() + (fdow === 0 ? -6 : 1 - fdow));
+  for (let w = new Date(mon); w >= firstMon; w.setUTCDate(w.getUTCDate() - 7)) {
+    const k = w.toISOString().slice(0, 10);
+    weeks.push({ key: k, label: `Wk of ${w.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}` });
+  }
+  // Months from Aug 2026 up to current month (newest first).
   const months: { key: string; label: string }[] = [];
-  for (let i = 0; i < 4; i++) { const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - i, 1)); months.push({ key: m.toISOString().slice(0, 10), label: m.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) }); }
+  const startM = new Date(Date.UTC(2026, 7, 1)); // Aug 2026
+  for (let m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)); m >= startM; m.setUTCMonth(m.getUTCMonth() - 1)) {
+    months.push({ key: m.toISOString().slice(0, 10), label: m.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) });
+  }
   return { weeks, months };
 }
 
