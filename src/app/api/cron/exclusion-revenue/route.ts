@@ -149,8 +149,10 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
         const total = parseFloat(t.total || '0');
         if (total <= 0) continue; // skip the $0 service-visit ticket
         const items = t.items || [];
-        const itemsSum = items.reduce((s: number, it: any) => s + parseFloat(it.amount || '0'), 0);
-        exclRev += total - itemsSum; // base service charge = exclusion revenue
+        // Exclusion revenue = FR's serviceCharge — the pre-tax base service charge (non-taxable), which excludes
+        // ALL product line items (trapping/fogging/FAR) AND their tax. Using total−items wrongly kept the tax
+        // on taxable add-ons inside exclusion (e.g. cust 49666: serviceCharge $1,538, not $1,618.80).
+        exclRev += parseFloat(t.serviceCharge || '0');
         for (const it of items) {
           const pid = parseInt(String(it.productID));
           if (pid === TRAPPING_PRODUCT) trapRev += parseFloat(it.amount || '0');
