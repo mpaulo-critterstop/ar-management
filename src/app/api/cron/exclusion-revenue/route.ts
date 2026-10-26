@@ -78,6 +78,10 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
   const storiesMap: Record<string, number> = storiesRow ? JSON.parse(storiesRow.value) : {};
   const rateFor = (cid: string): number | null => { const s = storiesMap[String(cid)]; return s === 1 ? RATE_1STORY : s === 2 ? RATE_2STORY : null; };
 
+  // Customer name map (FR externalId -> name) from the Hub, so job detail shows names not IDs.
+  const custRows = await prisma.customer.findMany({ where: { externalId: { not: null } }, select: { externalId: true, name: true } });
+  const custName = new Map<string, string>(custRows.map(c => [String(c.externalId), c.name]));
+
   type FPAgg = { frId: string; name: string; office: string; exclusionRevenue: number; schedHours: number; techHours: number; jobs: Set<string>; trappingRevenue: number; foggingRevenue: number; };
   const fps = new Map<string, FPAgg>();
   const getFP = (frId: string, office: string): FPAgg => {
@@ -187,7 +191,7 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
       const schedTechHours = schedHours * crewSize;
       const expectedTechHours = rate ? Math.round((exclRev / rate) * 100) / 100 : null; // total tech-hours the revenue justifies
       const varianceHours = expectedTechHours !== null ? Math.round((expectedTechHours - schedTechHours) * 100) / 100 : null; // + = under-allotted (should've had more time), - = over-allotted
-      perJob.push({ office: officeName, customerID: job.customerID, customer: job.customer, firstDay: job.firstDay, lastDay: job.lastDay,
+      perJob.push({ office: officeName, customerID: job.customerID, customer: custName.get(String(job.customerID)) || job.customer, firstDay: job.firstDay, lastDay: job.lastDay,
         stories, rate, schedHours, crewSize, crew: [...fpDayCount.keys()].map(id => techName.get(id) || `FR ${id}`),
         exclusionRevenue: exclRev, trappingRevenue: trapRev, foggingRevenue: fogRev,
         schedTechHours, expectedTechHours, varianceHours,
@@ -297,8 +301,11 @@ export async function GET(req: NextRequest) {
     const storiesRow = await prisma.appSetting.findUnique({ where: { key: 'exclusion_stories_map' } });
     const storiesMap: Record<string, number> = storiesRow ? JSON.parse(storiesRow.value) : {};
     const RATE_1 = 225, RATE_2 = 175;
+    const custRows = await prisma.customer.findMany({ where: { externalId: { not: null } }, select: { externalId: true, name: true } });
+    const custName = new Map<string, string>(custRows.map(c => [String(c.externalId), c.name]));
     const perJob = (data.perJob || []).map((j: any) => {
       const stories = storiesMap[String(j.customerID)] || null;
+      j.customer = custName.get(String(j.customerID)) || j.customer;
       const rate = stories === 1 ? RATE_1 : stories === 2 ? RATE_2 : null;
       const schedTechHours = j.schedHours * Math.max(j.crewSize || 1, 1);
       const expectedTechHours = rate ? Math.round((j.exclusionRevenue / rate) * 100) / 100 : null;
