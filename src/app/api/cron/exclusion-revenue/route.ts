@@ -102,18 +102,33 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
     if (!apptIds.length) { setStatus(`${officeName}: no appts`); continue; }
     const appts = await fetchByIds('appointment', 'appointmentIDs', apptIds, cfg.key, cfg.token);
     const exclAppts = appts.filter((a: any) => parseInt(String(a.type)) === EXCLUSION_TYPE && String(a.status) === '1');
-    setStatus(`${officeName}: ${exclAppts.length} completed exclusion appts. Building jobs…`);
+    setStatus(`${officeName}: ${exclAppts.length} completed exclusion appts. Fetching routes for crew…`);
 
-    // 2) Group appts into jobs per customer; collect crew-days + scheduled durations + ticketIDs.
+    // 2a) CREW LIVES ON THE ROUTE, not the appointment (appt.additionalTechs is always null). Fetch the routes
+    //     of these exclusion appts and read route.additionalTechs + route.assignedTech. (This was the bug Chisam
+    //     caught — additional techs weren't being captured because we read them off the appointment.)
+    const routeIds = [...new Set(exclAppts.map((a: any) => String(a.routeID)).filter(r => r && r !== '0'))];
+    const routes = routeIds.length ? await fetchByIds('route', 'routeIDs', routeIds, cfg.key, cfg.token) : [];
+    const crewByRoute = new Map<string, string[]>();
+    for (const r of routes) {
+      const crew = (r.additionalTechs ? String(r.additionalTechs).split(',').map((x: string) => x.trim()).filter(Boolean) : []);
+      if (r.assignedTech && String(r.assignedTech) !== '0') crew.push(String(r.assignedTech));
+      crewByRoute.set(String(r.routeID), [...new Set(crew)]);
+    }
+
+    // 2b) Group appts into jobs per customer; collect crew-days + scheduled durations + ticketIDs.
     type Job = { customerID: string; customer: string; firstDay: string; lastDay: string; schedMinutes: number;
                  crewDays: string[][]; ticketIds: Set<string>; };
     const jobs = new Map<string, Job>();
     for (const a of exclAppts) {
       const custID = String(a.customerID); if (!custID || custID === '0') continue;
       const date = String(a.date || a.dateAdded).slice(0, 10);
-      const crew = (a.additionalTechs ? String(a.additionalTechs).split(',').map((x: string) => x.trim()).filter(Boolean) : []);
-      if (a.assignedTech && String(a.assignedTech) !== '0') crew.push(String(a.assignedTech));
-      else if (a.servicedBy && String(a.servicedBy) !== '0') crew.push(String(a.servicedBy));
+      // Crew from the route; fall back to the appointment's own tech if the route had none.
+      let crew = [...(crewByRoute.get(String(a.routeID)) || [])];
+      if (!crew.length) {
+        if (a.assignedTech && String(a.assignedTech) !== '0') crew.push(String(a.assignedTech));
+        else if (a.servicedBy && String(a.servicedBy) !== '0') crew.push(String(a.servicedBy));
+      }
       const uniqCrew = [...new Set(crew)];
       let job = jobs.get(custID);
       if (!job) { job = { customerID: custID, customer: a.customerName || custID, firstDay: date, lastDay: date, schedMinutes: 0, crewDays: [], ticketIds: new Set() }; jobs.set(custID, job); }
