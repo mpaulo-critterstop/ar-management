@@ -122,7 +122,7 @@ export default function ExclusionRevenueReport() {
             {tab === 'pm' ? (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>
-                  <th style={{ ...th, textAlign: 'left' }}>PM (Scheduler)</th><th style={th}>Jobs</th><th style={{ ...th, textAlign: 'right' }}>Excl Rev</th><th style={th}>Sched Tech-Hrs</th><th style={th}>Avg $/Tech-Hr</th><th style={th}>Consistency (±)</th><th style={th}>1-Story $/Hr</th><th style={th}>2-Story $/Hr</th><th style={th}>Differentiation</th>
+                  <th style={{ ...th, textAlign: 'left' }}>PM (Scheduler)</th><th style={th}>Jobs</th><th style={{ ...th, textAlign: 'right' }}>Excl Rev</th><th style={th}>Sched Tech-Hrs</th><th style={th}>Avg $/Tech-Hr</th><th style={th}>1-Story $/Hr</th><th style={th}>2-Story $/Hr</th><th style={th}>Differentiation</th>
                 </tr></thead>
                 <tbody>
                   {(data.byPM || []).map((r: any, i: number) => (
@@ -132,7 +132,6 @@ export default function ExclusionRevenueReport() {
                       <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(r.exclusionRevenue)}</td>
                       <td style={td}>{r.schedTechHours}</td>
                       <td style={{ ...td, fontWeight: 600 }}>{money(r.avgRevPerSchedTechHour)}</td>
-                      <td style={{ ...td, color: r.ratePerHourStdev > 60 ? '#b91c1c' : '#888780' }} title="Std dev of $/hr across their jobs — lower = more consistent scheduling">±{r.ratePerHourStdev}</td>
                       <td style={td}>{r.oneStoryJobs ? money(r.oneStoryRate) : '—'}</td>
                       <td style={td}>{r.twoStoryJobs ? money(r.twoStoryRate) : '—'}</td>
                       <td style={{ ...td, fontWeight: 600, color: r.differentiation == null ? '#888780' : (r.differentiation > 5 ? '#1D6E56' : '#b91c1c') }} title="1-story should run a higher $/hr than 2-story (less time). Positive = PM gives 2-story more time (good). ~0 or negative = not differentiating.">{r.differentiation == null ? '—' : `${r.differentiation > 0 ? '+' : ''}$${r.differentiation}`}</td>

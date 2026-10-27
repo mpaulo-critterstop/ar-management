@@ -405,8 +405,8 @@ export async function GET(req: NextRequest) {
 
   if (sp.get('csv') === '1') {
     if (sp.get('view') === 'pm') {
-      const header = 'PM,Jobs,Exclusion Revenue,Sched Tech-Hours,Avg $/Tech-Hour,$/Hr Std Dev,1-Story Jobs,1-Story $/Hr,2-Story Jobs,2-Story $/Hr,Differentiation';
-      const lines = (data.byPM || []).map((r: any) => [r.pm, r.jobs, r.exclusionRevenue, r.schedTechHours, r.avgRevPerSchedTechHour, r.ratePerHourStdev, r.oneStoryJobs, r.oneStoryRate, r.twoStoryJobs, r.twoStoryRate, r.differentiation].join(','));
+      const header = 'PM,Jobs,Exclusion Revenue,Sched Tech-Hours,Avg $/Tech-Hour,1-Story Jobs,1-Story $/Hr,2-Story Jobs,2-Story $/Hr,Differentiation';
+      const lines = (data.byPM || []).map((r: any) => [r.pm, r.jobs, r.exclusionRevenue, r.schedTechHours, r.avgRevPerSchedTechHour, r.oneStoryJobs, r.oneStoryRate, r.twoStoryJobs, r.twoStoryRate, r.differentiation].join(','));
       return new NextResponse([header, ...lines].join('\n'), { headers: { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="exclusion_by_PM_${data.from}_${data.to}.csv"` } });
     }
     if (sp.get('view') === 'jobs') {
