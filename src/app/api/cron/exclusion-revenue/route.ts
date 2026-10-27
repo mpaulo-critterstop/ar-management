@@ -127,6 +127,40 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
       crewByRoute.set(String(r.routeID), [...new Set(crew)]);
     }
 
+    // Per-route BLOCKED-SPOT count + appointment count, for the Option B duration rule (480-min cap workaround).
+    // FR hard-caps appointment duration at 480 (8hr) but techs work 10hr/4. True reserved time is recovered via:
+    //   • blocked spots (deliberately set to reserve overflow): true = 480 + blockedSpots×30  [going forward]
+    //   • else solo-exclusion route (no other appts): assume 600 (10hr)                         [historical]
+    //   • else shared route: 480 as-is
+    const blockedMinByRoute = new Map<string, number>();
+    const apptCountByRoute = new Map<string, number>();
+    for (const rid of routeIds) {
+      // appointment count on the route
+      const as = await fr(`${BASE_URL}/appointment/search?routeIDs=${rid}&${auth}`);
+      apptCountByRoute.set(rid, (as.appointmentIDs || []).length);
+      // blocked spots on the route
+      const ss = await fr(`${BASE_URL}/spot/search?routeIDs=${rid}&${auth}`);
+      const spotIds = ss.spotIDs || [];
+      let blockedMin = 0;
+      if (spotIds.length) {
+        const spots = await fetchByIds('spot', 'spotIDs', spotIds, cfg.key, cfg.token);
+        for (const sp of spots) {
+          const br = sp.blockReason; if (br && String(br) !== '0' && br !== 0) blockedMin += 30; // each spot = 30-min slot
+        }
+      }
+      blockedMinByRoute.set(rid, blockedMin);
+    }
+    // Resolve the true scheduled minutes for one exclusion appointment per Option B.
+    const trueMinutes = (a: any): number => {
+      const dur = parseInt(String(a.duration || '0')) || 0;
+      if (dur < 480) return dur; // under the cap — accurate as-is
+      const rid = String(a.routeID);
+      const blocked = blockedMinByRoute.get(rid) || 0;
+      if (blocked > 0) return 480 + blocked;                        // precise: blocked spots present (going forward)
+      if ((apptCountByRoute.get(rid) || 0) <= 1) return 600;        // historical: solo-exclusion route -> assume 10hr
+      return 480;                                                   // historical: shared route -> as-is
+    };
+
     // 2b) Group appts into jobs per customer; collect crew-days + scheduled durations + ticketIDs.
     type Job = { customerID: string; customer: string; firstDay: string; lastDay: string; schedMinutes: number;
                  crewDays: string[][]; ticketIds: Set<string>; };
@@ -143,7 +177,7 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
       const uniqCrew = [...new Set(crew)];
       let job = jobs.get(custID);
       if (!job) { job = { customerID: custID, customer: a.customerName || custID, firstDay: date, lastDay: date, schedMinutes: 0, crewDays: [], ticketIds: new Set() }; jobs.set(custID, job); }
-      job.schedMinutes += parseInt(String(a.duration || '0')) || 0;
+      job.schedMinutes += trueMinutes(a); // Option B: uncaps 480 via blocked spots / solo-route assumption
       job.crewDays.push(uniqCrew);
       if (a.ticketID && String(a.ticketID) !== '0') job.ticketIds.add(String(a.ticketID));
       if (date < job.firstDay) job.firstDay = date;
