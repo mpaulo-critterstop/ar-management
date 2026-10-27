@@ -93,11 +93,11 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
     if (!pmByExtId.has(ext)) pmByExtId.set(ext, l.pmName!);
   }
 
-  type FPAgg = { frId: string; name: string; office: string; exclusionRevenue: number; schedHours: number; techHours: number; jobs: Set<string>; trappingRevenue: number; foggingRevenue: number; };
+  type FPAgg = { frId: string; name: string; office: string; exclusionRevenue: number; schedHours: number; techHours: number; expectedHours: number; jobs: Set<string>; trappingRevenue: number; foggingRevenue: number; };
   const fps = new Map<string, FPAgg>();
   const getFP = (frId: string, office: string): FPAgg => {
     let f = fps.get(frId);
-    if (!f) { f = { frId, name: techName.get(frId) || `FR ${frId}`, office, exclusionRevenue: 0, schedHours: 0, techHours: 0, jobs: new Set(), trappingRevenue: 0, foggingRevenue: 0 }; fps.set(frId, f); }
+    if (!f) { f = { frId, name: techName.get(frId) || `FR ${frId}`, office, exclusionRevenue: 0, schedHours: 0, techHours: 0, expectedHours: 0, jobs: new Set(), trappingRevenue: 0, foggingRevenue: 0 }; fps.set(frId, f); }
     return f;
   };
   const perJob: any[] = [];
@@ -200,6 +200,14 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
       // Total tech-hours on the job = scheduled hours × (sum of crew sizes per day / number of days) — but
       // simpler and exact: tech-hours = Σ over days (dayDuration × dayCrewSize). Since we summed schedMinutes
       // across days, approximate per-FP hours = schedHours × (their day share). Good enough at job grain.
+      // Stories → rate → expected tech-hours (revenue the job "earns" at standard / rate) → variance.
+      const stories = storiesMap[String(job.customerID)] || null;
+      const rate = rateFor(job.customerID);
+      const crewSize = Math.max(fpDayCount.size, 1);
+      const schedTechHours = schedHours * crewSize;
+      const expectedTechHours = rate ? Math.round((exclRev / rate) * 100) / 100 : null; // total tech-hours the revenue justifies
+      const varianceHours = expectedTechHours !== null ? Math.round((expectedTechHours - schedTechHours) * 100) / 100 : null; // + = under-allotted (should've had more time), - = over-allotted
+
       for (const [tech, dayCount] of fpDayCount) {
         const fp = getFP(tech, officeName);
         const share = totalSlots > 0 ? dayCount / totalSlots : 0;
@@ -208,15 +216,9 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
         fp.foggingRevenue += fogRev * share;
         fp.schedHours += schedHours * share;           // FP's share of the job's scheduled hours
         fp.techHours += schedHours * (dayCount / Math.max(job.crewDays.length, 1)); // FP hours actually on site
+        if (expectedTechHours !== null) fp.expectedHours += expectedTechHours * share; // FP's share of expected
         fp.jobs.add(job.customerID);
       }
-      // Stories → rate → expected tech-hours (revenue the job "earns" at standard / rate / crew) → variance.
-      const stories = storiesMap[String(job.customerID)] || null;
-      const rate = rateFor(job.customerID);
-      const crewSize = Math.max(fpDayCount.size, 1);
-      const schedTechHours = schedHours * crewSize;
-      const expectedTechHours = rate ? Math.round((exclRev / rate) * 100) / 100 : null; // total tech-hours the revenue justifies
-      const varianceHours = expectedTechHours !== null ? Math.round((expectedTechHours - schedTechHours) * 100) / 100 : null; // + = under-allotted (should've had more time), - = over-allotted
       perJob.push({ office: officeName, customerID: job.customerID, customer: custName.get(String(job.customerID)) || job.customer, pm: pmByExtId.get(String(job.customerID)) || 'Unassigned', firstDay: job.firstDay, lastDay: job.lastDay,
         stories, rate, schedHours, crewSize, crew: [...fpDayCount.keys()].map(id => techName.get(id) || `FR ${id}`),
         exclusionRevenue: exclRev, trappingRevenue: trapRev, foggingRevenue: fogRev,
@@ -230,6 +232,8 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
     jobs: f.jobs.size,
     exclusionRevenue: Math.round(f.exclusionRevenue * 100) / 100,
     scheduledHours: Math.round(f.techHours * 100) / 100,
+    expectedHours: Math.round(f.expectedHours * 100) / 100,
+    varianceHours: Math.round((f.expectedHours - f.techHours) * 100) / 100,
     revenuePerSchedTechHour: f.techHours > 0 ? Math.round((f.exclusionRevenue / f.techHours) * 100) / 100 : 0,
     trappingRevenue: Math.round(f.trappingRevenue * 100) / 100,
     foggingRevenue: Math.round(f.foggingRevenue * 100) / 100,
@@ -258,13 +262,13 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
   };
   // PM SCHEDULING SCORECARD — measures how consistently each PM schedules tech-hours vs exclusion revenue,
   // and whether they differentiate 1-story vs 2-story. (Chisam: this is about PM scheduling, not tech performance.)
-  const pmAgg = new Map<string, { pm: string; jobs: number; revenue: number; schedTechHours: number;
+  const pmAgg = new Map<string, { pm: string; jobs: number; revenue: number; schedTechHours: number; expectedTechHours: number;
     oneRev: number; oneHrs: number; oneJobs: number; twoRev: number; twoHrs: number; twoJobs: number; rates: number[] }>();
   for (const j of perJob) {
     const pm = j.pm || 'Unassigned';
     let a = pmAgg.get(pm);
-    if (!a) { a = { pm, jobs: 0, revenue: 0, schedTechHours: 0, oneRev: 0, oneHrs: 0, oneJobs: 0, twoRev: 0, twoHrs: 0, twoJobs: 0, rates: [] }; pmAgg.set(pm, a); }
-    a.jobs++; a.revenue += j.exclusionRevenue; a.schedTechHours += j.schedTechHours || 0;
+    if (!a) { a = { pm, jobs: 0, revenue: 0, schedTechHours: 0, expectedTechHours: 0, oneRev: 0, oneHrs: 0, oneJobs: 0, twoRev: 0, twoHrs: 0, twoJobs: 0, rates: [] }; pmAgg.set(pm, a); }
+    a.jobs++; a.revenue += j.exclusionRevenue; a.schedTechHours += j.schedTechHours || 0; a.expectedTechHours += j.expectedTechHours || 0;
     if (j.schedTechHours > 0) a.rates.push(j.exclusionRevenue / j.schedTechHours);
     if (j.stories === 1) { a.oneRev += j.exclusionRevenue; a.oneHrs += j.schedTechHours || 0; a.oneJobs++; }
     else if (j.stories === 2) { a.twoRev += j.exclusionRevenue; a.twoHrs += j.schedTechHours || 0; a.twoJobs++; }
@@ -277,6 +281,8 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
       pm: a.pm, jobs: a.jobs,
       exclusionRevenue: Math.round(a.revenue * 100) / 100,
       schedTechHours: Math.round(a.schedTechHours * 100) / 100,
+      expectedTechHours: Math.round(a.expectedTechHours * 100) / 100,
+      varianceHours: Math.round((a.expectedTechHours - a.schedTechHours) * 100) / 100,
       avgRevPerSchedTechHour: a.schedTechHours > 0 ? Math.round((a.revenue / a.schedTechHours) * 100) / 100 : 0,
       ratePerHourStdev: stdev(a.rates), // variance/consistency of their scheduling
       oneStoryJobs: a.oneJobs, oneStoryRate: oneRate,
@@ -390,14 +396,14 @@ export async function GET(req: NextRequest) {
     const pmAgg2 = new Map<string, any>();
     for (const j of perJob) {
       const pm = j.pm || 'Unassigned';
-      let a = pmAgg2.get(pm); if (!a) { a = { pm, jobs: 0, revenue: 0, schedTechHours: 0, oneRev: 0, oneHrs: 0, oneJobs: 0, twoRev: 0, twoHrs: 0, twoJobs: 0, rates: [] }; pmAgg2.set(pm, a); }
-      a.jobs++; a.revenue += j.exclusionRevenue; a.schedTechHours += j.schedTechHours || 0;
+      let a = pmAgg2.get(pm); if (!a) { a = { pm, jobs: 0, revenue: 0, schedTechHours: 0, expectedTechHours: 0, oneRev: 0, oneHrs: 0, oneJobs: 0, twoRev: 0, twoHrs: 0, twoJobs: 0, rates: [] }; pmAgg2.set(pm, a); }
+      a.jobs++; a.revenue += j.exclusionRevenue; a.schedTechHours += j.schedTechHours || 0; a.expectedTechHours += j.expectedTechHours || 0;
       if (j.schedTechHours > 0) a.rates.push(j.exclusionRevenue / j.schedTechHours);
       if (j.stories === 1) { a.oneRev += j.exclusionRevenue; a.oneHrs += j.schedTechHours || 0; a.oneJobs++; }
       else if (j.stories === 2) { a.twoRev += j.exclusionRevenue; a.twoHrs += j.schedTechHours || 0; a.twoJobs++; }
     }
     const stdev2 = (xs: number[]) => { if (xs.length < 2) return 0; const m = xs.reduce((s, x) => s + x, 0) / xs.length; return Math.round(Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0) / xs.length) * 100) / 100; };
-    data.byPM = [...pmAgg2.values()].map((a: any) => { const oneRate = a.oneHrs > 0 ? Math.round((a.oneRev / a.oneHrs) * 100) / 100 : 0; const twoRate = a.twoHrs > 0 ? Math.round((a.twoRev / a.twoHrs) * 100) / 100 : 0; return { pm: a.pm, jobs: a.jobs, exclusionRevenue: Math.round(a.revenue * 100) / 100, schedTechHours: Math.round(a.schedTechHours * 100) / 100, avgRevPerSchedTechHour: a.schedTechHours > 0 ? Math.round((a.revenue / a.schedTechHours) * 100) / 100 : 0, ratePerHourStdev: stdev2(a.rates), oneStoryJobs: a.oneJobs, oneStoryRate: oneRate, twoStoryJobs: a.twoJobs, twoStoryRate: twoRate, differentiation: (oneRate && twoRate) ? Math.round((oneRate - twoRate) * 100) / 100 : null }; }).sort((a: any, b: any) => b.exclusionRevenue - a.exclusionRevenue);
+    data.byPM = [...pmAgg2.values()].map((a: any) => { const oneRate = a.oneHrs > 0 ? Math.round((a.oneRev / a.oneHrs) * 100) / 100 : 0; const twoRate = a.twoHrs > 0 ? Math.round((a.twoRev / a.twoHrs) * 100) / 100 : 0; return { pm: a.pm, jobs: a.jobs, exclusionRevenue: Math.round(a.revenue * 100) / 100, schedTechHours: Math.round(a.schedTechHours * 100) / 100, expectedTechHours: Math.round(a.expectedTechHours * 100) / 100, varianceHours: Math.round((a.expectedTechHours - a.schedTechHours) * 100) / 100, avgRevPerSchedTechHour: a.schedTechHours > 0 ? Math.round((a.revenue / a.schedTechHours) * 100) / 100 : 0, ratePerHourStdev: stdev2(a.rates), oneStoryJobs: a.oneJobs, oneStoryRate: oneRate, twoStoryJobs: a.twoJobs, twoStoryRate: twoRate, differentiation: (oneRate && twoRate) ? Math.round((oneRate - twoRate) * 100) / 100 : null }; }).sort((a: any, b: any) => b.exclusionRevenue - a.exclusionRevenue);
     data.perJob = perJob;
     // persist so the next plain read shows the enriched version too
     await prisma.appSetting.upsert({ where: { key: CK }, create: { key: CK, value: JSON.stringify(data) }, update: { value: JSON.stringify(data) } });
@@ -405,8 +411,8 @@ export async function GET(req: NextRequest) {
 
   if (sp.get('csv') === '1') {
     if (sp.get('view') === 'pm') {
-      const header = 'PM,Jobs,Exclusion Revenue,Sched Tech-Hours,Avg $/Tech-Hour,1-Story Jobs,1-Story $/Hr,2-Story Jobs,2-Story $/Hr,Differentiation';
-      const lines = (data.byPM || []).map((r: any) => [r.pm, r.jobs, r.exclusionRevenue, r.schedTechHours, r.avgRevPerSchedTechHour, r.oneStoryJobs, r.oneStoryRate, r.twoStoryJobs, r.twoStoryRate, r.differentiation].join(','));
+      const header = 'PM,Jobs,Exclusion Revenue,Sched Tech-Hours,Expected Tech-Hours,Variance,Avg $/Tech-Hour,1-Story Jobs,1-Story $/Hr,2-Story Jobs,2-Story $/Hr,Differentiation';
+      const lines = (data.byPM || []).map((r: any) => [r.pm, r.jobs, r.exclusionRevenue, r.schedTechHours, r.expectedTechHours, r.varianceHours, r.avgRevPerSchedTechHour, r.oneStoryJobs, r.oneStoryRate, r.twoStoryJobs, r.twoStoryRate, r.differentiation].join(','));
       return new NextResponse([header, ...lines].join('\n'), { headers: { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="exclusion_by_PM_${data.from}_${data.to}.csv"` } });
     }
     if (sp.get('view') === 'jobs') {
@@ -414,8 +420,8 @@ export async function GET(req: NextRequest) {
       const lines = (data.perJob || []).map((j: any) => [j.customer, j.pm, j.office, j.stories, j.rate, j.exclusionRevenue, j.crewSize, `"${(j.crew || []).join('; ')}"`, j.schedTechHours, j.expectedTechHours, j.varianceHours, j.revenuePerSchedTechHour].join(','));
       return new NextResponse([header, ...lines].join('\n'), { headers: { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="exclusion_by_job_${data.from}_${data.to}.csv"` } });
     }
-    const header = 'Field Professional,Office,Jobs,Exclusion Revenue,Scheduled Tech-Hours,Rev per Sched Tech-Hour,Trapping Revenue,Fogging Revenue';
-    const lines = (data.rows || []).map((r: any) => [r.fieldProfessional, r.office, r.jobs, r.exclusionRevenue, r.scheduledHours, r.revenuePerSchedTechHour, r.trappingRevenue, r.foggingRevenue].join(','));
+    const header = 'Field Professional,Office,Jobs,Exclusion Revenue,Scheduled Tech-Hours,Expected Tech-Hours,Variance,Rev per Sched Tech-Hour,Trapping Revenue,Fogging Revenue';
+    const lines = (data.rows || []).map((r: any) => [r.fieldProfessional, r.office, r.jobs, r.exclusionRevenue, r.scheduledHours, r.expectedHours, r.varianceHours, r.revenuePerSchedTechHour, r.trappingRevenue, r.foggingRevenue].join(','));
     return new NextResponse([header, ...lines].join('\n'), { headers: { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="exclusion_revenue_${data.from}_${data.to}.csv"` } });
   }
   return NextResponse.json({ from: data.from, to: data.to, offices: data.offices, computedAt: data.computedAt, totals: data.totals, byPM: data.byPM || [], rows: data.rows, perJob: sp.get('detail') === '1' ? data.perJob : (data.perJob || []).slice(0, 50) });

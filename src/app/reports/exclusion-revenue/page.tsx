@@ -122,7 +122,7 @@ export default function ExclusionRevenueReport() {
             {tab === 'pm' ? (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>
-                  <th style={{ ...th, textAlign: 'left' }}>PM (Scheduler)</th><th style={th}>Jobs</th><th style={{ ...th, textAlign: 'right' }}>Excl Rev</th><th style={th}>Sched Tech-Hrs</th><th style={th}>Avg $/Tech-Hr</th><th style={th}>1-Story $/Hr</th><th style={th}>2-Story $/Hr</th><th style={th}>Differentiation</th>
+                  <th style={{ ...th, textAlign: 'left' }}>PM (Scheduler)</th><th style={th}>Jobs</th><th style={{ ...th, textAlign: 'right' }}>Excl Rev</th><th style={th}>Sched Tech-Hrs</th><th style={th}>Expected Hrs</th><th style={th}>Variance</th><th style={th}>Avg $/Tech-Hr</th><th style={th}>1-Story $/Hr</th><th style={th}>2-Story $/Hr</th><th style={th}>Differentiation</th>
                 </tr></thead>
                 <tbody>
                   {(data.byPM || []).map((r: any, i: number) => (
@@ -131,6 +131,8 @@ export default function ExclusionRevenueReport() {
                       <td style={td}>{r.jobs}</td>
                       <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(r.exclusionRevenue)}</td>
                       <td style={td}>{r.schedTechHours}</td>
+                      <td style={td}>{r.expectedTechHours ?? '—'}</td>
+                      <td style={{ ...td, fontWeight: 600, color: r.varianceHours > 0.5 ? '#b91c1c' : (r.varianceHours < -0.5 ? '#b45309' : '#888780') }} title="Expected − Scheduled tech-hours. + = scheduled less than revenue justifies; − = scheduled more.">{r.varianceHours != null ? `${r.varianceHours > 0 ? '+' : ''}${r.varianceHours}` : '—'}</td>
                       <td style={{ ...td, fontWeight: 600 }}>{money(r.avgRevPerSchedTechHour)}</td>
                       <td style={td}>{r.oneStoryJobs ? money(r.oneStoryRate) : '—'}</td>
                       <td style={td}>{r.twoStoryJobs ? money(r.twoStoryRate) : '—'}</td>
@@ -142,7 +144,7 @@ export default function ExclusionRevenueReport() {
             ) : tab === 'fp' ? (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>
-                  <th style={{ ...th, textAlign: 'left' }}>Field Professional</th><th style={th}>Jobs</th><th style={{ ...th, textAlign: 'right' }}>Exclusion Rev</th><th style={th}>Sched Tech-Hrs</th><th style={th}>$/Tech-Hr</th><th style={{ ...th, textAlign: 'right' }}>Trapping</th><th style={{ ...th, textAlign: 'right' }}>Fogging</th>
+                  <th style={{ ...th, textAlign: 'left' }}>Field Professional</th><th style={th}>Jobs</th><th style={{ ...th, textAlign: 'right' }}>Exclusion Rev</th><th style={th}>Sched Tech-Hrs</th><th style={th}>Expected Hrs</th><th style={th}>Variance</th><th style={th}>$/Tech-Hr</th><th style={{ ...th, textAlign: 'right' }}>Trapping</th><th style={{ ...th, textAlign: 'right' }}>Fogging</th>
                 </tr></thead>
                 <tbody>
                   {(data.rows || []).map((r: any, i: number) => (
@@ -151,6 +153,8 @@ export default function ExclusionRevenueReport() {
                       <td style={td}>{r.jobs}</td>
                       <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(r.exclusionRevenue)}</td>
                       <td style={td}>{r.scheduledHours}</td>
+                      <td style={td}>{r.expectedHours ?? '—'}</td>
+                      <td style={{ ...td, fontWeight: 600, color: r.varianceHours > 0.5 ? '#b91c1c' : (r.varianceHours < -0.5 ? '#b45309' : '#888780') }} title="Expected − Scheduled tech-hours for this FP's share of jobs.">{r.varianceHours != null ? `${r.varianceHours > 0 ? '+' : ''}${r.varianceHours}` : '—'}</td>
                       <td style={{ ...td, fontWeight: 600, color: r.revenuePerSchedTechHour > 225 ? '#b45309' : '#2C2C2A' }}>{money(r.revenuePerSchedTechHour)}</td>
                       <td style={{ ...td, textAlign: 'right', color: '#888780' }}>{money(r.trappingRevenue)}</td>
                       <td style={{ ...td, textAlign: 'right', color: '#888780' }}>{money(r.foggingRevenue)}</td>
