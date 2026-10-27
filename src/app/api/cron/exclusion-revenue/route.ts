@@ -135,21 +135,23 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
     // Appointment count per route — derived from the office-wide appts we ALREADY fetched (no extra calls).
     const apptCountByRoute = new Map<string, number>();
     for (const a of appts) { const rid = String(a.routeID); if (rid && rid !== '0') apptCountByRoute.set(rid, (apptCountByRoute.get(rid) || 0) + 1); }
-    // Blocked-spot minutes per route — only need a spot lookup for routes that have a 480-capped exclusion with
-    // NO other appointments (the only case where blocked spots change the answer; shared routes stay 480 anyway).
+    // Blocked-spot minutes per route. Only routes with a 480-capped exclusion matter. BATCHED: search
+    // blocked-only spots (blockReason=Blocked) for those routes in chunks, fetch them, tally 30 min each by route.
     const blockedMinByRoute = new Map<string, number>();
     const routesNeedingSpots = [...new Set(exclAppts
       .filter((a: any) => (parseInt(String(a.duration || '0')) || 0) >= 480)
       .map((a: any) => String(a.routeID)).filter(r => r && r !== '0'))];
-    for (const rid of routesNeedingSpots) {
-      const ss = await fr(`${BASE_URL}/spot/search?routeIDs=${rid}&${auth}`);
+    for (let i = 0; i < routesNeedingSpots.length; i += 50) {
+      const chunk = routesNeedingSpots.slice(i, i + 50);
+      const ss = await fr(`${BASE_URL}/spot/search?routeIDs=${chunk.join(',')}&blockReason=Blocked&${auth}`);
       const spotIds = ss.spotIDs || [];
-      let blockedMin = 0;
-      if (spotIds.length) {
-        const spots = await fetchByIds('spot', 'spotIDs', spotIds, cfg.key, cfg.token);
-        for (const sp of spots) { const br = sp.blockReason; if (br && String(br) !== '0' && br !== 0) blockedMin += 30; }
+      if (!spotIds.length) continue;
+      const spots = await fetchByIds('spot', 'spotIDs', spotIds, cfg.key, cfg.token);
+      for (const sp of spots) {
+        const br = sp.blockReason; if (!br || String(br) === '0' || br === 0) continue;
+        const rid = String(sp.routeID);
+        blockedMinByRoute.set(rid, (blockedMinByRoute.get(rid) || 0) + 30);
       }
-      blockedMinByRoute.set(rid, blockedMin);
     }
     // Resolve the true scheduled minutes for one exclusion appointment per Option B.
     const trueMinutes = (a: any): number => {
