@@ -33,14 +33,11 @@ export default function ExclusionRevenueReport() {
   const [refreshing, setRefreshing] = useState(false);
   const [status, setStatus] = useState('');
   const [office, setOffice] = useState('DFW');
-  const [period, setPeriod] = useState<'range' | 'week' | 'month'>('range');
   const [date, setDate] = useState('');
   const opts = periodOptions();
+  const period = 'month';
 
-  const qs = () => {
-    if (period === 'range') return `&period=range&from=2026-08-01&to=2026-10-31&office=${office}`;
-    return `&period=${period}&date=${date || (period === 'week' ? opts.weeks[0].key : opts.months[0].key)}&office=${office}`;
-  };
+  const qs = () => `&period=month&date=${date || opts.months[0].key}&office=${office}`;
 
   const load = () => {
     setLoading(true);
@@ -84,21 +81,9 @@ export default function ExclusionRevenueReport() {
           <select value={office} onChange={e => setOffice(e.target.value)} style={{ fontSize: 13, padding: '6px 10px', borderRadius: 7, border: '0.5px solid #D9D9D9' }}>
             {['DFW', 'ATX', 'OKC', 'CStat'].map(o => <option key={o} value={o}>{o}</option>)}
           </select>
-          <select value={period} onChange={e => { setPeriod(e.target.value as any); setDate(''); }} style={{ fontSize: 13, padding: '6px 10px', borderRadius: 7, border: '0.5px solid #D9D9D9' }}>
-            <option value="range">Aug–Oct (full)</option>
-            <option value="week">By week</option>
-            <option value="month">By month</option>
+          <select value={date || opts.months[0].key} onChange={e => setDate(e.target.value)} style={{ fontSize: 13, padding: '6px 10px', borderRadius: 7, border: '0.5px solid #D9D9D9' }}>
+            {opts.months.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
           </select>
-          {period === 'week' && (
-            <select value={date || opts.weeks[0].key} onChange={e => setDate(e.target.value)} style={{ fontSize: 13, padding: '6px 10px', borderRadius: 7, border: '0.5px solid #D9D9D9' }}>
-              {opts.weeks.map(w => <option key={w.key} value={w.key}>{w.label}</option>)}
-            </select>
-          )}
-          {period === 'month' && (
-            <select value={date || opts.months[0].key} onChange={e => setDate(e.target.value)} style={{ fontSize: 13, padding: '6px 10px', borderRadius: 7, border: '0.5px solid #D9D9D9' }}>
-              {opts.months.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
-            </select>
-          )}
           <button onClick={refresh} disabled={refreshing} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 7, border: 'none', background: refreshing ? '#F1EFE8' : '#1F3864', color: refreshing ? '#888' : '#fff', cursor: refreshing ? 'default' : 'pointer' }}>{refreshing ? '⏳ Computing…' : '↻ Refresh this period'}</button>
           {refreshing && <span style={{ fontSize: 11, color: '#185FA5', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{status}</span>}
           <a href={`/api/cron/exclusion-revenue?token=critterstop2026&csv=1&view=${tab === 'jobs' ? 'jobs' : tab === 'pm' ? 'pm' : 'fp'}${qs()}`} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 7, background: '#128a3f', color: '#fff', textDecoration: 'none', marginLeft: 'auto' }}>⬇ CSV (this tab)</a>
