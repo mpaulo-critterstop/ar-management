@@ -25,7 +25,7 @@ async function postSlack(text: string, silent = false): Promise<boolean> {
   } catch { return false; }
 }
 
-const API_VERSION = 'v22';
+const API_VERSION = 'v25';
 const clean = (id: string | undefined) => (id || '').replace(/-/g, ''); // customer IDs: no dashes in API
 
 // Google Ads returns lead/conversation timestamps as 'YYYY-MM-DD HH:MM:SS' in the ACCOUNT's local timezone
