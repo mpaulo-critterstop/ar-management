@@ -29,7 +29,7 @@ function periodOptions() {
 export default function ExclusionRevenueReport() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'fp' | 'jobs'>('fp');
+  const [tab, setTab] = useState<'pm' | 'fp' | 'jobs'>('pm');
   const [refreshing, setRefreshing] = useState(false);
   const [status, setStatus] = useState('');
   const [office, setOffice] = useState('DFW');
@@ -101,7 +101,7 @@ export default function ExclusionRevenueReport() {
           )}
           <button onClick={refresh} disabled={refreshing} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 7, border: 'none', background: refreshing ? '#F1EFE8' : '#1F3864', color: refreshing ? '#888' : '#fff', cursor: refreshing ? 'default' : 'pointer' }}>{refreshing ? '⏳ Computing…' : '↻ Refresh this period'}</button>
           {refreshing && <span style={{ fontSize: 11, color: '#185FA5', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{status}</span>}
-          <a href={`/api/cron/exclusion-revenue?token=critterstop2026&csv=1${qs()}`} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 7, background: '#128a3f', color: '#fff', textDecoration: 'none', marginLeft: 'auto' }}>⬇ CSV</a>
+          <a href={`/api/cron/exclusion-revenue?token=critterstop2026&csv=1&view=${tab === 'jobs' ? 'jobs' : tab === 'pm' ? 'pm' : 'fp'}${qs()}`} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 7, background: '#128a3f', color: '#fff', textDecoration: 'none', marginLeft: 'auto' }}>⬇ CSV (this tab)</a>
       </div>
 
       {loading && <div style={{ fontSize: 14, color: '#888780', padding: 20 }}>Loading…</div>}
@@ -127,14 +127,35 @@ export default function ExclusionRevenueReport() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-          {([['fp', 'By Field Professional'], ['jobs', 'Job Detail']] as const).map(([k, lbl]) => (
+          {([['pm', 'PM Scheduling'], ['fp', 'By Field Professional'], ['jobs', 'Job Detail']] as const).map(([k, lbl]) => (
             <button key={k} onClick={() => setTab(k)} style={{ fontSize: 13, padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: tab === k ? 600 : 400, background: tab === k ? '#1F3864' : '#F1EFE8', color: tab === k ? '#fff' : '#555' }}>{lbl}</button>
           ))}
         </div>
 
         <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
           <div style={{ maxHeight: 560, overflowY: 'auto', overflowX: 'auto' }}>
-            {tab === 'fp' ? (
+            {tab === 'pm' ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead><tr>
+                  <th style={{ ...th, textAlign: 'left' }}>PM (Scheduler)</th><th style={th}>Jobs</th><th style={{ ...th, textAlign: 'right' }}>Excl Rev</th><th style={th}>Sched Tech-Hrs</th><th style={th}>Avg $/Tech-Hr</th><th style={th}>Consistency (±)</th><th style={th}>1-Story $/Hr</th><th style={th}>2-Story $/Hr</th><th style={th}>Differentiation</th>
+                </tr></thead>
+                <tbody>
+                  {(data.byPM || []).map((r: any, i: number) => (
+                    <tr key={i} style={{ background: i % 2 ? '#FBFBF9' : undefined }}>
+                      <td style={tdL}>{r.pm}</td>
+                      <td style={td}>{r.jobs}</td>
+                      <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(r.exclusionRevenue)}</td>
+                      <td style={td}>{r.schedTechHours}</td>
+                      <td style={{ ...td, fontWeight: 600 }}>{money(r.avgRevPerSchedTechHour)}</td>
+                      <td style={{ ...td, color: r.ratePerHourStdev > 60 ? '#b91c1c' : '#888780' }} title="Std dev of $/hr across their jobs — lower = more consistent scheduling">±{r.ratePerHourStdev}</td>
+                      <td style={td}>{r.oneStoryJobs ? money(r.oneStoryRate) : '—'}</td>
+                      <td style={td}>{r.twoStoryJobs ? money(r.twoStoryRate) : '—'}</td>
+                      <td style={{ ...td, fontWeight: 600, color: r.differentiation == null ? '#888780' : (r.differentiation > 5 ? '#1D6E56' : '#b91c1c') }} title="1-story should run a higher $/hr than 2-story (less time). Positive = PM gives 2-story more time (good). ~0 or negative = not differentiating.">{r.differentiation == null ? '—' : `${r.differentiation > 0 ? '+' : ''}$${r.differentiation}`}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : tab === 'fp' ? (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>
                   <th style={{ ...th, textAlign: 'left' }}>Field Professional</th><th style={th}>Jobs</th><th style={{ ...th, textAlign: 'right' }}>Exclusion Rev</th><th style={th}>Sched Tech-Hrs</th><th style={th}>$/Tech-Hr</th><th style={{ ...th, textAlign: 'right' }}>Trapping</th><th style={{ ...th, textAlign: 'right' }}>Fogging</th>
@@ -156,15 +177,17 @@ export default function ExclusionRevenueReport() {
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>
-                  <th style={{ ...th, textAlign: 'left' }}>Customer</th><th style={th}>Stories</th><th style={th}>Rate</th><th style={{ ...th, textAlign: 'right' }}>Excl Rev</th><th style={th}>Sched Hrs</th><th style={th}>Expected Hrs</th><th style={th}>Variance</th><th style={th}>$/Tech-Hr</th>
+                  <th style={{ ...th, textAlign: 'left' }}>Customer</th><th style={{ ...th, textAlign: 'left' }}>PM</th><th style={th}>Stories</th><th style={th}>Rate</th><th style={{ ...th, textAlign: 'right' }}>Excl Rev</th><th style={th}>Crew</th><th style={th}>Sched Tech-Hrs</th><th style={th}>Expected Hrs</th><th style={th}>Variance</th><th style={th}>$/Tech-Hr</th>
                 </tr></thead>
                 <tbody>
                   {(data.perJob || []).slice().sort((a: any, b: any) => (b.varianceHours ?? -999) - (a.varianceHours ?? -999)).map((j: any, i: number) => (
                     <tr key={i} style={{ background: i % 2 ? '#FBFBF9' : undefined }}>
                       <td style={tdL}>{j.customer || j.customerID}</td>
+                      <td style={{ ...tdL, color: '#555' }}>{j.pm || '—'}</td>
                       <td style={td}>{j.stories || '—'}</td>
                       <td style={td}>{j.rate ? money(j.rate) : '—'}</td>
                       <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(j.exclusionRevenue)}</td>
+                      <td style={{ ...td, fontSize: 11, color: '#888780', maxWidth: 160, whiteSpace: 'normal' }} title={(j.crew || []).join(', ')}>{j.crewSize || 1}{j.crew && j.crew.length ? ` (${j.crew.slice(0,2).join(', ')}${j.crew.length>2?'…':''})` : ''}</td>
                       <td style={td}>{j.schedTechHours ?? j.schedHours}</td>
                       <td style={td}>{j.expectedTechHours ?? '—'}</td>
                       <td style={{ ...td, fontWeight: 600, color: j.varianceHours > 0.5 ? '#b91c1c' : (j.varianceHours < -0.5 ? '#b45309' : '#888780') }}>{j.varianceHours != null ? `${j.varianceHours > 0 ? '+' : ''}${j.varianceHours}` : '—'}</td>
