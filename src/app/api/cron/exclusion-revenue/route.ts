@@ -79,8 +79,19 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
   const rateFor = (cid: string): number | null => { const s = storiesMap[String(cid)]; return s === 1 ? RATE_1STORY : s === 2 ? RATE_2STORY : null; };
 
   // Customer name map (FR externalId -> name) from the Hub, so job detail shows names not IDs.
-  const custRows = await prisma.customer.findMany({ where: { externalId: { not: null } }, select: { externalId: true, name: true } });
+  const custRows = await prisma.customer.findMany({ where: { externalId: { not: null } }, select: { id: true, externalId: true, name: true } });
   const custName = new Map<string, string>(custRows.map(c => [String(c.externalId), c.name]));
+  const custInternalIdToExt = new Map<string, string>(custRows.map(c => [c.id, String(c.externalId)]));
+
+  // PM per customer — referenced from the Leads Tracker (Lead.pmName, keyed to internal customerId). Map to
+  // FR externalId so we can attach the PM to each exclusion job. (PM = the scheduler whose scheduling we measure.)
+  const leadRows = await prisma.lead.findMany({ where: { pmName: { not: null } }, select: { customerId: true, pmName: true, inspectionDate: true } });
+  const pmByExtId = new Map<string, string>();
+  for (const l of leadRows) {
+    const ext = custInternalIdToExt.get(l.customerId); if (!ext) continue;
+    // keep the most recent lead's PM if a customer has several
+    if (!pmByExtId.has(ext)) pmByExtId.set(ext, l.pmName!);
+  }
 
   type FPAgg = { frId: string; name: string; office: string; exclusionRevenue: number; schedHours: number; techHours: number; jobs: Set<string>; trappingRevenue: number; foggingRevenue: number; };
   const fps = new Map<string, FPAgg>();
@@ -206,7 +217,7 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
       const schedTechHours = schedHours * crewSize;
       const expectedTechHours = rate ? Math.round((exclRev / rate) * 100) / 100 : null; // total tech-hours the revenue justifies
       const varianceHours = expectedTechHours !== null ? Math.round((expectedTechHours - schedTechHours) * 100) / 100 : null; // + = under-allotted (should've had more time), - = over-allotted
-      perJob.push({ office: officeName, customerID: job.customerID, customer: custName.get(String(job.customerID)) || job.customer, firstDay: job.firstDay, lastDay: job.lastDay,
+      perJob.push({ office: officeName, customerID: job.customerID, customer: custName.get(String(job.customerID)) || job.customer, pm: pmByExtId.get(String(job.customerID)) || 'Unassigned', firstDay: job.firstDay, lastDay: job.lastDay,
         stories, rate, schedHours, crewSize, crew: [...fpDayCount.keys()].map(id => techName.get(id) || `FR ${id}`),
         exclusionRevenue: exclRev, trappingRevenue: trapRev, foggingRevenue: fogRev,
         schedTechHours, expectedTechHours, varianceHours,
@@ -245,7 +256,37 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
     scheduledTechHoursTagged: Math.round(sumSched * 100) / 100,
     varianceHours: Math.round((sumExpected - sumSched) * 100) / 100, // + = jobs under-allotted overall; - = over-allotted
   };
-  return { rows, totals, perJob };
+  // PM SCHEDULING SCORECARD — measures how consistently each PM schedules tech-hours vs exclusion revenue,
+  // and whether they differentiate 1-story vs 2-story. (Chisam: this is about PM scheduling, not tech performance.)
+  const pmAgg = new Map<string, { pm: string; jobs: number; revenue: number; schedTechHours: number;
+    oneRev: number; oneHrs: number; oneJobs: number; twoRev: number; twoHrs: number; twoJobs: number; rates: number[] }>();
+  for (const j of perJob) {
+    const pm = j.pm || 'Unassigned';
+    let a = pmAgg.get(pm);
+    if (!a) { a = { pm, jobs: 0, revenue: 0, schedTechHours: 0, oneRev: 0, oneHrs: 0, oneJobs: 0, twoRev: 0, twoHrs: 0, twoJobs: 0, rates: [] }; pmAgg.set(pm, a); }
+    a.jobs++; a.revenue += j.exclusionRevenue; a.schedTechHours += j.schedTechHours || 0;
+    if (j.schedTechHours > 0) a.rates.push(j.exclusionRevenue / j.schedTechHours);
+    if (j.stories === 1) { a.oneRev += j.exclusionRevenue; a.oneHrs += j.schedTechHours || 0; a.oneJobs++; }
+    else if (j.stories === 2) { a.twoRev += j.exclusionRevenue; a.twoHrs += j.schedTechHours || 0; a.twoJobs++; }
+  }
+  const stdev = (xs: number[]) => { if (xs.length < 2) return 0; const m = xs.reduce((s, x) => s + x, 0) / xs.length; return Math.round(Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0) / xs.length) * 100) / 100; };
+  const byPM = [...pmAgg.values()].map(a => {
+    const oneRate = a.oneHrs > 0 ? Math.round((a.oneRev / a.oneHrs) * 100) / 100 : 0;
+    const twoRate = a.twoHrs > 0 ? Math.round((a.twoRev / a.twoHrs) * 100) / 100 : 0;
+    return {
+      pm: a.pm, jobs: a.jobs,
+      exclusionRevenue: Math.round(a.revenue * 100) / 100,
+      schedTechHours: Math.round(a.schedTechHours * 100) / 100,
+      avgRevPerSchedTechHour: a.schedTechHours > 0 ? Math.round((a.revenue / a.schedTechHours) * 100) / 100 : 0,
+      ratePerHourStdev: stdev(a.rates), // variance/consistency of their scheduling
+      oneStoryJobs: a.oneJobs, oneStoryRate: oneRate,
+      twoStoryJobs: a.twoJobs, twoStoryRate: twoRate,
+      // Does the PM differentiate? 1-story SHOULD run a higher $/hr (less time) than 2-story. Positive = good differentiation.
+      differentiation: (oneRate && twoRate) ? Math.round((oneRate - twoRate) * 100) / 100 : null,
+    };
+  }).sort((a, b) => b.exclusionRevenue - a.exclusionRevenue);
+
+  return { rows, totals, perJob, byPM };
 }
 
 const STATUS_KEY = 'exclusion_revenue_status';
@@ -316,11 +357,16 @@ export async function GET(req: NextRequest) {
     const storiesRow = await prisma.appSetting.findUnique({ where: { key: 'exclusion_stories_map' } });
     const storiesMap: Record<string, number> = storiesRow ? JSON.parse(storiesRow.value) : {};
     const RATE_1 = 225, RATE_2 = 175;
-    const custRows = await prisma.customer.findMany({ where: { externalId: { not: null } }, select: { externalId: true, name: true } });
+    const custRows = await prisma.customer.findMany({ where: { externalId: { not: null } }, select: { id: true, externalId: true, name: true } });
     const custName = new Map<string, string>(custRows.map(c => [String(c.externalId), c.name]));
+    const extById = new Map<string, string>(custRows.map(c => [c.id, String(c.externalId)]));
+    const leadRows = await prisma.lead.findMany({ where: { pmName: { not: null } }, select: { customerId: true, pmName: true } });
+    const pmByExt = new Map<string, string>();
+    for (const l of leadRows) { const e = extById.get(l.customerId); if (e && !pmByExt.has(e)) pmByExt.set(e, l.pmName!); }
     const perJob = (data.perJob || []).map((j: any) => {
       const stories = storiesMap[String(j.customerID)] || null;
       j.customer = custName.get(String(j.customerID)) || j.customer;
+      j.pm = pmByExt.get(String(j.customerID)) || j.pm || 'Unassigned';
       const rate = stories === 1 ? RATE_1 : stories === 2 ? RATE_2 : null;
       const schedTechHours = j.schedHours * Math.max(j.crewSize || 1, 1);
       const expectedTechHours = rate ? Math.round((j.exclusionRevenue / rate) * 100) / 100 : null;
@@ -340,15 +386,37 @@ export async function GET(req: NextRequest) {
       scheduledTechHoursTagged: Math.round(sumSched * 100) / 100,
       varianceHours: Math.round((sumExpected - sumSched) * 100) / 100,
     };
+    // Rebuild PM scorecard from recomputed perJob.
+    const pmAgg2 = new Map<string, any>();
+    for (const j of perJob) {
+      const pm = j.pm || 'Unassigned';
+      let a = pmAgg2.get(pm); if (!a) { a = { pm, jobs: 0, revenue: 0, schedTechHours: 0, oneRev: 0, oneHrs: 0, oneJobs: 0, twoRev: 0, twoHrs: 0, twoJobs: 0, rates: [] }; pmAgg2.set(pm, a); }
+      a.jobs++; a.revenue += j.exclusionRevenue; a.schedTechHours += j.schedTechHours || 0;
+      if (j.schedTechHours > 0) a.rates.push(j.exclusionRevenue / j.schedTechHours);
+      if (j.stories === 1) { a.oneRev += j.exclusionRevenue; a.oneHrs += j.schedTechHours || 0; a.oneJobs++; }
+      else if (j.stories === 2) { a.twoRev += j.exclusionRevenue; a.twoHrs += j.schedTechHours || 0; a.twoJobs++; }
+    }
+    const stdev2 = (xs: number[]) => { if (xs.length < 2) return 0; const m = xs.reduce((s, x) => s + x, 0) / xs.length; return Math.round(Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0) / xs.length) * 100) / 100; };
+    data.byPM = [...pmAgg2.values()].map((a: any) => { const oneRate = a.oneHrs > 0 ? Math.round((a.oneRev / a.oneHrs) * 100) / 100 : 0; const twoRate = a.twoHrs > 0 ? Math.round((a.twoRev / a.twoHrs) * 100) / 100 : 0; return { pm: a.pm, jobs: a.jobs, exclusionRevenue: Math.round(a.revenue * 100) / 100, schedTechHours: Math.round(a.schedTechHours * 100) / 100, avgRevPerSchedTechHour: a.schedTechHours > 0 ? Math.round((a.revenue / a.schedTechHours) * 100) / 100 : 0, ratePerHourStdev: stdev2(a.rates), oneStoryJobs: a.oneJobs, oneStoryRate: oneRate, twoStoryJobs: a.twoJobs, twoStoryRate: twoRate, differentiation: (oneRate && twoRate) ? Math.round((oneRate - twoRate) * 100) / 100 : null }; }).sort((a: any, b: any) => b.exclusionRevenue - a.exclusionRevenue);
     data.perJob = perJob;
     // persist so the next plain read shows the enriched version too
     await prisma.appSetting.upsert({ where: { key: CK }, create: { key: CK, value: JSON.stringify(data) }, update: { value: JSON.stringify(data) } });
   }
 
   if (sp.get('csv') === '1') {
+    if (sp.get('view') === 'pm') {
+      const header = 'PM,Jobs,Exclusion Revenue,Sched Tech-Hours,Avg $/Tech-Hour,$/Hr Std Dev,1-Story Jobs,1-Story $/Hr,2-Story Jobs,2-Story $/Hr,Differentiation';
+      const lines = (data.byPM || []).map((r: any) => [r.pm, r.jobs, r.exclusionRevenue, r.schedTechHours, r.avgRevPerSchedTechHour, r.ratePerHourStdev, r.oneStoryJobs, r.oneStoryRate, r.twoStoryJobs, r.twoStoryRate, r.differentiation].join(','));
+      return new NextResponse([header, ...lines].join('\n'), { headers: { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="exclusion_by_PM_${data.from}_${data.to}.csv"` } });
+    }
+    if (sp.get('view') === 'jobs') {
+      const header = 'Customer,PM,Office,Stories,Rate,Exclusion Revenue,Crew Size,Crew,Sched Tech-Hours,Expected Tech-Hours,Variance,$/Tech-Hour';
+      const lines = (data.perJob || []).map((j: any) => [j.customer, j.pm, j.office, j.stories, j.rate, j.exclusionRevenue, j.crewSize, `"${(j.crew || []).join('; ')}"`, j.schedTechHours, j.expectedTechHours, j.varianceHours, j.revenuePerSchedTechHour].join(','));
+      return new NextResponse([header, ...lines].join('\n'), { headers: { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="exclusion_by_job_${data.from}_${data.to}.csv"` } });
+    }
     const header = 'Field Professional,Office,Jobs,Exclusion Revenue,Scheduled Tech-Hours,Rev per Sched Tech-Hour,Trapping Revenue,Fogging Revenue';
     const lines = (data.rows || []).map((r: any) => [r.fieldProfessional, r.office, r.jobs, r.exclusionRevenue, r.scheduledHours, r.revenuePerSchedTechHour, r.trappingRevenue, r.foggingRevenue].join(','));
     return new NextResponse([header, ...lines].join('\n'), { headers: { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="exclusion_revenue_${data.from}_${data.to}.csv"` } });
   }
-  return NextResponse.json({ from: data.from, to: data.to, offices: data.offices, computedAt: data.computedAt, totals: data.totals, rows: data.rows, perJob: sp.get('detail') === '1' ? data.perJob : (data.perJob || []).slice(0, 50) });
+  return NextResponse.json({ from: data.from, to: data.to, offices: data.offices, computedAt: data.computedAt, totals: data.totals, byPM: data.byPM || [], rows: data.rows, perJob: sp.get('detail') === '1' ? data.perJob : (data.perJob || []).slice(0, 50) });
 }
