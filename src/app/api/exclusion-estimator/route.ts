@@ -124,8 +124,15 @@ export async function GET(req: NextRequest) {
   const d = det?.data || {};
   const tags = (d.tags || []).map((t: any) => String(t.name || ''));
   const stories = tags.some((t: string) => t.includes('2 Story')) ? 2 : 1;
-  const diffTag = tags.find((t: string) => t.includes('Roof Difficulty'));
-  const difficulty: Diff = diffTag?.includes('3') ? 'difficult' : diffTag?.includes('2') ? 'moderate' : 'easy';
+  // New tag names: "Roof Difficulty - Easy/Moderate/Difficult" → parse the value AFTER the dash (note: the label
+  // "Roof Difficulty" itself contains the substring "difficult", so match on the value part, not the whole tag).
+  // Backward-compat: old "Roof Difficulty Level 1/2/3".
+  const diffTagRaw = tags.find((t: string) => t.toLowerCase().includes('roof difficulty')) || '';
+  const diffValue = (diffTagRaw.includes('-') ? diffTagRaw.split('-').pop() : diffTagRaw).toLowerCase().trim();
+  const difficulty: Diff =
+    diffValue.includes('difficult') || diffValue.includes('3') ? 'difficult' :
+    diffValue.includes('moderate') || diffValue.includes('2') ? 'moderate' :
+    'easy';
 
   // Feature quantities: pricingGroupValues (uuid -> qty) joined to feature names.
   const pv = d.latest_version?.proposal_values || {};
