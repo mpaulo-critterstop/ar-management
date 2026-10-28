@@ -11,6 +11,21 @@ export async function GET(req: NextRequest) {
     // Page uses session; allow same-origin fetch. Keep simple: require token for now.
     // (If you want session-gating, we can wire getServerSession here.)
   }
+  // One-time cleanup: drop old records keyed by proposal UUID (36-char uuid with dashes). New records are keyed
+  // by FR customer id (numeric) / customer uuid. Keeps the per-customer record, removes orphaned proposal-keyed dupes.
+  if (req.nextUrl.searchParams.get('cleanup') === '1' && token === 'critterstop2026') {
+    const all = await prisma.appSetting.findMany({ where: { key: { startsWith: 'excl_estimate:' } } });
+    const removed: string[] = [];
+    for (const r of all) {
+      const k = r.key.replace('excl_estimate:', '');
+      // a proposal UUID looks like 8-4-4-4-12 hex; FR ids are short numeric
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k)) {
+        await prisma.appSetting.delete({ where: { key: r.key } }); removed.push(k);
+      }
+    }
+    return NextResponse.json({ cleaned: removed.length, removedKeys: removed });
+  }
+
   const rows = await prisma.appSetting.findMany({ where: { key: { startsWith: 'excl_estimate:' } } });
   const records = rows.map(r => { try { return JSON.parse(r.value); } catch { return null; } }).filter(Boolean)
     .sort((a: any, b: any) => String(b.acceptedAt || '').localeCompare(String(a.acceptedAt || '')));
