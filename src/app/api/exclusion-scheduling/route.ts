@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
     estimatedMinutes: r.estimate?.totalMinutes ?? null,
     ruleOfThumb: r.estimate?.ruleOfThumb ?? null,
     breakdown: r.estimate?.breakdown ?? null,
+    baseBuffer: r.estimate?.baseBuffer ?? null,
     status: r.status || 'ESTIMATED',
     schedulingNote: r.schedulingNote ?? 'Pending scheduling appointment',
     bookedHours: r.bookedHours ?? null,

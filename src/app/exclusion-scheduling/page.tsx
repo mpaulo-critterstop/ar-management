@@ -105,7 +105,7 @@ export default function ExclusionScheduling() {
                                     <td style={{ padding: '2px 0', color: '#B4B2A9', fontSize: 11 }}>{b.note}</td>
                                   </tr>
                                 ))}
-                                <tr><td colSpan={2} style={{ padding: '4px 16px 2px 0', color: '#6b6a64', fontWeight: 600 }}>Base buffer (paint + trapping)</td><td style={{ padding: '4px 16px 2px 0', textAlign: 'right', fontWeight: 600 }}>65 min</td><td></td></tr>
+                                <tr><td colSpan={2} style={{ padding: '4px 16px 2px 0', color: '#6b6a64', fontWeight: 600 }}>Base buffer (paint{j.baseBuffer?.hasTrapping ? ' + trapping' : ', no trapping'})</td><td style={{ padding: '4px 16px 2px 0', textAlign: 'right', fontWeight: 600 }}>{j.baseBuffer?.total ?? 65} min</td><td></td></tr>
                               </tbody>
                             </table>
                           </div>

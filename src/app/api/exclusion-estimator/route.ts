@@ -14,9 +14,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
-const BASE_PAINT_MIN = 35;      // grab paint sample + run to get actual paint
-const BASE_TRAPPING_MIN = 30;   // almost every exclusion includes trapping
-const BASE_BUFFER = BASE_PAINT_MIN + BASE_TRAPPING_MIN; // per job, flat
+const BASE_PAINT_MIN = 35;      // grab paint sample + run to get actual paint (always applies)
+const BASE_TRAPPING_MIN = 30;   // trapping setup — ONLY if the proposal includes trapping
 
 // Kyle's duration matrix: feature -> story -> difficulty -> minutes (per quantity). null = NA/skip.
 const FEATURES: Record<string, any> = {"AAC Foundation Vent Guard":{"oneStory":{"easy":null,"moderate":null,"difficult":null},"twoStory":{"easy":null,"moderate":null,"difficult":null}},"AAC Louvered Vent Guard":{"oneStory":{"easy":120.0,"moderate":140.0,"difficult":180.0},"twoStory":{"easy":140.0,"moderate":140.0,"difficult":200.0}},"AAC Power Fan Cover":{"oneStory":{"easy":10.0,"moderate":15.0,"difficult":25.0},"twoStory":{"easy":10.0,"moderate":15.0,"difficult":25.0}},"AC Line":{"oneStory":{"easy":15.0,"moderate":15.0,"difficult":15.0},"twoStory":{"easy":15.0,"moderate":15.0,"difficult":15.0}},"Fascia Gaps/Spot Work 1-1500sqt":{"oneStory":{"easy":90.0,"moderate":90.0,"difficult":120.0},"twoStory":{"easy":120.0,"moderate":120.0,"difficult":140.0}},"Fascia Gaps/Spot Work 1501-2500sqt":{"oneStory":{"easy":90.0,"moderate":90.0,"difficult":120.0},"twoStory":{"easy":120.0,"moderate":120.0,"difficult":140.0}},"Fascia Gaps/Spot Work 2501-3500sqt":{"oneStory":{"easy":120.0,"moderate":120.0,"difficult":140.0},"twoStory":{"easy":140.0,"moderate":140.0,"difficult":160.0}},"Fascia Gaps/Spot Work 3501-4500sqt":{"oneStory":{"easy":150.0,"moderate":150.0,"difficult":170.0},"twoStory":{"easy":170.0,"moderate":170.0,"difficult":190.0}},"Fascia Gaps/Spot Work 4501-7000sqt":{"oneStory":{"easy":180.0,"moderate":180.0,"difficult":200.0},"twoStory":{"easy":200.0,"moderate":200.0,"difficult":220.0}},"Fascia Gaps/Spot Work 7000sqt and above":{"oneStory":{"easy":240.0,"moderate":240.0,"difficult":260.0},"twoStory":{"easy":300.0,"moderate":300.0,"difficult":300.0}},"Ground Vent":{"oneStory":{"easy":10.0,"moderate":10.0,"difficult":10.0},"twoStory":{"easy":10.0,"moderate":10.0,"difficult":10.0}},"Box Vents":{"oneStory":{"easy":10.0,"moderate":15.0,"difficult":25.0},"twoStory":{"easy":10.0,"moderate":15.0,"difficult":25.0}},"Exhaust Vents":{"oneStory":{"easy":15.0,"moderate":15.0,"difficult":15.0},"twoStory":{"easy":15.0,"moderate":15.0,"difficult":15.0}},"Gable Vents":{"oneStory":{"easy":40.0,"moderate":40.0,"difficult":40.0},"twoStory":{"easy":40.0,"moderate":40.0,"difficult":40.0}},"Garage Gaps":{"oneStory":{"easy":10.0,"moderate":10.0,"difficult":10.0},"twoStory":{"easy":10.0,"moderate":10.0,"difficult":10.0}},"Pipe Stacks":{"oneStory":{"easy":5.0,"moderate":5.0,"difficult":10.0},"twoStory":{"easy":5.0,"moderate":5.0,"difficult":10.0}},"Roof Returns":{"oneStory":{"easy":25.0,"moderate":30.0,"difficult":35.0},"twoStory":{"easy":25.0,"moderate":30.0,"difficult":35.0}},"Peak Protector Ridge Guard":{"oneStory":{"easy":{"perLF":3},"moderate":{"perLF":3},"difficult":{"perLF":3}},"twoStory":{"easy":{"perLF":3},"moderate":{"perLF":3},"difficult":{"perLF":3}}},"Quad Vent":{"oneStory":{"easy":15.0,"moderate":15.0,"difficult":20.0},"twoStory":{"easy":15.0,"moderate":15.0,"difficult":20.0}},"RodExit Garage Door Sweep":{"oneStory":{"easy":40.0,"moderate":40.0,"difficult":40.0},"twoStory":{"easy":40.0,"moderate":40.0,"difficult":40.0}},"Saucer Vent":{"oneStory":{"easy":10.0,"moderate":15.0,"difficult":25.0},"twoStory":{"easy":10.0,"moderate":15.0,"difficult":25.0}},"Soffit Vent":{"oneStory":{"easy":15.0,"moderate":15.0,"difficult":15.0},"twoStory":{"easy":15.0,"moderate":15.0,"difficult":15.0}},"Turbine Vent":{"oneStory":{"easy":10.0,"moderate":15.0,"difficult":25.0},"twoStory":{"easy":10.0,"moderate":15.0,"difficult":25.0}},"Weep holes (depends on sq ft)":{"oneStory":{"easy":25.0,"moderate":35.0,"difficult":45.0},"twoStory":{"easy":25.0,"moderate":35.0,"difficult":45.0}}};
@@ -51,7 +50,7 @@ function lookup(featureName: string, story: 1 | 2, diff: Diff): number | { perLF
   return col ? col[diff] : null;
 }
 
-function estimate(stories: 1 | 2, difficulty: Diff, features: Record<string, any>) {
+function estimate(stories: 1 | 2, difficulty: Diff, features: Record<string, any>, hasTrapping: boolean = true) {
   const lines: any[] = [];
   let featureMin = 0;
   for (const [rawName, qtyRaw] of Object.entries(features)) {
@@ -75,11 +74,13 @@ function estimate(stories: 1 | 2, difficulty: Diff, features: Record<string, any
     if (FLAT_IF_PRESENT.has(name)) { featureMin += (val as number); lines.push({ feature: name, input: 'present', minutes: val, note: 'flat if present' }); continue; }
     const mins = (val as number) * qty; featureMin += mins; lines.push({ feature: name, input: qty, minutes: mins, note: `${val} min each` });
   }
-  const totalMin = featureMin + BASE_BUFFER;
+  const trappingMin = hasTrapping ? BASE_TRAPPING_MIN : 0;
+  const baseBufferTotal = BASE_PAINT_MIN + trappingMin;
+  const totalMin = featureMin + baseBufferTotal;
   const totalHours = Math.round((totalMin / 60) * 100) / 100;
   return {
     stories, difficulty,
-    baseBuffer: { paint: BASE_PAINT_MIN, trapping: BASE_TRAPPING_MIN, total: BASE_BUFFER },
+    baseBuffer: { paint: BASE_PAINT_MIN, trapping: trappingMin, hasTrapping, total: baseBufferTotal },
     featureMinutes: Math.round(featureMin),
     totalMinutes: Math.round(totalMin),
     totalHours,
@@ -94,7 +95,8 @@ export async function POST(req: NextRequest) {
   const stories = (parseInt(String(body.stories)) === 2 ? 2 : 1) as 1 | 2;
   const difficulty = (['easy', 'moderate', 'difficult'].includes(String(body.difficulty)) ? body.difficulty : 'easy') as Diff;
   const features = body.features || {};
-  return NextResponse.json(estimate(stories, difficulty, features));
+  const hasTrapping = body.hasTrapping !== false; // default true unless explicitly false
+  return NextResponse.json(estimate(stories, difficulty, features, hasTrapping));
 }
 
 export async function GET(req: NextRequest) {
@@ -103,7 +105,7 @@ export async function GET(req: NextRequest) {
 
   // List the feature catalog (for reference / building manual requests).
   if (sp.get('catalog') === '1') {
-    return NextResponse.json({ baseBuffer: BASE_BUFFER, features: FEATURES, aliases: SL_ALIAS });
+    return NextResponse.json({ basePaint: BASE_PAINT_MIN, baseTrappingIfPresent: BASE_TRAPPING_MIN, features: FEATURES, aliases: SL_ALIAS });
   }
 
   const custUuid = sp.get('customer_uuid');
@@ -142,7 +144,11 @@ export async function GET(req: NextRequest) {
   const features: Record<string, any> = {};
   for (const [uuid, qty] of Object.entries(pgv)) { const nm = nameByUuid[uuid]; if (nm) features[nm] = qty; }
 
-  const est = estimate(stories as 1 | 2, difficulty, features);
+  // Does the proposal include Trapping? (a Trapping section with a selected pricing group)
+  const plans = d.service_plans || [];
+  const trapPlan = plans.find((p: any) => String(p.name || '').trim().toLowerCase() === 'trapping');
+  const hasTrapping = !!(trapPlan && (trapPlan.pricing_groups || []).some((g: any) => g.selected !== false));
+  const est = estimate(stories as 1 | 2, difficulty, features, hasTrapping);
   const customerName = d.customer?.account_name || d.customer_account_name || accepted.customer_account_name
     || [d.customer?.first_name, d.customer?.last_name].filter(Boolean).join(' ').trim() || null;
   const frId = d.customer?.integrations?.pest_routes?.identifier || d.customer?.integration_customer_identifier
