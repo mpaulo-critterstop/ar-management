@@ -136,5 +136,7 @@ export async function GET(req: NextRequest) {
   for (const [uuid, qty] of Object.entries(pgv)) { const nm = nameByUuid[uuid]; if (nm) features[nm] = qty; }
 
   const est = estimate(stories as 1 | 2, difficulty, features);
-  return NextResponse.json({ customer_uuid: custUuid, proposal: accepted.title, status: accepted.status?.display_name, tagsFound: tags, ...est });
+  const customerName = d.customer_account_name || accepted.customer_account_name || accepted.customer_proposal_address || null;
+  const frId = d.customer?.integrations?.pest_routes?.identifier || accepted.customer?.integrations?.pest_routes?.identifier || null;
+  return NextResponse.json({ customer_uuid: custUuid, customer: customerName, frCustomerId: frId, proposal: accepted.title, status: accepted.status?.display_name, tagsFound: tags, ...est });
 }

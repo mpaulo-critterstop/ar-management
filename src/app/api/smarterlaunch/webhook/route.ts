@@ -62,11 +62,15 @@ export async function POST(req: NextRequest) {
         const est = await fetch(`${base}/api/exclusion-estimator?token=critterstop2026&customer_uuid=${customerUuid}`).then(r => r.json()).catch(e => ({ error: String(e) }));
         // Store the estimate keyed by proposal uuid (Step 3 will add the FR-booking comparison + status).
         const recKey = `excl_estimate:${proposalUuid || customerUuid}`;
+        // Prefer the FR id resolved by the estimator (from the proposal) over the webhook's, then store.
+        const resolvedFr = (est && est.frCustomerId) || frCustomerId;
         await prisma.appSetting.upsert({
           where: { key: recKey },
-          create: { key: recKey, value: JSON.stringify({ proposalUuid, customerUuid, frCustomerId, title, acceptedAt: receivedAt, estimate: est, status: 'ESTIMATED', computedAt: new Date().toISOString() }) },
-          update: { value: JSON.stringify({ proposalUuid, customerUuid, frCustomerId, title, acceptedAt: receivedAt, estimate: est, status: 'ESTIMATED', computedAt: new Date().toISOString() }) },
+          create: { key: recKey, value: JSON.stringify({ proposalUuid, customerUuid, frCustomerId: resolvedFr, title, acceptedAt: receivedAt, estimate: est, status: 'ESTIMATED', schedulingNote: 'Pending scheduling appointment', computedAt: new Date().toISOString() }) },
+          update: { value: JSON.stringify({ proposalUuid, customerUuid, frCustomerId: resolvedFr, title, acceptedAt: receivedAt, estimate: est, status: 'ESTIMATED', schedulingNote: 'Pending scheduling appointment', computedAt: new Date().toISOString() }) },
         });
+        // Step 3: immediately check whether the PM has booked it in FR (usually "pending" right after acceptance).
+        if (resolvedFr) await fetch(`${base}/api/exclusion-scheduling/check?token=critterstop2026&frId=${resolvedFr}`).catch(() => {});
       } catch (e) { console.error('[sl-webhook] estimator step failed:', e); }
     })());
   }

@@ -8,11 +8,21 @@ export default function ExclusionScheduling() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
     fetch('/api/exclusion-scheduling?token=critterstop2026')
       .then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
+  };
+  useEffect(() => { load(); }, []);
+
+  const refreshBookings = async () => {
+    setChecking(true);
+    try { await fetch('/api/exclusion-scheduling/check?token=critterstop2026'); } catch {}
+    setChecking(false);
+    load();
+  };
 
   const statusStyle = (note: string): React.CSSProperties => {
     const n = (note || '').toLowerCase();
@@ -28,7 +38,10 @@ export default function ExclusionScheduling() {
 
   return (
     <div style={{ maxWidth: 1120, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
-      <a href="/" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← Home</a>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <a href="/" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← Home</a>
+        <button onClick={refreshBookings} disabled={checking} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 7, border: 'none', background: checking ? '#F1EFE8' : '#1F3864', color: checking ? '#888' : '#fff', cursor: checking ? 'default' : 'pointer' }}>{checking ? '⏳ Checking FieldRoutes…' : '↻ Check bookings'}</button>
+      </div>
       <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>🪜 Exclusion Scheduling</h1>
       <p style={{ fontSize: 13, color: '#888780', margin: '0 0 18px', lineHeight: 1.6 }}>
         Accepted exclusion proposals with an estimated job duration (from home-feature quantities × the per-feature time standard, adjusted for stories + roof difficulty, plus a base buffer for paint + trapping). Once the PM schedules the job in FieldRoutes, the booked time is compared to the estimate.
