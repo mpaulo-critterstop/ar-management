@@ -72,7 +72,9 @@ function estimate(stories: 1 | 2, difficulty: Diff, features: Record<string, any
       continue;
     }
     const val = lookup(name, stories, difficulty);
-    if (val == null) { lines.push({ feature: rawName, input: qty, minutes: 0, note: 'no duration (NA/unmapped)' }); continue; }
+    // Not an exclusion time-driver (guarantees, insulation, fogging, attic inspection, fees, etc.) — omit from the
+    // exclusion-time breakdown entirely rather than listing it as "0 min".
+    if (val == null) continue;
     if (typeof val === 'object' && 'perLF' in val) { // Ridge Guard: per linear foot
       const mins = val.perLF * qty; featureMin += mins; lines.push({ feature: name, input: `${qty} LF`, minutes: mins, note: `${val.perLF} min/LF` }); continue;
     }
