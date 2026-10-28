@@ -72,8 +72,10 @@ export async function POST(req: NextRequest) {
         const base = process.env.NEXT_PUBLIC_BASE_URL || 'https://hub.critterstop.com';
         // Call the estimator (it pulls quantities + story/difficulty tags from SmarterLaunch and computes).
         const est = await fetch(`${base}/api/exclusion-estimator?token=critterstop2026&customer_uuid=${customerUuid}`).then(r => r.json()).catch(e => ({ error: String(e) }));
-        // Store the estimate keyed by proposal uuid (Step 3 will add the FR-booking comparison + status).
-        const recKey = `excl_estimate:${proposalUuid || customerUuid}`;
+        // Store the estimate keyed by CUSTOMER (FR id preferred, else customer uuid), so a new/updated accepted
+        // proposal for the same customer REPLACES the old one — one active exclusion job per customer, latest wins.
+        const resolvedFrEarly = (est && est.frCustomerId) || frCustomerId || customerUuid;
+        const recKey = `excl_estimate:${resolvedFrEarly}`;
         // Prefer the FR id resolved by the estimator (from the proposal) over the webhook's, then store.
         const resolvedFr = (est && est.frCustomerId) || frCustomerId;
         await prisma.appSetting.upsert({
