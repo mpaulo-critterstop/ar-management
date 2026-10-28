@@ -65,6 +65,7 @@ export default function ExclusionScheduling() {
                 <th style={{ ...th, textAlign: 'center' }}>Accepted</th>
                 <th style={{ ...th, textAlign: 'center' }}>Stories</th>
                 <th style={{ ...th, textAlign: 'center' }}>Roof</th>
+                <th style={{ ...th, textAlign: 'right' }}>Excl. Revenue</th>
                 <th style={{ ...th, textAlign: 'center' }}>Est. Hours</th>
                 <th style={{ ...th, textAlign: 'center' }}>Booked</th>
                 <th style={th}>Status</th>
@@ -79,6 +80,7 @@ export default function ExclusionScheduling() {
                       <td style={{ ...td, textAlign: 'center' }}>{fmtDate(j.acceptedAt)}</td>
                       <td style={{ ...td, textAlign: 'center' }}>{j.stories || '—'}</td>
                       <td style={{ ...td, textAlign: 'center', textTransform: 'capitalize' }}>{j.difficulty || '—'}</td>
+                      <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{j.exclusionRevenue != null ? `$${j.exclusionRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—'}</td>
                       <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#1F3864' }}>{j.estimatedHours != null ? `${j.estimatedHours}h` : (j.estimateError ? '⚠️' : '—')}</td>
                       <td style={{ ...td, textAlign: 'center' }} title={j.bookedWallClockHours != null ? `${j.bookedWallClockHours}h wall-clock × ${j.crewSize} tech${j.crewSize === 1 ? '' : 's'}` : ''}>{j.bookedHours != null ? <>{j.bookedHours}h{j.crewSize ? <span style={{ color: '#B4B2A9', fontSize: 11 }}> ({j.bookedWallClockHours}h×{j.crewSize})</span> : null}</> : '—'}</td>
                       <td style={td}><span style={{ ...statusStyle(j.schedulingNote), fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 20, whiteSpace: 'nowrap' }}>{j.schedulingNote}</span></td>
@@ -88,7 +90,7 @@ export default function ExclusionScheduling() {
                     </tr>
                     {expanded === j.proposalUuid && j.breakdown && (
                       <tr>
-                        <td colSpan={9} style={{ padding: '4px 12px 14px 12px', background: '#FBFBF9', borderBottom: '0.5px solid #F1EFE8' }}>
+                        <td colSpan={10} style={{ padding: '4px 12px 14px 12px', background: '#FBFBF9', borderBottom: '0.5px solid #F1EFE8' }}>
                           <div style={{ fontSize: 12, color: '#555' }}>
                             <div style={{ fontWeight: 600, margin: '6px 0' }}>{j.ruleOfThumb}</div>
                             <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>

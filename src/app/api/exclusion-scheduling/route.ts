@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     customer: r.estimate?.customer || null,
     stories: r.estimate?.stories ?? null,
     difficulty: r.estimate?.difficulty ?? null,
+    exclusionRevenue: r.exclusionRevenue ?? null,
     estimatedHours: r.estimate?.totalHours ?? null,
     estimatedMinutes: r.estimate?.totalMinutes ?? null,
     ruleOfThumb: r.estimate?.ruleOfThumb ?? null,
