@@ -27,9 +27,16 @@ function fr(url: string): Promise<any> {
 }
 const spanHrs = (st: string, en: string) => { const [sh, sm] = st.split(':').map(Number); const [eh, em] = en.split(':').map(Number); return ((eh * 60 + em) - (sh * 60 + sm)) / 60; };
 
-// Find the customer's completed/scheduled exclusion appointment across offices; return booked hours (Option B) or null.
-async function bookedHoursForCustomer(frId: string): Promise<{ bookedHours: number | null; bookedWallClockHours?: number | null; crewSize?: number; office: string | null; apptDate: string | null }> {
-  for (const [officeName, cfg] of Object.entries(OFFICES)) {
+const OFFICE_BY_ID: Record<string, string> = { '1': 'DFW', '5': 'ATX', '3': 'OKC', '4': 'CStat' };
+
+// Find the customer's completed/scheduled exclusion appointment; return booked hours (Option B) or null.
+// officeHint (from the FR webhook's officeID) is tried first to avoid searching all offices.
+async function bookedHoursForCustomer(frId: string, officeHint?: string): Promise<{ bookedHours: number | null; bookedWallClockHours?: number | null; crewSize?: number; office: string | null; apptDate: string | null }> {
+  const hintedOffice = officeHint ? OFFICE_BY_ID[String(officeHint)] : null;
+  const orderedOffices = hintedOffice
+    ? [[hintedOffice, OFFICES[hintedOffice]], ...Object.entries(OFFICES).filter(([n]) => n !== hintedOffice)] as [string, any][]
+    : Object.entries(OFFICES);
+  for (const [officeName, cfg] of orderedOffices) {
     if (!cfg.key) continue;
     const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
     const s = await fr(`${BASE_URL}/appointment/search?${auth}&customerIDs=${frId}`);
@@ -88,6 +95,7 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const oneFr = sp.get('frId');
+  const officeHint = sp.get('officeID') || undefined;
 
   const rows = await prisma.appSetting.findMany({ where: { key: { startsWith: 'excl_estimate:' } } });
   const results: any[] = [];
@@ -107,7 +115,7 @@ export async function GET(req: NextRequest) {
       } catch {}
     }
     const estimatedHours = rec.estimate?.totalHours ?? null;
-    const { bookedHours, bookedWallClockHours, crewSize, office, apptDate } = await bookedHoursForCustomer(String(rec.frCustomerId));
+    const { bookedHours, bookedWallClockHours, crewSize, office, apptDate } = await bookedHoursForCustomer(String(rec.frCustomerId), officeHint);
     const note = statusNote(estimatedHours, bookedHours);
     rec.bookedHours = bookedHours;            // tech-hours (wall-clock × crew)
     rec.bookedWallClockHours = bookedWallClockHours;

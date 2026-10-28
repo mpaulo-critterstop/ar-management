@@ -56,7 +56,8 @@ export async function POST(req: NextRequest) {
         const base = process.env.NEXT_PUBLIC_BASE_URL || 'https://hub.critterstop.com';
         // Only react if we have a pending estimate for this customer.
         const rec = await prisma.appSetting.findUnique({ where: { key: `excl_estimate:${customerId}` } });
-        if (rec) await fetch(`${base}/api/exclusion-scheduling/check?token=critterstop2026&frId=${customerId}`).catch(() => {});
+        const off = body?.officeID || query.officeID || '';
+        if (rec) await fetch(`${base}/api/exclusion-scheduling/check?token=critterstop2026&frId=${customerId}${off ? '&officeID=' + off : ''}`).catch(() => {});
       } catch (e) { console.error('[fr-webhook] check trigger failed:', e); }
     })());
   }
