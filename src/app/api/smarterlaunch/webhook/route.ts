@@ -10,6 +10,7 @@
 // Optional shared secret: set SMARTERLAUNCH_WEBHOOK_SECRET in env; SmarterLaunch sends it (header or body) to auth.
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { waitUntil } from '@vercel/functions';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
@@ -46,8 +47,32 @@ export async function POST(req: NextRequest) {
     console.error('[sl-webhook] log write failed:', e);
   }
 
-  // Acknowledge immediately. (Processing — estimator + FR check — will be added as the next step.)
-  return NextResponse.json({ ok: true, received: true, event, proposalUuid, customerUuid });
+  // STEP 2: run the estimator for this accepted proposal, in the background (ack fast below).
+  // Only Permanent Rodent Solution templates reach here (SmarterLaunch automation already filters to the 3),
+  // but we double-check the title defensively.
+  const title = String(body?.proposal?.title || body?.proposal?.proposal_template?.title || '');
+  const isExclusion = /Permanent Rodent Solution/i.test(title);
+  const frCustomerId = body?.customer?.integrations?.pest_routes?.identifier || null;
+
+  if (isExclusion && customerUuid) {
+    waitUntil((async () => {
+      try {
+        const base = process.env.NEXT_PUBLIC_BASE_URL || 'https://hub.critterstop.com';
+        // Call the estimator (it pulls quantities + story/difficulty tags from SmarterLaunch and computes).
+        const est = await fetch(`${base}/api/exclusion-estimator?token=critterstop2026&customer_uuid=${customerUuid}`).then(r => r.json()).catch(e => ({ error: String(e) }));
+        // Store the estimate keyed by proposal uuid (Step 3 will add the FR-booking comparison + status).
+        const recKey = `excl_estimate:${proposalUuid || customerUuid}`;
+        await prisma.appSetting.upsert({
+          where: { key: recKey },
+          create: { key: recKey, value: JSON.stringify({ proposalUuid, customerUuid, frCustomerId, title, acceptedAt: receivedAt, estimate: est, status: 'ESTIMATED', computedAt: new Date().toISOString() }) },
+          update: { value: JSON.stringify({ proposalUuid, customerUuid, frCustomerId, title, acceptedAt: receivedAt, estimate: est, status: 'ESTIMATED', computedAt: new Date().toISOString() }) },
+        });
+      } catch (e) { console.error('[sl-webhook] estimator step failed:', e); }
+    })());
+  }
+
+  // Acknowledge immediately (webhooks must return fast; estimator runs in background).
+  return NextResponse.json({ ok: true, received: true, event, proposalUuid, customerUuid, frCustomerId, willEstimate: isExclusion });
 }
 
 // GET: inspect recent webhook events (to see the real payload shape once SL starts sending).
