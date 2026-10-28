@@ -80,7 +80,7 @@ export default function ExclusionScheduling() {
                       <td style={{ ...td, textAlign: 'center' }}>{j.stories || '—'}</td>
                       <td style={{ ...td, textAlign: 'center', textTransform: 'capitalize' }}>{j.difficulty || '—'}</td>
                       <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#1F3864' }}>{j.estimatedHours != null ? `${j.estimatedHours}h` : (j.estimateError ? '⚠️' : '—')}</td>
-                      <td style={{ ...td, textAlign: 'center' }}>{j.bookedHours != null ? `${j.bookedHours}h` : '—'}</td>
+                      <td style={{ ...td, textAlign: 'center' }} title={j.bookedWallClockHours != null ? `${j.bookedWallClockHours}h wall-clock × ${j.crewSize} tech${j.crewSize === 1 ? '' : 's'}` : ''}>{j.bookedHours != null ? <>{j.bookedHours}h{j.crewSize ? <span style={{ color: '#B4B2A9', fontSize: 11 }}> ({j.bookedWallClockHours}h×{j.crewSize})</span> : null}</> : '—'}</td>
                       <td style={td}><span style={{ ...statusStyle(j.schedulingNote), fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 20, whiteSpace: 'nowrap' }}>{j.schedulingNote}</span></td>
                       <td style={{ ...td, textAlign: 'center' }}>
                         {j.breakdown && <button onClick={() => setExpanded(expanded === j.proposalUuid ? null : j.proposalUuid)} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #D9D9D9', background: '#fff', cursor: 'pointer' }}>{expanded === j.proposalUuid ? '▲' : '▼'}</button>}

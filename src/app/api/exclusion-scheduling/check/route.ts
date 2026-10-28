@@ -28,7 +28,7 @@ function fr(url: string): Promise<any> {
 const spanHrs = (st: string, en: string) => { const [sh, sm] = st.split(':').map(Number); const [eh, em] = en.split(':').map(Number); return ((eh * 60 + em) - (sh * 60 + sm)) / 60; };
 
 // Find the customer's completed/scheduled exclusion appointment across offices; return booked hours (Option B) or null.
-async function bookedHoursForCustomer(frId: string): Promise<{ bookedHours: number | null; office: string | null; apptDate: string | null }> {
+async function bookedHoursForCustomer(frId: string): Promise<{ bookedHours: number | null; bookedWallClockHours?: number | null; crewSize?: number; office: string | null; apptDate: string | null }> {
   for (const [officeName, cfg] of Object.entries(OFFICES)) {
     if (!cfg.key) continue;
     const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
@@ -41,11 +41,20 @@ async function bookedHoursForCustomer(frId: string): Promise<{ bookedHours: numb
     // Prefer the soonest/active exclusion appointment.
     const a = excl[0];
     const dur = parseInt(String(a.duration || '0')) || 0;
-    let bookedMin = dur;
-    if (dur >= 480) {
-      // Option B: check the route for blocked spots + other appts.
-      const rid = String(a.routeID);
-      if (rid && rid !== '0') {
+    let bookedMin = dur;               // wall-clock minutes the appointment is booked for
+    let crewSize = 1;
+    const rid = String(a.routeID);
+    if (rid && rid !== '0') {
+      // Crew lives on the ROUTE (route.additionalTechs + assignedTech), not the appointment.
+      const rg = await fr(`${BASE_URL}/route/get?${auth}&routeIDs=${rid},${rid}`);
+      const r = (rg.routes || [])[0];
+      if (r) {
+        const addl = r.additionalTechs ? String(r.additionalTechs).split(',').map((x: string) => x.trim()).filter(Boolean) : [];
+        const crew = [...new Set([String(r.assignedTech), ...addl].filter(x => x && x !== '0'))];
+        crewSize = Math.max(crew.length, 1);
+      }
+      // Option B: uncap 480 using blocked spots / solo-route assumption.
+      if (dur >= 480) {
         const ss = await fr(`${BASE_URL}/spot/search?routeIDs=${rid}&blockReason=Blocked&${auth}`);
         const spotIds = ss.spotIDs || [];
         let blockedMin = 0;
@@ -60,9 +69,11 @@ async function bookedHoursForCustomer(frId: string): Promise<{ bookedHours: numb
         }
       }
     }
-    return { bookedHours: Math.round((bookedMin / 60) * 100) / 100, office: officeName, apptDate: String(a.date || '').slice(0, 10) };
+    // Booked TECH-hours = wall-clock duration × crew size (the estimate is total labor hours, so compare like-for-like).
+    const bookedTechMin = bookedMin * crewSize;
+    return { bookedHours: Math.round((bookedTechMin / 60) * 100) / 100, bookedWallClockHours: Math.round((bookedMin / 60) * 100) / 100, crewSize, office: officeName, apptDate: String(a.date || '').slice(0, 10) };
   }
-  return { bookedHours: null, office: null, apptDate: null };
+  return { bookedHours: null, bookedWallClockHours: null, crewSize: 0, office: null, apptDate: null };
 }
 
 function statusNote(estimatedHours: number | null, bookedHours: number | null): string {
@@ -88,16 +99,18 @@ export async function GET(req: NextRequest) {
     if (!rec.frCustomerId) { results.push({ frId: null, status: 'skipped (no FR id)' }); continue; }
 
     const estimatedHours = rec.estimate?.totalHours ?? null;
-    const { bookedHours, office, apptDate } = await bookedHoursForCustomer(String(rec.frCustomerId));
+    const { bookedHours, bookedWallClockHours, crewSize, office, apptDate } = await bookedHoursForCustomer(String(rec.frCustomerId));
     const note = statusNote(estimatedHours, bookedHours);
-    rec.bookedHours = bookedHours;
+    rec.bookedHours = bookedHours;            // tech-hours (wall-clock × crew)
+    rec.bookedWallClockHours = bookedWallClockHours;
+    rec.crewSize = crewSize;
     rec.bookedOffice = office;
     rec.apptDate = apptDate;
     rec.schedulingNote = note;
     rec.status = bookedHours == null ? 'PENDING_SCHEDULE' : 'SCHEDULED';
     rec.lastChecked = new Date().toISOString();
     await prisma.appSetting.update({ where: { key: row.key }, data: { value: JSON.stringify(rec) } });
-    results.push({ frId: rec.frCustomerId, estimatedHours, bookedHours, note });
+    results.push({ frId: rec.frCustomerId, estimatedHours, bookedHours, bookedWallClockHours, crewSize, note });
   }
   return NextResponse.json({ checked: results.length, results });
 }

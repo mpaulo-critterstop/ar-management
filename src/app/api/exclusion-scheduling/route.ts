@@ -31,6 +31,8 @@ export async function GET(req: NextRequest) {
     status: r.status || 'ESTIMATED',
     schedulingNote: r.schedulingNote ?? 'Pending scheduling appointment',
     bookedHours: r.bookedHours ?? null,
+    bookedWallClockHours: r.bookedWallClockHours ?? null,
+    crewSize: r.crewSize ?? null,
     estimateError: r.estimate?.error ?? null,
     computedAt: r.computedAt,
   }));

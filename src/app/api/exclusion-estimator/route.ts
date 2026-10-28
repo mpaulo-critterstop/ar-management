@@ -136,7 +136,9 @@ export async function GET(req: NextRequest) {
   for (const [uuid, qty] of Object.entries(pgv)) { const nm = nameByUuid[uuid]; if (nm) features[nm] = qty; }
 
   const est = estimate(stories as 1 | 2, difficulty, features);
-  const customerName = d.customer_account_name || accepted.customer_account_name || accepted.customer_proposal_address || null;
-  const frId = d.customer?.integrations?.pest_routes?.identifier || accepted.customer?.integrations?.pest_routes?.identifier || null;
+  const customerName = d.customer?.account_name || d.customer_account_name || accepted.customer_account_name
+    || [d.customer?.first_name, d.customer?.last_name].filter(Boolean).join(' ').trim() || null;
+  const frId = d.customer?.integrations?.pest_routes?.identifier || d.customer?.integration_customer_identifier
+    || accepted.customer?.integrations?.pest_routes?.identifier || null;
   return NextResponse.json({ customer_uuid: custUuid, customer: customerName, frCustomerId: frId, proposal: accepted.title, status: accepted.status?.display_name, tagsFound: tags, ...est });
 }
