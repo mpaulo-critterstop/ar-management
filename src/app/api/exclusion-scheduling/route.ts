@@ -26,6 +26,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ cleaned: removed.length, removedKeys: removed });
   }
 
+  // Wipe ALL exclusion estimate records (fresh start for end-to-end testing).
+  if (req.nextUrl.searchParams.get('clearall') === '1' && token === 'critterstop2026') {
+    const del = await prisma.appSetting.deleteMany({ where: { key: { startsWith: 'excl_estimate:' } } });
+    return NextResponse.json({ cleared: del.count });
+  }
+
   const rows = await prisma.appSetting.findMany({ where: { key: { startsWith: 'excl_estimate:' } } });
   const records = rows.map(r => { try { return JSON.parse(r.value); } catch { return null; } }).filter(Boolean)
     .sort((a: any, b: any) => String(b.acceptedAt || '').localeCompare(String(a.acceptedAt || '')));
