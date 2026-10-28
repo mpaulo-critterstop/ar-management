@@ -59,6 +59,11 @@ function estimate(stories: 1 | 2, difficulty: Diff, features: Record<string, any
     let name = SL_ALIAS[rawName] || rawName;
     let qty: number = typeof qtyRaw === 'boolean' ? (qtyRaw ? 1 : 0) : parseFloat(String(qtyRaw)) || 0;
 
+    // Trapping: a sold line item worth a flat 30-min time allotment (NOT part of exclusion revenue).
+    if (name.toLowerCase().startsWith('trapping')) {
+      featureMin += BASE_TRAPPING_MIN; lines.push({ feature: 'Trapping', input: 'present', minutes: BASE_TRAPPING_MIN, note: 'flat trapping time' });
+      continue;
+    }
     // Fascia: the quantity is sq-ft -> pick the bucket, flat time.
     if (name.toLowerCase().startsWith('fascia')) {
       const bucket = fasciaBucket(qty); if (!bucket) continue;
@@ -74,13 +79,13 @@ function estimate(stories: 1 | 2, difficulty: Diff, features: Record<string, any
     if (FLAT_IF_PRESENT.has(name)) { featureMin += (val as number); lines.push({ feature: name, input: 'present', minutes: val, note: 'flat if present' }); continue; }
     const mins = (val as number) * qty; featureMin += mins; lines.push({ feature: name, input: qty, minutes: mins, note: `${val} min each` });
   }
-  const trappingMin = hasTrapping ? BASE_TRAPPING_MIN : 0;
-  const baseBufferTotal = BASE_PAINT_MIN + trappingMin;
+  // Base buffer is now just the paint run (trapping is handled as its own line item above when sold).
+  const baseBufferTotal = BASE_PAINT_MIN;
   const totalMin = featureMin + baseBufferTotal;
   const totalHours = Math.round((totalMin / 60) * 100) / 100;
   return {
     stories, difficulty,
-    baseBuffer: { paint: BASE_PAINT_MIN, trapping: trappingMin, hasTrapping, total: baseBufferTotal },
+    baseBuffer: { paint: BASE_PAINT_MIN, total: baseBufferTotal },
     featureMinutes: Math.round(featureMin),
     totalMinutes: Math.round(totalMin),
     totalHours,
@@ -141,8 +146,11 @@ export async function GET(req: NextRequest) {
   const pgv = pv.pricingGroupValues || {};
   const nameByUuid: Record<string, string> = {};
   (function walk(o: any) { if (o && typeof o === 'object') { if (o.uuid && o.name && typeof o.uuid === 'string' && o.uuid.length === 36 && !(o.uuid in nameByUuid)) nameByUuid[o.uuid] = o.name; for (const v of Object.values(o)) walk(v); } })(d);
+  // Only include SOLD line items: a pricing group is selected when its value is truthy (true, a positive
+  // number, or a non-"0" string). Unselected groups (0 / false / "" ) and the unsold guarantee options are skipped.
+  const isSelected = (v: any) => v === true || (typeof v === 'number' && v > 0) || (typeof v === 'string' && v.trim() !== '' && v.trim() !== '0');
   const features: Record<string, any> = {};
-  for (const [uuid, qty] of Object.entries(pgv)) { const nm = nameByUuid[uuid]; if (nm) features[nm] = qty; }
+  for (const [uuid, qty] of Object.entries(pgv)) { const nm = nameByUuid[uuid]; if (nm && isSelected(qty)) features[nm] = qty; }
 
   // Does the proposal include Trapping? (a Trapping section with a selected pricing group)
   // Detect trapping from the SELECTED values. The Trapping pricing-group UUIDs are stable across proposals
