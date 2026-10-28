@@ -61,6 +61,7 @@ export default function ExclusionScheduling() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
                 <th style={th}>Customer</th>
+                <th style={th}>PM</th>
                 <th style={{ ...th, textAlign: 'center' }}>FR ID</th>
                 <th style={{ ...th, textAlign: 'center' }}>Accepted</th>
                 <th style={{ ...th, textAlign: 'center' }}>Stories</th>
@@ -76,6 +77,7 @@ export default function ExclusionScheduling() {
                   <>
                     <tr key={i} style={{ background: i % 2 ? '#FBFBF9' : undefined }}>
                       <td style={{ ...td, fontWeight: 600 }}>{j.customer || j.frCustomerId || '—'}</td>
+                      <td style={{ ...td, color: '#555' }}>{j.pm || '—'}</td>
                       <td style={{ ...td, textAlign: 'center', color: '#888780' }}>{j.frCustomerId || '—'}</td>
                       <td style={{ ...td, textAlign: 'center' }}>{fmtDate(j.acceptedAt)}</td>
                       <td style={{ ...td, textAlign: 'center' }}>{j.stories || '—'}</td>
@@ -90,7 +92,7 @@ export default function ExclusionScheduling() {
                     </tr>
                     {expanded === j.proposalUuid && j.breakdown && (
                       <tr>
-                        <td colSpan={10} style={{ padding: '4px 12px 14px 12px', background: '#FBFBF9', borderBottom: '0.5px solid #F1EFE8' }}>
+                        <td colSpan={11} style={{ padding: '4px 12px 14px 12px', background: '#FBFBF9', borderBottom: '0.5px solid #F1EFE8' }}>
                           <div style={{ fontSize: 12, color: '#555' }}>
                             <div style={{ fontWeight: 600, margin: '6px 0' }}>{j.ruleOfThumb}</div>
                             <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>

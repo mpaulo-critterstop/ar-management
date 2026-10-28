@@ -31,6 +31,60 @@ const OFFICE_BY_ID: Record<string, string> = { '1': 'DFW', '5': 'ATX', '3': 'OKC
 
 // Find the customer's completed/scheduled exclusion appointment; return booked hours (Option B) or null.
 // officeHint (from the FR webhook's officeID) is tried first to avoid searching all offices.
+// Compute booked tech-hours (Option B) for ONE appointment object, given its office creds.
+async function computeBookedForAppt(a: any, auth: string, officeName: string) {
+  const dur = parseInt(String(a.duration || '0')) || 0;
+  let bookedMin = dur;                 // wall-clock minutes
+  let crewSize = 1;
+  const rid = String(a.routeID);
+  if (rid && rid !== '0') {
+    // Crew lives on the ROUTE (additionalTechs + assignedTech).
+    const rg = await fr(`${BASE_URL}/route/get?${auth}&routeIDs=${rid},${rid}`);
+    const r = (rg.routes || [])[0];
+    if (r) {
+      const addl = r.additionalTechs ? String(r.additionalTechs).split(',').map((x: string) => x.trim()).filter(Boolean) : [];
+      const crew = [...new Set([String(r.assignedTech), ...addl].filter(x => x && x !== '0'))];
+      crewSize = Math.max(crew.length, 1);
+    }
+    // Option B: uncap 480 via blocked spots / solo-route assumption.
+    if (dur >= 480) {
+      const ss = await fr(`${BASE_URL}/spot/search?routeIDs=${rid}&blockReason=Blocked&${auth}`);
+      const spotIds = ss.spotIDs || [];
+      let blockedMin = 0;
+      if (spotIds.length) {
+        const sg = await fr(`${BASE_URL}/spot/get?${auth}&spotIDs=${spotIds.join(',')}${spotIds.length === 1 ? ',' + spotIds[0] : ''}`);
+        for (const sp of (sg.spots || [])) { const br = sp.blockReason; if (br && String(br) !== '0' && br !== 0) blockedMin += 30; }
+      }
+      if (blockedMin > 0) bookedMin = 480 + blockedMin;
+      else {
+        const as = await fr(`${BASE_URL}/appointment/search?routeIDs=${rid}&${auth}`);
+        bookedMin = (as.appointmentIDs || []).length <= 1 ? 600 : 480;
+      }
+    }
+  }
+  const bookedTechMin = bookedMin * crewSize;
+  return { bookedHours: Math.round((bookedTechMin / 60) * 100) / 100, bookedWallClockHours: Math.round((bookedMin / 60) * 100) / 100, crewSize, office: officeName, apptDate: String(a.date || '').slice(0, 10) };
+}
+
+// BULLETPROOF path: fetch an EXACT appointment by id (from the FR webhook) in a known office.
+async function bookedHoursByAppointment(apptId: string, officeHint?: string) {
+  const hintedOffice = officeHint ? OFFICE_BY_ID[String(officeHint)] : null;
+  const ordered = hintedOffice
+    ? [[hintedOffice, OFFICES[hintedOffice]], ...Object.entries(OFFICES).filter(([n]) => n !== hintedOffice)] as [string, any][]
+    : Object.entries(OFFICES);
+  for (const [officeName, cfg] of ordered) {
+    if (!cfg.key) continue;
+    const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+    const g = await fr(`${BASE_URL}/appointment/get?${auth}&appointmentIDs=${apptId},${apptId}`);
+    const a = (g.appointments || [])[0];
+    if (!a) continue;                                   // not in this office, try next
+    if (String(a.type) !== String(EXCLUSION_TYPE)) return { bookedHours: null, bookedWallClockHours: null, crewSize: 0, office: officeName, apptDate: null, note: 'not an exclusion' };
+    return computeBookedForAppt(a, auth, officeName);
+  }
+  return { bookedHours: null, bookedWallClockHours: null, crewSize: 0, office: null, apptDate: null };
+}
+
+// FALLBACK path: find the customer's soonest TODAY-or-future exclusion appointment (when no appt id is given).
 async function bookedHoursForCustomer(frId: string, officeHint?: string): Promise<{ bookedHours: number | null; bookedWallClockHours?: number | null; crewSize?: number; office: string | null; apptDate: string | null }> {
   const hintedOffice = officeHint ? OFFICE_BY_ID[String(officeHint)] : null;
   const orderedOffices = hintedOffice
@@ -43,48 +97,13 @@ async function bookedHoursForCustomer(frId: string, officeHint?: string): Promis
     const ids = (s.appointmentIDs || []);
     if (!ids.length) continue;
     const g = await fr(`${BASE_URL}/appointment/get?${auth}&appointmentIDs=${ids.join(',')}${ids.length === 1 ? ',' + ids[0] : ''}`);
-    // Only TODAY-or-future exclusion appointments — the newly-booked job, not a past/original exclusion.
-    // (An existing customer may have an old exclusion on file; we must not match that.)
     const today = new Date().toISOString().slice(0, 10);
     const excl = (g.appointments || [])
       .filter((a: any) => String(a.type) === String(EXCLUSION_TYPE))
       .filter((a: any) => String(a.date || a.dateAdded || '').slice(0, 10) >= today)
       .sort((x: any, y: any) => String(x.date || '').localeCompare(String(y.date || '')));
     if (!excl.length) continue;
-    // The soonest upcoming exclusion appointment = the one just booked.
-    const a = excl[0];
-    const dur = parseInt(String(a.duration || '0')) || 0;
-    let bookedMin = dur;               // wall-clock minutes the appointment is booked for
-    let crewSize = 1;
-    const rid = String(a.routeID);
-    if (rid && rid !== '0') {
-      // Crew lives on the ROUTE (route.additionalTechs + assignedTech), not the appointment.
-      const rg = await fr(`${BASE_URL}/route/get?${auth}&routeIDs=${rid},${rid}`);
-      const r = (rg.routes || [])[0];
-      if (r) {
-        const addl = r.additionalTechs ? String(r.additionalTechs).split(',').map((x: string) => x.trim()).filter(Boolean) : [];
-        const crew = [...new Set([String(r.assignedTech), ...addl].filter(x => x && x !== '0'))];
-        crewSize = Math.max(crew.length, 1);
-      }
-      // Option B: uncap 480 using blocked spots / solo-route assumption.
-      if (dur >= 480) {
-        const ss = await fr(`${BASE_URL}/spot/search?routeIDs=${rid}&blockReason=Blocked&${auth}`);
-        const spotIds = ss.spotIDs || [];
-        let blockedMin = 0;
-        if (spotIds.length) {
-          const sg = await fr(`${BASE_URL}/spot/get?${auth}&spotIDs=${spotIds.join(',')}${spotIds.length === 1 ? ',' + spotIds[0] : ''}`);
-          for (const sp of (sg.spots || [])) { const br = sp.blockReason; if (br && String(br) !== '0' && br !== 0) blockedMin += 30; }
-        }
-        if (blockedMin > 0) bookedMin = 480 + blockedMin;
-        else {
-          const as = await fr(`${BASE_URL}/appointment/search?routeIDs=${rid}&${auth}`);
-          bookedMin = (as.appointmentIDs || []).length <= 1 ? 600 : 480;
-        }
-      }
-    }
-    // Booked TECH-hours = wall-clock duration × crew size (the estimate is total labor hours, so compare like-for-like).
-    const bookedTechMin = bookedMin * crewSize;
-    return { bookedHours: Math.round((bookedTechMin / 60) * 100) / 100, bookedWallClockHours: Math.round((bookedMin / 60) * 100) / 100, crewSize, office: officeName, apptDate: String(a.date || '').slice(0, 10) };
+    return computeBookedForAppt(excl[0], auth, officeName);
   }
   return { bookedHours: null, bookedWallClockHours: null, crewSize: 0, office: null, apptDate: null };
 }
@@ -102,6 +121,7 @@ export async function GET(req: NextRequest) {
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const oneFr = sp.get('frId');
   const officeHint = sp.get('officeID') || undefined;
+  const apptId = sp.get('apptId') || undefined;
 
   const rows = await prisma.appSetting.findMany({ where: { key: { startsWith: 'excl_estimate:' } } });
   const results: any[] = [];
@@ -121,7 +141,9 @@ export async function GET(req: NextRequest) {
       } catch {}
     }
     const estimatedHours = rec.estimate?.totalHours ?? null;
-    const { bookedHours, bookedWallClockHours, crewSize, office, apptDate } = await bookedHoursForCustomer(String(rec.frCustomerId), officeHint);
+    const { bookedHours, bookedWallClockHours, crewSize, office, apptDate } = apptId
+      ? await bookedHoursByAppointment(apptId, officeHint)
+      : await bookedHoursForCustomer(String(rec.frCustomerId), officeHint);
     const note = statusNote(estimatedHours, bookedHours);
     rec.bookedHours = bookedHours;            // tech-hours (wall-clock × crew)
     rec.bookedWallClockHours = bookedWallClockHours;

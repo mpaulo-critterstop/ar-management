@@ -57,6 +57,10 @@ export async function POST(req: NextRequest) {
   // Exclusion revenue = sum of the Exclusion section's line items (initial_billing_amount, pre-tax, non-taxable),
   // from the webhook payload itself. Excludes Trapping/Fogging/Insulation/Full Attic Restoration/Service Agreement
   // sections — only the "Exclusion" plan's items (roof returns, pipe stacks, fascia, etc.).
+  // PM = "Prepared by" on the proposal = the team_member who created it.
+  const tm = body?.proposal?.team_member || null;
+  const pm = tm ? [tm.first_name, tm.last_name].filter(Boolean).join(' ').trim() || tm.email || null : null;
+
   const exclusionRevenue = (() => {
     const plans = body?.proposal?.service_plans || [];
     const exclPlan = plans.find((p: any) => String(p.name || '').trim().toLowerCase() === 'exclusion');
@@ -80,8 +84,8 @@ export async function POST(req: NextRequest) {
         const resolvedFr = (est && est.frCustomerId) || frCustomerId;
         await prisma.appSetting.upsert({
           where: { key: recKey },
-          create: { key: recKey, value: JSON.stringify({ proposalUuid, customerUuid, frCustomerId: resolvedFr, title, acceptedAt: receivedAt, estimate: est, exclusionRevenue, status: 'ESTIMATED', schedulingNote: 'Pending scheduling appointment', computedAt: new Date().toISOString() }) },
-          update: { value: JSON.stringify({ proposalUuid, customerUuid, frCustomerId: resolvedFr, title, acceptedAt: receivedAt, estimate: est, exclusionRevenue, status: 'ESTIMATED', schedulingNote: 'Pending scheduling appointment', computedAt: new Date().toISOString() }) },
+          create: { key: recKey, value: JSON.stringify({ proposalUuid, customerUuid, frCustomerId: resolvedFr, pm, title, acceptedAt: receivedAt, estimate: est, exclusionRevenue, status: 'ESTIMATED', schedulingNote: 'Pending scheduling appointment', computedAt: new Date().toISOString() }) },
+          update: { value: JSON.stringify({ proposalUuid, customerUuid, frCustomerId: resolvedFr, pm, title, acceptedAt: receivedAt, estimate: est, exclusionRevenue, status: 'ESTIMATED', schedulingNote: 'Pending scheduling appointment', computedAt: new Date().toISOString() }) },
         });
         // Step 3: immediately check whether the PM has booked it in FR (usually "pending" right after acceptance).
         if (resolvedFr) await fetch(`${base}/api/exclusion-scheduling/check?token=critterstop2026&frId=${resolvedFr}`).catch(() => {});

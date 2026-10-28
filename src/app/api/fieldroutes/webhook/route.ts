@@ -57,7 +57,8 @@ export async function POST(req: NextRequest) {
         // Only react if we have a pending estimate for this customer.
         const rec = await prisma.appSetting.findUnique({ where: { key: `excl_estimate:${customerId}` } });
         const off = body?.officeID || query.officeID || '';
-        if (rec) await fetch(`${base}/api/exclusion-scheduling/check?token=critterstop2026&frId=${customerId}${off ? '&officeID=' + off : ''}`).catch(() => {});
+        const appt = appointmentId || '';
+        if (rec) await fetch(`${base}/api/exclusion-scheduling/check?token=critterstop2026&frId=${customerId}${off ? '&officeID=' + off : ''}${appt ? '&apptId=' + appt : ''}`).catch(() => {});
       } catch (e) { console.error('[fr-webhook] check trigger failed:', e); }
     })());
   }

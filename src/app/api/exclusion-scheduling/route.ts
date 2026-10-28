@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
     proposalUuid: r.proposalUuid,
     customerUuid: r.customerUuid,
     frCustomerId: r.frCustomerId,
+    pm: r.pm ?? null,
     title: r.title,
     acceptedAt: r.acceptedAt,
     customer: r.estimate?.customer || null,
