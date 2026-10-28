@@ -145,17 +145,21 @@ export async function GET(req: NextRequest) {
   for (const [uuid, qty] of Object.entries(pgv)) { const nm = nameByUuid[uuid]; if (nm) features[nm] = qty; }
 
   // Does the proposal include Trapping? (a Trapping section with a selected pricing group)
-  // Detect trapping from the SELECTED values, not the template catalog. Find the Trapping service plan's
-  // pricing-group UUIDs, then check whether any is truthy in pricingGroupValues (the customer's selections).
-  const plans = d.service_plans || [];
-  const trapPlan = plans.find((p: any) => String(p.name || '').trim().toLowerCase() === 'trapping');
-  const trapGroupUuids = new Set<string>((trapPlan?.service_plan_pricing_groups || trapPlan?.pricing_groups || []).map((g: any) => g.uuid));
+  // Detect trapping from the SELECTED values. The Trapping pricing-group UUIDs are stable across proposals
+  // ("Trapping" b55c7c6e, "Trapping (Limited)" a931cd3c). Also fall back to any group named "Trapping" in the
+  // catalog. Trapping is a TIME buffer only — it's never added to exclusion revenue (that sums the Exclusion
+  // section only), so mapping it here has no revenue effect.
+  const TRAPPING_GROUP_UUIDS = new Set<string>(['b55c7c6e-d56c-477e-b138-6b4a20822c41', 'a931cd3c-19db-4f45-81be-9d5ef39ae1ac']);
+  // add any catalog group literally named "Trapping" (covers OKC/other templates with different UUIDs)
+  (function walk(o: any) {
+    if (o && typeof o === 'object') {
+      if (o.uuid && typeof o.name === 'string' && /^trapping/i.test(o.name.trim())) TRAPPING_GROUP_UUIDS.add(o.uuid);
+      for (const v of Object.values(o)) walk(v);
+    }
+  })(d);
   let hasTrapping = false;
   for (const [uuid, val] of Object.entries(pgv)) {
-    if (trapGroupUuids.has(uuid)) {
-      // truthy = selected: true (yes/no trapping) or a positive quantity
-      if (val === true || (typeof val === 'string' && val !== '' && val !== '0') || (typeof val === 'number' && val > 0)) { hasTrapping = true; break; }
-    }
+    if (TRAPPING_GROUP_UUIDS.has(uuid) && (val === true || (typeof val === 'string' && val !== '' && val !== '0') || (typeof val === 'number' && val > 0))) { hasTrapping = true; break; }
   }
   const est = estimate(stories as 1 | 2, difficulty, features, hasTrapping);
   const customerName = d.customer?.account_name || d.customer_account_name || accepted.customer_account_name
