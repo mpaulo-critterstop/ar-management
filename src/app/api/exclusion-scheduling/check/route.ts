@@ -98,6 +98,14 @@ export async function GET(req: NextRequest) {
     if (!oneFr && rec.schedulingNote && !String(rec.schedulingNote).toLowerCase().includes('pending')) continue;
     if (!rec.frCustomerId) { results.push({ frId: null, status: 'skipped (no FR id)' }); continue; }
 
+    // Self-heal: if the stored estimate is missing the customer name, re-run the estimator to refresh it.
+    if (rec.customerUuid && (!rec.estimate || !rec.estimate.customer)) {
+      try {
+        const base = process.env.NEXT_PUBLIC_BASE_URL || 'https://hub.critterstop.com';
+        const fresh = await fetch(`${base}/api/exclusion-estimator?token=critterstop2026&customer_uuid=${rec.customerUuid}`).then(r => r.json()).catch(() => null);
+        if (fresh && !fresh.error) rec.estimate = fresh;
+      } catch {}
+    }
     const estimatedHours = rec.estimate?.totalHours ?? null;
     const { bookedHours, bookedWallClockHours, crewSize, office, apptDate } = await bookedHoursForCustomer(String(rec.frCustomerId));
     const note = statusNote(estimatedHours, bookedHours);
