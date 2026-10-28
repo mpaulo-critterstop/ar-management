@@ -43,9 +43,15 @@ async function bookedHoursForCustomer(frId: string, officeHint?: string): Promis
     const ids = (s.appointmentIDs || []);
     if (!ids.length) continue;
     const g = await fr(`${BASE_URL}/appointment/get?${auth}&appointmentIDs=${ids.join(',')}${ids.length === 1 ? ',' + ids[0] : ''}`);
-    const excl = (g.appointments || []).filter((a: any) => String(a.type) === String(EXCLUSION_TYPE));
+    // Only TODAY-or-future exclusion appointments — the newly-booked job, not a past/original exclusion.
+    // (An existing customer may have an old exclusion on file; we must not match that.)
+    const today = new Date().toISOString().slice(0, 10);
+    const excl = (g.appointments || [])
+      .filter((a: any) => String(a.type) === String(EXCLUSION_TYPE))
+      .filter((a: any) => String(a.date || a.dateAdded || '').slice(0, 10) >= today)
+      .sort((x: any, y: any) => String(x.date || '').localeCompare(String(y.date || '')));
     if (!excl.length) continue;
-    // Prefer the soonest/active exclusion appointment.
+    // The soonest upcoming exclusion appointment = the one just booked.
     const a = excl[0];
     const dur = parseInt(String(a.duration || '0')) || 0;
     let bookedMin = dur;               // wall-clock minutes the appointment is booked for
