@@ -9,7 +9,7 @@ function fmt(n: number) { return '$' + n.toLocaleString('en-US', { minimumFracti
 
 const GROUP_OF: Record<string, 'operations' | 'management' | 'reports'> = {
   leads: 'operations', 'pest-sales': 'operations', 'pest-inspections': 'operations', 'csr-pest-sales': 'operations', cancellations: 'operations',
-  'service-pool': 'operations', 'lsa-leads': 'operations', dispatch: 'operations', ar: 'operations',
+  'service-pool': 'operations', 'lsa-leads': 'operations', dispatch: 'operations', 'exclusion-scheduling': 'operations', ar: 'operations',
   dialpad: 'operations', 'field-performance': 'management', csr: 'operations', helcim: 'operations', reports: 'reports', payroll: 'management',
 };
 const GROUP_TITLES: Record<string, string> = { operations: 'Operations', management: 'Management', reports: 'Reports' };
@@ -151,6 +151,17 @@ export default function GroupPage() {
         { label: 'FAR pending', value: dispatchKpis.kpis?.farPending || 0, color: '#BA7517' },
         { label: 'Closed this month', value: dispatchKpis.kpis?.closedThisMonth || 0, color: '#1D9E75' },
       ] : null,
+    },
+    {
+      module: 'exclusion-scheduling' as ModuleKey,
+      icon: '🪜',
+      title: 'Exclusion Scheduling',
+      desc: 'Estimated job hours for accepted exclusion proposals, compared to what the PM booked in FieldRoutes.',
+      href: '/exclusion-scheduling',
+      accentColor: '#185FA5',
+      main: '—',
+      mainLabel: 'Accepted proposals',
+      stats: null,
     },
     {
       module: 'ar' as ModuleKey,
