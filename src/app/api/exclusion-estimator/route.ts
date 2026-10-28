@@ -145,9 +145,18 @@ export async function GET(req: NextRequest) {
   for (const [uuid, qty] of Object.entries(pgv)) { const nm = nameByUuid[uuid]; if (nm) features[nm] = qty; }
 
   // Does the proposal include Trapping? (a Trapping section with a selected pricing group)
+  // Detect trapping from the SELECTED values, not the template catalog. Find the Trapping service plan's
+  // pricing-group UUIDs, then check whether any is truthy in pricingGroupValues (the customer's selections).
   const plans = d.service_plans || [];
   const trapPlan = plans.find((p: any) => String(p.name || '').trim().toLowerCase() === 'trapping');
-  const hasTrapping = !!(trapPlan && (trapPlan.pricing_groups || []).some((g: any) => g.selected !== false));
+  const trapGroupUuids = new Set<string>((trapPlan?.service_plan_pricing_groups || trapPlan?.pricing_groups || []).map((g: any) => g.uuid));
+  let hasTrapping = false;
+  for (const [uuid, val] of Object.entries(pgv)) {
+    if (trapGroupUuids.has(uuid)) {
+      // truthy = selected: true (yes/no trapping) or a positive quantity
+      if (val === true || (typeof val === 'string' && val !== '' && val !== '0') || (typeof val === 'number' && val > 0)) { hasTrapping = true; break; }
+    }
+  }
   const est = estimate(stories as 1 | 2, difficulty, features, hasTrapping);
   const customerName = d.customer?.account_name || d.customer_account_name || accepted.customer_account_name
     || [d.customer?.first_name, d.customer?.last_name].filter(Boolean).join(' ').trim() || null;
