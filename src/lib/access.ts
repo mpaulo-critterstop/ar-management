@@ -1,7 +1,7 @@
 // Shared access-control logic (feature #5). Used server-side (API gating) and client-side (nav hiding).
 // Broad tiers via `role`; fine-grained via `modules` allowlist + `permissions` sub-flags + identity links.
 
-export const ALL_MODULES = ['ar', 'dispatch', 'leads', 'csr', 'field-performance', 'dialpad', 'kpi', 'pest-sales', 'pest-inspections', 'lsa-leads', 'csr-pest-sales', 'cancellations', 'service-pool', 'reports', 'report-insulation', 'report-ar-benchmark', 'payroll', 'helcim'] as const;
+export const ALL_MODULES = ['ar', 'dispatch', 'leads', 'csr', 'field-performance', 'dialpad', 'kpi', 'pest-sales', 'pest-inspections', 'lsa-leads', 'csr-pest-sales', 'cancellations', 'service-pool', 'exclusion-scheduling', 'reports', 'report-insulation', 'report-ar-benchmark', 'payroll', 'helcim'] as const;
 
 // Friendly labels for the module toggles in user settings (falls back to the raw key if not listed).
 export const MODULE_LABELS: Record<string, string> = {
@@ -9,7 +9,7 @@ export const MODULE_LABELS: Record<string, string> = {
   'field-performance': 'Field Performance', dialpad: 'Dialpad Analytics', kpi: 'KPI',
   'pest-sales': 'Pest Control Sales', 'pest-inspections': 'Pest Inspection Tracker',
   'lsa-leads': 'LSA Leads', 'csr-pest-sales': 'CSR Pest Sales', cancellations: 'Pest Cancellations',
-  'service-pool': 'Pest Control Job Pool', reports: 'Reports (section)',
+  'service-pool': 'Pest Control Job Pool', 'exclusion-scheduling': 'Exclusion Scheduling', reports: 'Reports (section)',
   'report-insulation': 'Report: Insulation Revenue', 'report-ar-benchmark': 'Report: AR Benchmark',
   payroll: 'Payroll', helcim: 'Helcim Payments',
 };

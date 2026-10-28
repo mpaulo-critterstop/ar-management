@@ -155,6 +155,17 @@ export default function HomePage() {
       ] : null,
     },
     {
+      module: 'exclusion-scheduling' as ModuleKey,
+      icon: '🪜',
+      title: 'Exclusion Scheduling',
+      desc: 'Estimated job hours for accepted exclusion proposals, compared to what the PM booked in FieldRoutes.',
+      href: '/exclusion-scheduling',
+      accentColor: '#185FA5',
+      main: '—',
+      mainLabel: 'Accepted proposals',
+      stats: null,
+    },
+    {
       module: 'ar' as ModuleKey,
       icon: '📋',
       title: 'Accounts Receivable',
@@ -250,7 +261,7 @@ export default function HomePage() {
   // Group assignment: which top-level group each module belongs to.
   const GROUP_OF: Record<string, 'operations' | 'management' | 'reports'> = {
     leads: 'operations', 'pest-sales': 'operations', 'pest-inspections': 'operations', 'csr-pest-sales': 'operations', cancellations: 'operations',
-    'service-pool': 'operations', 'lsa-leads': 'operations', dispatch: 'operations', ar: 'operations',
+    'service-pool': 'operations', 'lsa-leads': 'operations', dispatch: 'operations', 'exclusion-scheduling': 'operations', ar: 'operations',
     dialpad: 'operations', 'field-performance': 'management', csr: 'operations', helcim: 'operations',
     reports: 'reports', payroll: 'management',
     // management modules (e.g. payroll) added here as they're built
