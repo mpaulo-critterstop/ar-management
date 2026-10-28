@@ -17,7 +17,7 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number }> 
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4 },
 };
 const EXCLUSION_TYPE = 553;
-const MATCH_TOLERANCE_HRS = 1; // within ±1hr of estimate = "matched"
+const MATCH_TOLERANCE_HRS = 0.5; // within ±0.5hr of estimate = "matched"
 
 let chain: Promise<any> = Promise.resolve();
 function fr(url: string): Promise<any> {
