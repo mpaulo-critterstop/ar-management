@@ -166,7 +166,7 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
 
     // 2b) Group appts into jobs per customer; collect crew-days + scheduled durations + ticketIDs.
     type Job = { customerID: string; customer: string; firstDay: string; lastDay: string; schedMinutes: number;
-                 crewDays: string[][]; ticketIds: Set<string>; };
+                 crewDays: string[][]; dayLegs: { minutes: number; crew: string[] }[]; ticketIds: Set<string>; };
     const jobs = new Map<string, Job>();
     for (const a of exclAppts) {
       const custID = String(a.customerID); if (!custID || custID === '0') continue;
@@ -179,9 +179,11 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
       }
       const uniqCrew = [...new Set(crew)];
       let job = jobs.get(custID);
-      if (!job) { job = { customerID: custID, customer: a.customerName || custID, firstDay: date, lastDay: date, schedMinutes: 0, crewDays: [], ticketIds: new Set() }; jobs.set(custID, job); }
-      job.schedMinutes += trueMinutes(a); // Option B: uncaps 480 via blocked spots / solo-route assumption
+      if (!job) { job = { customerID: custID, customer: a.customerName || custID, firstDay: date, lastDay: date, schedMinutes: 0, crewDays: [], dayLegs: [], ticketIds: new Set() }; jobs.set(custID, job); }
+      const legMinutes = trueMinutes(a); // Option B: uncaps 480 via blocked spots / solo-route assumption
+      job.schedMinutes += legMinutes;
       job.crewDays.push(uniqCrew);
+      job.dayLegs.push({ minutes: legMinutes, crew: uniqCrew }); // per-day leg: this day's duration + this day's crew
       if (a.ticketID && String(a.ticketID) !== '0') job.ticketIds.add(String(a.ticketID));
       if (date < job.firstDay) job.firstDay = date;
       if (date > job.lastDay) job.lastDay = date;
@@ -240,11 +242,19 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
       // Stories → rate → expected tech-hours (revenue the job "earns" at standard / rate) → variance.
       const stories = storiesMap[String(job.customerID)] || null;
       const rate = rateFor(job.customerID);
-      const crewSize = Math.max(fpDayCount.size, 1);
-      const schedTechHours = schedHours * crewSize;
+      // Scheduled TECH-hours = Σ over each day (that day's hours × that day's crew size). The old formula
+      // (schedHours × distinct-tech-count) double-counted when a tech worked multiple days, e.g. Bryan Livengood:
+      // Day1 10h×4 + Day2 10h×3 = 70, NOT 20h × 5-distinct-techs = 100.
+      const schedTechMinutes = job.dayLegs.reduce((s, leg) => s + leg.minutes * Math.max(leg.crew.length, 1), 0);
+      const schedTechHours = Math.round((schedTechMinutes / 60) * 100) / 100;
+      // avg crew size (for display only) — total tech-hours / total hours
+      const crewSize = schedHours > 0 ? Math.round((schedTechHours / schedHours) * 100) / 100 : Math.max(fpDayCount.size, 1);
       const expectedTechHours = rate ? Math.round((exclRev / rate) * 100) / 100 : null; // total tech-hours the revenue justifies
       const varianceHours = expectedTechHours !== null ? Math.round((expectedTechHours - schedTechHours) * 100) / 100 : null; // + = under-allotted (should've had more time), - = over-allotted
 
+      // Per-FP on-site hours = Σ of the hours of each DAY this tech actually worked (from dayLegs).
+      const techHoursByFp = new Map<string, number>();
+      for (const leg of job.dayLegs) { const h = leg.minutes / 60; for (const t of leg.crew) techHoursByFp.set(t, (techHoursByFp.get(t) || 0) + h); }
       for (const [tech, dayCount] of fpDayCount) {
         const fp = getFP(tech, officeName);
         const share = totalSlots > 0 ? dayCount / totalSlots : 0;
@@ -252,7 +262,7 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
         fp.trappingRevenue += trapRev * share;
         fp.foggingRevenue += fogRev * share;
         fp.schedHours += schedHours * share;           // FP's share of the job's scheduled hours
-        fp.techHours += schedHours * (dayCount / Math.max(job.crewDays.length, 1)); // FP hours actually on site
+        fp.techHours += techHoursByFp.get(tech) || 0;  // FP hours actually on site (sum of their actual days)
         if (expectedTechHours !== null) fp.expectedHours += expectedTechHours * share; // FP's share of expected
         fp.jobs.add(job.customerID);
       }
@@ -411,7 +421,9 @@ export async function GET(req: NextRequest) {
       j.customer = custName.get(String(j.customerID)) || j.customer;
       j.pm = pmByExt.get(String(j.customerID)) || j.pm || 'Unassigned';
       const rate = stories === 1 ? RATE_1 : stories === 2 ? RATE_2 : null;
-      const schedTechHours = j.schedHours * Math.max(j.crewSize || 1, 1);
+      // Use the stored per-day-accurate schedTechHours (Σ day hours × that day's crew). Only re-derive from
+      // crewSize for old records saved before schedTechHours was persisted.
+      const schedTechHours = j.schedTechHours != null ? j.schedTechHours : j.schedHours * Math.max(j.crewSize || 1, 1);
       const expectedTechHours = rate ? Math.round((j.exclusionRevenue / rate) * 100) / 100 : null;
       const varianceHours = expectedTechHours !== null ? Math.round((expectedTechHours - schedTechHours) * 100) / 100 : null;
       return { ...j, stories, rate, schedTechHours, expectedTechHours, varianceHours };
