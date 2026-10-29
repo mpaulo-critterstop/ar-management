@@ -50,9 +50,22 @@ function lookup(featureName: string, story: 1 | 2, diff: Diff): number | { perLF
   return col ? col[diff] : null;
 }
 
-function estimate(stories: 1 | 2, difficulty: Diff, features: Record<string, any>, hasTrapping: boolean = true) {
+const ADDON_RATE_PER_HR = 175; // Chisam: exclusion add-ons not in Kyle's list (siding/rat wall exclusion, chimney
+// repair, etc.) and items whose effort varies a lot by house are budgeted by PRICE ÷ $175/hr, not a fixed time.
+
+function estimate(stories: 1 | 2, difficulty: Diff, features: Record<string, any>, hasTrapping: boolean = true, addOns: { name: string; amount: number }[] = []) {
   const lines: any[] = [];
   let featureMin = 0;
+  let addOnMin = 0;
+  // Exclusion add-ons (not in Kyle's matrix): budget time from the PM's listed price at $175/hr.
+  for (const a of addOns) {
+    const amt = Number(a.amount) || 0;
+    if (amt <= 0) continue;
+    const mins = Math.round((amt / ADDON_RATE_PER_HR) * 60);
+    addOnMin += mins;
+    lines.push({ feature: a.name, input: `$${amt}`, minutes: mins, note: `add-on @ $${ADDON_RATE_PER_HR}/hr` });
+  }
+  featureMin += addOnMin;
   for (const [rawName, qtyRaw] of Object.entries(features)) {
     if (qtyRaw == null || qtyRaw === false || qtyRaw === 0 || qtyRaw === '0') continue;
     // Resolve the matrix feature name.
@@ -171,7 +184,36 @@ export async function GET(req: NextRequest) {
   for (const [uuid, val] of Object.entries(pgv)) {
     if (TRAPPING_GROUP_UUIDS.has(uuid) && (val === true || (typeof val === 'string' && val !== '' && val !== '0') || (typeof val === 'number' && val > 0))) { hasTrapping = true; break; }
   }
-  const est = estimate(stories as 1 | 2, difficulty, features, hasTrapping);
+  // Build EXCLUSION ADD-ONS: items in the Exclusion service plan that are NOT in Kyle's time matrix (custom
+  // spot work, siding/rat wall exclusion, chimney repair, etc.). These get budgeted by price ÷ $175/hr.
+  const EXCLUSION_PLAN_UUID = '8f1a0c83-ae90-4d1b-b034-a84867d5455f';
+  const knownNames = new Set(Object.keys(FEATURES).map(n => n.toLowerCase()));
+  const isKyleItem = (nm: string) => {
+    const mapped = (SL_ALIAS[nm] || nm).toLowerCase();
+    return knownNames.has(mapped) || mapped.startsWith('fascia') || mapped.startsWith('trapping') || mapped === 'peak protector ridge guard';
+  };
+  const addOns: { name: string; amount: number }[] = [];
+  // (a) standard exclusion pricing_groups that are selected, priced, and NOT in Kyle's list
+  const exclPlan = (d.proposal_service_plans || []).find((p: any) => (p.service_plan?.uuid || p.service_plan_data?.uuid) === EXCLUSION_PLAN_UUID);
+  // (b) custom add-ons live in proposal_values.servicePlanAdditionalPricing[EXCLUSION_PLAN_UUID]
+  const addlPricing = (pv.servicePlanAdditionalPricing || {})[EXCLUSION_PLAN_UUID] || [];
+  for (const ap of addlPricing) {
+    const amt = Array.isArray(ap.price) ? Number(ap.price[0]) : Number(ap.price);
+    if (ap.isSelected !== false && amt > 0 && !isKyleItem(String(ap.groupName || ''))) {
+      addOns.push({ name: ap.groupName || 'Add-on', amount: amt });
+    }
+  }
+  // (c) edited standard items not in Kyle's list (rare) — from editedValues with a price
+  const edited = pv.editedValues || {};
+  for (const [uuid, ev] of Object.entries<any>(edited)) {
+    const nm = nameByUuid[uuid]; if (!nm || isKyleItem(nm)) continue;
+    const amt = Array.isArray(ev.price) ? Number(ev.price[0]) : Number(ev.price);
+    // only count if it's an exclusion-section group (best-effort: skip insulation/fogging/trapping names)
+    if (amt > 0 && !/insulation|fogging|hazardous|can light|air flow|attic|guarantee|disposal/i.test(nm)) {
+      if (!addOns.some(a => a.name === nm)) addOns.push({ name: nm, amount: amt });
+    }
+  }
+  const est = estimate(stories as 1 | 2, difficulty, features, hasTrapping, addOns);
   const customerName = d.customer?.account_name || d.customer_account_name || accepted.customer_account_name
     || [d.customer?.first_name, d.customer?.last_name].filter(Boolean).join(' ').trim() || null;
   const frId = d.customer?.integrations?.pest_routes?.identifier || d.customer?.integration_customer_identifier
