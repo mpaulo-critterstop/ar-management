@@ -81,23 +81,5 @@
         "src/app/api/cron/insulation-revenue-backfill/route.ts": {
             "maxDuration": 800
         }
-    },
-    "crons": [
-        {
-            "path": "/api/cron/idle-report",
-            "schedule": "0 22 * * 1-5"
-        },
-        {
-            "path": "/api/leads/commissions/finalize",
-            "schedule": "0 6 1 * *"
-        },
-        {
-            "path": "/api/cron/insulation-revenue-refresh",
-            "schedule": "0 5 * * 1-6"
-        },
-        {
-            "path": "/api/exclusion-scheduling/check?token=critterstop2026",
-            "schedule": "0 7 * * *"
-        }
-    ]
+    }
 }
