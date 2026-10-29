@@ -17,7 +17,8 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number }> 
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4 },
 };
 const EXCLUSION_TYPE = 553;
-const MATCH_TOLERANCE_HRS = 0.5; // within ±0.5hr of estimate = "matched"
+const MATCH_TOLERANCE_HRS = 1.5; // within ±1.5hr of estimate = "matched". Chisam: give PMs flexibility for
+// uncaptured items (e.g. +30min on a 2-man job); we care about catching 3-4+ hr over-bookings, not 1 extra hr.
 
 let chain: Promise<any> = Promise.resolve();
 function fr(url: string): Promise<any> {
