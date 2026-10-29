@@ -29,12 +29,19 @@ export async function GET(req: NextRequest) {
   const mode = sp.get('mode') || 'all'; // 'all' = paid + partial, 'paid' = fully paid only
   const limit = Math.min(Number(sp.get('limit')) || 500, 2000);
 
-  // Enrolled invoices that are paid or partially paid.
+  // Enrolled invoices that owe nothing or have been partially paid. We must catch TWO cases:
+  //   (a) actual payment made (paid > 0), and
+  //   (b) CSR zeroed out / credited the invoice so amount dropped to $0 with NO payment (paid stays 0).
+  // The old query (paid > 0) missed case (b), leaving zeroed-out invoices enrolled and still being dunned
+  // (e.g. invoice 275122: amount $107.17 -> $0 by CSR, paid $0 -> never un-enrolled). Pull all enrolled
+  // invoices and decide fully-paid/partial/owing in code via amountDue = amount - paid.
   const invoices = await prisma.invoice.findMany({
     where: {
       arFollowupSent: true,
-      paid: { gt: 0 },
-      // paid >= amount (fully) handled in code; partials included when mode=all
+      OR: [
+        { paid: { gt: 0 } },        // actual payment (full or partial)
+        { amount: { lte: 0 } },     // zeroed-out / credited to $0 by a CSR with no payment
+      ],
     },
     include: { customer: { select: { name: true, phone: true, email: true, serviceAddr: true, externalId: true } } },
     take: limit,
