@@ -98,6 +98,10 @@
         {
             "path": "/api/exclusion-scheduling/check?token=critterstop2026",
             "schedule": "0 7 * * *"
+        },
+        {
+            "path": "/api/cron/collections-sync?token=critterstop2026",
+            "schedule": "0 8 * * *"
         }
     ]
 }
