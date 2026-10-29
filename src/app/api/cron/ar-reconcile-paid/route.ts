@@ -21,6 +21,15 @@ export const maxDuration = 800;
 
 const AR_PARTIAL_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/AM0p0PhEMlKoBozA9FnB';
 const AR_PAID_WEBHOOK     = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/rlu6JwusY1H2fUXOrMli';
+// Flow routing must mirror sync/auto: wildlife AR uses the single AR_PAID_WEBHOOK (+ AR_PARTIAL for partials);
+// the non-wildlife flow uses its OFFICE's paid webhook and is PAID-only (no partial sequence).
+const AR_WILDLIFE_SERVICE_IDS = new Set([553, 716, 720, 501, 674, 479, 541, 542, 624, 510]);
+const NONWILDLIFE_PAID_WEBHOOKS: Record<string, string> = {
+  ATX: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/U7XqrO6Z72QSQdx0NBDk',
+  OKC: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/Fu5oU8bpXzyhcGeHz1yu',
+  DFW: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/TY1ZIaLzXHpzEuv67mpm',
+  CStat: 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/jeo4cVmhgfPgWoJO1ERw',
+};
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
@@ -46,6 +55,7 @@ export async function GET(req: NextRequest) {
     include: { customer: { select: { name: true, phone: true, email: true, serviceAddr: true, externalId: true } } },
     take: limit,
   });
+  const partialSkippedNonWildlife = { count: 0 };
 
   const results: any[] = [];
   let paidFired = 0, partialFired = 0, skipped = 0, failed = 0;
@@ -59,8 +69,13 @@ export async function GET(req: NextRequest) {
 
     // mode=paid -> only act on fully-paid; skip partials
     if (mode === 'paid' && !isFullyPaid) { skipped++; continue; }
-    // must be at least partially paid (already guaranteed by paid>0)
+    // must be at least partially paid OR zeroed-out-to-fully-paid
     if (!isFullyPaid && !isPartial) { skipped++; continue; }
+
+    // Flow routing (mirror sync/auto): wildlife AR vs non-wildlife per-office. The non-wildlife flow is
+    // PAID-only — it has no partial sequence — so a non-wildlife PARTIAL has no webhook to fire; skip it.
+    const isWildlifeAr = AR_WILDLIFE_SERVICE_IDS.has(Number(inv.serviceId));
+    if (!isFullyPaid && !isWildlifeAr) { partialSkippedNonWildlife.count++; skipped++; continue; }
 
     const nameParts = (inv.customer?.name || '').trim().split(' ');
     const payload = {
@@ -75,13 +90,19 @@ export async function GET(req: NextRequest) {
     };
 
     if (dry) {
-      results.push({ invoiceId: inv.externalId || inv.id, customer: inv.customer?.name, amount: amount.toFixed(2), paid: paid.toFixed(2), amountDue: amountDue.toFixed(2), wouldFire: payload.event });
+      const target = isFullyPaid ? (isWildlifeAr ? 'wildlife_paid' : `nonwildlife_paid_${inv.office}`) : 'wildlife_partial';
+      results.push({ invoiceId: inv.externalId || inv.id, customer: inv.customer?.name, flow: isWildlifeAr ? 'wildlife' : 'non-wildlife', office: inv.office, amount: amount.toFixed(2), paid: paid.toFixed(2), amountDue: amountDue.toFixed(2), wouldFire: payload.event, target });
       isFullyPaid ? paidFired++ : partialFired++;
       continue;
     }
 
     try {
-      const webhook = isFullyPaid ? AR_PAID_WEBHOOK : AR_PARTIAL_WEBHOOK;
+      // Route by flow: wildlife fully-paid -> AR_PAID_WEBHOOK; wildlife partial -> AR_PARTIAL_WEBHOOK;
+      // non-wildlife fully-paid -> that office's paid webhook (non-wildlife partials already skipped above).
+      const webhook = isFullyPaid
+        ? (isWildlifeAr ? AR_PAID_WEBHOOK : NONWILDLIFE_PAID_WEBHOOKS[String(inv.office)])
+        : AR_PARTIAL_WEBHOOK;
+      if (!webhook) { skipped++; results.push({ invoiceId: inv.externalId || inv.id, customer: inv.customer?.name, status: 'skipped_no_webhook', office: inv.office }); continue; }
       const res = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (res.ok) {
         // Fully paid -> leave the sequence (clear the flag). Partial -> keep enrolled (drip continues at new
