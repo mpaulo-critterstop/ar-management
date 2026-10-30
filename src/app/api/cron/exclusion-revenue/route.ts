@@ -73,6 +73,21 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
   const techRows = await prisma.technician.findMany({ where: { frEmployeeId: { not: null } }, select: { frEmployeeId: true, name: true } });
   const techName = new Map<string, string>(techRows.map(t => [String(t.frEmployeeId), t.name]));
 
+  // Attendance-based phantom-crew cleanup: drop crew members who are TRACKED in attendance but were NOT present
+  // on the job's date (no clock-in / no attendance row) — the additional-tech-for-access / un-removed call-out
+  // data error. present = set of "techname|date" that actually worked; tracked = techs we have attendance for.
+  const normName = (n: string) => n.replace(/\s+/g, ' ').trim().toLowerCase();
+  const attRow = await prisma.appSetting.findUnique({ where: { key: 'excl_attendance_present' } });
+  const attData = attRow ? JSON.parse(attRow.value) : { present: [], tracked: [] };
+  const presentSet = new Set<string>(attData.present || []);
+  const trackedSet = new Set<string>((attData.tracked || []).map((n: string) => normName(n)));
+  // Returns true if this FR tech id should be DROPPED for this date (tracked but not present = phantom).
+  const isPhantom = (frId: string, date: string) => {
+    const nm = normName(techName.get(String(frId)) || '');
+    if (!nm || !trackedSet.has(nm)) return false;      // not a tracked tech -> can't verify -> keep
+    return !presentSet.has(`${nm}|${date}`);            // tracked but not present that day -> phantom
+  };
+
   // Story-count map (FR customerID -> 1 or 2), loaded from the imported Exclusions sheet.
   const storiesRow = await prisma.appSetting.findUnique({ where: { key: 'exclusion_stories_map' } });
   const storiesMap: Record<string, number> = storiesRow ? JSON.parse(storiesRow.value) : {};
@@ -177,7 +192,11 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
         if (a.assignedTech && String(a.assignedTech) !== '0') crew.push(String(a.assignedTech));
         else if (a.servicedBy && String(a.servicedBy) !== '0') crew.push(String(a.servicedBy));
       }
-      const uniqCrew = [...new Set(crew)];
+      let uniqCrew = [...new Set(crew)];
+      // Phantom-crew cleanup: remove tracked techs who weren't present this date (keeps at least 1 so the job
+      // doesn't drop to zero crew if everyone is flagged — conservative).
+      const cleanedCrew = uniqCrew.filter(t => !isPhantom(t, date));
+      if (cleanedCrew.length > 0 && cleanedCrew.length < uniqCrew.length) uniqCrew = cleanedCrew;
       let job = jobs.get(custID);
       if (!job) { job = { customerID: custID, customer: a.customerName || custID, firstDay: date, lastDay: date, schedMinutes: 0, crewDays: [], dayLegs: [], ticketIds: new Set() }; jobs.set(custID, job); }
       const legMinutes = trueMinutes(a); // Option B: uncaps 480 via blocked spots / solo-route assumption
