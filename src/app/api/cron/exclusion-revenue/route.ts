@@ -195,12 +195,6 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
       let uniqCrew = [...new Set(crew)];
       // Phantom-crew cleanup: remove tracked techs who weren't present this date (keeps at least 1 so the job
       // doesn't drop to zero crew if everyone is flagged — conservative).
-      if ((globalThis as any).__phantomDebug) {
-        for (const t of uniqCrew) {
-          const nm = normName(techName.get(String(t)) || '');
-          (globalThis as any).__phantomDebug.push({ frId: t, resolvedName: techName.get(String(t)) || `FR ${t}`, norm: nm, date, tracked: trackedSet.has(nm), present: presentSet.has(`${nm}|${date}`), phantom: isPhantom(t, date) });
-        }
-      }
       const cleanedCrew = uniqCrew.filter(t => !isPhantom(t, date));
       if (cleanedCrew.length > 0 && cleanedCrew.length < uniqCrew.length) uniqCrew = cleanedCrew;
       let job = jobs.get(custID);
@@ -411,18 +405,6 @@ export async function GET(req: NextRequest) {
   const offices = [office];
   const CK = cacheKey(period, periodKey, office);
 
-  // Debug: run synchronously with phantom-decision capture (needs the attendance set loaded in appSetting).
-  if (sp.get('phantomDebug') === '1') {
-    (globalThis as any).__phantomDebug = [];
-    await runReport(from, to, offices, () => {});
-    const dbg = (globalThis as any).__phantomDebug;
-    (globalThis as any).__phantomDebug = null;
-    // summarize: which resolved names were marked phantom, and the tracked/present breakdown
-    const dropped = dbg.filter((x: any) => x.phantom);
-    const sampleNames = [...new Set(dbg.map((x: any) => x.resolvedName))].slice(0, 40);
-    return NextResponse.json({ office, from, to, totalCrewChecks: dbg.length, droppedCount: dropped.length,
-      sampleResolvedNames: sampleNames, droppedSample: dropped.slice(0, 30) });
-  }
 
   if (sp.get('refresh') === '1') {
     const setStatus = (m: string) => { prisma.appSetting.upsert({ where: { key: STATUS_KEY }, create: { key: STATUS_KEY, value: m }, update: { value: m } }).catch(() => {}); };
