@@ -195,8 +195,12 @@ async function runReport(from: string, to: string, offices: string[], setStatus:
       let uniqCrew = [...new Set(crew)];
       // Phantom-crew cleanup: remove tracked techs who weren't present this date (keeps at least 1 so the job
       // doesn't drop to zero crew if everyone is flagged — conservative).
-      const cleanedCrew = uniqCrew.filter(t => !isPhantom(t, date));
-      if (cleanedCrew.length > 0 && cleanedCrew.length < uniqCrew.length) uniqCrew = cleanedCrew;
+      // Attendance-based phantom cleanup is applied for DFW only — that's where attendance coverage is reliable.
+      // Other offices (ATX/OKC/CStat) are left as-is to avoid name-matching / crew-read uncertainty.
+      if (officeName === 'DFW') {
+        const cleanedCrew = uniqCrew.filter(t => !isPhantom(t, date));
+        if (cleanedCrew.length > 0 && cleanedCrew.length < uniqCrew.length) uniqCrew = cleanedCrew;
+      }
       let job = jobs.get(custID);
       if (!job) { job = { customerID: custID, customer: a.customerName || custID, firstDay: date, lastDay: date, schedMinutes: 0, crewDays: [], dayLegs: [], ticketIds: new Set() }; jobs.set(custID, job); }
       const legMinutes = trueMinutes(a); // Option B: uncaps 480 via blocked spots / solo-route assumption
