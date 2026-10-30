@@ -69,11 +69,13 @@ export async function GET(req: NextRequest) {
     const now = new Date();
 
     // ── All-time cumulative ("Total" column), shared by monthly + weekly.
-    // Stored history (pre-2026, from kpi_history) + all live 2026+ leads (fetched in full, not windowed).
+    // Stored history now covers through May 2026 (pre-2026 + the frozen Jan-May 2026 Excel months), so the
+    // cumulative's LIVE side must start at June 1, 2026 to avoid double-counting those frozen months.
     const liveStart = new Date(Date.UTC(2026, 0, 1));
+    const cumulativeLiveStart = new Date(Date.UTC(2026, 5, 1)); // June 1, 2026
     const allTimeLeads = await prisma.lead.findMany({
       where: {
-        inspectionDate: { gte: liveStart },
+        inspectionDate: { gte: cumulativeLiveStart },
         ...(officeFilter && officeFilter !== 'All' && { office: { equals: officeFilter, mode: 'insensitive' } }),
         ...(pmFilter && { pmName: pmFilter }),
       },
@@ -82,7 +84,7 @@ export async function GET(req: NextRequest) {
     // All-time live cash (2026+) from payment records, so the cumulative cash isn't undercounted.
     const allTimePayments = await prisma.payment.findMany({
       where: {
-        date: { gte: liveStart },
+        date: { gte: cumulativeLiveStart },
         invoice: { lead: { status: 'SOLD',
           ...(officeFilter && officeFilter !== 'All' && { office: { equals: officeFilter, mode: 'insensitive' } }) } },
       },
@@ -206,8 +208,11 @@ export async function GET(req: NextRequest) {
         const monthData = months.map(({ year, month, start, end }) => {
           const pestKey = `${year}-${String(month + 1).padStart(2, '0')}`;
           const pestCV = pmHistForName?.get(pestKey)?.bookedPestCV ?? null;
-          // Pre-2026: use stored history if we have it for this PM.
-          if (year < 2026 && pmHistForName) {
+          // Frozen history: all pre-2026 months AND Jan-May 2026 (locked from the Leads Tracker Excel,
+          // the source of truth — the live Lead data for those months was an incomplete backfill). June
+          // 2026 onward (month >= 5) stays live. month is 0-based.
+          const isFrozen = year < 2026 || (year === 2026 && month <= 4);
+          if (isFrozen && pmHistForName) {
             const h = pmHistForName.get(pestKey);
             if (h) return { booked: h.booked, cashCollected: h.cashCollected ?? null, totalLeads: h.leads,
                             totalClosed: h.closed, closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead,
@@ -238,7 +243,10 @@ export async function GET(req: NextRequest) {
       const histMap = new Map(histMonths.map(h => [h.periodKey, h]));
       const companyMonthlyFinal = companyMonthly.map((m, i) => {
         const { year, month } = months[i];
-        if (year >= 2026) return m;
+        // Frozen: pre-2026 AND Jan-May 2026 (month 0-4) read from kpi_history (Excel source of truth);
+        // June 2026 onward (month >= 5) stays live-computed.
+        const isFrozen = year < 2026 || (year === 2026 && month <= 4);
+        if (!isFrozen) return m;
         const h = histMap.get(`${year}-${String(month + 1).padStart(2, '0')}`);
         if (!h) return m; // no stored history for this month → leave computed (likely zeros)
         // Use the tracker's own YoY if present; else derive from prior-year stored booked.
