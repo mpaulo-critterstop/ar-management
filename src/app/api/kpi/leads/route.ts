@@ -311,8 +311,9 @@ export async function GET(req: NextRequest) {
         const pmHistForName = pmHistWMap.get(pm.name);
         const pmHistDates = pmHistForName ? [...pmHistForName.values()].map((h: any) => ({ d: new Date(h.periodKey + 'T12:00:00Z'), h })) : [];
         const weekData = weeks.map(({ start, end }) => {
-          // Pre-2026: use stored weekly history (tracker ends weeks Friday → match by range).
-          if (end.getFullYear() < 2026 && pmHistDates.length) {
+          // Frozen: weeks ending before June 1, 2026 read from stored weekly history (tracker ends weeks
+          // Friday → match by range); June 2026 onward stays live.
+          if (end < new Date(Date.UTC(2026, 5, 1)) && pmHistDates.length) {
             const h = pmHistDates.find(x => x.d >= start && x.d <= end)?.h;
             if (h) return { booked: h.booked, cashCollected: null, totalLeads: h.leads, totalClosed: h.closed,
                             closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead, trailing4WeekBPL: 0 };
@@ -349,9 +350,11 @@ export async function GET(req: NextRequest) {
       const histWeeks = await prisma.kpiHistory.findMany({ where: { period: 'weekly', scope: 'company' } }).catch(() => [] as any[]);
       const histByDate = histWeeks.map(h => ({ d: new Date(h.periodKey + 'T12:00:00Z'), h }));
       const findHistWeek = (start: Date, end: Date) => histByDate.find(x => x.d >= start && x.d <= end)?.h;
+      const juneFirst2026 = new Date(Date.UTC(2026, 5, 1));
       const companyWeeklyFinal = companyWeekly.map((w, i) => {
         const { start, end } = weeks[i];
-        if (end.getFullYear() >= 2026) return w;
+        // Frozen: weeks ending before June 1, 2026 (pre-2026 + Jan-May 2026) read from history; June+ live.
+        if (end >= juneFirst2026) return w;
         const h = findHistWeek(start, end);
         if (!h) return w;
         return { label: w.label, booked: h.booked, totalLeads: h.leads, totalClosed: h.closed,
