@@ -28,7 +28,7 @@ const STATE_KEY = 'ai_reminder_state';
 
 let chain: Promise<any> = Promise.resolve();
 function fr(url: string): Promise<any> {
-  const run = chain.then(async () => { await new Promise(r => setTimeout(r, 900)); return fetch(url).then(r => r.json()); });
+  const run = chain.then(async () => { await new Promise(r => setTimeout(r, 450)); return fetch(url).then(r => r.json()); });
   chain = run.catch(() => {});
   return run;
 }
@@ -59,8 +59,9 @@ export async function GET(req: NextRequest) {
   for (const [officeName, cfg] of Object.entries(offices)) {
     if (!cfg?.key) continue;
     const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
-    // all active subs, then filter to 533 in code (FR serviceIDs filter is unreliable)
-    const s = await fr(`${BASE_URL}/subscription/search?${auth}&officeIDs=${cfg.officeId}&active=1`);
+    // Filter to 533 at search time. NOTE: 'serviceID' (singular) filters correctly; 'serviceIDs' (plural) is
+    // ignored by FR. This cuts the scan from ~11k subs to only the ~1.5k annual-inspection ones.
+    const s = await fr(`${BASE_URL}/subscription/search?${auth}&officeIDs=${cfg.officeId}&active=1&serviceID=${ANNUAL_INSPECTION_SERVICE_ID}`);
     const ids = s.subscriptionIDs || [];
     for (let i = 0; i < ids.length; i += 100) {
       const c = ids.slice(i, i + 100);
