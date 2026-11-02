@@ -1,4 +1,5 @@
 'use client';
+import BackButton from '@/components/BackButton';
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -71,6 +72,7 @@ export default function CsrPage() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 20px' }}>
+      <div style={{ padding: '16px 20px 0' }}><BackButton /></div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
         <span style={{ fontSize: 22 }}>📇</span>
         <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>CSR Leads Tracker</h1>

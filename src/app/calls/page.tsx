@@ -1,4 +1,5 @@
 'use client';
+import BackButton from '@/components/BackButton';
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -69,6 +70,7 @@ export default function CallsPage() {
 
   return (
     <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
+      <div style={{ padding: '16px 20px 0' }}><BackButton /></div>
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Dialpad Call Analytics</h1>

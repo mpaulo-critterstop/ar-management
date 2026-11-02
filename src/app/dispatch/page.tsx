@@ -1,4 +1,5 @@
 'use client';
+import BackButton from '@/components/BackButton';
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -184,6 +185,7 @@ export default function DispatchPage() {
 
   return (
     <div style={{ padding: '0 24px 24px', maxWidth: 1400, margin: '0 auto' }}>
+      <div style={{ paddingTop: 16 }}><BackButton /></div>
       {/* Title */}
       <div style={{ paddingTop: 24, marginBottom: 4 }}>
         <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Dispatcher</h1>

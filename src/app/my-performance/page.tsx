@@ -1,4 +1,5 @@
 'use client';
+import BackButton from '@/components/BackButton';
 import { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -109,6 +110,7 @@ export default function MyPerformancePage() {
 
   if (status === 'loading' || loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100svh', background: T.bg }}>
+      <div style={{ padding: '16px 20px 0' }}><BackButton /></div>
       <div style={{ color: T.brownText, fontSize: 14 }}>Loading...</div>
     </div>
   );

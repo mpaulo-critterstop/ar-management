@@ -1,4 +1,5 @@
 'use client';
+import BackButton from '@/components/BackButton';
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -77,6 +78,7 @@ export default function FieldPerformancePage() {
 
   if (status === 'loading') return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#64748b' }}>
+      <div style={{ padding: '16px 20px 0' }}><BackButton /></div>
       Loading...
     </div>
   );

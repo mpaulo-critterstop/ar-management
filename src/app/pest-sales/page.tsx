@@ -1,4 +1,5 @@
 'use client';
+import BackButton from '@/components/BackButton';
 import { useEffect, useState } from 'react';
 
 const OFFICES = ['DFW', 'ATX', 'OKC', 'CStat'];
@@ -51,6 +52,7 @@ export default function PestSalesPage() {
 
   return (
     <div style={{ padding: '0 24px 24px', maxWidth: 1400, margin: '0 auto' }}>
+      <div style={{ padding: '16px 20px 0' }}><BackButton /></div>
       <div style={{ paddingTop: 24, marginBottom: 4 }}>
         <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Pest Control Sales</h1>
         <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>PM pest, rodent bundle, and termite sales from FieldRoutes. Commission counts once the initial service is completed.</p>

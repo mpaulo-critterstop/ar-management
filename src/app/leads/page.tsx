@@ -1,4 +1,5 @@
 'use client';
+import BackButton from '@/components/BackButton';
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -183,6 +184,7 @@ export default function LeadsPage() {
 
   return (
     <div style={{ padding: '0 24px 24px', maxWidth: 1400, margin: '0 auto' }}>
+      <div style={{ padding: '16px 20px 0' }}><BackButton /></div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* Title */}
