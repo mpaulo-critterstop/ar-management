@@ -1,4 +1,5 @@
 'use client';
+import BackButton from '@/components/BackButton';
 export const dynamic = 'force-dynamic';
 
 const TILES = [
@@ -31,7 +32,7 @@ function UsFlag() {
 export default function PayrollPage() {
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
-      <a href="/" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← Home</a>
+      <BackButton />
       <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>💵 Payroll</h1>
       <p style={{ fontSize: 14, color: '#888780', margin: '0 0 24px' }}>US and international payroll.</p>
 

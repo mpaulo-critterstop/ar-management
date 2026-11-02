@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
+import BackButton from '@/components/BackButton';
 
 const fmtDate = (s: string) => s ? new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
@@ -39,7 +40,7 @@ export default function ExclusionScheduling() {
   return (
     <div style={{ maxWidth: 1120, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <a href="/" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← Home</a>
+        <BackButton />
         <button onClick={refreshBookings} disabled={checking} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 7, border: 'none', background: checking ? '#F1EFE8' : '#1F3864', color: checking ? '#888' : '#fff', cursor: checking ? 'default' : 'pointer' }}>{checking ? '⏳ Checking FieldRoutes…' : '↻ Check bookings'}</button>
       </div>
       <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>🪜 Exclusion Scheduling</h1>

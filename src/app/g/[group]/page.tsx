@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import BackButton from '@/components/BackButton';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import { canAccessModule, type ModuleKey } from '@/lib/access';
@@ -261,7 +262,7 @@ export default function GroupPage() {
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto' }}>
-      <a href="/" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← Home</a>
+      <BackButton />
       <div style={{ fontSize: 22, fontWeight: 500, color: '#2C2C2A', margin: '10px 0 28px' }}>{GROUP_TITLES[group] || 'Modules'}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
         {cards.map(card => (

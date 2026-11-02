@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import BackButton from '@/components/BackButton';
 
 const money = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : '—';
@@ -54,7 +55,7 @@ export default function PestInspectionsPage() {
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Pest &amp; Termite Inspection Tracker</h1>
-        <a href="/" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← Home</a>
+        <BackButton />
       </div>
       <p style={{ fontSize: 13, color: '#888780', marginTop: 4, marginBottom: 16 }}>
         Each pest/termite inspection, marked SOLD when the customer has a matching pest invoice on/after the inspection date. Close rate = sold ÷ inspections per PM.
