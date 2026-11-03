@@ -78,7 +78,7 @@ export default function StaxPaymentsPage() {
     if (!vtOpen || staxReady) return;
     if ((window as any).FattJs || (window as any).StaxJs) { setStaxReady(true); return; }
     const s = document.createElement('script');
-    s.src = 'https://staxjs.staxpayments.com/fattmerchant.js';
+    s.src = 'https://staxjs.staxpayments.com/stax.js';
     s.onload = () => setStaxReady(true);
     s.onerror = () => setVtErr('Could not load the secure card library. Check your connection and try again.');
     document.body.appendChild(s);
