@@ -1,13 +1,17 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import BackButton from '@/components/BackButton';
+import { canRefund } from '@/lib/access';
 
 const money = (n: number) => '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt = (d: any) => d ? new Date(d).toLocaleString() : '—';
 const method = (m: number) => ({ 1: 'Cash', 2: 'Check', 3: 'Card', 4: 'ACH' } as any)[m] || m;
 
 export default function StaxPaymentsPage() {
+  const { data: session } = useSession();
+  const allowRefund = canRefund(session?.user as any);
   const [tab, setTab] = useState<'links' | 'report'>('links');
   const [report, setReport] = useState<any>(null);
   const [office, setOffice] = useState('DFW');
@@ -250,7 +254,7 @@ export default function StaxPaymentsPage() {
         const active = tiles.find(t => t.key === reportStatus)!;
         const rows = byInv(report[reportStatus] || []);
         const withReason = reportStatus === 'flagged' || reportStatus === 'failed';
-        const withRefund = reportStatus === 'recorded';
+        const withRefund = reportStatus === 'recorded' && allowRefund;
         return (<>
           <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
             {tiles.map(t => {

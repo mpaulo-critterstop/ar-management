@@ -80,7 +80,8 @@ export async function POST(req: NextRequest) {
   // Refund (or void) a Stax transaction + record it to FR as a negative payment.
   //   { action:'refund', staxTransactionId, total?, invoiceNumber? }
   if (b.action === 'refund') {
-    if ((session.user as any)?.role !== 'Admin') return NextResponse.json({ error: 'Admin only for refunds' }, { status: 403 });
+    const { canRefund } = await import('@/lib/access');
+    if (!canRefund(session.user as any)) return NextResponse.json({ error: 'You do not have refund permission. Ask an admin or manager.' }, { status: 403 });
     const { refundStaxTransaction } = await import('@/lib/staxBridge');
     const sid = String(b.staxTransactionId || '').trim();
     if (!sid) return NextResponse.json({ error: 'staxTransactionId required' }, { status: 400 });

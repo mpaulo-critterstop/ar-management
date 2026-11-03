@@ -64,7 +64,7 @@ function legacyRoleAccess(role: string | undefined, moduleKey: ModuleKey): boole
 }
 
 // Sub-flag helpers
-export function perm(user: AccessUser | null | undefined, flag: 'hidePmKpis' | 'hideCommissions' | 'ownDataOnly' | 'isTeamLeader'): boolean {
+export function perm(user: AccessUser | null | undefined, flag: 'hidePmKpis' | 'hideCommissions' | 'ownDataOnly' | 'isTeamLeader' | 'canRefund'): boolean {
   return !!(user?.permissions && user.permissions[flag]);
 }
 
@@ -73,4 +73,12 @@ export function isOwnDataOnly(user: AccessUser | null | undefined): boolean {
   if (!user) return true;
   if (user.role && FULL_ACCESS_ROLES.includes(user.role)) return false;
   return perm(user, 'ownDataOnly');
+}
+
+// Stax Payments refunds: Admin + Manager can always refund. Other users (who have the module) can refund ONLY
+// if granted the per-user `canRefund` flag — so specific trusted CSRs can be given refund rights individually.
+export function canRefund(user: AccessUser | null | undefined): boolean {
+  if (!user) return false;
+  if (user.role && FULL_ACCESS_ROLES.includes(user.role)) return true; // Admin + Manager always
+  return !!(user.permissions && user.permissions.canRefund);
 }

@@ -9,6 +9,7 @@ const PERM_FLAGS = [
   { key: 'hideCommissions', label: 'Hide Commissions table' },
   { key: 'ownDataOnly', label: 'Own data only (row-level restrict)' },
   { key: 'isTeamLeader', label: 'Team leader (sees own crew)' },
+  { key: 'canRefund', label: 'Can refund (Stax Payments)' },
 ];
 
 const blankForm = () => ({
