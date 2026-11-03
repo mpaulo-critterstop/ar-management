@@ -77,6 +77,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ action: 'paymentlink', status: link.status, link: link.json });
     }
 
+    if (action === 'webhooks') {
+      // List webhooks registered on the current (live) Stax account.
+      const w = await sx('/webhook');
+      return NextResponse.json({ action: 'webhooks', status: w.status, webhooks: w.json });
+    }
+
+    if (action === 'register-webhook') {
+      // Register the Hub's receiver on the live account for transaction events.
+      const target = 'https://hub.critterstop.com/api/webhooks/stax';
+      const w = await sx('/webhook', 'POST', { url: target, events: ['create_transaction'], active: true });
+      return NextResponse.json({ action: 'register-webhook', status: w.status, webhook: w.json, target });
+    }
+
     if (action === 'process') {
       const txnId = sp.get('txn');
       if (!txnId) return NextResponse.json({ error: 'txn (stax transaction id) required' }, { status: 400 });
