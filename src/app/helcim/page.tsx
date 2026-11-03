@@ -136,7 +136,7 @@ export default function StaxPaymentsPage() {
       // Stax.js pay(): hosted fields supply number+CVV; we pass the rest (name, exp, zip) here. meta.fr_invoice
       // tags the charge so the webhook/bridge records it to the FR invoice.
       const parts = vtName.trim().split(' ');
-      const extra = {
+      const extra: any = {
         total: amt,
         firstname: parts[0] || vtName.trim(),
         lastname: parts.slice(1).join(' ') || '-',
@@ -147,6 +147,8 @@ export default function StaxPaymentsPage() {
         phone: vtLookup?.phone || undefined,
         meta: { fr_invoice: vtLookup?.invoiceNumber, memo: `Critter Stop invoice #${vtLookup?.invoiceNumber} (phone payment)`, reference: vtLookup?.invoiceNumber, source: 'hub-virtual-terminal' },
       };
+      // Passing customer_id means Stax doesn't require a full billing address (address_1/city).
+      if (vtLookup?.staxCustomerId) extra.customer_id = vtLookup.staxCustomerId;
       const txn = await fattjs.pay(extra);
       const ok = txn && (txn.success === true || String(txn.status || '').toLowerCase() === 'settled' || txn.id);
       if (!ok) { setVtErr('Payment was not approved. ' + (txn?.message || '')); setVtBusy(false); return; }

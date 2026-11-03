@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { STAX_BASE, staxHeaders } from '@/lib/staxBridge';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,21 @@ export async function GET(req: NextRequest) {
       const cj = await cr.json();
       const cu = (cj.customers || [])[0] || {};
       const name = `${cu.fname || ''} ${cu.lname || ''}`.trim() || cu.companyName || 'Customer';
+      const email = cu.email || cu.billingEmail || '';
+      const phone = cu.phone1 || cu.phone2 || '';
+
+      // Create a Stax customer so the browser pay() can pass customer_id — avoids Stax requiring a full billing
+      // address (address_1/city) on every phone payment. Best-effort: if this fails, the UI can still collect an address.
+      let staxCustomerId: string | null = null;
+      try {
+        const [firstname, ...rest] = name.split(' ');
+        const cres = await fetch(`${STAX_BASE}/customer`, {
+          method: 'POST', headers: staxHeaders(),
+          body: JSON.stringify({ firstname: firstname || name, lastname: rest.join(' ') || '-', email: email || undefined, phone: phone || undefined, reference: `FR-${custId}` }),
+        });
+        const cjson = await cres.json().catch(() => null);
+        if (cjson?.id) staxCustomerId = cjson.id;
+      } catch { /* non-fatal */ }
 
       return NextResponse.json({
         found: true,
@@ -44,8 +60,8 @@ export async function GET(req: NextRequest) {
         invoiceNumber,
         customerId: custId,
         customerName: name,
-        email: cu.email || cu.billingEmail || '',
-        phone: cu.phone1 || cu.phone2 || '',
+        email, phone,
+        staxCustomerId,
         total: Number(tk.total || 0),
         balance: Number(tk.balance || 0),
         serviceDescription: tk.serviceDescription || tk.description || '',
