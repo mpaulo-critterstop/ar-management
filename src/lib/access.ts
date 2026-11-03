@@ -31,7 +31,8 @@ export interface AccessUser {
 
 // Modules restricted to Admin only (even Managers, who otherwise have full access, are excluded).
 // Payroll is locked down while in development — contains salaries/raises/PTO, admin-only for now.
-const ADMIN_ONLY_MODULES: ModuleKey[] = ['payroll', 'helcim'];
+// Stax Payments (helcim) is open to Admin + Manager (removed from admin-only) now that it's live.
+const ADMIN_ONLY_MODULES: ModuleKey[] = ['payroll'];
 
 // Does this user have access to a given module?
 export function canAccessModule(user: AccessUser | null | undefined, moduleKey: ModuleKey): boolean {
