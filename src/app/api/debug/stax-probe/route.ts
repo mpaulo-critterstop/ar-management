@@ -86,8 +86,9 @@ export async function GET(req: NextRequest) {
     if (action === 'register-webhook') {
       // Register the Hub's receiver on the live account for transaction events.
       const target = 'https://hub.critterstop.com/api/webhooks/stax';
-      const w = await sx('/webhook', 'POST', { url: target, events: ['create_transaction'], active: true });
-      return NextResponse.json({ action: 'register-webhook', status: w.status, webhook: w.json, target });
+      const ev = sp.get('event') || 'create_transaction';
+      const w = await sx('/webhook', 'POST', { target_url: target, event: ev, active: true });
+      return NextResponse.json({ action: 'register-webhook', status: w.status, webhook: w.json, target, event: ev });
     }
 
     if (action === 'process') {
