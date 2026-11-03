@@ -88,7 +88,7 @@ export default function PayPage() {
           {info.customerName && <div style={{ fontSize: 13, color: '#B4B2A9', marginBottom: 24 }}>{info.customerName}</div>}
           {err && <div style={{ color: '#b91c1c', fontSize: 13, marginBottom: 12 }}>{err}</div>}
           <button onClick={pay} style={{ width: '100%', fontSize: 15, padding: '14px', borderRadius: 10, border: 'none', background: '#185FA5', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Pay {money(info.amount)}</button>
-          <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 16 }}>Pay by card or bank (ACH). Secured by Helcim.</div>
+          <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 16 }}>Pay by card or bank (ACH). Secured by Stax.</div>
         </>)}
 
         {status === 'paid' && (

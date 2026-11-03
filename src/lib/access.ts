@@ -11,7 +11,7 @@ export const MODULE_LABELS: Record<string, string> = {
   'lsa-leads': 'LSA Leads', 'csr-pest-sales': 'CSR Pest Sales', cancellations: 'Pest Cancellations',
   'service-pool': 'Pest Control Job Pool', 'exclusion-scheduling': 'Exclusion Scheduling', reports: 'Reports (section)',
   'report-insulation': 'Report: Insulation Revenue', 'report-ar-benchmark': 'Report: AR Benchmark',
-  payroll: 'Payroll', helcim: 'Helcim Payments',
+  payroll: 'Payroll', helcim: 'Stax Payments',
 };
 export type ModuleKey = typeof ALL_MODULES[number];
 

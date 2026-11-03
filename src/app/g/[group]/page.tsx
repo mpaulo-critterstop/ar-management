@@ -235,7 +235,7 @@ export default function GroupPage() {
       icon: '💳',
       title: 'Stax Payments',
       desc: 'Send customers payment links for invoices; payments record back into FieldRoutes automatically.',
-      href: '/helcim',
+      href: '/stax',
       accentColor: '#185FA5',
       main: '\u2014',
       mainLabel: 'Payments',

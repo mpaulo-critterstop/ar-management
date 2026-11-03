@@ -164,6 +164,7 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
     currency: 'USD',
     cardType: txn?.payment_method?.card_type || txn?.card_type || null,
     cardHolderName: txn?.payment_method?.person_name || txn?.person_name || null,
+    cardLast4: txn?.payment_method?.card_last_four || txn?.card_last_four || null,
     staxType: type || null,
     staxStatus: String(txn?.status || (success ? 'approved' : 'unknown')),
     staxCustomerId: txn?.customer_id || txn?.customer?.id || null,

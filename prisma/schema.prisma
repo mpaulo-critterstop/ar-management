@@ -894,6 +894,7 @@ model StaxPayment {
   currency          String?
   cardType          String?
   cardHolderName    String?
+  cardLast4         String?
   staxType          String?
   staxStatus        String?
   staxCustomerId    String?
