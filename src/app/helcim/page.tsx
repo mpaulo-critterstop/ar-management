@@ -35,6 +35,10 @@ export default function StaxPaymentsPage() {
   const [vtErr, setVtErr] = useState('');
   const [vtResult, setVtResult] = useState<any>(null);
   const [staxReady, setStaxReady] = useState(false);
+  const [vtName, setVtName] = useState('');
+  const [vtExpMonth, setVtExpMonth] = useState('');
+  const [vtExpYear, setVtExpYear] = useState('');
+  const [vtZip, setVtZip] = useState('');
   const fattRef = (globalThis as any);
   async function doRefund(full: boolean) {
     if (!refundModal) return;
@@ -72,6 +76,7 @@ export default function StaxPaymentsPage() {
   function openVt() {
     setVtOpen(true); setVtStep('invoice'); setVtInvoice(''); setVtLookup(null);
     setVtAmount(''); setVtErr(''); setVtResult(null);
+    setVtName(''); setVtExpMonth(''); setVtExpYear(''); setVtZip('');
   }
   // Load Stax.js (Fattmerchant.js) once.
   useEffect(() => {
@@ -95,6 +100,7 @@ export default function StaxPaymentsPage() {
       if (!d.found) { setVtErr(d.error || 'Invoice not found.'); setVtBusy(false); return; }
       setVtLookup(d);
       setVtAmount(d.balance > 0 ? String(d.balance) : '');
+      setVtName(d.customerName || '');
       setVtStep('card');
     } catch { setVtErr('Lookup failed. Try again.'); }
     setVtBusy(false);
@@ -122,14 +128,23 @@ export default function StaxPaymentsPage() {
     if (!amt || amt <= 0) { setVtErr('Enter a valid amount.'); return; }
     const fattjs = fattRef.__vtFatt;
     if (!fattjs) { setVtErr('Card form not ready.'); return; }
+    if (!vtName.trim()) { setVtErr('Enter the cardholder name.'); return; }
+    if (!vtExpMonth || !vtExpYear) { setVtErr('Enter the card expiration (MM / YYYY).'); return; }
+    if (!vtZip.trim()) { setVtErr('Enter the billing zip code.'); return; }
     setVtBusy(true);
     try {
-      // Stax.js pay(): tokenizes the card + charges, tagging meta.fr_invoice so the webhook/bridge records to FR.
+      // Stax.js pay(): hosted fields supply number+CVV; we pass the rest (name, exp, zip) here. meta.fr_invoice
+      // tags the charge so the webhook/bridge records it to the FR invoice.
+      const parts = vtName.trim().split(' ');
       const extra = {
         total: amt,
-        firstname: (vtLookup?.customerName || '').split(' ')[0] || 'Customer',
-        lastname: (vtLookup?.customerName || '').split(' ').slice(1).join(' ') || '-',
+        firstname: parts[0] || vtName.trim(),
+        lastname: parts.slice(1).join(' ') || '-',
+        month: vtExpMonth.padStart(2, '0'),
+        year: vtExpYear.length === 2 ? `20${vtExpYear}` : vtExpYear,
+        address_zip: vtZip.trim(),
         email: vtLookup?.email || undefined,
+        phone: vtLookup?.phone || undefined,
         meta: { fr_invoice: vtLookup?.invoiceNumber, memo: `Critter Stop invoice #${vtLookup?.invoiceNumber} (phone payment)`, reference: vtLookup?.invoiceNumber, source: 'hub-virtual-terminal' },
       };
       const txn = await fattjs.pay(extra);
@@ -339,13 +354,25 @@ export default function StaxPaymentsPage() {
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#888780' }}>Amount to charge</label>
                 <input value={vtAmount} onChange={e => setVtAmount(e.target.value)} type="number" step="0.01" placeholder="0.00"
                   style={{ width: '100%', marginTop: 6, marginBottom: 12, fontSize: 15, padding: '11px 12px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#888780' }}>Cardholder name</label>
+                <input value={vtName} onChange={e => setVtName(e.target.value)} placeholder="Name on card"
+                  style={{ width: '100%', marginTop: 6, marginBottom: 12, fontSize: 14, padding: '10px 12px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#888780' }}>Card details</label>
                 {!staxReady && <div style={{ fontSize: 13, color: '#888780', marginTop: 8 }}>Loading secure card form…</div>}
                 <div style={{ marginTop: 6 }}>
                   <div id="vt-card-number" style={{ border: '0.5px solid #D3D1C7', borderRadius: 8, height: 40, marginBottom: 8, overflow: 'hidden' }} />
-                  <div id="vt-card-cvv" style={{ border: '0.5px solid #D3D1C7', borderRadius: 8, height: 40, width: 120, overflow: 'hidden' }} />
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div id="vt-card-cvv" style={{ border: '0.5px solid #D3D1C7', borderRadius: 8, height: 40, width: 110, overflow: 'hidden' }} />
+                    <input value={vtExpMonth} onChange={e => setVtExpMonth(e.target.value.replace(/\D/g,'').slice(0,2))} placeholder="MM" maxLength={2}
+                      style={{ width: 54, fontSize: 14, padding: '10px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box', textAlign: 'center' }} />
+                    <span style={{ color: '#B4B2A9' }}>/</span>
+                    <input value={vtExpYear} onChange={e => setVtExpYear(e.target.value.replace(/\D/g,'').slice(0,4))} placeholder="YYYY" maxLength={4}
+                      style={{ width: 72, fontSize: 14, padding: '10px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box', textAlign: 'center' }} />
+                    <input value={vtZip} onChange={e => setVtZip(e.target.value.replace(/\D/g,'').slice(0,5))} placeholder="Zip" maxLength={5}
+                      style={{ flex: 1, fontSize: 14, padding: '10px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 8 }}>🔒 Card details are encrypted by Stax — never stored on our servers.</div>
+                <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 8 }}>🔒 Card number & CVV are encrypted by Stax — never stored on our servers.</div>
                 {vtErr && <div style={{ color: '#b91c1c', fontSize: 13, marginTop: 10 }}>{vtErr}</div>}
                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                   <button onClick={() => { setVtStep('invoice'); setVtErr(''); }} disabled={vtBusy} style={{ flex: 1, fontSize: 13, padding: '12px', borderRadius: 8, border: '0.5px solid #E8E7E3', background: '#fff', color: '#888780', cursor: 'pointer' }}>Back</button>
