@@ -155,7 +155,17 @@ export default function StaxPaymentsPage() {
       setVtResult({ amount: amt, last4: txn.payment_method?.card_last_four || txn.last_four || '', id: txn.id, invoice: vtLookup?.invoiceNumber, customer: vtLookup?.customerName });
       loadReport();
     } catch (e: any) {
-      setVtErr('Payment failed: ' + (e?.message || String(e).slice(0, 140)));
+      // Stax.js rejects with varied shapes: Error, {message}, {payment_attempt_message}, validation {errors},
+      // or the raw transaction with a message. Dig out something readable + log the full object for inspection.
+      console.error('[virtual terminal] pay() error:', e);
+      let msg = '';
+      if (typeof e === 'string') msg = e;
+      else if (e?.message) msg = e.message;
+      else if (e?.payment_attempt_message) msg = e.payment_attempt_message;
+      else if (e?.errors) msg = (Array.isArray(e.errors) ? e.errors.join('; ') : JSON.stringify(e.errors));
+      else if (e?.detail) msg = typeof e.detail === 'string' ? e.detail : JSON.stringify(e.detail);
+      else { try { msg = JSON.stringify(e); } catch { msg = 'unknown error'; } }
+      setVtErr('Payment failed: ' + String(msg).slice(0, 300));
     }
     setVtBusy(false);
   }
