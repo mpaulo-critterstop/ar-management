@@ -126,7 +126,7 @@ export default function StaxPaymentsPage() {
     if (!FattJsCtor) { setVtErr('Secure payment library not available.'); return; }
     const fattjs = new FattJsCtor(token, {
       number: { id: 'vt-card-number', placeholder: 'Card number', style: 'height:38px;width:100%;font-size:14px;padding:0 10px;' },
-      cvv: { id: 'vt-card-cvv', placeholder: 'CVV', style: 'height:38px;width:100%;font-size:14px;text-align:center;padding:0 8px;box-sizing:border-box;' },
+      cvv: { id: 'vt-card-cvv', placeholder: 'CVV', style: 'height:38px;width:100%;font-size:14px;text-align:center;padding:0 2px;box-sizing:border-box;' },
     });
     fattRef.__vtFatt = fattjs;
     if (vtPayType === 'card') fattjs.showCardForm().catch(() => setVtErr('Could not display the card form.'));
@@ -356,7 +356,7 @@ export default function StaxPaymentsPage() {
       {/* ---- Take Payment (Virtual Terminal) modal ---- */}
       {vtOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(44,44,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }} onClick={() => !vtBusy && setVtOpen(false)}>
-          <div style={{ background: '#fff', borderRadius: 14, padding: 24, width: 440, maxWidth: '92vw', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: 24, width: 500, maxWidth: '94vw', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontSize: 17, fontWeight: 700, color: '#2C2C2A' }}>💳 Take Payment</div>
               <button onClick={() => setVtOpen(false)} style={{ fontSize: 20, lineHeight: 1, border: 'none', background: 'transparent', color: '#888780', cursor: 'pointer' }}>×</button>
@@ -408,7 +408,7 @@ export default function StaxPaymentsPage() {
                     <div style={{ marginTop: 6 }}>
                       <div id="vt-card-number" style={{ border: '0.5px solid #D3D1C7', borderRadius: 8, height: 40, marginBottom: 8, overflow: 'hidden' }} />
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <div id="vt-card-cvv" style={{ border: '0.5px solid #D3D1C7', borderRadius: 8, height: 40, width: 110, overflow: 'hidden' }} />
+                        <div id="vt-card-cvv" style={{ border: '0.5px solid #D3D1C7', borderRadius: 8, height: 40, width: 130, overflow: 'hidden' }} />
                         <input value={vtExpMonth} onChange={e => setVtExpMonth(e.target.value.replace(/\D/g,'').slice(0,2))} placeholder="MM" maxLength={2}
                           style={{ width: 54, fontSize: 14, padding: '10px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box', textAlign: 'center' }} />
                         <span style={{ color: '#B4B2A9' }}>/</span>
