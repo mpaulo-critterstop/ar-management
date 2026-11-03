@@ -25,6 +25,17 @@ export default function StaxPaymentsPage() {
   const [linkSearch, setLinkSearch] = useState('');
   const [reportSearch, setReportSearch] = useState('');
   const [reportStatus, setReportStatus] = useState<'recorded'|'refunded'|'flagged'|'failed'|'pending'>('recorded');
+  // Virtual terminal (Take Payment over the phone)
+  const [vtOpen, setVtOpen] = useState(false);
+  const [vtStep, setVtStep] = useState<'invoice'|'card'>('invoice');
+  const [vtInvoice, setVtInvoice] = useState('');
+  const [vtLookup, setVtLookup] = useState<any>(null);   // { customerName, office, balance, ... }
+  const [vtAmount, setVtAmount] = useState('');
+  const [vtBusy, setVtBusy] = useState(false);
+  const [vtErr, setVtErr] = useState('');
+  const [vtResult, setVtResult] = useState<any>(null);
+  const [staxReady, setStaxReady] = useState(false);
+  const fattRef = (globalThis as any);
   async function doRefund(full: boolean) {
     if (!refundModal) return;
     setRefunding(true);
@@ -56,6 +67,83 @@ export default function StaxPaymentsPage() {
     setSending(false);
   }
   function openModal() { setModalOpen(true); setResult(null); setErr(''); setInvoice(''); setAmount(''); }
+
+  // ---- Virtual Terminal (Take Payment) ----
+  function openVt() {
+    setVtOpen(true); setVtStep('invoice'); setVtInvoice(''); setVtLookup(null);
+    setVtAmount(''); setVtErr(''); setVtResult(null);
+  }
+  // Load Stax.js (Fattmerchant.js) once.
+  useEffect(() => {
+    if (!vtOpen || staxReady) return;
+    if ((window as any).FattJs || (window as any).StaxJs) { setStaxReady(true); return; }
+    const s = document.createElement('script');
+    s.src = 'https://staxjs.staxpayments.com/fattmerchant.js';
+    s.onload = () => setStaxReady(true);
+    s.onerror = () => setVtErr('Could not load the secure card library. Check your connection and try again.');
+    document.body.appendChild(s);
+  }, [vtOpen, staxReady]);
+
+  async function vtDoLookup() {
+    setVtErr(''); setVtLookup(null);
+    const inv = vtInvoice.trim();
+    if (!inv) { setVtErr('Enter an invoice number.'); return; }
+    setVtBusy(true);
+    try {
+      const r = await fetch(`/api/stax/invoice-lookup?invoice=${encodeURIComponent(inv)}`);
+      const d = await r.json();
+      if (!d.found) { setVtErr(d.error || 'Invoice not found.'); setVtBusy(false); return; }
+      setVtLookup(d);
+      setVtAmount(d.balance > 0 ? String(d.balance) : '');
+      setVtStep('card');
+    } catch { setVtErr('Lookup failed. Try again.'); }
+    setVtBusy(false);
+  }
+
+  // Mount Stax.js secure fields when we reach the card step.
+  useEffect(() => {
+    if (vtStep !== 'card' || !staxReady || !vtOpen) return;
+    const token = process.env.NEXT_PUBLIC_STAX_WEB_TOKEN;
+    if (!token) { setVtErr('Web Payments Token not configured.'); return; }
+    const FattJsCtor = (window as any).FattJs || (window as any).StaxJs;
+    if (!FattJsCtor) { setVtErr('Secure card library not available.'); return; }
+    const fattjs = new FattJsCtor(token, {
+      number: { id: 'vt-card-number', placeholder: 'Card number', style: 'height:38px;width:100%;font-size:14px;padding:0 10px;' },
+      cvv: { id: 'vt-card-cvv', placeholder: 'CVV', style: 'height:38px;width:100%;font-size:14px;padding:0 10px;' },
+    });
+    fattRef.__vtFatt = fattjs;
+    fattjs.showCardForm().catch(() => setVtErr('Could not display the card form.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vtStep, staxReady, vtOpen]);
+
+  async function vtCharge() {
+    setVtErr(''); setVtResult(null);
+    const amt = parseFloat(vtAmount);
+    if (!amt || amt <= 0) { setVtErr('Enter a valid amount.'); return; }
+    const fattjs = fattRef.__vtFatt;
+    if (!fattjs) { setVtErr('Card form not ready.'); return; }
+    setVtBusy(true);
+    try {
+      // Stax.js pay(): tokenizes the card + charges, tagging meta.fr_invoice so the webhook/bridge records to FR.
+      const extra = {
+        total: amt,
+        firstname: (vtLookup?.customerName || '').split(' ')[0] || 'Customer',
+        lastname: (vtLookup?.customerName || '').split(' ').slice(1).join(' ') || '-',
+        email: vtLookup?.email || undefined,
+        meta: { fr_invoice: vtLookup?.invoiceNumber, memo: `Critter Stop invoice #${vtLookup?.invoiceNumber} (phone payment)`, reference: vtLookup?.invoiceNumber, source: 'hub-virtual-terminal' },
+      };
+      const txn = await fattjs.pay(extra);
+      const ok = txn && (txn.success === true || String(txn.status || '').toLowerCase() === 'settled' || txn.id);
+      if (!ok) { setVtErr('Payment was not approved. ' + (txn?.message || '')); setVtBusy(false); return; }
+      // Nudge the bridge to record immediately (webhook will also fire; bridge is idempotent).
+      try { await fetch('/api/stax/payment-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reconcile' }) }); } catch {}
+      setVtResult({ amount: amt, last4: txn.payment_method?.card_last_four || txn.last_four || '', id: txn.id, invoice: vtLookup?.invoiceNumber, customer: vtLookup?.customerName });
+      loadReport();
+    } catch (e: any) {
+      setVtErr('Payment failed: ' + (e?.message || String(e).slice(0, 140)));
+    }
+    setVtBusy(false);
+  }
   async function deleteLink(l: any) {
     if (!confirm(`Delete the unpaid payment link for invoice ${l.frInvoiceNumber} (${l.customerName || ''})? This removes it here and voids the Stax invoice.`)) return;
     try {
@@ -91,7 +179,10 @@ export default function StaxPaymentsPage() {
         return (<>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 12 }}>
           <input value={linkSearch} onChange={e => setLinkSearch(e.target.value)} placeholder="Search by customer name or invoice #…" style={{ flex: 1, maxWidth: 360, fontSize: 13, padding: '9px 12px', borderRadius: 8, border: '0.5px solid #E8E7E3', boxSizing: 'border-box' }} />
-          <button onClick={openModal} style={{ fontSize: 13, padding: '9px 18px', borderRadius: 8, border: 'none', background: '#185FA5', color: '#fff', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>+ Send Payment Link</button>
+          <span style={{ display: 'inline-flex', gap: 8 }}>
+            <button onClick={openVt} style={{ fontSize: 13, padding: '9px 18px', borderRadius: 8, border: 'none', background: '#0F6E56', color: '#fff', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>💳 Take Payment</button>
+            <button onClick={openModal} style={{ fontSize: 13, padding: '9px 18px', borderRadius: 8, border: 'none', background: '#185FA5', color: '#fff', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>+ Send Payment Link</button>
+          </span>
         </div>
         <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
           <div style={{ maxHeight: 520, overflowY: 'auto' }}>
@@ -211,6 +302,61 @@ export default function StaxPaymentsPage() {
           </div>
         </div>
       )}
+      {/* ---- Take Payment (Virtual Terminal) modal ---- */}
+      {vtOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(44,44,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }} onClick={() => !vtBusy && setVtOpen(false)}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: 24, width: 440, maxWidth: '92vw', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: '#2C2C2A' }}>💳 Take Payment</div>
+              <button onClick={() => setVtOpen(false)} style={{ fontSize: 20, lineHeight: 1, border: 'none', background: 'transparent', color: '#888780', cursor: 'pointer' }}>×</button>
+            </div>
+
+            {vtResult ? (
+              <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                <div style={{ fontSize: 40 }}>✅</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#0F6E56', marginTop: 6 }}>Payment Approved</div>
+                <div style={{ fontSize: 14, color: '#2C2C2A', marginTop: 10 }}>{money(vtResult.amount)} charged{vtResult.last4 ? ` · card ending ${vtResult.last4}` : ''}</div>
+                <div style={{ fontSize: 13, color: '#888780', marginTop: 4 }}>{vtResult.customer} · Invoice #{vtResult.invoice}</div>
+                <div style={{ fontSize: 12, color: '#888780', marginTop: 8 }}>Recording to FieldRoutes automatically.</div>
+                <button onClick={() => setVtOpen(false)} style={{ marginTop: 18, fontSize: 14, padding: '11px 24px', borderRadius: 8, border: 'none', background: '#0F6E56', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Done</button>
+              </div>
+            ) : vtStep === 'invoice' ? (
+              <>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#888780' }}>FieldRoutes Invoice #</label>
+                <input value={vtInvoice} onChange={e => setVtInvoice(e.target.value)} onKeyDown={e => e.key === 'Enter' && vtDoLookup()} placeholder="e.g. 275122" autoFocus
+                  style={{ width: '100%', marginTop: 6, fontSize: 15, padding: '11px 12px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
+                {vtErr && <div style={{ color: '#b91c1c', fontSize: 13, marginTop: 10 }}>{vtErr}</div>}
+                <button onClick={vtDoLookup} disabled={vtBusy} style={{ width: '100%', marginTop: 18, fontSize: 14, padding: '12px', borderRadius: 8, border: 'none', background: '#185FA5', color: '#fff', fontWeight: 600, cursor: vtBusy ? 'wait' : 'pointer' }}>{vtBusy ? 'Looking up…' : 'Look Up Invoice'}</button>
+              </>
+            ) : (
+              <>
+                {/* Invoice summary */}
+                <div style={{ background: '#F6F8FB', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#2C2C2A' }}>{vtLookup?.customerName}</div>
+                  <div style={{ fontSize: 12, color: '#888780', marginTop: 2 }}>{vtLookup?.office} · Invoice #{vtLookup?.invoiceNumber}</div>
+                  <div style={{ fontSize: 13, color: '#2C2C2A', marginTop: 6 }}>Balance due: <b>{money(vtLookup?.balance || 0)}</b></div>
+                </div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#888780' }}>Amount to charge</label>
+                <input value={vtAmount} onChange={e => setVtAmount(e.target.value)} type="number" step="0.01" placeholder="0.00"
+                  style={{ width: '100%', marginTop: 6, marginBottom: 12, fontSize: 15, padding: '11px 12px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#888780' }}>Card details</label>
+                {!staxReady && <div style={{ fontSize: 13, color: '#888780', marginTop: 8 }}>Loading secure card form…</div>}
+                <div style={{ marginTop: 6 }}>
+                  <div id="vt-card-number" style={{ border: '0.5px solid #D3D1C7', borderRadius: 8, height: 40, marginBottom: 8, overflow: 'hidden' }} />
+                  <div id="vt-card-cvv" style={{ border: '0.5px solid #D3D1C7', borderRadius: 8, height: 40, width: 120, overflow: 'hidden' }} />
+                </div>
+                <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 8 }}>🔒 Card details are encrypted by Stax — never stored on our servers.</div>
+                {vtErr && <div style={{ color: '#b91c1c', fontSize: 13, marginTop: 10 }}>{vtErr}</div>}
+                <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                  <button onClick={() => { setVtStep('invoice'); setVtErr(''); }} disabled={vtBusy} style={{ flex: 1, fontSize: 13, padding: '12px', borderRadius: 8, border: '0.5px solid #E8E7E3', background: '#fff', color: '#888780', cursor: 'pointer' }}>Back</button>
+                  <button onClick={vtCharge} disabled={vtBusy || !staxReady} style={{ flex: 1.6, fontSize: 14, padding: '12px', borderRadius: 8, border: 'none', background: '#0F6E56', color: '#fff', fontWeight: 600, cursor: (vtBusy || !staxReady) ? 'wait' : 'pointer' }}>{vtBusy ? 'Processing…' : `Charge ${vtAmount ? money(parseFloat(vtAmount) || 0) : ''}`}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {refundModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }} onClick={() => setRefundModal(null)}>
           <div style={{ background: '#fff', borderRadius: 14, padding: 24, width: 420, maxWidth: '100%' }} onClick={e => e.stopPropagation()}>
