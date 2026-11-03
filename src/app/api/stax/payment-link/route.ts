@@ -11,7 +11,7 @@ import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 import { sendPaymentLinkEmail } from '@/lib/email';
 import { sendPaymentLinkSms } from '@/lib/sms';
-import { STAX_BASE, staxHeaders } from '@/lib/staxBridge';
+import { STAX_BASE, staxHeaders, processStaxTransaction } from '@/lib/staxBridge';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,6 +109,38 @@ export async function POST(req: NextRequest) {
     // Remove the Hub record.
     await prisma.paymentLinkRequest.delete({ where: { id } }).catch(() => {});
     return NextResponse.json({ ok: true, staxResult, deleted: { invoice: link.frInvoiceNumber, customer: link.customerName } });
+  }
+
+  // VIRTUAL TERMINAL (take payment over the phone). The browser tokenizes the card via Stax.js (raw card never
+  // hits our server) and sends us the payment-method token + FR invoice + amount. We charge it, tagged with
+  // meta.fr_invoice, so the existing create_transaction webhook / bridge records it to the FR invoice.
+  if (b.action === 'charge-token') {
+    const invoiceNumber = String(b.invoiceNumber || '').trim();
+    const amount = parseFloat(b.amount);
+    const paymentMethodId = String(b.paymentMethodId || '').trim(); // Stax.js token (payment-method id)
+    if (!invoiceNumber || !amount || amount <= 0 || !paymentMethodId) {
+      return NextResponse.json({ error: 'invoiceNumber + amount + paymentMethodId required' }, { status: 400 });
+    }
+    const charge = await sx('/charge', 'POST', {
+      payment_method_id: paymentMethodId,
+      total: amount,
+      pre_auth: false,
+      meta: { fr_invoice: invoiceNumber, memo: `Critter Stop invoice #${invoiceNumber} (phone payment)`, reference: invoiceNumber, source: 'hub-virtual-terminal' },
+      idempotency_id: `vt-${invoiceNumber}-${Date.now()}`,
+    });
+    if (!charge.ok || !charge.json?.id) {
+      return NextResponse.json({ error: 'charge failed', detail: charge.json, status: charge.status }, { status: 502 });
+    }
+    const txn = charge.json;
+    const success = txn.success === true || String(txn.status || '').toLowerCase() === 'settled' || String(txn.type || '') === 'charge';
+    // Record to FR immediately via the bridge (the webhook will also fire, but the bridge is idempotent).
+    let frResult: any = null;
+    try { frResult = await processStaxTransaction(txn, 'webhook'); } catch (e) { frResult = { error: String(e).slice(0, 150) }; }
+    return NextResponse.json({
+      ok: true, charged: success, staxTransactionId: txn.id, amount,
+      invoiceNumber, last4: txn.payment_method?.card_last_four || txn.last_four || null,
+      frRecordedPaymentId: frResult?.frPaymentId || null, frResult,
+    });
   }
 
   if (b.action !== 'create') return NextResponse.json({ error: 'unknown action' }, { status: 400 });
