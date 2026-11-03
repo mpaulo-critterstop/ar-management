@@ -138,9 +138,26 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
   const type = String(txn?.type || '').toLowerCase(); // 'charge' | 'refund' | 'void' | 'credit' | 'capture'
   const success = txn?.success === true || String(txn?.status || '').toLowerCase() === 'approved' || txn?.is_captured === 1 || txn?.is_captured === true;
 
-  // 1) DEDUP
+  // 1) DEDUP — atomic claim. The check-then-write below is NOT enough on its own: the webhook can fire more than
+  // once (or alongside another path) near-simultaneously, and both callers would pass a plain findUnique check and
+  // each write a payment to FR (observed: duplicate FR payments 84054/84055 for one Stax charge). To prevent that,
+  // we claim the row atomically: a concurrent updateMany that only ONE caller can win (pending/new -> claimed).
   const existing = await prisma.staxPayment.findUnique({ where: { staxTransactionId } }).catch(() => null);
-  if (existing && existing.status === 'written') return { status: 'already_written' };
+  if (existing && (existing.status === 'written' || existing.status === 'claimed')) return { status: 'already_written' };
+  if (existing) {
+    // Row exists (pending/failed/etc.) — try to claim it; only succeeds if still not written/claimed.
+    const claimed = await prisma.staxPayment.updateMany({
+      where: { staxTransactionId, status: { notIn: ['written', 'claimed'] } },
+      data: { status: 'claimed' },
+    }).catch(() => ({ count: 0 }));
+    if (!claimed.count) return { status: 'already_written' }; // another caller won the claim
+  } else {
+    // No row yet — create it as claimed. The unique constraint on staxTransactionId makes a concurrent create
+    // throw for the loser, who then bails.
+    try {
+      await prisma.staxPayment.create({ data: { staxTransactionId, status: 'claimed', amount: amount || 0, source } });
+    } catch { return { status: 'already_written' }; } // concurrent create lost the race
+  }
 
   const base = {
     amount: amount || 0,
