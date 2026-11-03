@@ -39,6 +39,11 @@ export default function StaxPaymentsPage() {
   const [vtErr, setVtErr] = useState('');
   const [vtResult, setVtResult] = useState<any>(null);
   const [staxReady, setStaxReady] = useState(false);
+  const [vtPayType, setVtPayType] = useState<'card'|'bank'>('card');
+  const [vtRouting, setVtRouting] = useState('');
+  const [vtAccount, setVtAccount] = useState('');
+  const [vtBankType, setVtBankType] = useState<'checking'|'savings'>('checking');
+  const [vtHolderType, setVtHolderType] = useState<'personal'|'business'>('personal');
   const [vtName, setVtName] = useState('');
   const [vtExpMonth, setVtExpMonth] = useState('');
   const [vtExpYear, setVtExpYear] = useState('');
@@ -81,6 +86,7 @@ export default function StaxPaymentsPage() {
     setVtOpen(true); setVtStep('invoice'); setVtInvoice(''); setVtLookup(null);
     setVtAmount(''); setVtErr(''); setVtResult(null);
     setVtName(''); setVtExpMonth(''); setVtExpYear(''); setVtZip('');
+    setVtPayType('card'); setVtRouting(''); setVtAccount(''); setVtBankType('checking'); setVtHolderType('personal');
   }
   // Load Stax.js (Fattmerchant.js) once.
   useEffect(() => {
@@ -110,47 +116,61 @@ export default function StaxPaymentsPage() {
     setVtBusy(false);
   }
 
-  // Mount Stax.js secure fields when we reach the card step.
+  // Create the Stax.js instance on the card step. For CARD, mount the secure iframe fields (number+CVV).
+  // For BANK (ACH), we still need the instance for pay() but NOT the card iframe (bank fields are plain inputs).
   useEffect(() => {
     if (vtStep !== 'card' || !staxReady || !vtOpen) return;
     const token = process.env.NEXT_PUBLIC_STAX_WEB_TOKEN;
     if (!token) { setVtErr('Web Payments Token not configured.'); return; }
     const FattJsCtor = (window as any).FattJs || (window as any).StaxJs;
-    if (!FattJsCtor) { setVtErr('Secure card library not available.'); return; }
+    if (!FattJsCtor) { setVtErr('Secure payment library not available.'); return; }
     const fattjs = new FattJsCtor(token, {
       number: { id: 'vt-card-number', placeholder: 'Card number', style: 'height:38px;width:100%;font-size:14px;padding:0 10px;' },
       cvv: { id: 'vt-card-cvv', placeholder: 'CVV', style: 'height:38px;width:100%;font-size:14px;padding:0 10px;' },
     });
     fattRef.__vtFatt = fattjs;
-    fattjs.showCardForm().catch(() => setVtErr('Could not display the card form.'));
+    if (vtPayType === 'card') fattjs.showCardForm().catch(() => setVtErr('Could not display the card form.'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vtStep, staxReady, vtOpen]);
+  }, [vtStep, staxReady, vtOpen, vtPayType]);
 
   async function vtCharge() {
     setVtErr(''); setVtResult(null);
     const amt = parseFloat(vtAmount);
     if (!amt || amt <= 0) { setVtErr('Enter a valid amount.'); return; }
     const fattjs = fattRef.__vtFatt;
-    if (!fattjs) { setVtErr('Card form not ready.'); return; }
-    if (!vtName.trim()) { setVtErr('Enter the cardholder name.'); return; }
-    if (!vtExpMonth || !vtExpYear) { setVtErr('Enter the card expiration (MM / YYYY).'); return; }
-    if (!vtZip.trim()) { setVtErr('Enter the billing zip code.'); return; }
-    setVtBusy(true);
-    try {
-      // Stax.js pay(): hosted fields supply number+CVV; we pass the rest (name, exp, zip) here. meta.fr_invoice
-      // tags the charge so the webhook/bridge records it to the FR invoice.
-      const parts = vtName.trim().split(' ');
-      const extra: any = {
-        total: amt,
-        firstname: parts[0] || vtName.trim(),
-        lastname: parts.slice(1).join(' ') || '-',
+    if (!fattjs) { setVtErr('Payment form not ready.'); return; }
+    if (!vtName.trim()) { setVtErr('Enter the ' + (vtPayType === 'bank' ? 'account holder' : 'cardholder') + ' name.'); return; }
+    const parts = vtName.trim().split(' ');
+    let extra: any;
+    if (vtPayType === 'bank') {
+      // ACH / bank: plain fields (no secure iframe). method:'bank' routes Stax.js to the bank tokenizer.
+      if (!/^\d{9}$/.test(vtRouting.trim())) { setVtErr('Enter a valid 9-digit routing number.'); return; }
+      if (!vtAccount.trim()) { setVtErr('Enter the bank account number.'); return; }
+      extra = {
+        method: 'bank', total: amt,
+        firstname: parts[0] || vtName.trim(), lastname: parts.slice(1).join(' ') || '-',
+        bank_account: vtAccount.trim(), bank_routing: vtRouting.trim(),
+        bank_type: vtBankType, bank_holder_type: vtHolderType,
+        email: vtLookup?.email || undefined, phone: vtLookup?.phone || undefined,
+        meta: { fr_invoice: vtLookup?.invoiceNumber, memo: `Critter Stop invoice #${vtLookup?.invoiceNumber} (phone ACH)`, reference: vtLookup?.invoiceNumber, source: 'hub-virtual-terminal' },
+      };
+    } else {
+      // Card: hosted iframe supplies number+CVV; we pass the rest (name, exp, zip).
+      if (!vtExpMonth || !vtExpYear) { setVtErr('Enter the card expiration (MM / YYYY).'); return; }
+      if (!vtZip.trim()) { setVtErr('Enter the billing zip code.'); return; }
+      extra = {
+        method: 'card', total: amt,
+        firstname: parts[0] || vtName.trim(), lastname: parts.slice(1).join(' ') || '-',
         month: vtExpMonth.padStart(2, '0'),
         year: vtExpYear.length === 2 ? `20${vtExpYear}` : vtExpYear,
         address_zip: vtZip.trim(),
-        email: vtLookup?.email || undefined,
-        phone: vtLookup?.phone || undefined,
+        email: vtLookup?.email || undefined, phone: vtLookup?.phone || undefined,
         meta: { fr_invoice: vtLookup?.invoiceNumber, memo: `Critter Stop invoice #${vtLookup?.invoiceNumber} (phone payment)`, reference: vtLookup?.invoiceNumber, source: 'hub-virtual-terminal' },
       };
+    }
+    setVtBusy(true);
+    try {
+      // meta.fr_invoice tags the payment so the webhook/bridge records it to the FR invoice.
       // Passing customer_id means Stax doesn't require a full billing address (address_1/city).
       if (vtLookup?.staxCustomerId) extra.customer_id = vtLookup.staxCustomerId;
       const txn = await fattjs.pay(extra);
@@ -370,29 +390,62 @@ export default function StaxPaymentsPage() {
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#888780' }}>Amount to charge</label>
                 <input value={vtAmount} onChange={e => setVtAmount(e.target.value)} type="number" step="0.01" placeholder="0.00"
                   style={{ width: '100%', marginTop: 6, marginBottom: 12, fontSize: 15, padding: '11px 12px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#888780' }}>Cardholder name</label>
-                <input value={vtName} onChange={e => setVtName(e.target.value)} placeholder="Name on card"
-                  style={{ width: '100%', marginTop: 6, marginBottom: 12, fontSize: 14, padding: '10px 12px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#888780' }}>Card details</label>
-                {!staxReady && <div style={{ fontSize: 13, color: '#888780', marginTop: 8 }}>Loading secure card form…</div>}
-                <div style={{ marginTop: 6 }}>
-                  <div id="vt-card-number" style={{ border: '0.5px solid #D3D1C7', borderRadius: 8, height: 40, marginBottom: 8, overflow: 'hidden' }} />
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <div id="vt-card-cvv" style={{ border: '0.5px solid #D3D1C7', borderRadius: 8, height: 40, width: 110, overflow: 'hidden' }} />
-                    <input value={vtExpMonth} onChange={e => setVtExpMonth(e.target.value.replace(/\D/g,'').slice(0,2))} placeholder="MM" maxLength={2}
-                      style={{ width: 54, fontSize: 14, padding: '10px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box', textAlign: 'center' }} />
-                    <span style={{ color: '#B4B2A9' }}>/</span>
-                    <input value={vtExpYear} onChange={e => setVtExpYear(e.target.value.replace(/\D/g,'').slice(0,4))} placeholder="YYYY" maxLength={4}
-                      style={{ width: 72, fontSize: 14, padding: '10px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box', textAlign: 'center' }} />
-                    <input value={vtZip} onChange={e => setVtZip(e.target.value.replace(/\D/g,'').slice(0,5))} placeholder="Zip" maxLength={5}
-                      style={{ flex: 1, fontSize: 14, padding: '10px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
-                  </div>
+                {/* Payment method toggle: Card vs Bank (ACH) */}
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#888780' }}>Payment method</label>
+                <div style={{ display: 'flex', gap: 8, margin: '6px 0 14px' }}>
+                  <button onClick={() => { setVtPayType('card'); setVtErr(''); }} style={{ flex: 1, fontSize: 13, fontWeight: 600, padding: '9px', borderRadius: 8, cursor: 'pointer', border: vtPayType === 'card' ? '1.5px solid #0F6E56' : '0.5px solid #D3D1C7', background: vtPayType === 'card' ? '#E8F3EE' : '#fff', color: vtPayType === 'card' ? '#0F6E56' : '#888780' }}>💳 Card</button>
+                  <button onClick={() => { setVtPayType('bank'); setVtErr(''); }} style={{ flex: 1, fontSize: 13, fontWeight: 600, padding: '9px', borderRadius: 8, cursor: 'pointer', border: vtPayType === 'bank' ? '1.5px solid #0F6E56' : '0.5px solid #D3D1C7', background: vtPayType === 'bank' ? '#E8F3EE' : '#fff', color: vtPayType === 'bank' ? '#0F6E56' : '#888780' }}>🏦 Bank (ACH)</button>
                 </div>
-                <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 8 }}>🔒 Card number & CVV are encrypted by Stax — never stored on our servers.</div>
+
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#888780' }}>{vtPayType === 'bank' ? 'Account holder name' : 'Cardholder name'}</label>
+                <input value={vtName} onChange={e => setVtName(e.target.value)} placeholder={vtPayType === 'bank' ? 'Name on account' : 'Name on card'}
+                  style={{ width: '100%', marginTop: 6, marginBottom: 12, fontSize: 14, padding: '10px 12px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
+
+                {vtPayType === 'card' ? (
+                  <>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#888780' }}>Card details</label>
+                    {!staxReady && <div style={{ fontSize: 13, color: '#888780', marginTop: 8 }}>Loading secure card form…</div>}
+                    <div style={{ marginTop: 6 }}>
+                      <div id="vt-card-number" style={{ border: '0.5px solid #D3D1C7', borderRadius: 8, height: 40, marginBottom: 8, overflow: 'hidden' }} />
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <div id="vt-card-cvv" style={{ border: '0.5px solid #D3D1C7', borderRadius: 8, height: 40, width: 110, overflow: 'hidden' }} />
+                        <input value={vtExpMonth} onChange={e => setVtExpMonth(e.target.value.replace(/\D/g,'').slice(0,2))} placeholder="MM" maxLength={2}
+                          style={{ width: 54, fontSize: 14, padding: '10px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box', textAlign: 'center' }} />
+                        <span style={{ color: '#B4B2A9' }}>/</span>
+                        <input value={vtExpYear} onChange={e => setVtExpYear(e.target.value.replace(/\D/g,'').slice(0,4))} placeholder="YYYY" maxLength={4}
+                          style={{ width: 72, fontSize: 14, padding: '10px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box', textAlign: 'center' }} />
+                        <input value={vtZip} onChange={e => setVtZip(e.target.value.replace(/\D/g,'').slice(0,5))} placeholder="Zip" maxLength={5}
+                          style={{ flex: 1, fontSize: 14, padding: '10px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 8 }}>🔒 Card number & CVV are encrypted by Stax — never stored on our servers.</div>
+                  </>
+                ) : (
+                  <>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#888780' }}>Bank details</label>
+                    <div style={{ marginTop: 6 }}>
+                      <input value={vtRouting} onChange={e => setVtRouting(e.target.value.replace(/\D/g,'').slice(0,9))} placeholder="Routing number (9 digits)" inputMode="numeric"
+                        style={{ width: '100%', marginBottom: 8, fontSize: 14, padding: '10px 12px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
+                      <input value={vtAccount} onChange={e => setVtAccount(e.target.value.replace(/\D/g,''))} placeholder="Account number" inputMode="numeric"
+                        style={{ width: '100%', marginBottom: 8, fontSize: 14, padding: '10px 12px', borderRadius: 8, border: '0.5px solid #D3D1C7', boxSizing: 'border-box' }} />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <select value={vtBankType} onChange={e => setVtBankType(e.target.value as any)} style={{ flex: 1, fontSize: 13, padding: '10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+                          <option value="checking">Checking</option>
+                          <option value="savings">Savings</option>
+                        </select>
+                        <select value={vtHolderType} onChange={e => setVtHolderType(e.target.value as any)} style={{ flex: 1, fontSize: 13, padding: '10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+                          <option value="personal">Personal</option>
+                          <option value="business">Business</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 8 }}>🔒 Bank details are encrypted by Stax — never stored on our servers. ACH typically settles in 3–5 business days.</div>
+                  </>
+                )}
                 {vtErr && <div style={{ color: '#b91c1c', fontSize: 13, marginTop: 10 }}>{vtErr}</div>}
                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                   <button onClick={() => { setVtStep('invoice'); setVtErr(''); }} disabled={vtBusy} style={{ flex: 1, fontSize: 13, padding: '12px', borderRadius: 8, border: '0.5px solid #E8E7E3', background: '#fff', color: '#888780', cursor: 'pointer' }}>Back</button>
-                  <button onClick={vtCharge} disabled={vtBusy || !staxReady} style={{ flex: 1.6, fontSize: 14, padding: '12px', borderRadius: 8, border: 'none', background: '#0F6E56', color: '#fff', fontWeight: 600, cursor: (vtBusy || !staxReady) ? 'wait' : 'pointer' }}>{vtBusy ? 'Processing…' : `Charge ${vtAmount ? money(parseFloat(vtAmount) || 0) : ''}`}</button>
+                  <button onClick={vtCharge} disabled={vtBusy || !staxReady} style={{ flex: 1.6, fontSize: 14, padding: '12px', borderRadius: 8, border: 'none', background: '#0F6E56', color: '#fff', fontWeight: 600, cursor: (vtBusy || !staxReady) ? 'wait' : 'pointer' }}>{vtBusy ? 'Processing…' : `${vtPayType === 'bank' ? 'Charge (ACH)' : 'Charge'} ${vtAmount ? money(parseFloat(vtAmount) || 0) : ''}`}</button>
                 </div>
               </>
             )}
