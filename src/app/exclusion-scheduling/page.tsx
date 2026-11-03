@@ -27,7 +27,8 @@ export default function ExclusionScheduling() {
 
   const statusStyle = (note: string): React.CSSProperties => {
     const n = (note || '').toLowerCase();
-    if (n.includes('pending')) return { background: '#FBF3E3', color: '#8A6D1F' };
+    // Pending = neutral "waiting" state (slate/blue) — kept clearly distinct from the amber under-allotted.
+    if (n.includes('pending')) return { background: '#EDF1F7', color: '#3A5680' };
     if (n.includes('matched')) return { background: '#E8F3EE', color: '#1D6E56' };
     if (n.includes('over')) return { background: '#FDF3F3', color: '#A32D2D' };
     if (n.includes('under')) return { background: '#FDF6EC', color: '#B5730F' };
@@ -122,7 +123,7 @@ export default function ExclusionScheduling() {
       )}
 
       <p style={{ fontSize: 11, color: '#B4B2A9', lineHeight: 1.6, marginTop: 10 }}>
-        Estimates fire automatically when a proposal is accepted in SmarterLaunch. Status: <b>Pending scheduling appointment</b> → awaiting the PM to book it in FieldRoutes; then <b style={{ color: '#1D6E56' }}>matched</b> / <b style={{ color: '#A32D2D' }}>over-allotted</b> / <b style={{ color: '#B5730F' }}>under-allotted</b> once booked.
+        Estimates fire automatically when a proposal is accepted in SmarterLaunch. Status: <b style={{ color: '#3A5680' }}>Pending scheduling appointment</b> → awaiting the PM to book it in FieldRoutes; then <b style={{ color: '#1D6E56' }}>matched</b> / <b style={{ color: '#A32D2D' }}>over-allotted</b> / <b style={{ color: '#B5730F' }}>under-allotted</b> once booked.
       </p>
     </div>
   );
