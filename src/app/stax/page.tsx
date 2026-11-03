@@ -126,7 +126,7 @@ export default function StaxPaymentsPage() {
     if (!FattJsCtor) { setVtErr('Secure payment library not available.'); return; }
     const fattjs = new FattJsCtor(token, {
       number: { id: 'vt-card-number', placeholder: 'Card number', style: 'height:38px;width:100%;font-size:14px;padding:0 10px;' },
-      cvv: { id: 'vt-card-cvv', placeholder: 'CVV', style: 'height:38px;width:100%;font-size:14px;padding:0 10px;' },
+      cvv: { id: 'vt-card-cvv', placeholder: 'CVV', style: 'height:38px;width:100%;font-size:14px;text-align:center;padding:0 8px;box-sizing:border-box;' },
     });
     fattRef.__vtFatt = fattjs;
     if (vtPayType === 'card') fattjs.showCardForm().catch(() => setVtErr('Could not display the card form.'));
