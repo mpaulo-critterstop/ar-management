@@ -21,7 +21,8 @@ const OFFICES: Record<string, { key: string; token: string; officeId: number }> 
   CStat: { key: process.env.FIELDROUTES_KEY_CSTAT!, token: process.env.FIELDROUTES_TOKEN_CSTAT!, officeId: 4 },
 };
 const ANNUAL_INSPECTION_SERVICE_ID = 533;
-const ENROLL_WINDOW_DAYS = 15; // enroll when due date is within this many days
+const ENROLL_WINDOW_DAYS = 15; // enroll AT 15 days before the due date
+const ENROLL_WINDOW_MIN = 13;  // ...with a small catch-up floor so a missed cron run doesn't skip a sub (no backlog)
 const ENROLL_WEBHOOK   = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/vRKCXGELTEdOmouvg6b3';
 const UNENROLL_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/nvZiDkSBMzQZKMaAY2a4/webhook-trigger/yfO3x7uoxSwZkiaxI4cy';
 const STATE_KEY = 'ai_reminder_state';
@@ -95,7 +96,10 @@ export async function GET(req: NextRequest) {
         if (!isScheduled && !wasEnrolled && nextService) {
           const due = new Date(nextService + 'T00:00:00Z');
           const days = Math.round((due.getTime() - today.getTime()) / 86400000);
-          if (days <= ENROLL_WINDOW_DAYS) {   // within window (includes overdue: days can be negative -> keep reminding)
+          // Enroll at 15 days before the due date. Uses a tight 13–15 day window (not just ==15) so a missed
+          // cron run doesn't skip a sub; dedup state still fires each sub only once. Deliberately EXCLUDES the
+          // long-overdue backlog (negative days) and anything further out — only genuinely upcoming inspections.
+          if (days >= ENROLL_WINDOW_MIN && days <= ENROLL_WINDOW_DAYS) {
             const cust = (await fr(`${BASE_URL}/customer/get?${auth}&customerIDs=${custId},${custId}`)).customers?.[0] || {};
             const payload = {
               first_name: cust.fname || '', last_name: cust.lname || '', email: cust.email || '',
