@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
     case 'logResponded': {
       if (row.respondedAt) return NextResponse.json({ error: 'already logged responded' }, { status: 409 });
       const d = new Date(b.date);
+      if (isNaN(d.getTime())) return NextResponse.json({ error: 'invalid date' }, { status: 400 });
       const end = recompute(d, row.promisedAt);
       await prisma.collectionsTracker.update({ where: { id }, data: { respondedAt: d, respondedLoggedAt: new Date(), countdownEnd: end, stage: row.stage === 'ACTION_DUE' ? 'COUNTDOWN' : row.stage } });
       return NextResponse.json({ ok: true });
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
     case 'logPromised': {
       if (row.promisedAt) return NextResponse.json({ error: 'already logged promised' }, { status: 409 });
       const d = new Date(b.date);
+      if (isNaN(d.getTime())) return NextResponse.json({ error: 'invalid date' }, { status: 400 });
       const end = recompute(row.respondedAt, d);
       await prisma.collectionsTracker.update({ where: { id }, data: { promisedAt: d, promisedLoggedAt: new Date(), countdownEnd: end, stage: row.stage === 'ACTION_DUE' ? 'COUNTDOWN' : row.stage } });
       return NextResponse.json({ ok: true });
@@ -110,6 +112,7 @@ export async function POST(req: NextRequest) {
     // Partial payment logged → reset countdown 15d from payment date, re-enable engagement.
     case 'partialReset': {
       const payDate = b.date ? new Date(b.date) : new Date();
+      if (isNaN(payDate.getTime())) return NextResponse.json({ error: 'invalid date' }, { status: 400 });
       await prisma.collectionsTracker.update({
         where: { id },
         data: { enteredAt: payDate, countdownEnd: computeCountdownEnd(cfg, payDate, null, null), respondedAt: null, respondedLoggedAt: null, promisedAt: null, promisedLoggedAt: null, stage: 'COUNTDOWN', lastPaymentAt: payDate },

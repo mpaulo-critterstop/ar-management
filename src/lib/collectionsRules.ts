@@ -72,20 +72,27 @@ export const daysBetween = (a: Date, b: Date) => Math.round((b.getTime() - a.get
 // Compute the current countdown deadline from entry + engagement (per Chisam's rules):
 //   base = entry + 15d. Responded → responseDate + 15d. Promised → promiseDate + 30d.
 // Promised supersedes Responded (it's +30 total from the promise date, the strongest grace).
+const isValidDate = (d: any): d is Date => d instanceof Date && !isNaN(d.getTime());
+
 export function computeCountdownEnd(cfg: CollectionsConfig, enteredAt: Date, respondedAt: Date | null, promisedAt: Date | null): Date {
-  if (promisedAt) return addDays(promisedAt, cfg.promisedExtensionDays);
-  if (respondedAt) return addDays(respondedAt, cfg.respondedExtensionDays);
-  return addDays(enteredAt, cfg.countdownDays);
+  // Guard every input: an invalid date (e.g. from a malformed client payload) must never flow into addDays,
+  // which would otherwise produce a year-0 countdownEnd and the "-739234 days left" display bug.
+  if (isValidDate(promisedAt)) return addDays(promisedAt as Date, cfg.promisedExtensionDays);
+  if (isValidDate(respondedAt)) return addDays(respondedAt as Date, cfg.respondedExtensionDays);
+  const base = isValidDate(enteredAt) ? enteredAt : new Date(); // fall back to now if enteredAt is bad
+  return addDays(base, cfg.countdownDays);
 }
 
 // Derive display state for a tracker row (days left, flags) — read-only, computed live.
 export function deriveState(cfg: CollectionsConfig, row: {
   stage: string; countdownEnd: Date; sentAt: Date | null; track: string;
 }, now = new Date()) {
-  const daysLeft = daysBetween(now, row.countdownEnd);
+  // Guard against a corrupt/missing countdownEnd (would otherwise show a nonsense "-739234 days left").
+  const countdownEndValid = row.countdownEnd instanceof Date && !isNaN(row.countdownEnd.getTime()) && row.countdownEnd.getFullYear() > 2000;
+  const daysLeft = countdownEndValid ? daysBetween(now, row.countdownEnd) : null;
   const isCountdownStage = row.stage === 'COUNTDOWN' || row.stage === 'FINAL_WARNING';
-  const finalWarning = isCountdownStage && daysLeft <= cfg.finalWarningDaysLeft && daysLeft > 0;
-  const actionDue = isCountdownStage && daysLeft <= 0; // 0-day: send to ARM / file SCC
+  const finalWarning = isCountdownStage && daysLeft !== null && daysLeft <= cfg.finalWarningDaysLeft && daysLeft > 0;
+  const actionDue = isCountdownStage && daysLeft !== null && daysLeft <= 0; // 0-day: send to ARM / file SCC
   // post-action → bad-debt proposal window
   let badDebtDueInDays: number | null = null;
   if (row.stage === 'SENT' && row.sentAt) {

@@ -166,8 +166,11 @@ export async function GET(req: NextRequest) {
     if (row.stage === 'COUNTDOWN' || row.stage === 'FINAL_WARNING') {
       const deadline = computeCountdownEnd(cfg, row.enteredAt, row.respondedAt, row.promisedAt);
       const daysLeft = daysBetween(now, deadline);
-      // keep countdownEnd in sync (in case engagement changed it)
-      const needsDeadlineFix = Math.abs(deadline.getTime() - row.countdownEnd.getTime()) > 1000;
+      // keep countdownEnd in sync (in case engagement changed it, or the stored value is corrupt/invalid —
+      // e.g. a year-0 date from an old bad write, which caused the "-739234 days left" display).
+      const storedMs = row.countdownEnd instanceof Date ? row.countdownEnd.getTime() : NaN;
+      const storedValid = !isNaN(storedMs) && new Date(storedMs).getFullYear() > 2000;
+      const needsDeadlineFix = !storedValid || Math.abs(deadline.getTime() - storedMs) > 1000;
       if (daysLeft <= 0) {
         res.toActionDue++;
         details.push({ action: 'ACTION_DUE', track: row.track, invoice: row.invoiceNumber });

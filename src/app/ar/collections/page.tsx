@@ -42,6 +42,7 @@ export default function CollectionsTrackerPage() {
     const d = row.daysLeft;
     if (row.actionDue) return <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, background: '#FCEBEB', color: '#b91c1c', fontWeight: 700 }}>⚑ 0 days — ACTION DUE</span>;
     if (row.finalWarning) return <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, background: '#FBF3E5', color: '#BA7517', fontWeight: 700 }}>⚠ {d}d left — final warning</span>;
+    if (d === null || d === undefined) return <span style={{ fontSize: 12, color: '#B4B2A9' }}>—</span>;
     return <span style={{ fontSize: 12, color: '#2C2C2A', fontWeight: 500 }}>{d} days left</span>;
   }
 
