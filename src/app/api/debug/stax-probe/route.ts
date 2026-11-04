@@ -77,6 +77,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ action: 'paymentlink', status: link.status, link: link.json });
     }
 
+    if (action === 'customers') {
+      // List recent Stax customers to confirm the 'reference' field (FR-<id>) is returned.
+      const c = await sx('/customer?keyword=&page=1&per_page=15');
+      const data = c.json?.data || c.json || [];
+      const slim = (Array.isArray(data) ? data : []).map((x: any) => ({ id: x.id, name: `${x.firstname||''} ${x.lastname||''}`.trim(), phone: x.phone, email: x.email, reference: x.reference }));
+      return NextResponse.json({ action: 'customers', status: c.status, count: slim.length, customers: slim });
+    }
+
     if (action === 'webhooks') {
       // List webhooks registered on the current (live) Stax account.
       const w = await sx('/webhook');
