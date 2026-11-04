@@ -36,7 +36,7 @@ function frInvoiceFromStax(txn: any): string | null {
   );
 }
 
-type StaxResult = { status: string; reason?: string };
+type StaxResult = { status: string; reason?: string; frPaymentId?: string | null; frCustomerId?: string | null };
 
 // Issue a refund (or void) for a Stax transaction via the API. Stax's /void-or-refund voids if the txn is
 // unsettled, refunds if settled. Pass `total` for a partial refund; omit for a full refund. Then records the
@@ -224,7 +224,37 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
   if (!success) return fail(`not approved (status=${txn?.status})`, 'skipped');
   if (!amount || amount <= 0) return fail('amount <= 0', 'skipped');
   const frInvoice = frInvoiceFromStax(txn);
-  if (!frInvoice) return fail('no fr_invoice on Stax txn meta — cannot match to FR', 'flagged');
+
+  // ONSITE PAYMENTS (PM mobile reader): no fr_invoice on the txn, but the Stax customer has a reference holding
+  // the FR customer id (e.g. "FR-12345" or "12345"). We can't auto-apply (no invoice yet) — we record it as an
+  // 'onsite' payment tagged with the FR customer, so a CSR can later Link it to an invoice. Without a reference
+  // it's a true phantom (can't be safely matched — multiple customers can pay the same amount).
+  if (!frInvoice) {
+    const staxCustId = txn?.customer_id || txn?.customer?.id || null;
+    let frCustId: string | null = null;
+    let custName: string | null = txn?.payment_method?.person_name || txn?.person_name || null;
+    if (staxCustId) {
+      try {
+        const cr = await fetch(`${STAX_BASE}/customer/${staxCustId}`, { headers: staxHeaders() });
+        const cj = await cr.json().catch(() => null);
+        const ref = String(cj?.reference || '').trim();
+        // Flexible: accept "FR-12345", "FR12345", or bare "12345" — take the digits.
+        const digits = ref.replace(/\D/g, '');
+        if (digits) frCustId = digits;
+        if (!custName) custName = `${cj?.firstname || ''} ${cj?.lastname || ''}`.trim() || null;
+      } catch { /* leave frCustId null */ }
+    }
+    if (frCustId) {
+      // Record as an onsite payment awaiting link-to-invoice.
+      await prisma.staxPayment.upsert({
+        where: { staxTransactionId },
+        create: { staxTransactionId, status: 'onsite', amount: amount || 0, source, frCustomerId: frCustId, cardHolderName: custName, staxCustomerId: staxCustId, cardLast4: txn?.payment_method?.card_last_four || null },
+        update: { status: 'onsite', frCustomerId: frCustId, cardHolderName: custName, staxCustomerId: staxCustId },
+      });
+      return { status: 'onsite', frCustomerId: frCustId };
+    }
+    return fail('onsite payment with no customer reference — cannot identify (phantom)', 'flagged');
+  }
 
   const inv = await findInvoiceInFR(String(frInvoice));
   if (!inv) return fail(`FR invoice ${frInvoice} not found in any office`, 'flagged');

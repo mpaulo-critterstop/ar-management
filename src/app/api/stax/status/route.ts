@@ -20,12 +20,22 @@ export async function GET(_req: NextRequest) {
   // Anyone with Stax Payments module access can view the Payment Report (Admin + Manager auto; others if granted).
   if (!canAccessModule(session.user as any, 'helcim')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const [writtenRaw, flaggedRaw, failedRaw, pendingRaw] = await Promise.all([
+  const ONSITE_SELECT = { ...SELECT, frCustomerId: true, cardHolderName: true } as const;
+  const [writtenRaw, flaggedRaw, failedRaw, pendingRaw, onsiteRaw] = await Promise.all([
     prisma.staxPayment.findMany({ where: { status: 'written' }, orderBy: { processedAt: 'desc' }, take: 1000, select: SELECT }).catch(() => [] as any[]),
     prisma.staxPayment.findMany({ where: { status: 'flagged' }, orderBy: { createdAt: 'desc' }, take: 200, select: SELECT }).catch(() => [] as any[]),
     prisma.staxPayment.findMany({ where: { status: 'failed' }, orderBy: { createdAt: 'desc' }, take: 200, select: SELECT }).catch(() => [] as any[]),
     prisma.staxPayment.findMany({ where: { status: 'pending' }, orderBy: { createdAt: 'desc' }, take: 200, select: SELECT }).catch(() => [] as any[]),
+    prisma.staxPayment.findMany({ where: { status: 'onsite' }, orderBy: { createdAt: 'desc' }, take: 500, select: ONSITE_SELECT }).catch(() => [] as any[]),
   ]);
+  // Resolve FR customer names for onsite payments (from our DB, by externalId = FR customer id).
+  const onsiteCustIds = [...new Set(onsiteRaw.map((r: any) => r.frCustomerId).filter(Boolean))] as string[];
+  const custNameById = new Map<string, string>();
+  if (onsiteCustIds.length) {
+    const cs = await prisma.customer.findMany({ where: { externalId: { in: onsiteCustIds } }, select: { externalId: true, name: true } }).catch(() => [] as any[]);
+    for (const c of cs) if (c.externalId) custNameById.set(c.externalId, c.name);
+  }
+  const onsite = onsiteRaw.map((r: any) => ({ ...r, frCustomerName: r.frCustomerId ? (custNameById.get(r.frCustomerId) || null) : null }));
 
   // Which original txns were refunded (a refund:<origId> marker exists)?
   const refundedOrigIds = new Set<string>();
@@ -49,7 +59,8 @@ export async function GET(_req: NextRequest) {
       flagged: { count: flagged.length, total: sum(flagged) },
       failed: { count: failed.length, total: sum(failed) },
       pending: { count: pending.length, total: sum(pending) },
+      onsite: { count: onsite.length, total: sum(onsite) },
     },
-    recorded, refunded, flagged, failed, pending,
+    recorded, refunded, flagged, failed, pending, onsite,
   });
 }

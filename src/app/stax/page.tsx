@@ -12,7 +12,7 @@ const method = (m: number) => ({ 1: 'Cash', 2: 'Check', 3: 'Card', 4: 'ACH' } as
 export default function StaxPaymentsPage() {
   const { data: session } = useSession();
   const allowRefund = canRefund(session?.user as any);
-  const [tab, setTab] = useState<'links' | 'report'>('links');
+  const [tab, setTab] = useState<'links' | 'report' | 'onsite'>('links');
   const [report, setReport] = useState<any>(null);
   const [office, setOffice] = useState('DFW');
   const [invoice, setInvoice] = useState('');
@@ -65,6 +65,17 @@ export default function StaxPaymentsPage() {
 
   const loadLinks = () => fetch('/api/stax/payment-link').then(r => r.json()).then(d => setLinks(d.links || [])).catch(() => {});
   const loadReport = () => fetch('/api/stax/status').then(r => r.json()).then(setReport).catch(() => {});
+
+  async function linkOnsite(staxTransactionId: string, suggested: string) {
+    const invoiceNumber = window.prompt('Enter the FieldRoutes invoice # to link this payment to:', suggested || '');
+    if (!invoiceNumber || !invoiceNumber.trim()) return;
+    try {
+      const r = await fetch('/api/stax/link-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ staxTransactionId, invoiceNumber: invoiceNumber.trim() }) });
+      const j = await r.json();
+      if (j.ok && j.linked) { alert(`Linked to invoice #${invoiceNumber.trim()} and recorded to FieldRoutes.`); loadReport(); }
+      else { alert('Could not link: ' + (j.error || 'unknown error') + '. The payment stays in Onsite Payments.'); loadReport(); }
+    } catch (e) { alert('Link failed: ' + String(e)); }
+  }
   useEffect(() => { loadLinks(); loadReport(); }, []);
 
   async function send() {
@@ -219,8 +230,8 @@ export default function StaxPaymentsPage() {
       <p style={{ fontSize: 13, color: '#888780', margin: '0 0 20px' }}>Send a customer a payment link for a specific invoice. Payments record back into FieldRoutes automatically.</p>
 
       <div style={{ display: 'flex', gap: 4, background: '#f1efe8', borderRadius: 8, padding: 3, width: 'fit-content', marginBottom: 24 }}>
-        {(['links', 'report'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ fontSize: 13, padding: '7px 18px', borderRadius: 6, border: 'none', cursor: 'pointer', background: tab === t ? '#fff' : 'transparent', color: tab === t ? '#2C2C2A' : '#888780', fontWeight: tab === t ? 600 : 400 }}>{t === 'links' ? `Payment Links (${links.length})` : 'Payment Report'}</button>
+        {(['links', 'report', 'onsite'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ fontSize: 13, padding: '7px 18px', borderRadius: 6, border: 'none', cursor: 'pointer', background: tab === t ? '#fff' : 'transparent', color: tab === t ? '#2C2C2A' : '#888780', fontWeight: tab === t ? 600 : 400 }}>{t === 'links' ? `Payment Links (${links.length})` : t === 'report' ? 'Payment Report' : `Onsite Payments${report?.onsite?.length ? ` (${report.onsite.length})` : ''}`}</button>
         ))}
       </div>
 
@@ -321,6 +332,40 @@ export default function StaxPaymentsPage() {
             </div>
           </div>
         </>);
+      })()}
+
+      {/* ---- Onsite Payments tab (PM mobile-reader payments awaiting link to an invoice) ---- */}
+      {tab === 'onsite' && (() => {
+        const rows = report?.onsite || [];
+        return (
+          <div>
+            <div style={{ fontSize: 13, color: '#888780', marginBottom: 14 }}>
+              Payments taken onsite via the Stax mobile reader (no invoice at capture). Identified by the customer&apos;s reference (FR customer ID). Once the invoice is created in FieldRoutes, click <b>Link to invoice</b> — the payment then moves into the Payment Report.
+            </div>
+            {rows.length === 0 ? (
+              <div style={{ fontSize: 14, color: '#B4B2A9', padding: '24px 0', textAlign: 'center' }}>No onsite payments awaiting link.</div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead><tr style={{ borderBottom: '1px solid #E8E7E3' }}>
+                  <th style={thC}>Stax Txn</th><th style={thR}>Amount</th><th style={thC}>Customer</th><th style={thC}>FR Cust ID</th><th style={thC}>Last Four</th><th style={thC}>When</th><th style={thC}>Action</th>
+                </tr></thead>
+                <tbody>
+                  {rows.map((r: any) => (
+                    <tr key={r.id} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
+                      <td style={tdC}>{String(r.staxTransactionId).slice(0, 8)}…</td>
+                      <td style={tdR}>{money(r.amount)}</td>
+                      <td style={tdC}>{r.frCustomerName || <span style={{ color: '#B4B2A9' }}>— (not in DB)</span>}</td>
+                      <td style={tdC}>{r.frCustomerId || '—'}</td>
+                      <td style={tdC}>{r.cardLast4 ? `•••• ${r.cardLast4}` : '—'}</td>
+                      <td style={tdC}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
+                      <td style={tdC}><button onClick={() => linkOnsite(r.staxTransactionId, '')} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 6, border: 'none', background: '#0F6E56', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Link to invoice</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        );
       })()}
 
       {modalOpen && (
