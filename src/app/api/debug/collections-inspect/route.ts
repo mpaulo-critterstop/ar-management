@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     const daysLeft = daysBetween(now, deadline);
     const respBad = r.respondedAt && r.enteredAt && new Date(r.respondedAt) < new Date(r.enteredAt);
     const promBad = r.promisedAt && r.enteredAt && new Date(r.promisedAt) < new Date(r.enteredAt);
-    const expiredViaEngagement = (r.respondedAt || r.promisedAt) && daysLeft < -1;
+    const expiredViaEngagement = daysLeft < -1;
     if (respBad || promBad || expiredViaEngagement) {
       bad.push({ id: r.id, invoice: r.invoiceNumber, customer: r.customerName, enteredAt: r.enteredAt, respondedAt: r.respondedAt, promisedAt: r.promisedAt, daysLeft, respBad, promBad });
     }
