@@ -54,6 +54,11 @@ export default function CollectionsTrackerPage() {
         {row.respondedAt && row.promisedAt ? ' · ' : null}
         {row.promisedAt ? <span style={{ color: '#0F6E56' }}>Promised {fmt(row.promisedAt)}</span> : null}
         {!row.respondedAt && !row.promisedAt ? <span style={{ color: '#B4B2A9' }}>no engagement</span> : null}
+        {row.lastOutreachAt ? (
+          <span style={{ display: 'block', color: '#888780', marginTop: 2 }}>
+            📞 Called {fmt(row.lastOutreachAt)}{row.outreachCount > 1 ? ` (${row.outreachCount}×)` : ''}
+          </span>
+        ) : null}
       </span>
     );
   }

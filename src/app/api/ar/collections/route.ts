@@ -21,6 +21,45 @@ export async function GET(req: NextRequest) {
     take: 2000,
   });
 
+  // DialPad outreach signal: for each row, find the latest OUTBOUND call to the customer's phone made AFTER the
+  // invoice entered collections (answered or not — these customers often don't pick up; "we tried" is the signal).
+  // Match on the last 10 digits of the phone (robust against +1 / formatting differences).
+  const custIds = [...new Set(rows.map(r => r.customerId).filter(Boolean))] as string[];
+  const phoneByCust = new Map<string, string>();
+  if (custIds.length) {
+    const custs = await prisma.customer.findMany({ where: { id: { in: custIds } }, select: { id: true, phone: true } });
+    for (const c of custs) if (c.phone) phoneByCust.set(c.id, c.phone.replace(/\D/g, '').slice(-10));
+  }
+  const phones = [...new Set([...phoneByCust.values()].filter(p => p.length === 10))];
+  // outreach: phone10 -> list of {date} outbound calls
+  const outreachByPhone = new Map<string, number[]>();
+  if (phones.length) {
+    // dialpad_calls.external_number stores the raw number; match last 10 digits, outbound only.
+    const calls = await prisma.$queryRaw<Array<{ ext: string; ds: bigint }>>`
+      SELECT external_number AS ext, date_started AS ds
+      FROM dialpad_calls
+      WHERE direction = 'outbound'
+        AND external_number IS NOT NULL AND external_number != ''
+        AND date_started IS NOT NULL
+        AND RIGHT(regexp_replace(external_number, '\\D', '', 'g'), 10) = ANY(${phones})
+    `;
+    for (const c of calls) {
+      const p10 = String(c.ext).replace(/\D/g, '').slice(-10);
+      if (!outreachByPhone.has(p10)) outreachByPhone.set(p10, []);
+      outreachByPhone.get(p10)!.push(Number(c.ds));
+    }
+  }
+  // helper: latest outbound call to this customer after they entered collections
+  const outreachFor = (customerId: string | null, enteredAt: Date) => {
+    if (!customerId) return { lastOutreachAt: null as string | null, outreachCount: 0 };
+    const p10 = phoneByCust.get(customerId);
+    if (!p10) return { lastOutreachAt: null, outreachCount: 0 };
+    const enteredMs = enteredAt ? new Date(enteredAt).getTime() : 0;
+    const after = (outreachByPhone.get(p10) || []).filter(ms => ms >= enteredMs);
+    if (!after.length) return { lastOutreachAt: null, outreachCount: 0 };
+    return { lastOutreachAt: new Date(Math.max(...after)).toISOString(), outreachCount: after.length };
+  };
+
   const shaped = rows.map(r => ({
     id: r.id, invoiceNumber: r.invoiceNumber, customerName: r.customerName, office: r.office,
     amount: r.amount, dueDate: r.dueDate, track: r.track, stage: r.stage,
@@ -29,6 +68,7 @@ export async function GET(req: NextRequest) {
     sentAt: r.sentAt, armSubtype: r.armSubtype, badDebtProposedAt: r.badDebtProposedAt, badDebtApprovedAt: r.badDebtApprovedAt,
     // recommended ARM routing for Collections rows not yet sent (what the Send button will do)
     recommendedArm: r.track === 'COLLECTIONS' ? (r.amount >= cfg.contingencyThreshold ? 'CONTINGENCY' : 'FLAT_RATE') : null,
+    ...outreachFor(r.customerId, r.enteredAt),
     ...deriveState(cfg, r, now),
   }));
 
