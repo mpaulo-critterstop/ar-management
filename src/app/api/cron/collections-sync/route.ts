@@ -31,6 +31,8 @@ export async function GET(req: NextRequest) {
     if (sp.get('liveMode') !== null) next.liveMode = sp.get('liveMode') === 'true';
     if (sp.get('maxEntriesPerRun') !== null) next.maxEntriesPerRun = parseInt(sp.get('maxEntriesPerRun')!);
     if (sp.get('maxDaysPastDue') !== null) next.maxDaysPastDue = sp.get('maxDaysPastDue') === 'null' ? null : parseInt(sp.get('maxDaysPastDue')!);
+    if (sp.get('respondedExtensionDays') !== null) next.respondedExtensionDays = parseInt(sp.get('respondedExtensionDays')!);
+    if (sp.get('promisedExtensionDays') !== null) next.promisedExtensionDays = parseInt(sp.get('promisedExtensionDays')!);
     await prisma.appSetting.upsert({
       where: { key: 'collections_config' },
       create: { key: 'collections_config', value: JSON.stringify(next) },

@@ -33,8 +33,8 @@ export const DEFAULT_CONFIG: CollectionsConfig = {
   sccEntryDays: 60,
   countdownDays: 15,
   finalWarningDaysLeft: 7,
-  respondedExtensionDays: 15,
-  promisedExtensionDays: 30,
+  respondedExtensionDays: 7,   // Responded → response date + 7 days
+  promisedExtensionDays: 15,   // Promised → promise date + 15 days
   // ARM marks accounts "Treatment complete" ~day 59-60 after being sent; set the bad-debt-proposal
   // trigger to 60d so it fires when ARM has actually finished, not before. Total: 120d Collections.
   badDebtDaysAfterARM: 60,
