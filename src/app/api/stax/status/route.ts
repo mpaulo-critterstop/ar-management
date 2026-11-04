@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { canAccessModule } from '@/lib/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,8 @@ const isRefundMarker = (r: any) => String(r.staxTransactionId || '').startsWith(
 export async function GET(_req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if ((session.user as any)?.role !== 'Admin') return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 });
+  // Anyone with Stax Payments module access can view the Payment Report (Admin + Manager auto; others if granted).
+  if (!canAccessModule(session.user as any, 'helcim')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const [writtenRaw, flaggedRaw, failedRaw, pendingRaw] = await Promise.all([
     prisma.staxPayment.findMany({ where: { status: 'written' }, orderBy: { processedAt: 'desc' }, take: 1000, select: SELECT }).catch(() => [] as any[]),
