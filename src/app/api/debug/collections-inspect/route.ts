@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const now = new Date();
 
   const rows = await prisma.collectionsTracker.findMany({
-    where: { stage: { in: ['COUNTDOWN', 'FINAL_WARNING'] } },
+    where: { stage: { notIn: ['REMOVED'] } },  // match the page — all visible stages, not just countdown
     select: { id: true, invoiceNumber: true, customerName: true, enteredAt: true, respondedAt: true, promisedAt: true, respondedLoggedAt: true, promisedLoggedAt: true, countdownEnd: true, stage: true },
   });
 
