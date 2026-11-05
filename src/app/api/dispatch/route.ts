@@ -49,8 +49,9 @@ export async function GET(req: NextRequest) {
       where.exclusionDone = true;
       where.hasFAR = true;
       where.farDone = false;
-      where.trapsDone = true;
       where.closedOut = false;
+      // trapping must be done OR the job has no trapping (matches the KPI's (!hasTrapping || trapsDone))
+      where.OR = [{ hasTrapping: false }, { trapsDone: true }];
     } else if (stageFilter === 'needs_attention') {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -86,12 +87,14 @@ export async function GET(req: NextRequest) {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+    // SEQUENTIAL stages — each active job counts in exactly ONE stage bucket by its CURRENT stage (no overlap).
+    // Order: Exclusion pending -> Trap checks -> FAR pending -> done. A job only advances once the prior stage is done.
     const kpis = {
-  total: allActive.length,
-  exclusionPending: allActive.filter(j => !j.exclusionDone).length,
-  trapChecks: allActive.filter(j => j.hasTrapping && !j.trapsDone).length,
-  farPending: allActive.filter(j => j.exclusionDone && (!j.hasTrapping || j.trapsDone) && j.hasFAR && !j.farDone && !j.closedOut).length,
-  needsAttention: allActive.filter(j =>
+  total: allActive.length,
+  exclusionPending: allActive.filter(j => !j.exclusionDone).length,
+  trapChecks: allActive.filter(j => j.exclusionDone && j.hasTrapping && !j.trapsDone).length,
+  farPending: allActive.filter(j => j.exclusionDone && (!j.hasTrapping || j.trapsDone) && j.hasFAR && !j.farDone && !j.closedOut).length,
+  needsAttention: allActive.filter(j =>
     (!j.closedOut && j.updatedAt < sevenDaysAgo) ||
     (j.hasTrapping && j.trapCheckCount >= 3 && !j.trapsDone)
   ).length,
