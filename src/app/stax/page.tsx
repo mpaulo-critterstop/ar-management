@@ -274,7 +274,7 @@ export default function StaxPaymentsPage() {
       {tab === 'report' && report && (() => {
         const s = report.summary || {};
         const q = reportSearch.trim().toLowerCase();
-        const byInv = (arr: any[]) => (arr || []).filter((r: any) => !q || String(r.frInvoiceNumber || '').toLowerCase().includes(q));
+        const byInv = (arr: any[]) => (arr || []).filter((r: any) => !q || String(r.frInvoiceNumber || '').toLowerCase().includes(q) || String(r.customerName || '').toLowerCase().includes(q));
         const tiles: Array<{ key: typeof reportStatus; label: string; color: string }> = [
           { key: 'recorded', label: 'Recorded in FR', color: '#128a3f' },
           { key: 'refunded', label: 'Refunded', color: '#64748b' },
@@ -308,7 +308,7 @@ export default function StaxPaymentsPage() {
             <div style={{ maxHeight: 520, overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>
-                  <th style={thC}>Stax Txn</th><th style={thR}>Amount</th><th style={thC}>Office</th><th style={thC}>Invoice #</th><th style={thC}>Method</th><th style={thC}>Last Four</th><th style={thC}>Via</th><th style={thC}>When</th>
+                  <th style={thC}>Stax Txn</th><th style={thR}>Amount</th><th style={thC}>Customer</th><th style={thC}>Office</th><th style={thC}>Invoice #</th><th style={thC}>Method</th><th style={thC}>Last Four</th><th style={thC}>Via</th><th style={thC}>When</th>
                   {withReason && <th style={thC}>Reason</th>}
                   {withRefund && <th style={thC}>Refund</th>}
                 </tr></thead>
@@ -317,6 +317,7 @@ export default function StaxPaymentsPage() {
                     <tr key={r.id || r.staxTransactionId}>
                       <td style={tdC}>{r.staxTransactionId}</td>
                       <td style={tdR}>{money(r.amount)}</td>
+                      <td style={tdC}>{r.customerName || '—'}</td>
                       <td style={tdC}>{r.office || '—'}</td>
                       <td style={tdC}>{r.frInvoiceNumber || '—'}</td>
                       <td style={tdC}>{method(r.frPaymentMethod)}</td>
@@ -327,7 +328,7 @@ export default function StaxPaymentsPage() {
                       {withRefund && <td style={tdC}><button onClick={() => setRefundModal({ txnId: r.staxTransactionId, invoice: r.frInvoiceNumber, amount: r.amount })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #b91c1c', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}>Refund</button></td>}
                     </tr>
                   ))}
-                  {!rows.length && <tr><td colSpan={8 + (withReason ? 1 : 0) + (withRefund ? 1 : 0)} style={{ ...tdC, color: '#888780', padding: 18 }}>{q ? 'No matches.' : 'None.'}</td></tr>}
+                  {!rows.length && <tr><td colSpan={9 + (withReason ? 1 : 0) + (withRefund ? 1 : 0)} style={{ ...tdC, color: '#888780', padding: 18 }}>{q ? 'No matches.' : 'None.'}</td></tr>}
                 </tbody>
               </table>
             </div>
