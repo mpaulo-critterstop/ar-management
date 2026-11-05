@@ -12,7 +12,7 @@ const method = (m: number) => ({ 1: 'Cash', 2: 'Check', 3: 'Card', 4: 'ACH' } as
 export default function StaxPaymentsPage() {
   const { data: session } = useSession();
   const allowRefund = canRefund(session?.user as any);
-  const [tab, setTab] = useState<'links' | 'report' | 'onsite' | 'declined'>('links');
+  const [tab, setTab] = useState<'links' | 'report' | 'onsite'>('links');
   const [report, setReport] = useState<any>(null);
   const [office, setOffice] = useState('DFW');
   const [invoice, setInvoice] = useState('');
@@ -28,7 +28,7 @@ export default function StaxPaymentsPage() {
   const [refundAmt, setRefundAmt] = useState('');
   const [linkSearch, setLinkSearch] = useState('');
   const [reportSearch, setReportSearch] = useState('');
-  const [reportStatus, setReportStatus] = useState<'recorded'|'refunded'|'flagged'|'failed'|'pending'>('recorded');
+  const [reportStatus, setReportStatus] = useState<'recorded'|'refunded'|'flagged'|'failed'|'declined'|'pending'>('recorded');
   // Virtual terminal (Take Payment over the phone)
   const [vtOpen, setVtOpen] = useState(false);
   const [vtStep, setVtStep] = useState<'invoice'|'card'>('invoice');
@@ -230,8 +230,8 @@ export default function StaxPaymentsPage() {
       <p style={{ fontSize: 13, color: '#888780', margin: '0 0 20px' }}>Send a customer a payment link for a specific invoice. Payments record back into FieldRoutes automatically.</p>
 
       <div style={{ display: 'flex', gap: 4, background: '#f1efe8', borderRadius: 8, padding: 3, width: 'fit-content', marginBottom: 24 }}>
-        {(['links', 'report', 'onsite', 'declined'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ fontSize: 13, padding: '7px 18px', borderRadius: 6, border: 'none', cursor: 'pointer', background: tab === t ? '#fff' : 'transparent', color: tab === t ? '#2C2C2A' : '#888780', fontWeight: tab === t ? 600 : 400 }}>{t === 'links' ? `Payment Links (${links.length})` : t === 'report' ? 'Payment Report' : t === 'onsite' ? `Onsite Payments${report?.onsite?.length ? ` (${report.onsite.length})` : ''}` : `Declined${report?.declined?.length ? ` (${report.declined.length})` : ''}`}</button>
+        {(['links', 'report', 'onsite'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ fontSize: 13, padding: '7px 18px', borderRadius: 6, border: 'none', cursor: 'pointer', background: tab === t ? '#fff' : 'transparent', color: tab === t ? '#2C2C2A' : '#888780', fontWeight: tab === t ? 600 : 400 }}>{t === 'links' ? `Payment Links (${links.length})` : t === 'report' ? 'Payment Report' : `Onsite Payments${report?.onsite?.length ? ` (${report.onsite.length})` : ''}`}</button>
         ))}
       </div>
 
@@ -280,11 +280,12 @@ export default function StaxPaymentsPage() {
           { key: 'refunded', label: 'Refunded', color: '#64748b' },
           { key: 'flagged', label: 'Flagged', color: s.flagged?.count ? '#b91c1c' : '#888780' },
           { key: 'failed', label: 'Failed', color: s.failed?.count ? '#b91c1c' : '#888780' },
+          { key: 'declined', label: 'Declined', color: s.declined?.count ? '#A32D2D' : '#888780' },
           { key: 'pending', label: 'Pending', color: '#BA7517' },
         ];
         const active = tiles.find(t => t.key === reportStatus)!;
         const rows = byInv(report[reportStatus] || []);
-        const withReason = reportStatus === 'flagged' || reportStatus === 'failed';
+        const withReason = reportStatus === 'flagged' || reportStatus === 'failed' || reportStatus === 'declined';
         const withRefund = reportStatus === 'recorded' && allowRefund;
         return (<>
           <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -359,40 +360,6 @@ export default function StaxPaymentsPage() {
                       <td style={tdC}>{r.cardLast4 ? `•••• ${r.cardLast4}` : '—'}</td>
                       <td style={tdC}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
                       <td style={tdC}><button onClick={() => linkOnsite(r.staxTransactionId, '')} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 6, border: 'none', background: '#0F6E56', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Link to invoice</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* ---- Declined tab (card declines — team follows up with the customer) ---- */}
-      {tab === 'declined' && (() => {
-        const rows = report?.declined || [];
-        return (
-          <div>
-            <div style={{ fontSize: 13, color: '#888780', marginBottom: 14 }}>
-              Card payments that were <b>declined</b> by the processor (e.g. insufficient funds, expired card). Reach out to the customer to arrange another payment method.
-            </div>
-            {rows.length === 0 ? (
-              <div style={{ fontSize: 14, color: '#B4B2A9', padding: '24px 0', textAlign: 'center' }}>No declined payments.</div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr style={{ borderBottom: '1px solid #E8E7E3' }}>
-                  <th style={thC}>Stax Txn</th><th style={thR}>Amount</th><th style={thC}>Customer</th><th style={thC}>Invoice #</th><th style={thC}>Last Four</th><th style={thC}>Reason</th><th style={thC}>When</th>
-                </tr></thead>
-                <tbody>
-                  {rows.map((r: any) => (
-                    <tr key={r.id} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
-                      <td style={tdC}>{String(r.staxTransactionId).slice(0, 8)}…</td>
-                      <td style={tdR}>{money(r.amount)}</td>
-                      <td style={tdC}>{r.cardHolderName || '—'}</td>
-                      <td style={tdC}>{r.frInvoiceNumber || '—'}</td>
-                      <td style={tdC}>{r.cardLast4 ? `•••• ${r.cardLast4}` : '—'}</td>
-                      <td style={{ ...tdC, color: '#A32D2D', maxWidth: 220, whiteSpace: 'normal' }}>{r.failReason || 'Declined'}</td>
-                      <td style={tdC}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
