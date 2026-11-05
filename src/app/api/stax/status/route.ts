@@ -21,12 +21,14 @@ export async function GET(_req: NextRequest) {
   if (!canAccessModule(session.user as any, 'helcim')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const ONSITE_SELECT = { ...SELECT, frCustomerId: true, cardHolderName: true } as const;
-  const [writtenRaw, flaggedRaw, failedRaw, pendingRaw, onsiteRaw] = await Promise.all([
+  const DECLINED_SELECT = { ...SELECT, cardHolderName: true, failReason: true } as const;
+  const [writtenRaw, flaggedRaw, failedRaw, pendingRaw, onsiteRaw, declinedRaw] = await Promise.all([
     prisma.staxPayment.findMany({ where: { status: 'written' }, orderBy: { processedAt: 'desc' }, take: 1000, select: SELECT }).catch(() => [] as any[]),
     prisma.staxPayment.findMany({ where: { status: 'flagged' }, orderBy: { createdAt: 'desc' }, take: 200, select: SELECT }).catch(() => [] as any[]),
     prisma.staxPayment.findMany({ where: { status: 'failed' }, orderBy: { createdAt: 'desc' }, take: 200, select: SELECT }).catch(() => [] as any[]),
     prisma.staxPayment.findMany({ where: { status: 'pending' }, orderBy: { createdAt: 'desc' }, take: 200, select: SELECT }).catch(() => [] as any[]),
     prisma.staxPayment.findMany({ where: { status: 'onsite' }, orderBy: { createdAt: 'desc' }, take: 500, select: ONSITE_SELECT }).catch(() => [] as any[]),
+    prisma.staxPayment.findMany({ where: { status: 'declined' }, orderBy: { createdAt: 'desc' }, take: 500, select: DECLINED_SELECT }).catch(() => [] as any[]),
   ]);
   // Resolve FR customer names for onsite payments (from our DB, by externalId = FR customer id).
   const onsiteCustIds = [...new Set(onsiteRaw.map((r: any) => r.frCustomerId).filter(Boolean))] as string[];
@@ -60,7 +62,8 @@ export async function GET(_req: NextRequest) {
       failed: { count: failed.length, total: sum(failed) },
       pending: { count: pending.length, total: sum(pending) },
       onsite: { count: onsite.length, total: sum(onsite) },
+      declined: { count: declinedRaw.length, total: sum(declinedRaw) },
     },
-    recorded, refunded, flagged, failed, pending, onsite,
+    recorded, refunded, flagged, failed, pending, onsite, declined: declinedRaw,
   });
 }

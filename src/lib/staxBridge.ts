@@ -221,7 +221,20 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
 
   // 2) VALIDATE — only record successful CHARGES with a real amount + an FR invoice.
   if (type && type !== 'charge' && type !== 'capture') return fail(`type=${type} (only charge/capture/refund recorded)`, 'skipped');
-  if (!success) return fail(`not approved (status=${txn?.status})`, 'skipped');
+  // A declined/failed CHARGE (card rejected) is surfaced as 'declined' so the team can follow up with the customer
+  // (not 'skipped', which is hidden). Capture the decline reason + card/customer for the Declined tab.
+  if (!success) {
+    const declineMsg = txn?.message || txn?.payment_attempt_message || txn?.last_response?.message || txn?.status || 'declined';
+    const pm = txn?.payment_method || {};
+    await prisma.staxPayment.update({ where: { id: ledger.id }, data: {
+      status: 'declined', failReason: String(declineMsg).slice(0, 200), processedAt: new Date(),
+      cardLast4: pm.card_last_four || txn?.card_last_four || null,
+      cardHolderName: pm.person_name || txn?.person_name || null,
+      staxCustomerId: txn?.customer_id || null,
+      frInvoiceNumber: frInvoiceFromStax(txn) || null,
+    } }).catch(() => {});
+    return { status: 'declined', reason: String(declineMsg).slice(0, 200) };
+  }
   if (!amount || amount <= 0) return fail('amount <= 0', 'skipped');
   const frInvoice = frInvoiceFromStax(txn);
 
@@ -279,8 +292,20 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
   const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
   let frPaymentId: string | null = null;
   try {
-    const r = await fetch(`${FR_BASE}/payment/create?authenticationKey=${cfg.key}&authenticationToken=${cfg.token}&${qs}`);
-    const j = await r.json();
+    let r = await fetch(`${FR_BASE}/payment/create?authenticationKey=${cfg.key}&authenticationToken=${cfg.token}&${qs}`);
+    let j = await r.json();
+    // Parent/child accounts: the ticket is billed to a PARENT account, so FR rejects the payment sent under the
+    // service account. Error: "billToAccountID (X) for ticketID ... does not match sent customerID (Y)".
+    // Retry once with the billTo (parent) account id parsed from the error.
+    if (j?.success === false && /billToAccountID/i.test(String(j?.errorMessage || ''))) {
+      const m = String(j.errorMessage).match(/billToAccountID\s*\((\d+)\)/i);
+      const billToId = m?.[1];
+      if (billToId && billToId !== String(inv.customerID)) {
+        const qs2 = qs.replace(`customerID=${inv.customerID}`, `customerID=${billToId}`);
+        r = await fetch(`${FR_BASE}/payment/create?authenticationKey=${cfg.key}&authenticationToken=${cfg.token}&${qs2}`);
+        j = await r.json();
+      }
+    }
     if (j?.success === false) return fail(`FR error: ${j?.errorMessage || 'unknown'}`);
     frPaymentId = (j?.paymentID || j?.paymentIDs?.[0]) ? String(j.paymentID || j.paymentIDs[0]) : null;
     if (!frPaymentId) {
