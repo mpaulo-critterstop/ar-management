@@ -39,19 +39,23 @@ export async function GET(req: NextRequest) {
 
     // Stage filters
     if (stageFilter === 'exclusion_pending') {
+      where.hasExclusion = true;        // only jobs that actually have exclusion
       where.exclusionDone = false;
    } else if (stageFilter === 'trap_checks') {
-      where.exclusionDone = true;
       where.hasTrapping = true;
       where.trapsDone = false;
       where.closedOut = false;
+      // past the exclusion stage: exclusion done OR the job has no exclusion
+      where.OR = [{ exclusionDone: true }, { hasExclusion: false }];
     } else if (stageFilter === 'far_pending') {
-      where.exclusionDone = true;
       where.hasFAR = true;
       where.farDone = false;
       where.closedOut = false;
-      // trapping must be done OR the job has no trapping (matches the KPI's (!hasTrapping || trapsDone))
-      where.OR = [{ hasTrapping: false }, { trapsDone: true }];
+      // past exclusion (done or none) AND past trapping (done or none)
+      where.AND = [
+        { OR: [{ exclusionDone: true }, { hasExclusion: false }] },
+        { OR: [{ hasTrapping: false }, { trapsDone: true }] },
+      ];
     } else if (stageFilter === 'needs_attention') {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -81,7 +85,7 @@ export async function GET(req: NextRequest) {
     // Calculate KPIs
     const allActive = await prisma.dispatchJob.findMany({
       where: { ...(officeFilter && { office: { equals: officeFilter, mode: 'insensitive' } }), status: 'ACTIVE' },
-      select: { exclusionDone: true, hasTrapping: true, hasFAR: true, farDone: true, closedOut: true, trapCheckCount: true, updatedAt: true, createdAt: true, trapsDone: true },
+      select: { hasExclusion: true, exclusionDone: true, hasTrapping: true, hasFAR: true, farDone: true, closedOut: true, trapCheckCount: true, updatedAt: true, createdAt: true, trapsDone: true },
     });
 
     const sevenDaysAgo = new Date();
@@ -91,9 +95,9 @@ export async function GET(req: NextRequest) {
     // Order: Exclusion pending -> Trap checks -> FAR pending -> done. A job only advances once the prior stage is done.
     const kpis = {
   total: allActive.length,
-  exclusionPending: allActive.filter(j => !j.exclusionDone).length,
-  trapChecks: allActive.filter(j => j.exclusionDone && j.hasTrapping && !j.trapsDone).length,
-  farPending: allActive.filter(j => j.exclusionDone && (!j.hasTrapping || j.trapsDone) && j.hasFAR && !j.farDone && !j.closedOut).length,
+  exclusionPending: allActive.filter(j => j.hasExclusion && !j.exclusionDone).length,
+  trapChecks: allActive.filter(j => (j.exclusionDone || !j.hasExclusion) && j.hasTrapping && !j.trapsDone).length,
+  farPending: allActive.filter(j => (j.exclusionDone || !j.hasExclusion) && (!j.hasTrapping || j.trapsDone) && j.hasFAR && !j.farDone && !j.closedOut).length,
   needsAttention: allActive.filter(j =>
     (!j.closedOut && j.updatedAt < sevenDaysAgo) ||
     (j.hasTrapping && j.trapCheckCount >= 3 && !j.trapsDone)
