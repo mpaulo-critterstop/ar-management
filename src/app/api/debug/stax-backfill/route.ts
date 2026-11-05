@@ -4,6 +4,7 @@
 //   GET ?token=critterstop2026[&pages=5][&dry=1][&txn=<id>]
 //   &txn=<id> re-processes a single transaction (e.g. the one stuck 'failed').
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 import { STAX_BASE, staxHeaders, processStaxTransaction } from '@/lib/staxBridge';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -13,6 +14,23 @@ export async function GET(req: NextRequest) {
   const headers = staxHeaders();
   const dry = req.nextUrl.searchParams.get('dry') === '1';
   const singleTxn = req.nextUrl.searchParams.get('txn');
+
+  // Retry all ledger rows stuck in 'failed' (e.g. the parent/child billTo error) through the current bridge.
+  if (req.nextUrl.searchParams.get('retryFailed') === '1') {
+    const failedRows = await prisma.staxPayment.findMany({ where: { status: 'failed' }, select: { staxTransactionId: true, failReason: true, frInvoiceNumber: true } });
+    if (dry) return NextResponse.json({ dry: true, failedCount: failedRows.length, rows: failedRows });
+    const out: any[] = [];
+    for (const row of failedRows) {
+      const r = await fetch(`${STAX_BASE}/transaction/${row.staxTransactionId}`, { headers });
+      const txn = await r.json().catch(() => null);
+      if (!txn?.id) { out.push({ txn: row.staxTransactionId, result: 'txn-not-found' }); continue; }
+      // reset so the claim can re-process
+      await prisma.staxPayment.update({ where: { staxTransactionId: row.staxTransactionId }, data: { status: 'pending' } }).catch(() => {});
+      const result = await processStaxTransaction(txn, 'poll').catch((e) => ({ status: 'error', reason: String(e) } as any));
+      out.push({ txn: row.staxTransactionId, invoice: row.frInvoiceNumber, result });
+    }
+    return NextResponse.json({ ok: true, retried: out.length, results: out });
+  }
 
   // Single-transaction mode (re-process the one stuck failed payment).
   if (singleTxn) {
