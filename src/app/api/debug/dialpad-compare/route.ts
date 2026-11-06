@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   // API: page through last month's calls, count inbound user-target legs
   let cursor: string | null = null; let apiLegs = 0; let apiUserLegs = 0; let pages = 0; const stateCounts: Record<string, number> = {};
   do {
-    const p = new URLSearchParams({ limit: '100', started_after: String(lmStart), started_before: String(lmEnd) });
+    const p = new URLSearchParams({ limit: '100', started_after: String(Math.floor(lmStart/1000)), started_before: String(Math.floor(lmEnd/1000)) });
     if (cursor) p.set('cursor', cursor);
     const r = await fetch(`https://dialpad.com/api/v2/call?${p.toString()}`, { headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' } });
     const j = await r.json();
