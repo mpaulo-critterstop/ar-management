@@ -162,10 +162,10 @@ export async function GET(req: NextRequest) {
           const duration = call.duration ? Number(call.duration) : null;
 
           // Determine state.
-          // ABANDONED: the caller hung up within a few seconds of ringing — before an agent could realistically
-          // answer. These should NOT count against a CSR as a 'missed' call. Ring time = date_ended - date_started
-          // (epoch ms) for an unconnected call. Threshold: under 6 seconds = abandoned.
-          const ABANDON_MS = 6000;
+          // ABANDONED: the caller hung up before an agent could answer — these should NOT count against a CSR as a
+          // 'missed' call. Ring time = date_ended - date_started (epoch ms) for an unconnected call. Threshold:
+          // under 10 seconds = abandoned, matching Dialpad's own "abandoned = unanswered in under 10s" definition.
+          const ABANDON_MS = 10000;
           let state = 'missed';
           if (dateConnected) state = 'answered';
           else if (call.voicemail_share_link) state = 'voicemail';
