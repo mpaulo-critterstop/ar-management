@@ -161,10 +161,15 @@ export async function GET(req: NextRequest) {
           const dateEnded = call.date_ended ? BigInt(call.date_ended) : null;
           const duration = call.duration ? Number(call.duration) : null;
 
-          // Determine state
+          // Determine state.
+          // ABANDONED: the caller hung up within a few seconds of ringing — before an agent could realistically
+          // answer. These should NOT count against a CSR as a 'missed' call. Ring time = date_ended - date_started
+          // (epoch ms) for an unconnected call. Threshold: under 6 seconds = abandoned.
+          const ABANDON_MS = 6000;
           let state = 'missed';
           if (dateConnected) state = 'answered';
           else if (call.voicemail_share_link) state = 'voicemail';
+          else if (dateStarted && dateEnded && (Number(dateEnded) - Number(dateStarted)) < ABANDON_MS) state = 'abandoned';
 
           await prisma.$executeRaw`
             INSERT INTO dialpad_calls (
