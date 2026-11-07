@@ -3,20 +3,12 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const now = new Date();
-  const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
-  const cat = await prisma.$queryRaw<any[]>`
-    SELECT COUNT(*) FILTER (WHERE categories IS NOT NULL AND categories != '') AS with_cats, COUNT(*) AS total
-    FROM dialpad_calls WHERE date_started >= ${start}`;
-  const agents = await prisma.$queryRaw<any[]>`
-    SELECT target_name,
-      COUNT(*) FILTER (WHERE date_connected IS NOT NULL) AS answered,
-      COUNT(*) FILTER (WHERE date_connected IS NULL AND state != 'abandoned') AS missed,
-      COUNT(*) FILTER (WHERE state = 'abandoned') AS abandoned
-    FROM dialpad_calls
-    WHERE direction='inbound' AND target_type='user' AND date_started >= ${start}
-      AND target_name IN ('Marlon Marzon','Renea Porter','Lester Bueno')
-    GROUP BY target_name`;
-  return NextResponse.json({ withCategories: Number(cat[0].with_cats), total: Number(cat[0].total),
-    agents: agents.map((a:any)=>({agent:a.target_name, answered:Number(a.answered), missed:Number(a.missed), abandoned:Number(a.abandoned)})) });
+  try {
+    // distinct state values + counts across the whole table — see if state got corrupted
+    const states = await prisma.$queryRaw<any[]>`SELECT state, COUNT(*)::text AS n FROM dialpad_calls GROUP BY state ORDER BY COUNT(*) DESC`;
+    const recent = await prisma.$queryRaw<any[]>`SELECT id, state, categories, direction, target_type, date_connected IS NOT NULL AS connected FROM dialpad_calls ORDER BY date_started DESC LIMIT 5`;
+    return NextResponse.json({ stateCounts: states.map((s:any)=>({state:s.state, n:Number(s.n)})), recentSample: recent.map((r:any)=>({state:r.state, cats:(r.categories||'').slice(0,50), dir:r.direction, tt:r.target_type, connected:r.connected})) });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
 }
