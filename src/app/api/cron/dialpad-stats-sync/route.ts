@@ -16,14 +16,17 @@ async function getConfig(key: string) {
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-// Derive state from Dialpad's categories tags (authoritative).
-function stateFromCategories(categories: string, dateConnected: any): string {
-  const c = (categories || '').toLowerCase();
+// Derive state from Dialpad's categories tags (authoritative). Returns null if categories is empty/unusable,
+// so the caller leaves the existing state (from the live sync's span heuristic) untouched rather than defaulting
+// to 'missed' — which was overcounting missed for legs the Stats export doesn't categorize.
+function stateFromCategories(categories: string, dateConnected: any): string | null {
+  const c = (categories || '').trim().toLowerCase();
   if (dateConnected) return 'answered';
+  if (!c) return null; // no category from the export -> don't overwrite the heuristic state
   if (c.includes('abandoned')) return 'abandoned';
   if (c.includes('voicemail')) return 'voicemail';
   if (c.includes('missed') || c.includes('ring_no_answer') || c.includes('unanswered')) return 'missed';
-  return 'missed'; // default for unconnected with no tag
+  return null; // unknown tag set -> leave existing state
 }
 
 export async function GET(req: NextRequest) {
@@ -68,8 +71,8 @@ export async function GET(req: NextRequest) {
   const idxConnected = header.indexOf('date_connected');
   if (idxCallId < 0 || idxCategories < 0) return NextResponse.json({ error: 'export missing call_id/categories columns', header }, { status: 502 });
 
-  // Parse all rows into {callId, categories, newState}.
-  const parsed: { callId: string; categories: string; newState: string }[] = [];
+  // Parse all rows into {callId, categories, newState}. newState null = keep existing state (don't overwrite).
+  const parsed: { callId: string; categories: string; newState: string | null }[] = [];
   const sample: any[] = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = parseCsvLine(lines[i]);
@@ -90,9 +93,11 @@ export async function GET(req: NextRequest) {
       const chunk = parsed.slice(i, i + CHUNK);
       // Build a VALUES list: (id, categories, state)
       const valuesSql = chunk.map((_, k) => `($${k * 3 + 1}, $${k * 3 + 2}, $${k * 3 + 3})`).join(',');
-      const params: string[] = [];
+      const params: (string | null)[] = [];
       for (const r of chunk) { params.push(r.callId, r.categories, r.newState); }
-      const sql = `UPDATE dialpad_calls AS d SET categories = v.categories, state = v.state
+      // COALESCE: when newState is NULL (categories empty / unknown), keep the existing state (the live sync's
+      // span-based classification) instead of overwriting it.
+      const sql = `UPDATE dialpad_calls AS d SET categories = v.categories, state = COALESCE(v.state, d.state)
                    FROM (VALUES ${valuesSql}) AS v(id, categories, state)
                    WHERE d.id = v.id`;
       try {
