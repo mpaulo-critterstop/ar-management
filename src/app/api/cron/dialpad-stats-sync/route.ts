@@ -65,28 +65,41 @@ export async function GET(req: NextRequest) {
   const idxConnected = header.indexOf('date_connected');
   if (idxCallId < 0 || idxCategories < 0) return NextResponse.json({ error: 'export missing call_id/categories columns', header }, { status: 502 });
 
-  let updated = 0, reclassified = 0; const sample: any[] = [];
+  // Parse all rows into {callId, categories, newState}.
+  const parsed: { callId: string; categories: string; newState: string }[] = [];
+  const sample: any[] = [];
   for (let i = 1; i < lines.length; i++) {
-    // naive CSV split is unsafe for quoted commas; categories is comma-joined INSIDE one quoted field, so parse carefully
     const cols = parseCsvLine(lines[i]);
     const callId = (cols[idxCallId] || '').trim();
     const categories = (cols[idxCategories] || '').trim();
     const dateConnected = idxConnected >= 0 ? (cols[idxConnected] || '').trim() : '';
     if (!callId) continue;
     const newState = stateFromCategories(categories, dateConnected);
+    parsed.push({ callId, categories, newState });
     if (sample.length < 8) sample.push({ callId, categories, newState });
-    if (dry) continue;
-    try {
-      // dialpad_calls.id is a TEXT column — compare as string (not bigint).
-      const res = await prisma.$executeRaw`
-        UPDATE dialpad_calls SET categories = ${categories}, state = ${newState}
-        WHERE id = ${callId}
-      `;
-      if (res > 0) { updated++; }
-    } catch { /* id not in our table — skip */ }
   }
 
-  return NextResponse.json({ ok: true, dry, requestId, csvRows: lines.length - 1, updated, sample, header, firstDataRow: lines[1] ? parseCsvLine(lines[1]).slice(0, Math.max(idxCallId, idxCategories) + 1) : null, idxCallId, idxCategories });
+  let updated = 0;
+  if (!dry && parsed.length) {
+    // Bulk update in chunks: one UPDATE ... FROM (VALUES ...) per chunk instead of a query per row.
+    const CHUNK = 500;
+    for (let i = 0; i < parsed.length; i += CHUNK) {
+      const chunk = parsed.slice(i, i + CHUNK);
+      // Build a VALUES list: (id, categories, state)
+      const valuesSql = chunk.map((_, k) => `($${k * 3 + 1}, $${k * 3 + 2}, $${k * 3 + 3})`).join(',');
+      const params: string[] = [];
+      for (const r of chunk) { params.push(r.callId, r.categories, r.newState); }
+      const sql = `UPDATE dialpad_calls AS d SET categories = v.categories, state = v.state
+                   FROM (VALUES ${valuesSql}) AS v(id, categories, state)
+                   WHERE d.id = v.id`;
+      try {
+        const res = await prisma.$executeRawUnsafe(sql, ...params);
+        updated += Number(res) || 0;
+      } catch (e) { /* skip bad chunk */ }
+    }
+  }
+
+  return NextResponse.json({ ok: true, dry, requestId, csvRows: lines.length - 1, parsed: parsed.length, updated, sample });
 }
 
 // Minimal CSV line parser that respects double-quoted fields (categories is a quoted comma-joined list).
