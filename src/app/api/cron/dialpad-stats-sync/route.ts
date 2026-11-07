@@ -32,11 +32,14 @@ export async function GET(req: NextRequest) {
   const apiKey = await getConfig('dialpad_api_key');
   if (!apiKey) return NextResponse.json({ error: 'no dialpad api key' }, { status: 400 });
   const dry = sp.get('dry') === '1';
-  const days = Math.min(parseInt(sp.get('days') || '35'), 400);
+  // Daily cron: small rolling window (default 3 days) so the run always completes well within the time limit.
+  // Backfill: pass &start=40&end=30 etc. to process older windows in manageable chunks (days-ago offsets).
+  const daysAgoStart = parseInt(sp.get('start') || sp.get('days') || '3');
+  const daysAgoEnd = parseInt(sp.get('end') || '0');
   const H = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', Accept: 'application/json' };
 
   // 1) request the records export for the window
-  const reqBody = { stat_type: 'calls', export_type: 'records', days_ago_start: days, days_ago_end: 0 };
+  const reqBody = { stat_type: 'calls', export_type: 'records', days_ago_start: daysAgoStart, days_ago_end: daysAgoEnd };
   const postRes = await fetch('https://dialpad.com/api/v2/stats', { method: 'POST', headers: H, body: JSON.stringify(reqBody) });
   const postJson = await postRes.json().catch(() => null);
   const requestId = postJson?.request_id || postJson?.id;
