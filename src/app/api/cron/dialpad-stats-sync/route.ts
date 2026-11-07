@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
     } catch { /* id not in our table or not a bigint — skip */ }
   }
 
-  return NextResponse.json({ ok: true, dry, requestId, csvRows: lines.length - 1, updated, sample });
+  return NextResponse.json({ ok: true, dry, requestId, csvRows: lines.length - 1, updated, sample, header, firstDataRow: lines[1] ? parseCsvLine(lines[1]).slice(0, Math.max(idxCallId, idxCategories) + 1) : null, idxCallId, idxCategories });
 }
 
 // Minimal CSV line parser that respects double-quoted fields (categories is a quoted comma-joined list).
