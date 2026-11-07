@@ -77,12 +77,13 @@ export async function GET(req: NextRequest) {
     if (sample.length < 8) sample.push({ callId, categories, newState });
     if (dry) continue;
     try {
+      // dialpad_calls.id is a TEXT column — compare as string (not bigint).
       const res = await prisma.$executeRaw`
         UPDATE dialpad_calls SET categories = ${categories}, state = ${newState}
-        WHERE id = ${BigInt(callId)}
+        WHERE id = ${callId}
       `;
       if (res > 0) { updated++; }
-    } catch { /* id not in our table or not a bigint — skip */ }
+    } catch { /* id not in our table — skip */ }
   }
 
   return NextResponse.json({ ok: true, dry, requestId, csvRows: lines.length - 1, updated, sample, header, firstDataRow: lines[1] ? parseCsvLine(lines[1]).slice(0, Math.max(idxCallId, idxCategories) + 1) : null, idxCallId, idxCategories });
