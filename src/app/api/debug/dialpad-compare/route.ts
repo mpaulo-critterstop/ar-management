@@ -1,22 +1,33 @@
-// TEMP: raw Dialpad API response shape check.
+// TEMP: check our STORED categories field for abandoned/missed labels (Dialpad's own classification).
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
-async function getConfig(key: string) {
-  const row = await prisma.$queryRaw<Array<{ value: string }>>`SELECT value FROM dialpad_config WHERE key = ${key} LIMIT 1`;
-  return row[0]?.value || null;
-}
 export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const apiKey = await getConfig('dialpad_api_key');
-  if (!apiKey) return NextResponse.json({ error: 'no api key' }, { status: 400 });
-  const started_after = Math.floor((Date.now() - 5 * 86400000) / 1000);
-  const r = await fetch(`https://dialpad.com/api/v2/call?${new URLSearchParams({ started_after: String(started_after), limit: '10' })}`, { headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' } });
-  const text = await r.text();
-  let j: any = null; try { j = JSON.parse(text); } catch {}
+  const now = new Date();
+  const lmStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1);
+  // distinct categories values on unconnected user legs last month, with counts
+  const cats = await prisma.$queryRaw<any[]>`
+    SELECT categories, COUNT(*) AS n
+    FROM dialpad_calls
+    WHERE direction='inbound' AND target_type='user' AND date_connected IS NULL
+      AND date_started >= ${lmStart}
+    GROUP BY categories ORDER BY n DESC LIMIT 20
+  `;
+  // how many unconnected legs have 'abandoned' in categories vs not
+  const summary = await prisma.$queryRaw<any[]>`
+    SELECT
+      COUNT(*) AS unconnected,
+      COUNT(*) FILTER (WHERE categories LIKE '%abandoned%') AS cat_abandoned,
+      COUNT(*) FILTER (WHERE categories LIKE '%ring_no_answer%') AS cat_ringnoanswer,
+      COUNT(*) FILTER (WHERE categories LIKE '%missed%') AS cat_missed,
+      COUNT(*) FILTER (WHERE categories IS NULL OR categories = '') AS cat_empty
+    FROM dialpad_calls
+    WHERE direction='inbound' AND target_type='user' AND date_connected IS NULL
+      AND date_started >= ${lmStart}
+  `;
   return NextResponse.json({
-    status: r.status,
-    topLevelKeys: j ? Object.keys(j) : [],
-    rawFirst600: text.slice(0, 600),
+    distinctCategories: cats.map((c:any)=>({categories:c.categories, n:Number(c.n)})),
+    summary: Object.fromEntries(Object.entries(summary[0]).map(([k,v])=>[k,Number(v)])),
   });
 }
