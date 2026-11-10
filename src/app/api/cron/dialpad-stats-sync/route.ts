@@ -32,13 +32,25 @@ function stateFromCategories(categories: string, dateConnected: any): string | n
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const apiKey = await getConfig('dialpad_api_key');
-  if (!apiKey) return NextResponse.json({ error: 'no dialpad api key' }, { status: 400 });
   const dry = sp.get('dry') === '1';
-  // Daily cron: small rolling window (default 3 days) so the run always completes well within the time limit.
-  // Backfill: pass &start=40&end=30 etc. to process older windows in manageable chunks (days-ago offsets).
   const daysAgoStart = parseInt(sp.get('start') || sp.get('days') || '3');
   const daysAgoEnd = parseInt(sp.get('end') || '0');
+
+  // The sync polls Dialpad for up to ~2 min, which exceeds cron-job.org's 30s timeout (it would mark the job
+  // "failed" and deactivate it even though the work completes). So for the scheduled cron we kick the work off
+  // in the background and return 200 immediately. Pass &wait=1 for manual/backfill runs to block for the result.
+  if (sp.get('wait') === '1' || dry) {
+    const result = await runStatsSync(daysAgoStart, daysAgoEnd, dry);
+    return NextResponse.json(result, { status: (result as any).error ? 502 : 200 });
+  }
+  // fire-and-forget: run in the background, respond fast so cron-job.org sees success
+  runStatsSync(daysAgoStart, daysAgoEnd, false).catch(e => console.error('[dialpad-stats-sync] bg error', e));
+  return NextResponse.json({ ok: true, started: true, note: 'running in background (poll takes ~1-2 min)' });
+}
+
+async function runStatsSync(daysAgoStart: number, daysAgoEnd: number, dry: boolean): Promise<any> {
+  const apiKey = await getConfig('dialpad_api_key');
+  if (!apiKey) return { error: 'no dialpad api key' };
   const H = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', Accept: 'application/json' };
 
   // 1) request the records export for the window
@@ -46,7 +58,7 @@ export async function GET(req: NextRequest) {
   const postRes = await fetch('https://dialpad.com/api/v2/stats', { method: 'POST', headers: H, body: JSON.stringify(reqBody) });
   const postJson = await postRes.json().catch(() => null);
   const requestId = postJson?.request_id || postJson?.id;
-  if (!requestId) return NextResponse.json({ error: 'no request_id from stats POST', status: postRes.status, body: postJson }, { status: 502 });
+  if (!requestId) return { error: 'no request_id from stats POST', status: postRes.status, body: postJson };
 
   // 2) poll for completion
   let downloadUrl: string | null = null; let pollStatus = '';
@@ -56,20 +68,20 @@ export async function GET(req: NextRequest) {
     const gj = await g.json().catch(() => null);
     pollStatus = gj?.status || '';
     if (pollStatus === 'complete' || gj?.download_url || gj?.file_url) { downloadUrl = gj?.download_url || gj?.file_url; break; }
-    if (pollStatus === 'failed') return NextResponse.json({ error: 'stats export failed', requestId }, { status: 502 });
+    if (pollStatus === 'failed') return { error: 'stats export failed', requestId };
   }
-  if (!downloadUrl) return NextResponse.json({ error: 'stats export not ready (timed out polling)', requestId, lastStatus: pollStatus }, { status: 504 });
+  if (!downloadUrl) return { error: 'stats export not ready (timed out polling)', requestId, lastStatus: pollStatus };
 
   // 3) download + parse the CSV
   const csvRes = await fetch(downloadUrl, { headers: { Authorization: `Bearer ${apiKey}` } });
   const csv = await csvRes.text();
   const lines = csv.split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) return NextResponse.json({ ok: true, note: 'empty export', rows: 0 });
+  if (lines.length < 2) return { ok: true, note: 'empty export', rows: 0 };
   const header = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
   const idxCallId = header.indexOf('call_id');
   const idxCategories = header.indexOf('categories');
   const idxConnected = header.indexOf('date_connected');
-  if (idxCallId < 0 || idxCategories < 0) return NextResponse.json({ error: 'export missing call_id/categories columns', header }, { status: 502 });
+  if (idxCallId < 0 || idxCategories < 0) return { error: 'export missing call_id/categories columns', header };
 
   // Parse all rows into {callId, categories, newState}. newState null = keep existing state (don't overwrite).
   const parsed: { callId: string; categories: string; newState: string | null }[] = [];
@@ -107,7 +119,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, dry, requestId, csvRows: lines.length - 1, parsed: parsed.length, updated, sample });
+  return { ok: true, dry, requestId, csvRows: lines.length - 1, parsed: parsed.length, updated, sample };
 }
 
 // Minimal CSV line parser that respects double-quoted fields (categories is a quoted comma-joined list).
