@@ -1,8 +1,8 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
-import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, SegTabs as CCSegTabs } from '@/components/cc/Layout';
-import { Btn as CCBtn } from '@/components/cc/Primitives';
+import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, SegTabs as CCSegTabs, FilterChips as CCFilterChips, DataTable as CCDataTable, Toolbar as CCToolbar, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
+import { Btn as CCBtn, StatusPill as CCStatusPill } from '@/components/cc/Primitives';
 import { moneyK as ccMoneyK } from '@/components/cc/tokens';
 import { useSession } from 'next-auth/react';
 import { canRefund } from '@/lib/access';
@@ -301,56 +301,36 @@ export default function StaxPaymentsPage() {
           { key: 'declined', label: 'Declined', color: s.declined?.count ? '#E07A7A' : '#9A988E' },
           { key: 'pending', label: 'Pending', color: '#D79A4A' },
         ];
-        const active = tiles.find(t => t.key === reportStatus)!;
         const rows = byInv(report[reportStatus] || []);
         const withReason = reportStatus === 'flagged' || reportStatus === 'failed' || reportStatus === 'declined';
         const withRefund = reportStatus === 'recorded' && allowRefund;
+        // FilterChips (status) built from the summary
+        const chips = tiles.map(t => {
+          const d = s[t.key] || {};
+          const vTone = (t.key === 'declined' || t.key === 'flagged' || t.key === 'failed') && d.count ? 'red'
+            : t.key === 'pending' ? 'amber' : t.key === 'recorded' ? 'green' : 'neutral';
+          return { key: t.key, label: t.label, value: d.count ?? 0, sub: ccMoneyK(d.total ?? 0), valueTone: vTone as any };
+        });
+        // DataTable columns — matches the approved mockup (no Stax Txn column)
+        const cols: any[] = [
+          { key: 'cust', label: 'Customer', render: (r: any) => <CCCustomerCell name={r.customerName || 'Customer'} sub={r.office ? `${r.office}` : undefined} /> },
+          { key: 'amount', label: 'Amount', align: 'right', render: (r: any) => <span style={{ fontWeight: 700, color: '#F0EEE8', fontVariantNumeric: 'tabular-nums' }}>{money(r.amount)}</span> },
+          { key: 'office', label: 'Office', render: (r: any) => r.office ? <CCStatusPill tone="blue">{r.office}</CCStatusPill> : '—' },
+          { key: 'invoice', label: 'Invoice', render: (r: any) => <span style={{ fontVariantNumeric: 'tabular-nums', color: '#908E85' }}>{r.frInvoiceNumber ? `#${r.frInvoiceNumber}` : '—'}</span> },
+          { key: 'method', label: 'Method', render: (r: any) => method(r.frPaymentMethod) },
+          { key: 'card', label: 'Card', render: (r: any) => <span style={{ fontFamily: 'ui-monospace,Menlo,monospace', fontSize: 12.5, color: '#C9C7BF' }}>{r.cardLast4 ? `•••• ${r.cardLast4}` : '—'}</span> },
+          { key: 'via', label: 'Via', render: (r: any) => <span style={{ color: '#908E85', fontSize: 12.5 }}>{r.source}</span> },
+          { key: 'when', label: 'When', render: (r: any) => <span style={{ color: '#908E85', fontSize: 12.5 }}>{fmt(r.processedAt || r.createdAt)}</span> },
+        ];
+        if (withReason) cols.push({ key: 'reason', label: 'Reason', render: (r: any) => <span style={{ whiteSpace: 'normal', color: '#E57C7C' }}>{r.failReason || '—'}</span> });
+        if (withRefund) cols.push({ key: 'refund', label: '', align: 'right', render: (r: any) => <CCBtn variant="danger" style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => setRefundModal({ txnId: r.staxTransactionId, invoice: r.frInvoiceNumber, amount: r.amount })}>Refund</CCBtn> });
         return (<>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-            {tiles.map(t => {
-              const d = s[t.key]; const sel = reportStatus === t.key;
-              return (
-                <button key={t.key} onClick={() => setReportStatus(t.key)} style={{ textAlign: 'left', border: sel ? `1.5px solid ${t.color}` : '0.5px solid #2D2D33', borderRadius: 10, padding: '12px 16px', background: sel ? '#26262C' : '#1E1E23', minWidth: 125, cursor: 'pointer', boxShadow: sel ? '0 1px 4px rgba(44,44,42,0.1)' : 'none' }}>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: t.color }}>{d?.count ?? 0}</div>
-                  <div style={{ fontSize: 11, color: '#9A988E' }}>{t.label}</div>
-                  <div style={{ fontSize: 11, color: '#6A685F', marginTop: 2 }}>{money(d?.total ?? 0)}</div>
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 12 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: active.color }}>{active.label} ({rows.length})</div>
-            <input value={reportSearch} onChange={e => setReportSearch(e.target.value)} placeholder="Search by invoice #…" style={{ maxWidth: 260, fontSize: 13, padding: '8px 11px', borderRadius: 8, border: '0.5px solid #2D2D33', boxSizing: 'border-box', background: '#26262C', color: '#ECEAE3' }} />
-          </div>
-          <div style={{ border: `0.5px solid ${active.color === '#E07A7A' ? '#5a2e2e' : '#2D2D33'}`, borderRadius: 12, overflow: 'hidden', background: '#1E1E23' }}>
-            <div style={{ maxHeight: 520, overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr>
-                  <th style={thC}>Stax Txn</th><th style={thR}>Amount</th><th style={thC}>Customer</th><th style={thC}>Office</th><th style={thC}>Invoice #</th><th style={thC}>Method</th><th style={thC}>Last Four</th><th style={thC}>Via</th><th style={thC}>When</th>
-                  {withReason && <th style={thC}>Reason</th>}
-                  {withRefund && <th style={thC}>Refund</th>}
-                </tr></thead>
-                <tbody>
-                  {rows.map((r: any) => (
-                    <tr key={r.id || r.staxTransactionId}>
-                      <td style={tdC}>{r.staxTransactionId}</td>
-                      <td style={tdR}>{money(r.amount)}</td>
-                      <td style={tdC}>{r.customerName || '—'}</td>
-                      <td style={tdC}>{r.office || '—'}</td>
-                      <td style={tdC}>{r.frInvoiceNumber || '—'}</td>
-                      <td style={tdC}>{method(r.frPaymentMethod)}</td>
-                      <td style={tdC}>{r.cardLast4 ? `•••• ${r.cardLast4}` : '—'}</td>
-                      <td style={tdC}>{r.source}</td>
-                      <td style={tdC}>{fmt(r.processedAt || r.createdAt)}</td>
-                      {withReason && <td style={{ ...tdC, whiteSpace: 'normal', maxWidth: 300 }}>{r.failReason || '—'}</td>}
-                      {withRefund && <td style={tdC}><button onClick={() => setRefundModal({ txnId: r.staxTransactionId, invoice: r.frInvoiceNumber, amount: r.amount })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E07A7A', background: '#1E1E23', color: '#E07A7A', cursor: 'pointer' }}>Refund</button></td>}
-                    </tr>
-                  ))}
-                  {!rows.length && <tr><td colSpan={9 + (withReason ? 1 : 0) + (withRefund ? 1 : 0)} style={{ ...tdC, color: '#9A988E', padding: 18 }}>{q ? 'No matches.' : 'None.'}</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <CCFilterChips chips={chips} active={reportStatus} onChange={(k) => setReportStatus(k as any)} />
+          <CCToolbar>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#C9C7BF' }}>{tiles.find(t => t.key === reportStatus)?.label} <span style={{ color: '#63615A', fontWeight: 400 }}>· {rows.length}</span></div>
+            <CCSearchBox value={reportSearch} onChange={setReportSearch} placeholder="Search customer or invoice #…" />
+          </CCToolbar>
+          <CCDataTable cols={cols} rows={rows} rowKey={(r: any) => r.id || r.staxTransactionId} empty={q ? 'No matches.' : 'None.'} />
         </>);
       })()}
 
