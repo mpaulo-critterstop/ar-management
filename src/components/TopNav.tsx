@@ -7,6 +7,9 @@ export function TopNav() {
   const { data: session } = useSession();
   const pathname = usePathname();
   if (!session || pathname === '/login') return null;
+  // Command-center pages use the CommandShell sidebar instead of this top bar — hide it there.
+  const SHELL_ROUTES = ['/overview'];
+  if (SHELL_ROUTES.some(r => pathname === r || pathname?.startsWith(r + '/'))) return null;
 
   const role = (session.user as any)?.role;
   if (role === 'Technician') return null;

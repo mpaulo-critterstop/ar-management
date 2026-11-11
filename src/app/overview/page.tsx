@@ -110,6 +110,7 @@ export default function OverviewPage() {
 
   return (
     <CommandShell>
+      <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       <div style={st.top}>
         <div><div style={st.hello}>Overview</div><div style={st.helloSub}>{today} · {greeting}{name ? `, ${name}` : ''} 👋 — here's where things stand</div></div>
         {can('helcim') && <button onClick={() => router.push('/stax')} style={st.btnP}>+ Take Payment</button>}
@@ -147,6 +148,7 @@ export default function OverviewPage() {
       {opsCards.length > 0 && <>{Section('🛠️', 'Operations')}<div style={st.mods}>{opsCards.map(Card)}</div></>}
       {mgmtCards.length > 0 && <>{Section('💼', 'Management')}<div style={st.mods}>{mgmtCards.map(Card)}</div></>}
       {repCards.length > 0 && <>{Section('📈', 'Reports')}<div style={st.mods}>{repCards.map(Card)}</div></>}
+      </div>
     </CommandShell>
   );
 }

@@ -106,7 +106,8 @@ const DARK = {
   line: '#2D2D33', blue: '#5B9BE0',
 };
 const S: Record<string, React.CSSProperties> = {
-  app: { display: 'flex', minHeight: '100vh', background: DARK.bg, color: DARK.ink, fontFamily: 'inherit' },
+  // Fixed, full-viewport dark surface — covers the old light background/overlay completely and spans full width.
+  app: { display: 'flex', minHeight: '100vh', background: DARK.bg, color: DARK.ink, fontFamily: 'inherit', position: 'fixed', inset: 0, zIndex: 20, overflow: 'hidden' },
   sidebar: { width: 236, flex: '0 0 236px', background: DARK.panel, borderRight: `1px solid ${DARK.line}`, display: 'flex', flexDirection: 'column', height: '100vh', position: 'sticky', top: 0 },
   brand: { padding: '17px 18px', borderBottom: `1px solid ${DARK.line}`, display: 'flex', alignItems: 'center', gap: 10 },
   mark: { width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#5B9BE0,#3FAE8C)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 },
@@ -123,5 +124,6 @@ const S: Record<string, React.CSSProperties> = {
   footName: { fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   footRole: { fontSize: 11, color: DARK.muted },
   signout: { background: 'transparent', border: 'none', color: DARK.muted, cursor: 'pointer', fontSize: 15 },
-  main: { flex: 1, minWidth: 0, padding: '24px 30px 60px', maxWidth: 1280 },
+  // Main scrolls; sidebar stays fixed. Full width (no max-width cap), centered content with generous max for readability.
+  main: { flex: 1, minWidth: 0, height: '100vh', overflowY: 'auto', padding: '24px 32px 60px' },
 };
