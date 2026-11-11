@@ -104,11 +104,13 @@ export function SearchBox({ value, onChange, placeholder }: { value: string; onC
 export type Col = { key: string; label: string; align?: 'left' | 'right' | 'center'; render?: (row: any) => React.ReactNode; width?: number | string };
 export function DataTable({ cols, rows, empty = 'None.', rowKey }:
   { cols: Col[]; rows: any[]; empty?: string; rowKey?: (r: any, i: number) => string }) {
+  // Sticky header (frozen while the table body scrolls). position:sticky + top:0 keeps the header row fixed.
   const thBase: React.CSSProperties = { padding: '13px 16px', fontSize: 11, fontWeight: 600, letterSpacing: '.05em',
-    textTransform: 'uppercase', color: cc.muted, background: cc.panel2, borderBottom: `1px solid ${cc.line}`, whiteSpace: 'nowrap' };
+    textTransform: 'uppercase', color: cc.muted, background: cc.panel2, borderBottom: `1px solid ${cc.line}`, whiteSpace: 'nowrap',
+    position: 'sticky', top: 0, zIndex: 2 };
   const tdBase: React.CSSProperties = { padding: '13px 16px', borderBottom: `1px solid ${cc.line}`, whiteSpace: 'nowrap', color: cc.ink2, fontSize: 13.5 };
   return (
-    <div style={{ background: cc.panel, border: `1px solid ${cc.line}`, borderRadius: cc.r, overflow: 'auto' }}>
+    <div style={{ background: cc.panel, border: `1px solid ${cc.line}`, borderRadius: cc.r, overflow: 'auto', maxHeight: '64vh' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
         <thead><tr>{cols.map(c => <th key={c.key} style={{ ...thBase, textAlign: c.align || 'left', width: c.width }}>{c.label}</th>)}</tr></thead>
         <tbody>

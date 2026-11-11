@@ -228,8 +228,16 @@ export default function StaxPaymentsPage() {
 
   // --- KPI strip metrics from the live report data ---
   const sumAmt = (arr: any[]) => (arr || []).reduce((s, r) => s + Math.abs(Number(r.amount) || 0), 0);
+  // Collected = recorded payments in the CURRENT calendar month only (resets to $0 at the start of each month).
+  const _now = new Date();
+  const _mStart = new Date(_now.getFullYear(), _now.getMonth(), 1).getTime();
+  const recordedThisMonth = (report?.recorded || []).filter((r: any) => {
+    const d = new Date(r.processedAt || r.createdAt).getTime();
+    return !isNaN(d) && d >= _mStart;
+  });
+  const collectedMTD = sumAmt(recordedThisMonth);
   const kpiItems = [
-    { icon: '💵', label: 'Collected (recorded)', value: ccMoneyK(sumAmt(report?.recorded)), tone: 'green' as const, delta: `${report?.recorded?.length || 0} payments`, deltaTone: 'green' as const },
+    { icon: '💵', label: 'Collected this month', value: money(collectedMTD), tone: 'green' as const, delta: `${recordedThisMonth.length} payment${recordedThisMonth.length === 1 ? '' : 's'}`, deltaTone: 'green' as const },
     { icon: '🔗', label: 'Links awaiting payment', value: links.filter(l => l.status === 'sent' || l.status === 'viewed').length, tone: 'blue' as const, delta: `of ${links.length} sent` },
     { icon: '⚠️', label: 'Declined (follow up)', value: report?.declined?.length || 0, tone: 'red' as const, delta: (report?.declined?.length ? 'needs outreach' : 'none'), deltaTone: report?.declined?.length ? 'red' as const : undefined },
     { icon: '🏦', label: 'Onsite to link', value: report?.onsite?.length || 0, tone: 'violet' as const, delta: 'awaiting invoice' },
