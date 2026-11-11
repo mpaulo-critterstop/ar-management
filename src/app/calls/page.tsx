@@ -158,7 +158,7 @@ export default function CallsPage() {
             const max = entries.length ? (entries[0][1] as number) : 1;
             if (loading) return <div style={{ textAlign: 'center', color: cc.faint, padding: 28, fontSize: 13 }}>Loading…</div>;
             if (!entries.length) return <div style={{ textAlign: 'center', color: cc.faint, padding: 28, fontSize: 13 }}>No data</div>;
-            return <div style={{ overflowY: 'auto', maxHeight: 340 }}>
+            return <div style={{ overflowY: 'auto', maxHeight: 340, paddingRight: 10 }}>
               {entries.map(([num, count]: any) => (
                 <div key={num} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: `1px solid ${cc.line}` }}>
                   <div style={{ fontSize: 12.5, color: cc.ink2, width: 134, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{num}</div>
@@ -181,7 +181,7 @@ export default function CallsPage() {
             const max = entries.length ? (entries[0][1] as any).first_time : 1;
             if (loading) return <div style={{ textAlign: 'center', color: cc.faint, padding: 28, fontSize: 13 }}>Loading…</div>;
             if (!entries.length) return <div style={{ textAlign: 'center', color: cc.faint, padding: 28, fontSize: 13 }}>No data</div>;
-            return <div style={{ overflowY: 'auto', maxHeight: 340 }}>
+            return <div style={{ overflowY: 'auto', maxHeight: 340, paddingRight: 10 }}>
               {entries.map(([num, v]: any) => (
                 <div key={num} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: `1px solid ${cc.line}` }}>
                   <div style={{ fontSize: 12.5, color: cc.ink2, width: 134, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{num}</div>
