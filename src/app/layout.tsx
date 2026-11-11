@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { DM_Sans, DM_Mono } from "next/font/google";
 
-const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500", "600"] });
-const dmMono = DM_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono-data" });
+// fallback + adjustFontFallback guard the build against transient Google Fonts fetch failures
+// (which otherwise crash the whole Vercel build with "Cannot read properties of null").
+const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], display: "swap", fallback: ["system-ui", "-apple-system", "Segoe UI", "Arial", "sans-serif"], adjustFontFallback: false });
+const dmMono = DM_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono-data", display: "swap", fallback: ["ui-monospace", "Menlo", "Consolas", "monospace"], adjustFontFallback: false });
 import { Providers } from "@/components/Providers";
 import { TopNav } from "@/components/TopNav";
 
