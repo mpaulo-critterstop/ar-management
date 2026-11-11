@@ -7,12 +7,13 @@ export function TopNav() {
   const { data: session } = useSession();
   const pathname = usePathname();
   if (!session || pathname === '/login') return null;
-  // Command-center pages use the CommandShell sidebar instead of this top bar — hide it there.
-  const SHELL_ROUTES = ['/overview'];
-  if (SHELL_ROUTES.some(r => pathname === r || pathname?.startsWith(r + '/'))) return null;
-
   const role = (session.user as any)?.role;
   if (role === 'Technician') return null;
+  // Every page except the auth pages now uses the CommandShell sidebar for nav — hide this old top bar there.
+  // (change-password is the only non-auth page left without the shell.)
+  const NO_SHELL = ['/login', '/change-password'];
+  const onShellPage = !NO_SHELL.some(r => pathname === r || pathname?.startsWith(r + '/'));
+  if (onShellPage) return null;
 
   const isHome = pathname === '/';
 

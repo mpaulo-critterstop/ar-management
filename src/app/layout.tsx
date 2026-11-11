@@ -8,6 +8,7 @@ const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], disp
 const dmMono = DM_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono-data", display: "swap", fallback: ["ui-monospace", "Menlo", "Consolas", "monospace"], adjustFontFallback: false });
 import { Providers } from "@/components/Providers";
 import { TopNav } from "@/components/TopNav";
+import ShellWrapper from "@/components/ShellWrapper";
 
 export const metadata: Metadata = {
   title: "Critter Stop — The Hub",
@@ -36,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div style={{ position: 'relative', zIndex: 1 }}>
         <Providers>
           <TopNav />
-          {children}
+          <ShellWrapper>{children}</ShellWrapper>
         </Providers>
         <script dangerouslySetInnerHTML={{__html: `
           if ('serviceWorker' in navigator) {
