@@ -113,7 +113,6 @@ export default function OverviewPage() {
       <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       <div style={st.top}>
         <div><div style={st.hello}>Overview</div><div style={st.helloSub}>{today} · {greeting}{name ? `, ${name}` : ''} 👋 — here's where things stand</div></div>
-        {can('helcim') && <button onClick={() => router.push('/stax')} style={st.btnP}>+ Take Payment</button>}
       </div>
 
       {/* HIGHLIGHTS */}
