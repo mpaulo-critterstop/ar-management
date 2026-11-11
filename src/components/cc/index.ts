@@ -2,3 +2,4 @@
 export * from './tokens';
 export * from './Primitives';
 export * from './Layout';
+export * from './Modal';

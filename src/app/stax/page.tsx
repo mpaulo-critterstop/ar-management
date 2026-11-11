@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, SegTabs as CCSegTabs, FilterChips as CCFilterChips, DataTable as CCDataTable, Toolbar as CCToolbar, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
 import { Btn as CCBtn, StatusPill as CCStatusPill } from '@/components/cc/Primitives';
+import { Modal as CCModal, Label as CCLabel, Field as CCField, Select as CCSelect, InfoBox as CCInfoBox } from '@/components/cc/Modal';
 import { moneyK as ccMoneyK } from '@/components/cc/tokens';
 import { useSession } from 'next-auth/react';
 import { canRefund } from '@/lib/access';
@@ -344,45 +345,35 @@ export default function StaxPaymentsPage() {
         );
       })()}
 
-      {modalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }} onClick={() => setModalOpen(false)}>
-          <div style={{ background: '#1E1E23', borderRadius: 14, padding: 24, width: 460, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#ECEAE3' }}>Send Payment Link</div>
-              <button onClick={() => setModalOpen(false)} style={{ fontSize: 20, lineHeight: 1, border: 'none', background: 'transparent', color: '#9A988E', cursor: 'pointer' }}>×</button>
+      <CCModal open={modalOpen} onClose={() => setModalOpen(false)} title="Send Payment Link" icon="🔗" width={460} busy={sending}>
+        <CCLabel style={{ marginTop: 0 }}>Office</CCLabel>
+        <CCSelect value={office} onChange={e => setOffice(e.target.value)}><option>DFW</option><option>ATX</option><option>OKC</option><option>CStat</option></CCSelect>
+        <CCLabel>FieldRoutes Invoice #</CCLabel>
+        <CCField value={invoice} onChange={e => setInvoice(e.target.value)} placeholder="272858" />
+        <CCLabel>Amount to collect</CCLabel>
+        <CCField type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="158.25" />
+        <div style={{ fontSize: 11, color: '#63615A', marginTop: 5 }}>Enter a partial amount for deposits (e.g. 50%).</div>
+        <CCLabel>Delivery</CCLabel>
+        <CCSelect value={delivery} onChange={e => setDelivery(e.target.value)}><option value="email">Email</option><option value="text">Text</option></CCSelect>
+        <CCBtn variant="blue" onClick={send} disabled={sending} style={{ width: '100%', justifyContent: 'center', marginTop: 18, padding: '12px' }}>{sending ? 'Generating…' : 'Generate & Send Payment Link'}</CCBtn>
+        {err && <div style={{ fontSize: 13, color: '#E57C7C', background: '#361e1e', border: '1px solid #4a2626', borderRadius: 8, padding: '10px 12px', marginTop: 14 }}>{err}</div>}
+        {result && (
+          <div style={{ border: '1px solid #2e5a4c', borderRadius: 12, padding: 16, background: '#143229', marginTop: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#43B892', marginBottom: 8 }}>✓ Payment link created for {result.invoice?.customer}</div>
+            <div style={{ fontSize: 12, color: '#F0EEE8', marginBottom: 4 }}>Invoice balance: {money(parseFloat(result.invoice?.balance || 0))} · {result.delivery === 'text' ? `Phone: ${result.invoice?.phone || '—'}` : `Email: ${result.invoice?.email || '—'}`}</div>
+            <div style={{ fontSize: 12, marginBottom: 8, color: result.sent ? '#43B892' : '#DBA14E' }}>
+              {result.sent ? `✓ ${result.delivery === 'text' ? 'Texted to ' + result.invoice?.phone : 'Emailed to ' + result.invoice?.email}` : `⚠ Not sent (${result.sendReason || 'unknown'}) — copy the link below and send manually.`}
             </div>
-            <label style={{ fontSize: 12, color: '#9A988E' }}>Office<select value={office} onChange={e => setOffice(e.target.value)} style={inp}><option>DFW</option><option>ATX</option><option>OKC</option><option>CStat</option></select></label>
-            <label style={{ fontSize: 12, color: '#9A988E', display: 'block', marginTop: 14 }}>FieldRoutes Invoice #<input value={invoice} onChange={e => setInvoice(e.target.value)} placeholder="272858" style={inp} /></label>
-            <label style={{ fontSize: 12, color: '#9A988E', display: 'block', marginTop: 14 }}>Amount to collect<input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="158.25" style={inp} /><span style={{ fontSize: 11, color: '#6A685F' }}>Enter a partial amount for deposits (e.g. 50%).</span></label>
-            <label style={{ fontSize: 12, color: '#9A988E', display: 'block', marginTop: 14 }}>Delivery<select value={delivery} onChange={e => setDelivery(e.target.value)} style={inp}><option value="email">Email</option><option value="text">Text</option></select></label>
-            <button onClick={send} disabled={sending} style={{ width: '100%', marginTop: 18, fontSize: 14, padding: '12px', borderRadius: 8, border: 'none', background: '#5B9BE0', color: '#fff', fontWeight: 600, cursor: sending ? 'wait' : 'pointer' }}>{sending ? 'Generating…' : 'Generate & Send Payment Link'}</button>
-            {err && <div style={{ fontSize: 13, color: '#E07A7A', background: '#3A1F1F', border: '0.5px solid #5a2e2e', borderRadius: 8, padding: '10px 12px', marginTop: 14 }}>{err}</div>}
-
-            {result && (
-              <div style={{ border: '0.5px solid #2e5a4c', borderRadius: 12, padding: 16, background: '#15362C', marginTop: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#3FAE8C', marginBottom: 8 }}>✓ Payment link created for {result.invoice?.customer}</div>
-                <div style={{ fontSize: 12, color: '#ECEAE3', marginBottom: 4 }}>Invoice balance: {money(parseFloat(result.invoice?.balance || 0))} · {result.delivery === 'text' ? `Phone: ${result.invoice?.phone || '—'}` : `Email: ${result.invoice?.email || '—'}`}</div>
-                <div style={{ fontSize: 12, marginBottom: 8, color: result.sent ? '#3FAE8C' : '#D79A4A' }}>
-                  {result.sent ? `✓ ${result.delivery === 'text' ? 'Texted to ' + result.invoice?.phone : 'Emailed to ' + result.invoice?.email}` : `⚠ Not sent (${result.sendReason || 'unknown'}) — copy the link below and send manually.`}
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input readOnly value={result.url} style={{ flex: 1, fontSize: 12, padding: '8px 10px', borderRadius: 6, border: '0.5px solid #2e5a4c', background: '#1E1E23' }} />
-                  <button onClick={() => navigator.clipboard.writeText(result.url)} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: 'none', background: '#3FAE8C', color: '#fff', cursor: 'pointer' }}>Copy</button>
-                </div>
-              </div>
-            )}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input readOnly value={result.url} style={{ flex: 1, fontSize: 12, padding: '8px 10px', borderRadius: 6, border: '1px solid #2e5a4c', background: '#1C1C21', color: '#C9C7BF' }} />
+              <CCBtn variant="primary" style={{ padding: '8px 14px', fontSize: 12 }} onClick={() => navigator.clipboard.writeText(result.url)}>Copy</CCBtn>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </CCModal>
       {/* ---- Take Payment (Virtual Terminal) modal ---- */}
-      {vtOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(44,44,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }} onClick={() => !vtBusy && setVtOpen(false)}>
-          <div style={{ background: '#1E1E23', borderRadius: 14, padding: 24, width: 500, maxWidth: '94vw', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#ECEAE3' }}>💳 Take Payment</div>
-              <button onClick={() => setVtOpen(false)} style={{ fontSize: 20, lineHeight: 1, border: 'none', background: 'transparent', color: '#9A988E', cursor: 'pointer' }}>×</button>
-            </div>
-
+      <CCModal open={vtOpen} onClose={() => setVtOpen(false)} title="Take Payment" icon="💳" width={500} busy={vtBusy}>
+          <div>
             {vtResult ? (
               <div style={{ textAlign: 'center', padding: '10px 0' }}>
                 <div style={{ fontSize: 40 }}>✅</div>
@@ -471,24 +462,22 @@ export default function StaxPaymentsPage() {
               </>
             )}
           </div>
-        </div>
-      )}
+      </CCModal>
 
-      {refundModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }} onClick={() => setRefundModal(null)}>
-          <div style={{ background: '#1E1E23', borderRadius: 14, padding: 24, width: 420, maxWidth: '100%' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 17, fontWeight: 700, color: '#ECEAE3', marginBottom: 6 }}>Refund Payment</div>
-            <div style={{ fontSize: 13, color: '#9A988E', marginBottom: 4 }}>Stax txn: {refundModal.txnId}</div>
-            <div style={{ fontSize: 13, color: '#9A988E', marginBottom: 2 }}>Invoice: {refundModal.invoice || '—'} · Original: {money(refundModal.amount)}</div>
-            <div style={{ fontSize: 12, color: '#6A685F', marginBottom: 16 }}>Voids if unsettled, refunds if settled. Records a negative payment back to the FieldRoutes invoice.</div>
-            <label style={{ fontSize: 12, color: '#9A988E' }}>Partial amount (leave blank for full refund)<input type="number" step="0.01" value={refundAmt} onChange={e => setRefundAmt(e.target.value)} placeholder={`Full: ${money(refundModal.amount)}`} style={{ display: 'block', width: '100%', fontSize: 14, padding: '10px 12px', borderRadius: 8, border: '0.5px solid #2D2D33', marginTop: 4, boxSizing: 'border-box' }} /></label>
-            <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
-              <button onClick={() => setRefundModal(null)} style={{ flex: 1, fontSize: 13, padding: '11px', borderRadius: 8, border: '0.5px solid #2D2D33', background: '#1E1E23', color: '#9A988E', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={() => doRefund(!refundAmt)} disabled={refunding} style={{ flex: 1.4, fontSize: 13, padding: '11px', borderRadius: 8, border: 'none', background: '#E07A7A', color: '#fff', fontWeight: 600, cursor: refunding ? 'wait' : 'pointer' }}>{refunding ? 'Processing…' : (refundAmt ? `Refund ${money(parseFloat(refundAmt) || 0)}` : 'Refund Full Amount')}</button>
-            </div>
+      <CCModal open={!!refundModal} onClose={() => setRefundModal(null)} title="Refund Payment" icon="↩️" width={420} busy={refunding}>
+        {refundModal && <>
+          <CCInfoBox>
+            <div style={{ fontSize: 13, color: '#C9C7BF', marginBottom: 3 }}>Invoice <b style={{ color: '#F0EEE8' }}>{refundModal.invoice || '—'}</b> · Original <b style={{ color: '#F0EEE8' }}>{money(refundModal.amount)}</b></div>
+            <div style={{ fontSize: 11.5, color: '#908E85' }}>Voids if unsettled, refunds if settled. Records a negative payment back to the FieldRoutes invoice.</div>
+          </CCInfoBox>
+          <CCLabel style={{ marginTop: 0 }}>Partial amount (leave blank for full refund)</CCLabel>
+          <CCField type="number" step="0.01" value={refundAmt} onChange={e => setRefundAmt(e.target.value)} placeholder={`Full: ${money(refundModal.amount)}`} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+            <CCBtn variant="secondary" onClick={() => setRefundModal(null)} style={{ flex: 1, justifyContent: 'center' }}>Cancel</CCBtn>
+            <CCBtn variant="danger" onClick={() => doRefund(!refundAmt)} disabled={refunding} style={{ flex: 1.4, justifyContent: 'center' }}>{refunding ? 'Processing…' : (refundAmt ? `Refund ${money(parseFloat(refundAmt) || 0)}` : 'Refund Full Amount')}</CCBtn>
           </div>
-        </div>
-      )}
+        </>}
+      </CCModal>
     </div>
   );
 }
