@@ -1,6 +1,9 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, SegTabs as CCSegTabs } from '@/components/cc/Layout';
+import { Btn as CCBtn } from '@/components/cc/Primitives';
+import { moneyK as ccMoneyK } from '@/components/cc/tokens';
 import { useSession } from 'next-auth/react';
 import { canRefund } from '@/lib/access';
 
@@ -222,16 +225,32 @@ export default function StaxPaymentsPage() {
   const inp: React.CSSProperties = { display: 'block', width: '100%', fontSize: 14, padding: '10px 12px', borderRadius: 8, border: '0.5px solid #2D2D33', marginTop: 4, boxSizing: 'border-box', background: '#26262C', color: '#ECEAE3' };
   const statusPill = (s: string) => { const c: any = { sent: ['#3A2E18', '#D79A4A'], viewed: ['#E6F1FB', '#5B9BE0'], paid: ['#15362C', '#3FAE8C'], refunded: ['#EFEDE6', '#9A988E'], expired: ['#26262C', '#9A988E'] }; const [bg, fg] = c[s] || c.expired; return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: bg, color: fg }}>{s}</span>; };
 
+  // --- KPI strip metrics from the live report data ---
+  const sumAmt = (arr: any[]) => (arr || []).reduce((s, r) => s + Math.abs(Number(r.amount) || 0), 0);
+  const kpiItems = [
+    { icon: '💵', label: 'Collected (recorded)', value: ccMoneyK(sumAmt(report?.recorded)), tone: 'green' as const, delta: `${report?.recorded?.length || 0} payments`, deltaTone: 'green' as const },
+    { icon: '🔗', label: 'Links awaiting payment', value: links.filter(l => l.status === 'sent' || l.status === 'viewed').length, tone: 'blue' as const, delta: `of ${links.length} sent` },
+    { icon: '⚠️', label: 'Declined (follow up)', value: report?.declined?.length || 0, tone: 'red' as const, delta: (report?.declined?.length ? 'needs outreach' : 'none'), deltaTone: report?.declined?.length ? 'red' as const : undefined },
+    { icon: '🏦', label: 'Onsite to link', value: report?.onsite?.length || 0, tone: 'violet' as const, delta: 'awaiting invoice' },
+    { icon: '↩️', label: 'Refunded', value: ccMoneyK(sumAmt(report?.refunded)), tone: 'amber' as const, delta: `${report?.refunded?.length || 0} this period` },
+  ];
+
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: '30px 34px 70px' }}>
+      <CCPageHeader icon="💳" title="Stax Payments" subtitle="Take payments, send links, and track everything in one place"
+        actions={<>
+          <CCBtn variant="blue" onClick={openModal}>🔗 Send Payment Link</CCBtn>
+          <CCBtn variant="primary" onClick={openVt}>＋ Take Payment</CCBtn>
+        </>} />
 
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#ECEAE3', margin: '8px 0 4px' }}>💳 Stax Payments</h1>
-      <p style={{ fontSize: 13, color: '#9A988E', margin: '0 0 20px' }}>Send a customer a payment link for a specific invoice. Payments record back into FieldRoutes automatically.</p>
+      <CCKpiStrip items={kpiItems} />
 
-      <div style={{ display: 'flex', gap: 4, background: '#26262C', borderRadius: 8, padding: 3, width: 'fit-content', marginBottom: 24 }}>
-        {(['links', 'report', 'onsite'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ fontSize: 13, padding: '7px 18px', borderRadius: 6, border: 'none', cursor: 'pointer', background: tab === t ? '#1E1E23' : 'transparent', color: tab === t ? '#ECEAE3' : '#9A988E', fontWeight: tab === t ? 600 : 400 }}>{t === 'links' ? `Payment Links (${links.length})` : t === 'report' ? 'Payment Report' : `Onsite Payments${report?.onsite?.length ? ` (${report.onsite.length})` : ''}`}</button>
-        ))}
+      <div style={{ marginBottom: 18 }}>
+        <CCSegTabs active={tab} onChange={(k) => setTab(k as any)} tabs={[
+          { key: 'report', label: '📜 Payment Report' },
+          { key: 'links', label: '🔗 Payment Links', count: links.length },
+          { key: 'onsite', label: '🏦 Onsite', count: report?.onsite?.length || 0 },
+        ]} />
       </div>
 
       {tab === 'links' && (() => {
