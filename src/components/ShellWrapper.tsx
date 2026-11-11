@@ -10,6 +10,8 @@ import CommandShell from '@/components/CommandShell';
 
 const NO_SHELL = ['/login', '/change-password'];
 const SELF_SHELL = ['/overview']; // pages that render CommandShell themselves
+// Modules whose interiors have been restyled to dark — they get a dark content surface (no light wrapper).
+const DARK_CONTENT = ['/stax'];
 
 export default function ShellWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || '';
@@ -24,7 +26,11 @@ export default function ShellWrapper({ children }: { children: React.ReactNode }
   // Technicians use the old minimal view (no shell) — keep their existing experience.
   if ((session.user as any)?.role === 'Technician') return <>{children}</>;
 
-  // Wrap the module in the shell, but give the content a light surface so current content stays readable.
+  // Restyled-to-dark modules render directly on the shell's dark surface (no light wrapper).
+  const darkContent = DARK_CONTENT.some(r => pathname === r || pathname.startsWith(r + '/'));
+  if (darkContent) return <CommandShell>{children}</CommandShell>;
+
+  // Not-yet-restyled modules: keep content on a light surface so it stays readable.
   return (
     <CommandShell>
       <div style={{ background: '#F4F2EC', color: '#2C2C2A', borderRadius: 14, minHeight: 'calc(100vh - 48px)', margin: '-24px -32px -60px', padding: '8px 0' }}>
