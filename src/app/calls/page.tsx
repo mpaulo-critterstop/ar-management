@@ -146,6 +146,55 @@ export default function CallsPage() {
         <SearchBox value={agentSearch} onChange={setAgentSearch} placeholder="Search agent…" />
       </Toolbar>
       <DataTable cols={agentCols} rows={agents} rowKey={(a: any) => a.name} empty={loading ? 'Loading…' : 'No data for this period.'} />
+
+      {/* Tracking number breakdowns */}
+      <SectionHeader note="by phone line">Caller breakdown</SectionHeader>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 13 }}>
+        <Card style={{ padding: 18 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: cc.ink }}>Calls per tracking number</div>
+          <div style={{ fontSize: 11.5, color: cc.muted, marginBottom: 12 }}>Total volume by line</div>
+          {(() => {
+            const entries = Object.entries(data?.tracking_numbers || {}).sort(([, a]: any, [, b]: any) => (b as number) - (a as number));
+            const max = entries.length ? (entries[0][1] as number) : 1;
+            if (loading) return <div style={{ textAlign: 'center', color: cc.faint, padding: 28, fontSize: 13 }}>Loading…</div>;
+            if (!entries.length) return <div style={{ textAlign: 'center', color: cc.faint, padding: 28, fontSize: 13 }}>No data</div>;
+            return <div style={{ overflowY: 'auto', maxHeight: 340 }}>
+              {entries.map(([num, count]: any) => (
+                <div key={num} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: `1px solid ${cc.line}` }}>
+                  <div style={{ fontSize: 12.5, color: cc.ink2, width: 134, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{num}</div>
+                  <div style={{ flex: 1, height: 7, background: cc.panel2, borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ width: `${(count / max) * 100}%`, height: '100%', background: cc.blue, borderRadius: 4 }} />
+                  </div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: cc.ink, width: 40, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{count}</div>
+                </div>
+              ))}
+            </div>;
+          })()}
+        </Card>
+        <Card style={{ padding: 18 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: cc.ink }}>First-time callers by tracking number</div>
+          <div style={{ fontSize: 11.5, color: cc.muted, marginBottom: 12 }}>New leads per line</div>
+          {(() => {
+            const entries = Object.entries(data?.first_time_by_tracking || {})
+              .sort(([, a]: any, [, b]: any) => b.first_time - a.first_time)
+              .filter(([, v]: any) => v.first_time > 0);
+            const max = entries.length ? (entries[0][1] as any).first_time : 1;
+            if (loading) return <div style={{ textAlign: 'center', color: cc.faint, padding: 28, fontSize: 13 }}>Loading…</div>;
+            if (!entries.length) return <div style={{ textAlign: 'center', color: cc.faint, padding: 28, fontSize: 13 }}>No data</div>;
+            return <div style={{ overflowY: 'auto', maxHeight: 340 }}>
+              {entries.map(([num, v]: any) => (
+                <div key={num} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: `1px solid ${cc.line}` }}>
+                  <div style={{ fontSize: 12.5, color: cc.ink2, width: 134, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{num}</div>
+                  <div style={{ flex: 1, height: 7, background: cc.panel2, borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ width: `${(v.first_time / max) * 100}%`, height: '100%', background: cc.green, borderRadius: 4 }} />
+                  </div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: cc.ink, width: 40, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{v.first_time}</div>
+                </div>
+              ))}
+            </div>;
+          })()}
+        </Card>
+      </div>
     </div>
   );
 }
