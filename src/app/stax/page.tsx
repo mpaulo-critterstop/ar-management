@@ -256,37 +256,27 @@ export default function StaxPaymentsPage() {
       {tab === 'links' && (() => {
         const q = linkSearch.trim().toLowerCase();
         const filteredLinks = q ? links.filter(l => (l.customerName || '').toLowerCase().includes(q) || String(l.frInvoiceNumber || '').toLowerCase().includes(q)) : links;
+        const linkTone: any = { sent: 'amber', viewed: 'blue', paid: 'green', refunded: 'neutral', expired: 'neutral' };
+        const cols: any[] = [
+          { key: 'cust', label: 'Customer', render: (l: any) => <CCCustomerCell name={l.customerName || 'Customer'} sub={l.frInvoiceNumber ? `#${l.frInvoiceNumber}` : undefined} /> },
+          { key: 'amount', label: 'Amount', align: 'right', render: (l: any) => <span style={{ fontWeight: 700, color: '#F0EEE8', fontVariantNumeric: 'tabular-nums' }}>{money(l.amount)}</span> },
+          { key: 'status', label: 'Status', render: (l: any) => <CCStatusPill tone={linkTone[l.status] || 'neutral'}>{l.status}</CCStatusPill> },
+          { key: 'via', label: 'Via', render: (l: any) => <span style={{ color: '#908E85', fontSize: 12.5 }}>{l.deliveryMethod}</span> },
+          { key: 'by', label: 'By', render: (l: any) => <span style={{ color: '#908E85', fontSize: 12.5 }}>{l.createdBy || '—'}</span> },
+          { key: 'created', label: 'Created', render: (l: any) => <span style={{ color: '#908E85', fontSize: 12.5 }}>{fmt(l.createdAt)}</span> },
+          { key: 'actions', label: '', align: 'right', render: (l: any) => (
+            <span style={{ display: 'inline-flex', gap: 6 }}>
+              <CCBtn variant="secondary" style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => navigator.clipboard.writeText(l.url)}>Copy</CCBtn>
+              {(l.status === 'sent' || l.status === 'viewed' || l.status === 'expired') && <CCBtn variant="danger" style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => deleteLink(l)}>Delete</CCBtn>}
+            </span>) },
+        ];
         return (<>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 12 }}>
-          <input value={linkSearch} onChange={e => setLinkSearch(e.target.value)} placeholder="Search by customer name or invoice #…" style={{ flex: 1, maxWidth: 360, fontSize: 13, padding: '9px 12px', borderRadius: 8, border: '0.5px solid #2D2D33', boxSizing: 'border-box', background: '#26262C', color: '#ECEAE3' }} />
-          <span style={{ display: 'inline-flex', gap: 8 }}>
-            <button onClick={openVt} style={{ fontSize: 13, padding: '9px 18px', borderRadius: 8, border: 'none', background: '#3FAE8C', color: '#fff', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>💳 Take Payment</button>
-            <button onClick={openModal} style={{ fontSize: 13, padding: '9px 18px', borderRadius: 8, border: 'none', background: '#5B9BE0', color: '#fff', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>+ Send Payment Link</button>
-          </span>
-        </div>
-        <div style={{ border: '0.5px solid #2D2D33', borderRadius: 12, overflow: 'hidden', background: '#1E1E23' }}>
-          <div style={{ maxHeight: 520, overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr><th style={thC}>Created</th><th style={thC}>Customer</th><th style={thC}>Invoice #</th><th style={thR}>Amount</th><th style={thC}>Status</th><th style={thC}>Via</th><th style={thC}>By</th><th style={thC}>Link</th></tr></thead>
-              <tbody>
-                {filteredLinks.map(l => (
-                  <tr key={l.id}>
-                    <td style={tdC}>{fmt(l.createdAt)}</td>
-                    <td style={tdC}>{l.customerName || '—'}</td>
-                    <td style={tdC}>{l.frInvoiceNumber}</td>
-                    <td style={tdR}>{money(l.amount)}</td>
-                    <td style={tdC}>{statusPill(l.status)}</td>
-                    <td style={tdC}>{l.deliveryMethod}</td>
-                    <td style={tdC}>{l.createdBy || '—'}</td>
-                    <td style={tdC}><span style={{ display: 'inline-flex', gap: 4 }}><button onClick={() => navigator.clipboard.writeText(l.url)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2D2D33', background: '#1E1E23', color: '#5B9BE0', cursor: 'pointer' }}>Copy</button>{(l.status === 'sent' || l.status === 'viewed' || l.status === 'expired') && <button onClick={() => deleteLink(l)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #E07A7A', background: '#1E1E23', color: '#E07A7A', cursor: 'pointer' }}>Delete</button>}</span></td>
-                  </tr>
-                ))}
-                {!filteredLinks.length && <tr><td colSpan={8} style={{ ...tdC, color: '#9A988E', padding: 20 }}>{q ? 'No matches.' : 'No payment links yet.'}</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </>);
+          <CCToolbar>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#C9C7BF' }}>Payment links <span style={{ color: '#63615A', fontWeight: 400 }}>· {filteredLinks.length}</span></div>
+            <CCSearchBox value={linkSearch} onChange={setLinkSearch} placeholder="Search customer or invoice #…" />
+          </CCToolbar>
+          <CCDataTable cols={cols} rows={filteredLinks} rowKey={(l: any) => l.id} empty={q ? 'No matches.' : 'No payment links yet.'} />
+        </>);
       })()}
 
       {tab === 'report' && report && (() => {
@@ -299,7 +289,6 @@ export default function StaxPaymentsPage() {
           { key: 'flagged', label: 'Flagged', color: s.flagged?.count ? '#E07A7A' : '#9A988E' },
           { key: 'failed', label: 'Failed', color: s.failed?.count ? '#E07A7A' : '#9A988E' },
           { key: 'declined', label: 'Declined', color: s.declined?.count ? '#E07A7A' : '#9A988E' },
-          { key: 'pending', label: 'Pending', color: '#D79A4A' },
         ];
         const rows = byInv(report[reportStatus] || []);
         const withReason = reportStatus === 'flagged' || reportStatus === 'failed' || reportStatus === 'declined';
@@ -337,33 +326,20 @@ export default function StaxPaymentsPage() {
       {/* ---- Onsite Payments tab (PM mobile-reader payments awaiting link to an invoice) ---- */}
       {tab === 'onsite' && (() => {
         const rows = report?.onsite || [];
+        const cols: any[] = [
+          { key: 'cust', label: 'Customer', render: (r: any) => r.frCustomerName ? <CCCustomerCell name={r.frCustomerName} sub={r.frCustomerId ? `FR #${r.frCustomerId}` : undefined} /> : <span style={{ color: '#63615A' }}>— (not in DB)</span> },
+          { key: 'amount', label: 'Amount', align: 'right', render: (r: any) => <span style={{ fontWeight: 700, color: '#F0EEE8', fontVariantNumeric: 'tabular-nums' }}>{money(r.amount)}</span> },
+          { key: 'frid', label: 'FR Cust ID', render: (r: any) => <span style={{ fontVariantNumeric: 'tabular-nums', color: '#908E85' }}>{r.frCustomerId || '—'}</span> },
+          { key: 'card', label: 'Card', render: (r: any) => <span style={{ fontFamily: 'ui-monospace,Menlo,monospace', fontSize: 12.5, color: '#C9C7BF' }}>{r.cardLast4 ? `•••• ${r.cardLast4}` : '—'}</span> },
+          { key: 'when', label: 'When', render: (r: any) => <span style={{ color: '#908E85', fontSize: 12.5 }}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</span> },
+          { key: 'action', label: '', align: 'right', render: (r: any) => <CCBtn variant="primary" style={{ padding: '6px 13px', fontSize: 12 }} onClick={() => linkOnsite(r.staxTransactionId, '')}>Link to invoice</CCBtn> },
+        ];
         return (
           <div>
-            <div style={{ fontSize: 13, color: '#9A988E', marginBottom: 14 }}>
-              Payments taken onsite via the Stax mobile reader (no invoice at capture). Identified by the customer&apos;s reference (FR customer ID). Once the invoice is created in FieldRoutes, click <b>Link to invoice</b> — the payment then moves into the Payment Report.
+            <div style={{ fontSize: 13, color: '#908E85', marginBottom: 16, lineHeight: 1.5, maxWidth: 760 }}>
+              Payments taken onsite via the Stax mobile reader (no invoice at capture), identified by the customer&apos;s reference (FR customer ID). Once the invoice is created in FieldRoutes, click <b style={{ color: '#C9C7BF' }}>Link to invoice</b> — the payment then moves into the Payment Report.
             </div>
-            {rows.length === 0 ? (
-              <div style={{ fontSize: 14, color: '#6A685F', padding: '24px 0', textAlign: 'center' }}>No onsite payments awaiting link.</div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr style={{ borderBottom: '1px solid #2D2D33' }}>
-                  <th style={thC}>Stax Txn</th><th style={thR}>Amount</th><th style={thC}>Customer</th><th style={thC}>FR Cust ID</th><th style={thC}>Last Four</th><th style={thC}>When</th><th style={thC}>Action</th>
-                </tr></thead>
-                <tbody>
-                  {rows.map((r: any) => (
-                    <tr key={r.id} style={{ borderBottom: '0.5px solid #26262C' }}>
-                      <td style={tdC}>{String(r.staxTransactionId).slice(0, 8)}…</td>
-                      <td style={tdR}>{money(r.amount)}</td>
-                      <td style={tdC}>{r.frCustomerName || <span style={{ color: '#6A685F' }}>— (not in DB)</span>}</td>
-                      <td style={tdC}>{r.frCustomerId || '—'}</td>
-                      <td style={tdC}>{r.cardLast4 ? `•••• ${r.cardLast4}` : '—'}</td>
-                      <td style={tdC}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
-                      <td style={tdC}><button onClick={() => linkOnsite(r.staxTransactionId, '')} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 6, border: 'none', background: '#3FAE8C', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Link to invoice</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <CCDataTable cols={cols} rows={rows} rowKey={(r: any) => r.id} empty="No onsite payments awaiting link." />
           </div>
         );
       })()}
