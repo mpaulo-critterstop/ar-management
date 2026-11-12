@@ -70,22 +70,22 @@ const ER = ({cols,msg}: {cols:number,msg:string}) => (
   <tr><td colSpan={cols} style={{textAlign:"center",padding:"2rem",fontSize:13,color:"#908E85"}}>{msg}</td></tr>
 );
 const Modal = ({title,onClose,children,wide}: {title:string,onClose:()=>void,children:React.ReactNode,wide?:boolean}) => (
-  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={e=>e.target===e.currentTarget&&onClose()}>
-    <div style={{background:"#1C1C21",borderRadius:12,border:"0.5px solid #2A2A30",width:"100%",maxWidth:wide?700:520,maxHeight:"90vh",overflow:"auto"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"1rem 1.25rem",borderBottom:"0.5px solid #2A2A30",position:"sticky",top:0,background:"#1C1C21",zIndex:1}}>
-        <span style={{fontSize:15,fontWeight:500}}>{title}</span>
-        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:22,color:"#908E85",lineHeight:1}}>×</button>
+  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",backdropFilter:"blur(2px)",zIndex:1000,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"40px 16px",overflowY:"auto"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div style={{background:"#1C1C21",borderRadius:14,border:"1px solid #35353C",width:"100%",maxWidth:wide?700:520,maxHeight:"90vh",overflow:"auto",boxShadow:"0 20px 60px rgba(0,0,0,.5)"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 20px",borderBottom:"1px solid #2A2A30",position:"sticky",top:0,background:"#1C1C21",zIndex:1}}>
+        <span style={{fontSize:16,fontWeight:600,color:"#F0EEE8"}}>{title}</span>
+        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#908E85",lineHeight:1}}>×</button>
       </div>
-      <div style={{padding:"1.25rem"}}>{children}</div>
+      <div style={{padding:"20px"}}>{children}</div>
     </div>
   </div>
 );
 const Inp = ({label,value,onChange,type,placeholder,options,style:s,disabled}: {label?:string,value:string,onChange:(v:string)=>void,type?:string,placeholder?:string,options?:{value:string,label:string}[],style?:React.CSSProperties,disabled?:boolean}) => (
-  <div style={{display:"flex",flexDirection:"column",gap:4,...s}}>
-    {label && <label style={{fontSize:12,color:"#908E85",fontWeight:500}}>{label}</label>}
+  <div style={{display:"flex",flexDirection:"column",gap:5,...s}}>
+    {label && <label style={{fontSize:12,color:"#908E85",fontWeight:600}}>{label}</label>}
     {options
-      ? <select value={value} onChange={e=>onChange(e.target.value)} disabled={disabled} style={{fontSize:13,padding:"7px 10px",border:"0.5px solid #63615A",borderRadius:8,background:"#1C1C21"}}>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>
-      : <input type={type||"text"} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} disabled={disabled} style={{fontSize:13,padding:"7px 10px",border:"0.5px solid #63615A",borderRadius:8}} />
+      ? <select value={value} onChange={e=>onChange(e.target.value)} disabled={disabled} style={{fontSize:14,padding:"10px 12px",border:"1px solid #35353C",borderRadius:8,background:"#26262C",color:"#F0EEE8"}}>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>
+      : <input type={type||"text"} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} disabled={disabled} style={{fontSize:14,padding:"10px 12px",border:"1px solid #35353C",borderRadius:8,background:"#26262C",color:"#F0EEE8"}} />
     }
   </div>
 );
@@ -462,7 +462,7 @@ function MarkCalledModal({item, onClose, onSaved}: any) {
   };
 
   return (
-    <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+    <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",backdropFilter:"blur(2px)",zIndex:2000,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"40px 24px",overflowY:"auto"}}>
       <div style={{background:"#1C1C21",borderRadius:14,width:"100%",maxWidth:460,padding:24}}>
         <div style={{fontWeight:600,fontSize:16,marginBottom:4}}>Log call — {item.customerName}</div>
         <div style={{fontSize:12,color:"#908E85",marginBottom:16}}>{item.serviceType||""} · ${Math.round(item.outstanding).toLocaleString()} outstanding · {item.daysOverdue}d overdue</div>
@@ -511,7 +511,7 @@ function MoveToModal({item, onClose, onMoved}: any) {
   };
 
   return (
-    <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+    <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",backdropFilter:"blur(2px)",zIndex:2000,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"40px 24px",overflowY:"auto"}}>
       <div style={{background:"#1C1C21",borderRadius:14,width:"100%",maxWidth:420,padding:24}}>
         <div style={{fontWeight:600,fontSize:16,marginBottom:4}}>Move — {item.customerName}</div>
         <div style={{fontSize:12,color:"#908E85",marginBottom:16}}>${Math.round(item.outstanding).toLocaleString()} outstanding · removes from the call sheet</div>
@@ -743,7 +743,7 @@ function DistributeModal({users, officeFilter, onClose, onDone}: any) {
   const showToastFallback=(msg:string)=>alert(msg||'Failed');
 
   return (
-    <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+    <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",backdropFilter:"blur(2px)",zIndex:2000,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"40px 24px",overflowY:"auto"}}>
       <div style={{background:"#1C1C21",borderRadius:14,width:"100%",maxWidth:520,padding:24,maxHeight:"85vh",overflowY:"auto"}}>
         <div style={{fontWeight:600,fontSize:16,marginBottom:4}}>Auto-distribute backlog</div>
         <div style={{fontSize:12,color:"#908E85",marginBottom:16}}>Spreads the overdue backlog evenly across the selected people, balanced within each aging bucket (1-30 / 31-60 / 61-90 / 91-180 / 181+).</div>
