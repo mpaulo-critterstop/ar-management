@@ -9,7 +9,8 @@ import { CommissionsTab } from './CommissionsTab';
 import { KpiTab } from './KpiTab';
 import { LastSynced } from '@/components/LastSynced';
 import { canAccessModule, perm } from '@/lib/access';
-import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip } from '@/components/cc/Layout';
+import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, DataTable as CCDataTable, Toolbar as CCToolbar, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
+import { Btn as CCBtn, StatusPill as CCStatusPill, SectionHeader as CCSectionHeader } from '@/components/cc/Primitives';
 
 const ACCENT = '#5B9BE0';
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
@@ -134,6 +135,41 @@ export default function LeadsPage() {
   const totalPages = Math.ceil(filtered.length / pageSize);
   const displayed = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  const selStyle: React.CSSProperties = { fontSize: 12.5, padding: '8px 11px', borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8' };
+
+  // Flatten leads into display rows (primary + optional upsell), honoring the date filter — for the cc DataTable.
+  const leadRows = displayed.flatMap((lead: any) => {
+    const out: any[] = [];
+    const invoiceDate = lead.invoice?.date ? lead.invoice.date.split('T')[0] : null;
+    const fromDate = from || null, toDate = to || null;
+    const noDateFilter = !fromDate && !toDate;
+    const primaryInRange = noDateFilter || statusFilter !== 'SOLD' || lead.status !== 'SOLD' ||
+      (invoiceDate !== null && (!fromDate || invoiceDate >= fromDate) && (!toDate || invoiceDate <= toDate));
+    if (primaryInRange) out.push({ ...lead, _rowKey: lead.id, _isUpsell: false, _dateStr: lead.invoice?.date ? lead.invoice.date.split('T')[0] : null, _invExt: lead.invoice?.externalId, _amt: lead.amount });
+    if (lead.upsellAmount && lead.upsellDate) {
+      const u = lead.upsellDate.split('T')[0];
+      if (noDateFilter || ((!fromDate || u >= fromDate) && (!toDate || u <= toDate)))
+        out.push({ ...lead, _rowKey: lead.id + '_upsell', _isUpsell: true, _dateStr: u, _invExt: lead.upsellInvoice?.externalId, _amt: lead.upsellAmount });
+    }
+    return out;
+  });
+
+  const Pagination2 = () => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 4px', flexWrap: 'wrap', gap: 8 }}>
+      <div style={{ fontSize: 12, color: '#908E85' }}>
+        Showing {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length}
+        <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} style={{ ...selStyle, padding: '3px 7px', marginLeft: 6 }}>
+          <option value={100}>100</option><option value={500}>500</option><option value={1000}>1000</option>
+        </select> per page
+      </div>
+      <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+        <CCBtn variant="secondary" style={{ padding: '5px 11px', fontSize: 12 }} disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}>Prev</CCBtn>
+        <span style={{ fontSize: 12, color: '#908E85' }}>{currentPage} / {totalPages || 1}</span>
+        <CCBtn variant="secondary" style={{ padding: '5px 11px', fontSize: 12 }} disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}>Next</CCBtn>
+      </div>
+    </div>
+  );
+
   const pageNums = () => {
     const pages: number[] = [];
     if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) pages.push(i); }
@@ -210,137 +246,41 @@ export default function LeadsPage() {
       {activeTab === 'leads' && canLeads && (
         <>
           {/* Filters */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, color: '#908E85' }}>Filters:</span>
-              <input type="text" placeholder="Search customer..." value={search} onChange={e => setSearch(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', minWidth: 180 }} />
-              <select value={statusInput} onChange={e => setStatusInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21' }}>
-                <option value="All">All</option>
-                <option value="SOLD">Sold</option>
-              </select>
-              <select value={pmInput} onChange={e => setPmInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21' }}>
-                {pms.map(p => <option key={p}>{p}</option>)}
-              </select>
-            </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <input type="date" value={fromInput} onChange={e => setFromInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30' }} />
-              <span style={{ fontSize: 12, color: '#908E85' }}>to</span>
-              <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30' }} />
-              <button onClick={() => { setFrom(fromInput); setTo(toInput); setStatusFilter(statusInput); setPmFilter(pmInput); }} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#F0EEE8', cursor: 'pointer', fontWeight: 500 }}>Apply</button>
-              {(from || to || statusFilter !== 'All' || pmFilter !== 'All') && (
-                <button onClick={() => { setFrom(''); setTo(''); setFromInput(''); setToInput(''); setStatusFilter('All'); setStatusInput('All'); setPmFilter('All'); setPmInput('All'); }} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#908E85', cursor: 'pointer' }}>Clear</button>
-              )}
-            </div>
-          </div>
+          <CCToolbar>
+            <select value={statusInput} onChange={e => setStatusInput(e.target.value)} style={selStyle}>
+              <option value="All">All statuses</option><option value="SOLD">Sold</option>
+            </select>
+            <select value={pmInput} onChange={e => setPmInput(e.target.value)} style={selStyle}>
+              {pms.map(p => <option key={p}>{p}</option>)}
+            </select>
+            <input type="date" value={fromInput} onChange={e => setFromInput(e.target.value)} style={selStyle} />
+            <span style={{ fontSize: 12, color: '#908E85' }}>to</span>
+            <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={selStyle} />
+            <CCBtn variant="secondary" onClick={() => { setFrom(fromInput); setTo(toInput); setStatusFilter(statusInput); setPmFilter(pmInput); }}>Apply</CCBtn>
+            {(from || to || statusFilter !== 'All' || pmFilter !== 'All') && (
+              <CCBtn variant="ghost" onClick={() => { setFrom(''); setTo(''); setFromInput(''); setToInput(''); setStatusFilter('All'); setStatusInput('All'); setPmFilter('All'); setPmInput('All'); }}>Clear</CCBtn>
+            )}
+            <CCSearchBox value={search} onChange={setSearch} placeholder="Search customer…" />
+          </CCToolbar>
 
-          {/* KPI strip */}
-          {kpis && (
-            <CCKpiStrip items={[
-              { icon:'🎯', label:'Total leads', value: loading?'…':kpis.total, tone:'blue', delta:'all inspections' },
-              { icon:'✅', label:'Sold', value: loading?'…':kpis.sold, tone:'green', delta:`+${kpis.inspected} inspected`, deltaTone:'green' },
-              { icon:'📈', label:'Conversion rate', value: loading?'…':pct(kpis.conversionRate), tone:'amber', delta:'sold / total' },
-              { icon:'💵', label:'Booked revenue', value: loading?'…':fmt((kpis.bookedRevenue||0)+(kpis.upsellRevenue||0)), tone:'green', delta:`avg ${fmt(kpis.avgSale)}`, deltaTone:'green' },
-            ]} />
-          )}
+          <CCSectionHeader note={`${filtered.length} leads`}>Lead records</CCSectionHeader>
+          <CCDataTable
+            rowKey={(r:any)=>r._rowKey}
+            empty={loading ? 'Loading…' : 'No leads found'}
+            cols={[
+              { key:'cust', label:'Customer', render:(r:any)=><CCCustomerCell name={r.customer?.name || '—'} /> },
+              { key:'insp', label:'Inspection', render:(r:any)=><span style={{color:'#908E85',fontSize:12.5}}>{r.inspectionDate ? r.inspectionDate.split('T')[0] : '—'}</span> },
+              { key:'sold', label:'Sold / Upsell date', render:(r:any)=><span style={{color:'#908E85',fontSize:12.5}}>{r._dateStr || '—'}</span> },
+              { key:'pm', label:'PM', render:(r:any)=><span style={{color:'#C9C7BF'}}>{r.pmName || '—'}</span> },
+              { key:'status', label:'Status', render:(r:any)=><CCStatusPill tone={r._isUpsell?'violet':r.status==='SOLD'?'green':r.status==='INSPECTED'?'blue':'amber'}>{r._isUpsell?'Upsell':r.status}</CCStatusPill> },
+              { key:'inv', label:'Invoice', render:(r:any)=><span style={{fontVariantNumeric:'tabular-nums',color:'#908E85'}}>{r._invExt || '—'}</span> },
+              { key:'amt', label:'Amount', align:'right', render:(r:any)=><span style={{fontWeight:700,color:'#F0EEE8',fontVariantNumeric:'tabular-nums'}}>{r._amt ? fmt(r._amt) : '—'}</span> },
+              { key:'office', label:'Office', render:(r:any)=> r.office ? <CCStatusPill tone="blue">{r.office}</CCStatusPill> : '—' },
+            ]}
+            rows={leadRows}
+          />
+          <Pagination2 />
 
-          {/* Lead records table */}
-          <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 14 }}>Lead records</div>
-          <div style={{ background: '#1C1C21', borderRadius: 12, border: '0.5px solid #2A2A30', overflow: 'hidden', marginBottom: 24 }}>
-            <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
-                  <tr style={{ background: '#232329' }}>
-                    {['Customer', 'Inspection Date', 'Sold Date', 'PM', 'Status', 'Invoice', 'Amount', 'Office'].map(h => (
-                      <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: '#908E85', borderBottom: '0.5px solid #2A2A30' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: '#908E85' }}>Loading...</td></tr>
-                  ) : displayed.flatMap((lead: any) => {
-                    const rows = [];
-
-                    // Determine if primary row should show based on date filter
-                    const invoiceDate = lead.invoice?.date ? lead.invoice.date.split('T')[0] : null;
-                    const fromDate = from || null;
-                    const toDate = to || null;
-                    const noDateFilter = !fromDate && !toDate;
-                    // For SOLD leads with a date filter, only show if invoice date is in range
-                    // For INSPECTED leads, always show the primary row (no invoice date to check)
-                    const primaryInRange = noDateFilter ||
-                      statusFilter !== 'SOLD' ||
-                      lead.status !== 'SOLD' ||
-                      (invoiceDate !== null && (!fromDate || invoiceDate >= fromDate) && (!toDate || invoiceDate <= toDate));
-
-                    if (primaryInRange) {
-                      rows.push(
-                      <tr key={lead.id} style={{ borderBottom: '0.5px solid #232329' }}>
-                        <td style={{ padding: '10px 12px', fontWeight: 500 }}>{lead.customer?.name || '—'}</td>
-                        <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.inspectionDate ? lead.inspectionDate.split('T')[0] : '—'}</td>
-                        <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.invoice?.date ? lead.invoice.date.split('T')[0] : '—'}</td>
-                        <td style={{ padding: '10px 12px' }}>{lead.pmName || '—'}</td>
-                        <td style={{ padding: '10px 12px' }}>
-                          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: lead.status === 'SOLD' ? '#143229' : lead.status === 'INSPECTED' ? '#E6F1FB' : '#FAEEDA', color: lead.status === 'SOLD' ? '#43B892' : lead.status === 'INSPECTED' ? '#185FA5' : '#854F0B' }}>
-                            {lead.status}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.invoice?.externalId || '—'}</td>
-                        <td style={{ padding: '10px 12px' }}>{lead.amount ? fmt(lead.amount) : '—'}</td>
-                        <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.office}</td>
-                      </tr>
-                      );
-                    }
-                    if (lead.upsellAmount && lead.upsellDate) {
-                      const upsellDateStr = lead.upsellDate.split('T')[0];
-                      const upsellInRange = noDateFilter ||
-                        ((!fromDate || upsellDateStr >= fromDate) && (!toDate || upsellDateStr <= toDate));
-                      if (upsellInRange) {
-                        rows.push(
-                        <tr key={lead.id + '_upsell'} style={{ borderBottom: '0.5px solid #232329', background: '#232329' }}>
-                          <td style={{ padding: '10px 12px', fontWeight: 500 }}>{lead.customer?.name || '—'}</td>
-                          <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.inspectionDate ? lead.inspectionDate.split('T')[0] : '—'}</td>
-                          <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.upsellDate.split('T')[0]}</td>
-                          <td style={{ padding: '10px 12px' }}>{lead.pmName || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>
-                            <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: '#F0EAFD', color: '#6B3FA0' }}>
-                              Upsell
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.upsellInvoice?.externalId || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{fmt(lead.upsellAmount)}</td>
-                          <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.office}</td>
-                        </tr>
-                      );
-                      }
-                    }
-                    return rows;
-                  })}
-                  {!loading && leads.length === 0 && (
-                    <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: '#908E85' }}>No leads found</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '0.5px solid #2A2A30', background: '#232329', flexWrap: 'wrap', gap: 8 }}>
-              <div style={{ fontSize: 12, color: '#908E85' }}>
-                Showing {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length} leads
-                <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} style={{ fontSize: 12, padding: '2px 6px', border: '0.5px solid #63615A', borderRadius: 4, marginLeft: 6 }}>
-                  <option value={100}>100</option>
-                  <option value={500}>500</option>
-                  <option value={1000}>1000</option>
-                </select> per page
-              </div>
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ padding: '3px 10px', fontSize: 12, border: '0.5px solid #2A2A30', borderRadius: 4, background: currentPage === 1 ? '#232329' : '#1C1C21', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}>Previous</button>
-                {pageNums().map((p, i) => p === -1
-                  ? <span key={i} style={{ padding: '3px 6px', fontSize: 12 }}>…</span>
-                  : <button key={p} onClick={() => setCurrentPage(p)} style={{ padding: '3px 10px', fontSize: 12, border: '0.5px solid #2A2A30', borderRadius: 4, background: currentPage === p ? ACCENT : '#1C1C21', color: currentPage === p ? '#1C1C21' : '#F0EEE8', cursor: 'pointer' }}>{p}</button>
-                )}
-                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ padding: '3px 10px', fontSize: 12, border: '0.5px solid #2A2A30', borderRadius: 4, background: currentPage === totalPages ? '#232329' : '#1C1C21', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}>Next</button>
-              </div>
-            </div>
-          </div>
         </>
       )}
 
