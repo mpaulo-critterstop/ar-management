@@ -107,9 +107,9 @@ export function CommissionsTab() {
       </div>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: '#908E85' }}>Loading commissions...</div>
+        <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Loading commissions...</div>
       ) : rows.length === 0 ? (
-        <div style={{ padding: 40, textAlign: 'center', color: '#908E85' }}>No commission plans. Add a structure to a PM in Manage PMs.</div>
+        <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>No commission plans. Add a structure to a PM in Manage PMs.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {(() => {
@@ -170,14 +170,12 @@ export function CommissionsTab() {
               </div>
             );
           })()}
-          <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#908E85', margin: '16px 0 10px' }}>Individual PMs</div>
-          <div style={{ maxHeight: '58vh', overflowY: 'auto', scrollbarGutter: 'stable', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {rows.map((pm: any) => (
             <div key={pm.pmName} style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden', background: '#1C1C21' }}>
               <div style={{ padding: '10px 14px', background: '#232329', fontWeight: 600, fontSize: 14, color: '#F0EEE8', borderBottom: '0.5px solid #2A2A30' }}>
                 {pm.pmName}
               </div>
-              <div style={{ overflowX: 'auto', overflowY: 'visible', scrollbarGutter: 'stable' }}>
+              <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh', scrollbarGutter: 'stable' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: '#232329' }}>
@@ -238,7 +236,6 @@ export function CommissionsTab() {
               </div>
             </div>
           ))}
-          </div>
         </div>
       )}
     </div>
