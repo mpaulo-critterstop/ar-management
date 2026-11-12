@@ -1,7 +1,8 @@
 // v2
 "use client";
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
-import { PageHeader as CCPageHeader } from "@/components/cc/Layout";
+import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip } from "@/components/cc/Layout";
+import { SectionHeader as CCSectionHeader, Card as CCCard } from "@/components/cc/Primitives";
 import { LastSynced } from "@/components/LastSynced";
 
 const ACCENT = '#5B9BE0';
@@ -1037,37 +1038,48 @@ function DashPage({open,totalAR,totalOverdue,collected,agingTotals,payments,prev
 
   return (
     <div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:12}}>
-        <MC label="Total AR" value={fmt(totalAR)} sub={openInvoices+" open invoices"} color={ACCENT}/>
-        <MC label="Open AR" value={fmt(totalAR)} sub={openInvoices+" invoices"}/>
-        <MC label="Total past due" value={fmt(totalOverdue)} color="#E57C7C"/>
-        <MC label="Open invoices" value={openInvoices}/>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:12}}>
-        <MC label="1–30 days AR" value={fmt(agingTotals["1-30"])} color="#43B892"/>
-        <MC label="31–60 days AR" value={fmt(agingTotals["31-60"])} color="#DBA14E"/>
-        <MC label="61–90 days AR" value={fmt(agingTotals["61-90"])} color="#DBA14E"/>
-        <MC label="90+ days AR" value={fmt(agingTotals["90+"])} color="#E57C7C"/>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
-        <MC label="AR benchmark" value={fmt(prevMonthAR)} sub="Previous month"/>
-        <MC label="AR vs benchmark" value={(arVsBenchmark>=0?"+":"")+arVsBenchmark.toFixed(1)+"%"} color={arVsBenchmark>0?"#E57C7C":"#43B892"} sub={arVsBenchmark>0?"Above last month":"Below last month"}/>
-        <div style={{background:"#232329",borderRadius:8,padding:"14px 16px",border:"0.5px solid #2A2A30"}}>
-          <div style={{fontSize:12,color:"#908E85",marginBottom:4,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+      {/* Top-line AR health */}
+      <CCKpiStrip items={[
+        { icon:"💰", label:"Total AR", value:fmt(totalAR), tone:"blue", delta:`${openInvoices} open invoices` },
+        { icon:"⏰", label:"Total past due", value:fmt(totalOverdue), tone:"red", delta: totalAR>0 ? `${Math.round((totalOverdue/totalAR)*100)}% of AR` : "" , deltaTone:"red" },
+        { icon:"📄", label:"Open invoices", value:openInvoices, tone:"violet" },
+        { icon:"📊", label:"AR vs last month", value:`${arVsBenchmark>=0?"+":""}${arVsBenchmark.toFixed(1)}%`, tone: arVsBenchmark>0?"red":"green", delta: arVsBenchmark>0?"above benchmark":"below benchmark", deltaTone: arVsBenchmark>0?"red":"green" },
+      ]} />
+
+      {/* Aging breakdown */}
+      <CCSectionHeader note="outstanding balance by age">Aging</CCSectionHeader>
+      <CCKpiStrip items={[
+        { icon:"🟢", label:"1–30 days", value:fmt(agingTotals["1-30"]), tone:"green" },
+        { icon:"🟡", label:"31–60 days", value:fmt(agingTotals["31-60"]), tone:"amber" },
+        { icon:"🟠", label:"61–90 days", value:fmt(agingTotals["61-90"]), tone:"amber" },
+        { icon:"🔴", label:"90+ days", value:fmt(agingTotals["90+"]), tone:"red" },
+      ]} />
+
+      {/* Collections performance */}
+      <CCSectionHeader>Collections</CCSectionHeader>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:13}}>
+        <CCCard style={{padding:"16px 17px",position:"relative",overflow:"hidden"}}>
+          <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:"#9D8BE6",borderRadius:3}}/>
+          <div style={{fontSize:12,color:"#908E85",fontWeight:500}}>AR benchmark (previous month)</div>
+          <div style={{fontSize:24,fontWeight:700,marginTop:8,color:"#F0EEE8"}}>{fmt(prevMonthAR)}</div>
+        </CCCard>
+        <CCCard style={{padding:"16px 17px",position:"relative",overflow:"hidden"}}>
+          <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:"#43B892",borderRadius:3}}/>
+          <div style={{fontSize:12,color:"#908E85",fontWeight:500,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
             <span>Payments collected</span>
-            <select value={collectedDays} onChange={e=>setCollectedDays(Number(e.target.value))} style={{fontSize:11,padding:"1px 4px",borderRadius:4,border:"0.5px solid #ccc",background:"#1C1C21"}}>
+            <select value={collectedDays} onChange={e=>setCollectedDays(Number(e.target.value))} style={{fontSize:11,padding:"2px 6px",borderRadius:6,border:"1px solid #35353C",background:"#26262C",color:"#F0EEE8"}}>
               <option value={7}>7d</option><option value={30}>30d</option><option value={60}>60d</option><option value={90}>90d</option><option value={365}>YTD</option><option value={0}>Custom</option>
             </select>
             {collectedDays===0 && (
               <div style={{display:"flex",alignItems:"center",gap:4,marginTop:4,width:"100%"}}>
-                <input type="date" value={customDateFrom} onChange={e=>setCustomDateFrom(e.target.value)} style={{fontSize:10,padding:"2px 4px",borderRadius:4,border:"0.5px solid #ccc",width:"100px"}}/>
+                <input type="date" value={customDateFrom} onChange={e=>setCustomDateFrom(e.target.value)} style={{fontSize:10,padding:"3px 5px",borderRadius:5,border:"1px solid #35353C",background:"#26262C",color:"#F0EEE8"}}/>
                 <span style={{fontSize:10,color:"#908E85"}}>to</span>
-                <input type="date" value={customDateTo} onChange={e=>setCustomDateTo(e.target.value)} style={{fontSize:10,padding:"2px 4px",borderRadius:4,border:"0.5px solid #ccc",width:"100px"}}/>
+                <input type="date" value={customDateTo} onChange={e=>setCustomDateTo(e.target.value)} style={{fontSize:10,padding:"3px 5px",borderRadius:5,border:"1px solid #35353C",background:"#26262C",color:"#F0EEE8"}}/>
               </div>
             )}
           </div>
-          <div style={{fontSize:20,fontWeight:500,color:"#43B892"}}>{fmt(collected)}</div>
-        </div>
+          <div style={{fontSize:24,fontWeight:700,marginTop:8,color:"#43B892"}}>{fmt(collected)}</div>
+        </CCCard>
       </div>
     </div>
   );
