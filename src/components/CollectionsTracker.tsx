@@ -119,9 +119,9 @@ export default function CollectionsTracker({ embedded }: { embedded?: boolean })
             { key:'office', label:'Office', render:(row:any)=> row.office ? <CCStatusPill tone="blue">{row.office}</CCStatusPill> : '—' },
             { key:'amount', label:'Amount', align:'right', render:(row:any)=><span style={{fontWeight:700,color:'#F0EEE8',fontVariantNumeric:'tabular-nums'}}>{money(row.amount)}</span> },
             { key:'due', label:'Due', render:(row:any)=><span style={{color:'#908E85',fontSize:12.5}}>{fmt(row.dueDate)}</span> },
-            { key:'status', label:'Status', render:(row:any)=>statusCell(row) },
-            { key:'eng', label:'Engagement', render:(row:any)=>engagementCell(row) },
-            { key:'act', label:'Actions', render:(row:any)=><div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{actionsCell(row)}</div> },
+            { key:'status', label:'Status', render:(row:any)=><div style={{whiteSpace:'normal',maxWidth:150}}>{statusCell(row)}</div> },
+            { key:'eng', label:'Engagement', render:(row:any)=><div style={{whiteSpace:'normal',maxWidth:170}}>{engagementCell(row)}</div> },
+            { key:'act', label:'Actions', width:200, render:(row:any)=><div style={{display:'flex',gap:5,flexWrap:'wrap',whiteSpace:'normal',maxWidth:200}}>{actionsCell(row)}</div> },
           ]}
           rows={rows}
         />
