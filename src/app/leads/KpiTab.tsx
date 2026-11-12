@@ -294,6 +294,8 @@ export function KpiTab() {
         <div style={{ padding: 40, textAlign: 'center', color: '#908E85' }}>Loading...</div>
       ) : (
         <>
+          {/* One scroll region containing the company table + all PM tables (top controls stay frozen above) */}
+          <div style={{ maxHeight: 'calc(100vh - 230px)', overflowY: 'auto', scrollbarGutter: 'stable', paddingRight: 4 }}>
           {/* Company-wide KPI table */}
           <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 14, color: '#F0EEE8' }}>
             Company-wide {period === 'monthly' ? 'Monthly' : 'Weekly'} KPIs
@@ -351,7 +353,7 @@ export function KpiTab() {
                 <span style={{ fontSize: 11, color: '#908E85', fontWeight: 400, marginLeft: 8 }}>{pm.office}</span>
               </div>
               <div style={{ background: '#1C1C21', borderRadius: 12, border: '0.5px solid #2A2A30', overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh', scrollbarGutter: 'stable' }}>
+                <div style={{ overflowX: 'auto', scrollbarGutter: 'stable' }}>
                   <table style={tableStyle}>
                     <thead>
                       <tr>
@@ -380,6 +382,7 @@ export function KpiTab() {
               </div>
             </div>
           ))}
+          </div>
         </>
       )}
     </div>
