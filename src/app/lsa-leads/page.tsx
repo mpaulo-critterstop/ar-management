@@ -13,12 +13,12 @@ const STAGES = PESTAI_SEND_ENABLED
   ? ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Moved to DialPad', 'Sent to Pest AI', 'Booked', 'Lost']
   : ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Moved to DialPad', 'Booked', 'Lost'];
 const stageColor: Record<string, { bg: string; fg: string }> = {
-  'New': { bg: '#e6f0ff', fg: '#5B9BE0' },
-  'Awaiting Customer': { bg: '#fef9e6', fg: '#a16207' },
+  'New': { bg: '#15263a', fg: '#5B9BE0' },
+  'Awaiting Customer': { bg: '#352a16', fg: '#DBA14E' },
   'Customer Replied': { bg: '#15263a', fg: '#5B9BE0' },
-  'Need Follow-up': { bg: '#fee2e2', fg: '#E57C7C' },
-  'Moved to DialPad': { bg: '#e0f2f1', fg: '#0d7a6f' },
-  'Sent to Pest AI': { bg: '#ede9fb', fg: '#6D28D9' },
+  'Need Follow-up': { bg: '#361e1e', fg: '#E57C7C' },
+  'Moved to DialPad': { bg: '#143229', fg: '#43B892' },
+  'Sent to Pest AI': { bg: '#241f36', fg: '#9D8BE6' },
   'Booked': { bg: '#143229', fg: '#43B892' },
   'Lost': { bg: '#232329', fg: '#908E85' },
   'Call — handled': { bg: '#232329', fg: '#63615A' },
@@ -249,12 +249,12 @@ export default function LsaLeadsPage() {
                           ✕ Lost
                         </button>
                         <button onClick={() => tagLead(l.leadId, 'Moved to DialPad', l.status)} title="Lead gave a phone # but went quiet in LSA — continue follow-ups in DialPad"
-                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #0d7a6f', background: '#e0f2f1', color: '#0d7a6f', cursor: 'pointer' }}>
+                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '1px solid #2e5a4c', background: '#143229', color: '#43B892', cursor: 'pointer' }}>
                           → DialPad
                         </button>
                         {PESTAI_SEND_ENABLED && (
                           <button onClick={() => sendToPestAI(l.leadId)} disabled={sending[l.leadId]} title={l.pestAiSentAt ? `Last sent ${new Date(l.pestAiSentAt).toLocaleString()}` : 'Send this lead to Pest AI'}
-                            style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #6D28D9', background: l.pestAiSentAt ? '#f3f0fb' : '#ede9fb', color: '#6D28D9', cursor: sending[l.leadId] ? 'wait' : 'pointer', opacity: sending[l.leadId] ? 0.6 : 1 }}>
+                            style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '1px solid #3a3357', background: '#241f36', color: '#9D8BE6', cursor: sending[l.leadId] ? 'wait' : 'pointer', opacity: sending[l.leadId] ? 0.6 : 1 }}>
                             {sending[l.leadId] ? 'Sending…' : l.pestAiSentAt ? '↻ Pest AI' : '→ Pest AI'}
                           </button>
                         )}
