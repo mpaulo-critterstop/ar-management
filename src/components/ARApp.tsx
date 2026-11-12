@@ -1,9 +1,10 @@
 // v2
 "use client";
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
+import { PageHeader as CCPageHeader } from "@/components/cc/Layout";
 import { LastSynced } from "@/components/LastSynced";
 
-const ACCENT = '#0052cc';
+const ACCENT = '#5B9BE0';
 const TODAY = new Date();
 
 const fmt = (n: number) => "$" + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -16,10 +17,10 @@ const statusLabels: Record<string, string> = {
 };
 
 const BB: Record<string, {bg:string,c:string}> = {
-  CURRENT:{bg:"#E1F5EE",c:"#085041"}, OVERDUE:{bg:"#FAEEDA",c:"#633806"},
-  COLLECTIONS:{bg:"#FCEBEB",c:"#791F1F"}, PAID:{bg:"#F1EFE8",c:"#444441"},
+  CURRENT:{bg:"#143229",c:"#085041"}, OVERDUE:{bg:"#FAEEDA",c:"#633806"},
+  COLLECTIONS:{bg:"#361e1e",c:"#E57C7C"}, PAID:{bg:"#232329",c:"#444441"},
   PAYMENT_PLAN:{bg:"#E6F1FB",c:"#0C447C"}, DISPUTED:{bg:"#FBEAF0",c:"#72243E"},
-  SUSPENDED:{bg:"#F1EFE8",c:"#444441"}, ACTIVE:{bg:"#E1F5EE",c:"#085041"},
+  SUSPENDED:{bg:"#232329",c:"#444441"}, ACTIVE:{bg:"#143229",c:"#085041"},
 };
 
 const Badge = ({status, label:lbl, small}: {status:string, label?:string, small?:boolean}) => {
@@ -32,23 +33,23 @@ const MC = ({label,value,sub,color,clickable,selected,onClick}: {label:string,va
   <div
     onClick={onClick}
     style={{
-      background: "#fff",
+      background: "#1C1C21",
       borderRadius:12, padding:"14px 18px",
-      border: selected ? `1.5px solid ${ACCENT}` : "0.5px solid #E8E7E3",
+      border: selected ? `1.5px solid ${ACCENT}` : "0.5px solid #2A2A30",
       borderLeft: `3px solid ${color || ACCENT}`,
       cursor: clickable ? "pointer" : "default",
       transition: "box-shadow 0.15s",
     }}
   >
-    <div style={{fontSize:11,color:"#888780",fontWeight:500,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4}}>{label}</div>
-    <div style={{fontSize:24,fontWeight:500,color:color||"#2C2C2A"}}>{value}</div>
-    {sub && <div style={{fontSize:11,color:"#B4B2A9",marginTop:2}}>{sub}</div>}
+    <div style={{fontSize:11,color:"#908E85",fontWeight:500,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4}}>{label}</div>
+    <div style={{fontSize:24,fontWeight:500,color:color||"#F0EEE8"}}>{value}</div>
+    {sub && <div style={{fontSize:11,color:"#63615A",marginTop:2}}>{sub}</div>}
   </div>
 );
 
 const Card = ({title,action,children,noPad}: {title?:string,action?:React.ReactNode,children:React.ReactNode,noPad?:boolean}) => (
-  <div style={{background:"#fff",border:"0.5px solid #E8E7E3",borderRadius:12,padding:noPad?0:"1rem 1.25rem",marginBottom:"1rem",overflow:"hidden"}}>
-    {title && <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:noPad?0:"1rem",padding:noPad?"1rem 1.25rem 0.75rem":0,borderBottom:noPad?"0.5px solid #E8E7E3":"none"}}>
+  <div style={{background:"#1C1C21",border:"0.5px solid #2A2A30",borderRadius:12,padding:noPad?0:"1rem 1.25rem",marginBottom:"1rem",overflow:"hidden"}}>
+    {title && <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:noPad?0:"1rem",padding:noPad?"1rem 1.25rem 0.75rem":0,borderBottom:noPad?"0.5px solid #2A2A30":"none"}}>
       <span style={{fontSize:14,fontWeight:500}}>{title}</span>{action}
     </div>}
     {children}
@@ -56,23 +57,23 @@ const Card = ({title,action,children,noPad}: {title?:string,action?:React.ReactN
 );
 
 const Th = ({children,right}: {children:React.ReactNode,right?:boolean}) => (
-  <th style={{textAlign:right?"right":"left",fontSize:11,fontWeight:500,color:"#888780",padding:"8px 12px",borderBottom:"0.5px solid #E8E7E3",whiteSpace:"nowrap",background:"#F8F7F4"}}>{children}</th>
+  <th style={{textAlign:right?"right":"left",fontSize:11,fontWeight:500,color:"#908E85",padding:"8px 12px",borderBottom:"0.5px solid #2A2A30",whiteSpace:"nowrap",background:"#232329"}}>{children}</th>
 );
 const Td = ({children,right,bold,color,style:s}: {children?:React.ReactNode,right?:boolean,bold?:boolean,color?:string,style?:React.CSSProperties}) => (
-  <td style={{padding:"10px 12px",borderBottom:"0.5px solid #F1EFE8",textAlign:right?"right":"left",fontWeight:bold?500:400,fontSize:13,verticalAlign:"middle",color:color||"inherit",...s}}>{children}</td>
+  <td style={{padding:"10px 12px",borderBottom:"0.5px solid #232329",textAlign:right?"right":"left",fontWeight:bold?500:400,fontSize:13,verticalAlign:"middle",color:color||"inherit",...s}}>{children}</td>
 );
 const Btn = ({children,onClick,primary,small,danger,disabled}: {children:React.ReactNode,onClick?:()=>void,primary?:boolean,small?:boolean,danger?:boolean,disabled?:boolean}) => (
-  <button onClick={onClick} disabled={disabled} style={{background:primary?ACCENT:danger?"#FCEBEB":"#fff",color:primary?"#fff":danger?"#791F1F":"#2C2C2A",border:primary?"none":danger?"0.5px solid #F09595":"0.5px solid #D3D1C7",padding:small?"4px 10px":"7px 14px",borderRadius:8,cursor:disabled?"not-allowed":"pointer",fontSize:small?12:13,opacity:disabled?0.5:1,fontWeight:500,display:"inline-flex",alignItems:"center",gap:5}}>{children}</button>
+  <button onClick={onClick} disabled={disabled} style={{background:primary?ACCENT:danger?"#361e1e":"#1C1C21",color:primary?"#1C1C21":danger?"#E57C7C":"#F0EEE8",border:primary?"none":danger?"0.5px solid #4a2626":"0.5px solid #2A2A30",padding:small?"4px 10px":"7px 14px",borderRadius:8,cursor:disabled?"not-allowed":"pointer",fontSize:small?12:13,opacity:disabled?0.5:1,fontWeight:500,display:"inline-flex",alignItems:"center",gap:5}}>{children}</button>
 );
 const ER = ({cols,msg}: {cols:number,msg:string}) => (
-  <tr><td colSpan={cols} style={{textAlign:"center",padding:"2rem",fontSize:13,color:"#888780"}}>{msg}</td></tr>
+  <tr><td colSpan={cols} style={{textAlign:"center",padding:"2rem",fontSize:13,color:"#908E85"}}>{msg}</td></tr>
 );
 const Modal = ({title,onClose,children,wide}: {title:string,onClose:()=>void,children:React.ReactNode,wide?:boolean}) => (
   <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={e=>e.target===e.currentTarget&&onClose()}>
-    <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #D3D1C7",width:"100%",maxWidth:wide?700:520,maxHeight:"90vh",overflow:"auto"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"1rem 1.25rem",borderBottom:"0.5px solid #E8E7E3",position:"sticky",top:0,background:"#fff",zIndex:1}}>
+    <div style={{background:"#1C1C21",borderRadius:12,border:"0.5px solid #2A2A30",width:"100%",maxWidth:wide?700:520,maxHeight:"90vh",overflow:"auto"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"1rem 1.25rem",borderBottom:"0.5px solid #2A2A30",position:"sticky",top:0,background:"#1C1C21",zIndex:1}}>
         <span style={{fontSize:15,fontWeight:500}}>{title}</span>
-        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:22,color:"#888780",lineHeight:1}}>×</button>
+        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:22,color:"#908E85",lineHeight:1}}>×</button>
       </div>
       <div style={{padding:"1.25rem"}}>{children}</div>
     </div>
@@ -80,10 +81,10 @@ const Modal = ({title,onClose,children,wide}: {title:string,onClose:()=>void,chi
 );
 const Inp = ({label,value,onChange,type,placeholder,options,style:s,disabled}: {label?:string,value:string,onChange:(v:string)=>void,type?:string,placeholder?:string,options?:{value:string,label:string}[],style?:React.CSSProperties,disabled?:boolean}) => (
   <div style={{display:"flex",flexDirection:"column",gap:4,...s}}>
-    {label && <label style={{fontSize:12,color:"#888780",fontWeight:500}}>{label}</label>}
+    {label && <label style={{fontSize:12,color:"#908E85",fontWeight:500}}>{label}</label>}
     {options
-      ? <select value={value} onChange={e=>onChange(e.target.value)} disabled={disabled} style={{fontSize:13,padding:"7px 10px",border:"0.5px solid #B4B2A9",borderRadius:8,background:"#fff"}}>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>
-      : <input type={type||"text"} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} disabled={disabled} style={{fontSize:13,padding:"7px 10px",border:"0.5px solid #B4B2A9",borderRadius:8}} />
+      ? <select value={value} onChange={e=>onChange(e.target.value)} disabled={disabled} style={{fontSize:13,padding:"7px 10px",border:"0.5px solid #63615A",borderRadius:8,background:"#1C1C21"}}>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>
+      : <input type={type||"text"} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} disabled={disabled} style={{fontSize:13,padding:"7px 10px",border:"0.5px solid #63615A",borderRadius:8}} />
     }
   </div>
 );
@@ -103,20 +104,20 @@ const Pagination = ({current,total,pageSize,onPage,onSize}:any) => {
     return pages;
   };
   return (
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderTop:"0.5px solid #E8E7E3",background:"#F8F7F4",flexWrap:"wrap",gap:8}}>
-      <div style={{fontSize:12,color:"#888780"}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderTop:"0.5px solid #2A2A30",background:"#232329",flexWrap:"wrap",gap:8}}>
+      <div style={{fontSize:12,color:"#908E85"}}>
         Showing {total===0?0:(current-1)*pageSize+1}–{Math.min(current*pageSize,total)} of {total} &nbsp;
-        <select value={pageSize} onChange={e=>{onSize(Number(e.target.value));}} style={{fontSize:12,padding:"2px 6px",border:"0.5px solid #B4B2A9",borderRadius:4}}>
+        <select value={pageSize} onChange={e=>{onSize(Number(e.target.value));}} style={{fontSize:12,padding:"2px 6px",border:"0.5px solid #63615A",borderRadius:4}}>
           <option value={100}>100</option><option value={500}>500</option><option value={1000}>1000</option>
         </select> per page
       </div>
       <div style={{display:"flex",gap:4,alignItems:"center"}}>
-        <button onClick={()=>onPage(Math.max(1,current-1))} disabled={current===1} style={{padding:"3px 10px",fontSize:12,border:"0.5px solid #D3D1C7",borderRadius:4,background:current===1?"#F8F7F4":"#fff",cursor:current===1?"not-allowed":"pointer"}}>Previous</button>
+        <button onClick={()=>onPage(Math.max(1,current-1))} disabled={current===1} style={{padding:"3px 10px",fontSize:12,border:"0.5px solid #2A2A30",borderRadius:4,background:current===1?"#232329":"#1C1C21",cursor:current===1?"not-allowed":"pointer"}}>Previous</button>
         {pageNums().map((p,i)=>p===-1
           ?<span key={i} style={{padding:"3px 6px",fontSize:12}}>…</span>
-          :<button key={p} onClick={()=>onPage(p)} style={{padding:"3px 10px",fontSize:12,border:"0.5px solid #D3D1C7",borderRadius:4,background:current===p?ACCENT:"#fff",color:current===p?"#fff":"#2C2C2A",cursor:"pointer"}}>{p}</button>
+          :<button key={p} onClick={()=>onPage(p)} style={{padding:"3px 10px",fontSize:12,border:"0.5px solid #2A2A30",borderRadius:4,background:current===p?ACCENT:"#1C1C21",color:current===p?"#1C1C21":"#F0EEE8",cursor:"pointer"}}>{p}</button>
         )}
-        <button onClick={()=>onPage(Math.min(totalPages,current+1))} disabled={current===totalPages} style={{padding:"3px 10px",fontSize:12,border:"0.5px solid #D3D1C7",borderRadius:4,background:current===totalPages?"#F8F7F4":"#fff",cursor:current===totalPages?"not-allowed":"pointer"}}>Next</button>
+        <button onClick={()=>onPage(Math.min(totalPages,current+1))} disabled={current===totalPages} style={{padding:"3px 10px",fontSize:12,border:"0.5px solid #2A2A30",borderRadius:4,background:current===totalPages?"#232329":"#1C1C21",cursor:current===totalPages?"not-allowed":"pointer"}}>Next</button>
       </div>
     </div>
   );
@@ -214,8 +215,6 @@ export default function ARApp() {
   const PAGES = [
     {id:"dashboard",label:"Dashboard"},
     {id:"callsheet",label:"Call Sheet"},
-    {id:"blitz",label:"AR Blitz"},
-    ...(isAdmin ? [{id:"tracking",label:"Tracking"}] : []),
     {id:"stages",label:"Collections / SCC / Bad Debt",href:"/ar/collections"},
     {id:"customers",label:"Customers"},
     {id:"invoices",label:"Invoices"},
@@ -223,37 +222,33 @@ export default function ARApp() {
     {id:"aging",label:"Aging"},
   ];
 
-  if(loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:300,fontSize:13,color:"#888780"}}>Loading AR data…</div>;
+  if(loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:300,fontSize:13,color:"#908E85"}}>Loading AR data…</div>;
 
   const shared = {customers,invoices,payments,custMap,enriched,open,setModal,showToast,loadAll,officeFilter,isAdmin};
 
   return (
-    <div style={{padding:"0 24px 24px",maxWidth:1200,margin:"0 auto"}}>
-      {toast && <div style={{position:"fixed",top:16,right:16,zIndex:2000,background:toast.type==="error"?"#FCEBEB":"#E1F5EE",color:toast.type==="error"?"#791F1F":"#085041",border:`0.5px solid ${toast.type==="error"?"#F09595":"#5DCAA5"}`,borderRadius:8,padding:"10px 16px",fontSize:13,fontWeight:500}}>{toast.msg}</div>}
+    <div style={{padding:"30px 34px 70px",maxWidth:1280,margin:"0 auto"}}>
+      {toast && <div style={{position:"fixed",top:16,right:16,zIndex:2000,background:toast.type==="error"?"#361e1e":"#143229",color:toast.type==="error"?"#E57C7C":"#43B892",border:`1px solid ${toast.type==="error"?"#4a2626":"#2e5a4c"}`,borderRadius:8,padding:"10px 16px",fontSize:13,fontWeight:500}}>{toast.msg}</div>}
 
-      {/* Title */}
-      <div style={{paddingTop:24,marginBottom:4}}>
-        <h1 style={{fontSize:20,fontWeight:500,color:"#2C2C2A",margin:0}}>Accounts Receivable</h1>
-      </div>
+      <CCPageHeader icon="💰" title="Accounts Receivable" subtitle="Collections, call sheet, aging, and payment tracking across every office" />
 
       {/* Sub-nav + office selector */}
-      <div style={{display:"flex",gap:8,marginBottom:"1.5rem",alignItems:"center",justifyContent:"space-between",paddingTop:20,flexWrap:"wrap"}}>
-        <div style={{display:"inline-flex",alignItems:"center",gap:2,padding:4,borderRadius:12,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
-          {PAGES.map(p=>(
-            (p as any).href
-              ? <a key={p.id} href={(p as any).href} style={{padding:"7px 14px",borderRadius:9,fontSize:13,fontWeight:500,color:"#888780",background:"transparent",border:"0.5px solid transparent",cursor:"pointer",whiteSpace:"nowrap",textDecoration:"none"}}>{p.label}</a>
-              : <button key={p.id} onClick={()=>setPage(p.id)} style={{padding:"7px 14px",borderRadius:9,fontSize:13,fontWeight:500,color:page===p.id?"#2C2C2A":"#888780",background:page===p.id?"#ffffff":"transparent",border:page===p.id?"0.5px solid #D3D1C7":"0.5px solid transparent",boxShadow:page===p.id?"0 1px 3px rgba(44,44,42,0.08)":"none",cursor:"pointer",whiteSpace:"nowrap"}}>
-              {p.label}
-            </button>
-          ))}
+      <div style={{display:"flex",gap:10,marginBottom:22,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}}>
+        <div style={{display:"inline-flex",gap:7,flexWrap:"wrap"}}>
+          {PAGES.map(p=>{
+            const on = page===p.id;
+            const base:React.CSSProperties={padding:"7px 14px",borderRadius:9,fontSize:12.5,fontWeight:on?600:500,cursor:"pointer",whiteSpace:"nowrap",textDecoration:"none",border:`1px solid ${on?"#5B9BE0":"#2A2A30"}`,background:on?"#15263a":"#1C1C21",color:on?"#5B9BE0":"#908E85"};
+            return (p as any).href
+              ? <a key={p.id} href={(p as any).href} style={{...base,border:"1px solid #2A2A30",background:"#1C1C21",color:"#908E85"}}>{p.label}</a>
+              : <button key={p.id} onClick={()=>setPage(p.id)} style={base}>{p.label}</button>;
+          })}
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <div style={{display:"inline-flex",alignItems:"center",gap:2,padding:4,borderRadius:12,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
-            {["ALL","DFW","ATX","OKC","CStat"].map(o=>(
-              <button key={o} onClick={()=>{setOfficeFilter(o);loadAll(o);}} style={{padding:"7px 14px",borderRadius:9,fontSize:13,fontWeight:500,color:officeFilter===o?"#2C2C2A":"#888780",background:officeFilter===o?"#ffffff":"transparent",border:officeFilter===o?"0.5px solid #D3D1C7":"0.5px solid transparent",boxShadow:officeFilter===o?"0 1px 3px rgba(44,44,42,0.08)":"none",cursor:"pointer"}}>
-                {o==="ALL"?"All":o}
-              </button>
-            ))}
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{display:"inline-flex",gap:5}}>
+            {["ALL","DFW","ATX","OKC","CStat"].map(o=>{
+              const on=officeFilter===o;
+              return <button key={o} onClick={()=>{setOfficeFilter(o);loadAll(o);}} style={{padding:"7px 13px",borderRadius:9,fontSize:12.5,fontWeight:on?600:500,cursor:"pointer",border:`1px solid ${on?"#5B9BE0":"#2A2A30"}`,background:on?"#15263a":"#1C1C21",color:on?"#5B9BE0":"#908E85"}}>{o==="ALL"?"All":o}</button>;
+            })}
           </div>
           <LastSynced office={officeFilter} />
         </div>
@@ -262,7 +257,7 @@ export default function ARApp() {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {page==="dashboard" && (loading && !invoices.length
-        ? <div style={{padding:60,textAlign:"center",fontSize:14,color:"#888780"}}>Loading AR data…</div>
+        ? <div style={{padding:60,textAlign:"center",fontSize:14,color:"#908E85"}}>Loading AR data…</div>
         : <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected={collected} agingTotals={agingTotals} collectedDays={collectedDays} setCollectedDays={setCollectedDays} customDateFrom={customDateFrom} customDateTo={customDateTo} setCustomDateFrom={setCustomDateFrom} setCustomDateTo={setCustomDateTo} prevMonthAR={prevMonthAR} />)}
       {page==="callsheet" && <CallSheetPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="blitz" && <BlitzPage officeFilter={officeFilter} showToast={showToast} />}
@@ -315,7 +310,7 @@ function CallSheetPage({officeFilter, showToast}: any) {
     showToast&&showToast("Note saved");
   };
 
-  if(loadingCS) return <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780"}}>Loading call sheet…</div>;
+  if(loadingCS) return <div style={{padding:40,textAlign:"center",fontSize:13,color:"#908E85"}}>Loading call sheet…</div>;
 
   const allItems = data?.items||[];
   const items = allItems.filter((it:any)=>{
@@ -345,24 +340,24 @@ function CallSheetPage({officeFilter, showToast}: any) {
   return (
     <div>
       <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:16}}>
-        <div style={{fontSize:15,fontWeight:600,color:"#2C2C2A"}}>Today&apos;s Call Sheet</div>
-        <div style={{fontSize:13,color:"#888780"}}>{items.length} to call{allItems.length===0?" — all caught up 🎉":""}</div>
+        <div style={{fontSize:15,fontWeight:600,color:"#F0EEE8"}}>Today&apos;s Call Sheet</div>
+        <div style={{fontSize:13,color:"#908E85"}}>{items.length} to call{allItems.length===0?" — all caught up 🎉":""}</div>
       </div>
 
       {/* Search + service filter */}
       <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center",flexWrap:"wrap"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customer…"
-          style={{padding:"7px 12px",fontSize:13,borderRadius:8,border:"0.5px solid #D3D1C7",minWidth:220}} />
-        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
+          style={{padding:"7px 12px",fontSize:13,borderRadius:8,border:"0.5px solid #2A2A30",minWidth:220}} />
+        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#232329",border:"0.5px solid #2A2A30"}}>
           {(["all","Pest Control","Wildlife"] as const).map(s=>(
-            <button key={s} onClick={()=>setSvcFilter(s)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:svcFilter===s?"0.5px solid #D3D1C7":"0.5px solid transparent",background:svcFilter===s?"#fff":"transparent",color:svcFilter===s?"#2C2C2A":"#888780"}}>
+            <button key={s} onClick={()=>setSvcFilter(s)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:svcFilter===s?"0.5px solid #2A2A30":"0.5px solid transparent",background:svcFilter===s?"#1C1C21":"transparent",color:svcFilter===s?"#F0EEE8":"#908E85"}}>
               {s==="all"?"All Services":s}
             </button>
           ))}
         </div>
-        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
+        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#232329",border:"0.5px solid #2A2A30"}}>
           {([["all","All"],["notyet","Not called yet"],["called","Called"]] as const).map(([v,label])=>(
-            <button key={v} onClick={()=>setCalledFilter(v as any)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:calledFilter===v?"0.5px solid #D3D1C7":"0.5px solid transparent",background:calledFilter===v?"#fff":"transparent",color:calledFilter===v?(v==="notyet"?"#791F1F":"#2C2C2A"):"#888780"}}>
+            <button key={v} onClick={()=>setCalledFilter(v as any)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:calledFilter===v?"0.5px solid #2A2A30":"0.5px solid transparent",background:calledFilter===v?"#1C1C21":"transparent",color:calledFilter===v?(v==="notyet"?"#E57C7C":"#F0EEE8"):"#908E85"}}>
               {label}{v==="notyet"&&notYetCount>0?` (${notYetCount})`:""}
             </button>
           ))}
@@ -370,15 +365,15 @@ function CallSheetPage({officeFilter, showToast}: any) {
       </div>
 
       {items.length>0 ? (
-        <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3",overflowX:"auto"}}>
+        <div style={{background:"#1C1C21",borderRadius:12,border:"0.5px solid #2A2A30",overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead>
-              <tr style={{color:"#888780",textAlign:"left"}}>
+              <tr style={{color:"#908E85",textAlign:"left"}}>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Customer</th>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Service</th>
-                <th onClick={()=>toggleSort("outstanding")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="outstanding"?"#0052cc":"#888780"}}>Outstanding{sortArrow("outstanding")}</th>
-                <th onClick={()=>toggleSort("overdue")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="overdue"?"#0052cc":"#888780"}}>Overdue{sortArrow("overdue")}</th>
-                <th onClick={()=>toggleSort("lastCall")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="lastCall"?"#0052cc":"#888780"}}>Last Call{sortArrow("lastCall")}</th>
+                <th onClick={()=>toggleSort("outstanding")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="outstanding"?"#5B9BE0":"#908E85"}}>Outstanding{sortArrow("outstanding")}</th>
+                <th onClick={()=>toggleSort("overdue")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="overdue"?"#5B9BE0":"#908E85"}}>Overdue{sortArrow("overdue")}</th>
+                <th onClick={()=>toggleSort("lastCall")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="lastCall"?"#5B9BE0":"#908E85"}}>Last Call{sortArrow("lastCall")}</th>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Phone</th>
                 <th style={{padding:"10px 12px",fontWeight:500,minWidth:180}}>Note</th>
                 <th style={{padding:"10px 12px",fontWeight:500}}></th>
@@ -389,39 +384,39 @@ function CallSheetPage({officeFilter, showToast}: any) {
                 const noteVal = noteEdits[it.invoiceId]!==undefined ? noteEdits[it.invoiceId] : it.arNote;
                 const dirty = noteEdits[it.invoiceId]!==undefined && noteEdits[it.invoiceId]!==it.arNote;
                 return (
-                <tr key={it.invoiceId} style={{borderTop:"0.5px solid #F1EFE8"}}>
-                  <td style={{padding:"10px 12px",fontWeight:500,color:"#2C2C2A"}}>
+                <tr key={it.invoiceId} style={{borderTop:"0.5px solid #232329"}}>
+                  <td style={{padding:"10px 12px",fontWeight:500,color:"#F0EEE8"}}>
                     {it.customerName}
-                    <div style={{fontSize:11,color:"#B4B2A9"}}>{it.serviceAddr||""}</div>
+                    <div style={{fontSize:11,color:"#63615A"}}>{it.serviceAddr||""}</div>
                   </td>
                   <td style={{padding:"10px 12px"}}>
-                    <span style={{fontSize:11,padding:"2px 7px",borderRadius:6,background:it.serviceCategory==="Wildlife"?"#E9F1E5":"#EAEEF6",color:it.serviceCategory==="Wildlife"?"#3F6B2E":"#2E4A79"}}>{it.serviceCategory}</span>
+                    <span style={{fontSize:11,padding:"2px 7px",borderRadius:6,background:it.serviceCategory==="Wildlife"?"#143229":"#15263a",color:it.serviceCategory==="Wildlife"?"#43B892":"#5B9BE0"}}>{it.serviceCategory}</span>
                   </td>
-                  <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,color:"#791F1F"}}>{money(it.outstanding)}</td>
+                  <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,color:"#E57C7C"}}>{money(it.outstanding)}</td>
                   <td style={{padding:"10px 12px",textAlign:"right"}}>{it.daysOverdue}d</td>
-                  <td style={{padding:"10px 12px",textAlign:"right",color:"#6B6A64"}}>
-                    {it.daysSinceCall==null?<span style={{color:"#C9C7BE"}}>never</span>:`${it.daysSinceCall}d`}
-                    {it.calledThisWindow && <div style={{fontSize:10,color:"#3F6B2E"}}>✓ called</div>}
+                  <td style={{padding:"10px 12px",textAlign:"right",color:"#C9C7BF"}}>
+                    {it.daysSinceCall==null?<span style={{color:"#C9C7BF"}}>never</span>:`${it.daysSinceCall}d`}
+                    {it.calledThisWindow && <div style={{fontSize:10,color:"#43B892"}}>✓ called</div>}
                   </td>
-                  <td style={{padding:"10px 12px",color:"#6B6A64"}}>{it.phone||"—"}</td>
+                  <td style={{padding:"10px 12px",color:"#C9C7BF"}}>{it.phone||"—"}</td>
                   <td style={{padding:"8px 12px"}}>
                     <div style={{display:"flex",gap:4,alignItems:"center"}}>
                       <input value={noteVal} onChange={e=>setNoteEdits(p=>({...p,[it.invoiceId]:e.target.value}))}
-                        placeholder="Add note…" style={{flex:1,padding:"5px 8px",fontSize:12,borderRadius:6,border:"0.5px solid #D3D1C7",minWidth:120}} />
-                      {dirty && <button onClick={()=>saveNote(it.invoiceId)} disabled={savingNote===it.invoiceId} style={{padding:"5px 8px",fontSize:11,borderRadius:6,border:"none",background:"#0052cc",color:"#fff",cursor:"pointer"}}>{savingNote===it.invoiceId?"…":"Save"}</button>}
+                        placeholder="Add note…" style={{flex:1,padding:"5px 8px",fontSize:12,borderRadius:6,border:"0.5px solid #2A2A30",minWidth:120}} />
+                      {dirty && <button onClick={()=>saveNote(it.invoiceId)} disabled={savingNote===it.invoiceId} style={{padding:"5px 8px",fontSize:11,borderRadius:6,border:"none",background:"#5B9BE0",color:"#1C1C21",cursor:"pointer"}}>{savingNote===it.invoiceId?"…":"Save"}</button>}
                     </div>
                     {it.lastNote && (
                       <div style={{marginTop:3}}>
                         <button onClick={()=>setExpanded(p=>({...p,[it.invoiceId]:!p[it.invoiceId]}))}
-                          style={{fontSize:10,color:"#6B6A64",background:"none",border:"none",padding:0,cursor:"pointer",textAlign:"left"}}>
+                          style={{fontSize:10,color:"#C9C7BF",background:"none",border:"none",padding:0,cursor:"pointer",textAlign:"left"}}>
                           {expanded[it.invoiceId] ? "▼ hide notes" : `▶ Last: ${it.lastNote.text.slice(0,30)}${it.lastNote.text.length>30?"…":""} (${fmtDate(it.lastNote.date)})${it.noteCount>1?` +${it.noteCount-1} more`:""}`}
                         </button>
                         {expanded[it.invoiceId] && (
-                          <div style={{marginTop:4,padding:8,background:"#F8F7F4",borderRadius:6,border:"0.5px solid #E8E7E3",maxWidth:340}}>
+                          <div style={{marginTop:4,padding:8,background:"#232329",borderRadius:6,border:"0.5px solid #2A2A30",maxWidth:340}}>
                             {(it.allNotes||[]).map((n:any,idx:number)=>(
-                              <div key={idx} style={{fontSize:11,color:"#2C2C2A",paddingBottom:6,marginBottom:6,borderBottom:idx<(it.allNotes.length-1)?"0.5px solid #E8E7E3":"none"}}>
-                                <div style={{whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{n.text||<span style={{color:"#B4B2A9"}}>(no text)</span>}</div>
-                                <div style={{fontSize:10,color:"#B4B2A9",marginTop:2}}>
+                              <div key={idx} style={{fontSize:11,color:"#F0EEE8",paddingBottom:6,marginBottom:6,borderBottom:idx<(it.allNotes.length-1)?"0.5px solid #2A2A30":"none"}}>
+                                <div style={{whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{n.text||<span style={{color:"#63615A"}}>(no text)</span>}</div>
+                                <div style={{fontSize:10,color:"#63615A",marginTop:2}}>
                                   {fmtDate(n.date)}{n.status?` · ${n.status}`:""}{n.promisedAmount?` · promised ${money(n.promisedAmount)}`:""}{n.promisedDate?` by ${fmtDate(n.promisedDate)}`:""}
                                 </div>
                               </div>
@@ -433,8 +428,8 @@ function CallSheetPage({officeFilter, showToast}: any) {
                   </td>
                   <td style={{padding:"10px 12px"}}>
                     <div style={{display:"flex",gap:6,whiteSpace:"nowrap"}}>
-                      <button onClick={()=>setCallModal(it)} style={{background:"#0052cc",color:"#fff",border:"none",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer"}}>Mark Called</button>
-                      <button onClick={()=>setMoveModal(it)} style={{background:"#fff",color:"#791F1F",border:"0.5px solid #D3B0B0",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer"}}>Move To</button>
+                      <button onClick={()=>setCallModal(it)} style={{background:"#5B9BE0",color:"#1C1C21",border:"none",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer"}}>Mark Called</button>
+                      <button onClick={()=>setMoveModal(it)} style={{background:"#1C1C21",color:"#E57C7C",border:"0.5px solid #D3B0B0",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer"}}>Move To</button>
                     </div>
                   </td>
                 </tr>
@@ -444,7 +439,7 @@ function CallSheetPage({officeFilter, showToast}: any) {
           </table>
         </div>
       ) : (
-        <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780",background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3"}}>
+        <div style={{padding:40,textAlign:"center",fontSize:13,color:"#908E85",background:"#1C1C21",borderRadius:12,border:"0.5px solid #2A2A30"}}>
           {allItems.length===0?"No invoices due for a call today.":"No matches for the current search/filter."}
         </div>
       )}
@@ -475,32 +470,32 @@ function MarkCalledModal({item, onClose, onSaved}: any) {
 
   return (
     <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
-      <div style={{background:"#fff",borderRadius:14,width:"100%",maxWidth:460,padding:24}}>
+      <div style={{background:"#1C1C21",borderRadius:14,width:"100%",maxWidth:460,padding:24}}>
         <div style={{fontWeight:600,fontSize:16,marginBottom:4}}>Log call — {item.customerName}</div>
-        <div style={{fontSize:12,color:"#888780",marginBottom:16}}>{item.serviceType||""} · ${Math.round(item.outstanding).toLocaleString()} outstanding · {item.daysOverdue}d overdue</div>
+        <div style={{fontSize:12,color:"#908E85",marginBottom:16}}>{item.serviceType||""} · ${Math.round(item.outstanding).toLocaleString()} outstanding · {item.daysOverdue}d overdue</div>
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <label style={{fontSize:12,color:"#6B6A64"}}>Outcome
-            <select value={status} onChange={e=>setStatus(e.target.value)} style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #D3D1C7",fontSize:13}}>
+          <label style={{fontSize:12,color:"#C9C7BF"}}>Outcome
+            <select value={status} onChange={e=>setStatus(e.target.value)} style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #2A2A30",fontSize:13}}>
               {OUTCOMES.map(([v,l])=><option key={v} value={v}>{l}</option>)}
             </select>
           </label>
-          <label style={{fontSize:12,color:"#6B6A64"}}>Note
-            <textarea value={text} onChange={e=>setText(e.target.value)} rows={3} placeholder="What happened on the call…" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #D3D1C7",fontSize:13,resize:"vertical"}} />
+          <label style={{fontSize:12,color:"#C9C7BF"}}>Note
+            <textarea value={text} onChange={e=>setText(e.target.value)} rows={3} placeholder="What happened on the call…" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #2A2A30",fontSize:13,resize:"vertical"}} />
           </label>
           {status==="PAYMENT_PROMISED" && (
             <div style={{display:"flex",gap:10}}>
-              <label style={{fontSize:12,color:"#6B6A64",flex:1}}>Promised $
-                <input value={promisedAmount} onChange={e=>setPromisedAmount(e.target.value)} type="number" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #D3D1C7",fontSize:13}} />
+              <label style={{fontSize:12,color:"#C9C7BF",flex:1}}>Promised $
+                <input value={promisedAmount} onChange={e=>setPromisedAmount(e.target.value)} type="number" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #2A2A30",fontSize:13}} />
               </label>
-              <label style={{fontSize:12,color:"#6B6A64",flex:1}}>By date
-                <input value={promisedDate} onChange={e=>setPromisedDate(e.target.value)} type="date" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #D3D1C7",fontSize:13}} />
+              <label style={{fontSize:12,color:"#C9C7BF",flex:1}}>By date
+                <input value={promisedDate} onChange={e=>setPromisedDate(e.target.value)} type="date" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #2A2A30",fontSize:13}} />
               </label>
             </div>
           )}
         </div>
         <div style={{display:"flex",gap:10,marginTop:20,justifyContent:"flex-end"}}>
-          <button onClick={onClose} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"0.5px solid #D3D1C7",background:"#fff",cursor:"pointer"}}>Cancel</button>
-          <button onClick={save} disabled={saving||!text.trim()} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#0052cc",color:"#fff",fontWeight:500,cursor:"pointer",opacity:(saving||!text.trim())?0.6:1}}>{saving?"Saving…":"Log Call"}</button>
+          <button onClick={onClose} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"0.5px solid #2A2A30",background:"#1C1C21",cursor:"pointer"}}>Cancel</button>
+          <button onClick={save} disabled={saving||!text.trim()} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#5B9BE0",color:"#1C1C21",fontWeight:500,cursor:"pointer",opacity:(saving||!text.trim())?0.6:1}}>{saving?"Saving…":"Log Call"}</button>
         </div>
       </div>
     </div>
@@ -524,22 +519,22 @@ function MoveToModal({item, onClose, onMoved}: any) {
 
   return (
     <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
-      <div style={{background:"#fff",borderRadius:14,width:"100%",maxWidth:420,padding:24}}>
+      <div style={{background:"#1C1C21",borderRadius:14,width:"100%",maxWidth:420,padding:24}}>
         <div style={{fontWeight:600,fontSize:16,marginBottom:4}}>Move — {item.customerName}</div>
-        <div style={{fontSize:12,color:"#888780",marginBottom:16}}>${Math.round(item.outstanding).toLocaleString()} outstanding · removes from the call sheet</div>
+        <div style={{fontSize:12,color:"#908E85",marginBottom:16}}>${Math.round(item.outstanding).toLocaleString()} outstanding · removes from the call sheet</div>
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <label style={{fontSize:12,color:"#6B6A64"}}>Move to
-            <select value={stage} onChange={e=>setStage(e.target.value as any)} style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #D3D1C7",fontSize:13}}>
+          <label style={{fontSize:12,color:"#C9C7BF"}}>Move to
+            <select value={stage} onChange={e=>setStage(e.target.value as any)} style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #2A2A30",fontSize:13}}>
               {STAGES.map(([v,l])=><option key={v} value={v}>{l}</option>)}
             </select>
           </label>
-          <label style={{fontSize:12,color:"#6B6A64"}}>Note (optional)
-            <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="Reason for moving…" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #D3D1C7",fontSize:13,resize:"vertical"}} />
+          <label style={{fontSize:12,color:"#C9C7BF"}}>Note (optional)
+            <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="Reason for moving…" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #2A2A30",fontSize:13,resize:"vertical"}} />
           </label>
         </div>
         <div style={{display:"flex",gap:10,marginTop:20,justifyContent:"flex-end"}}>
-          <button onClick={onClose} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"0.5px solid #D3D1C7",background:"#fff",cursor:"pointer"}}>Cancel</button>
-          <button onClick={move} disabled={saving} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#791F1F",color:"#fff",fontWeight:500,cursor:"pointer",opacity:saving?0.6:1}}>{saving?"Moving…":"Move"}</button>
+          <button onClick={onClose} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"0.5px solid #2A2A30",background:"#1C1C21",cursor:"pointer"}}>Cancel</button>
+          <button onClick={move} disabled={saving} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#E57C7C",color:"#1C1C21",fontWeight:500,cursor:"pointer",opacity:saving?0.6:1}}>{saving?"Moving…":"Move"}</button>
         </div>
       </div>
     </div>
@@ -587,7 +582,7 @@ function BlitzPage({officeFilter, showToast}: any) {
     load();
   };
 
-  if(loadingB) return <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780"}}>Loading blitz backlog…</div>;
+  if(loadingB) return <div style={{padding:40,textAlign:"center",fontSize:13,color:"#908E85"}}>Loading blitz backlog…</div>;
 
   const allItems=data?.items||[];
   const items=allItems.filter((it:any)=>{
@@ -613,50 +608,50 @@ function BlitzPage({officeFilter, showToast}: any) {
   return (
     <div>
       <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:6}}>
-        <div style={{fontSize:15,fontWeight:600,color:"#2C2C2A"}}>AR Blitz — Full Backlog</div>
-        <div style={{fontSize:13,color:"#888780"}}>{data?.unpaidCount??items.length} unpaid · {data?.paidCount??0} paid · {money(shownOutstanding)} outstanding</div>
+        <div style={{fontSize:15,fontWeight:600,color:"#F0EEE8"}}>AR Blitz — Full Backlog</div>
+        <div style={{fontSize:13,color:"#908E85"}}>{data?.unpaidCount??items.length} unpaid · {data?.paidCount??0} paid · {money(shownOutstanding)} outstanding</div>
       </div>
-      <div style={{fontSize:12,color:"#B4B2A9",marginBottom:16}}>Every overdue invoice. Assign blocks to callers and work it down. (Separate from the regular cadence Call Sheet.)
-        {data?.isAdmin && <button onClick={()=>setDistModal(true)} style={{marginLeft:12,padding:"5px 12px",fontSize:12,borderRadius:7,border:"0.5px solid #0052cc",background:"#fff",color:"#0052cc",fontWeight:500,cursor:"pointer"}}>Auto-distribute</button>}
-        {data?.isAdmin && <button onClick={async()=>{ if(!confirm("Rebuild the blitz list from today's overdue invoices? This CLEARS the current list (including paid + assignments) and creates a fresh frozen snapshot. New invoices after today won't auto-add.")) return; const r=await fetch('/api/ar/blitz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'rebuild'})}); const d=await r.json(); if(r.ok){showToast&&showToast(`List rebuilt — ${d.members} invoices`);load();} else {alert(d.error||'Rebuild failed');} }} style={{marginLeft:8,padding:"5px 12px",fontSize:12,borderRadius:7,border:"0.5px solid #B45309",background:"#fff",color:"#B45309",fontWeight:500,cursor:"pointer"}}>Rebuild list</button>}
-        {data?.isAdmin && <button onClick={async()=>{ if(!confirm("Add a new batch to the blitz? This KEEPS everyone already on the list (and their assignments) and adds any currently-overdue invoices that aren't on it yet.")) return; const r=await fetch('/api/ar/blitz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'append'})}); const d=await r.json(); if(r.ok){showToast&&showToast(`Added ${d.appended} new — ${d.totalMembers} total`);load();} else {alert(d.error||'Append failed');} }} style={{marginLeft:8,padding:"5px 12px",fontSize:12,borderRadius:7,border:"0.5px solid #128a3f",background:"#fff",color:"#128a3f",fontWeight:500,cursor:"pointer"}}>Add new batch</button>}
+      <div style={{fontSize:12,color:"#63615A",marginBottom:16}}>Every overdue invoice. Assign blocks to callers and work it down. (Separate from the regular cadence Call Sheet.)
+        {data?.isAdmin && <button onClick={()=>setDistModal(true)} style={{marginLeft:12,padding:"5px 12px",fontSize:12,borderRadius:7,border:"0.5px solid #5B9BE0",background:"#1C1C21",color:"#5B9BE0",fontWeight:500,cursor:"pointer"}}>Auto-distribute</button>}
+        {data?.isAdmin && <button onClick={async()=>{ if(!confirm("Rebuild the blitz list from today's overdue invoices? This CLEARS the current list (including paid + assignments) and creates a fresh frozen snapshot. New invoices after today won't auto-add.")) return; const r=await fetch('/api/ar/blitz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'rebuild'})}); const d=await r.json(); if(r.ok){showToast&&showToast(`List rebuilt — ${d.members} invoices`);load();} else {alert(d.error||'Rebuild failed');} }} style={{marginLeft:8,padding:"5px 12px",fontSize:12,borderRadius:7,border:"0.5px solid #DBA14E",background:"#1C1C21",color:"#DBA14E",fontWeight:500,cursor:"pointer"}}>Rebuild list</button>}
+        {data?.isAdmin && <button onClick={async()=>{ if(!confirm("Add a new batch to the blitz? This KEEPS everyone already on the list (and their assignments) and adds any currently-overdue invoices that aren't on it yet.")) return; const r=await fetch('/api/ar/blitz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'append'})}); const d=await r.json(); if(r.ok){showToast&&showToast(`Added ${d.appended} new — ${d.totalMembers} total`);load();} else {alert(d.error||'Append failed');} }} style={{marginLeft:8,padding:"5px 12px",fontSize:12,borderRadius:7,border:"0.5px solid #128a3f",background:"#1C1C21",color:"#128a3f",fontWeight:500,cursor:"pointer"}}>Add new batch</button>}
       </div>
 
       <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center",flexWrap:"wrap"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customer…"
-          style={{padding:"7px 12px",fontSize:13,borderRadius:8,border:"0.5px solid #D3D1C7",minWidth:200}} />
-        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
+          style={{padding:"7px 12px",fontSize:13,borderRadius:8,border:"0.5px solid #2A2A30",minWidth:200}} />
+        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#232329",border:"0.5px solid #2A2A30"}}>
           {(["all","Pest Control","Wildlife"] as const).map(s=>(
-            <button key={s} onClick={()=>setSvcFilter(s)} style={{padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:svcFilter===s?"0.5px solid #D3D1C7":"0.5px solid transparent",background:svcFilter===s?"#fff":"transparent",color:svcFilter===s?"#2C2C2A":"#888780"}}>{s==="all"?"All":s}</button>
+            <button key={s} onClick={()=>setSvcFilter(s)} style={{padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:svcFilter===s?"0.5px solid #2A2A30":"0.5px solid transparent",background:svcFilter===s?"#1C1C21":"transparent",color:svcFilter===s?"#F0EEE8":"#908E85"}}>{s==="all"?"All":s}</button>
           ))}
         </div>
-        <select value={assigneeFilter} onChange={e=>setAssigneeFilter(e.target.value)} style={{padding:"7px 10px",fontSize:12,borderRadius:8,border:"0.5px solid #D3D1C7"}}>
+        <select value={assigneeFilter} onChange={e=>setAssigneeFilter(e.target.value)} style={{padding:"7px 10px",fontSize:12,borderRadius:8,border:"0.5px solid #2A2A30"}}>
           <option value="all">Everyone</option>
           <option value="unassigned">CSRs (pool)</option>
           {coreUsers.map((u:any)=><option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
-        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
+        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#232329",border:"0.5px solid #2A2A30"}}>
           {(["all","unpaid","paid"] as const).map(s=>(
-            <button key={s} onClick={()=>setPaidFilter(s)} style={{padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:paidFilter===s?"0.5px solid #D3D1C7":"0.5px solid transparent",background:paidFilter===s?"#fff":"transparent",color:paidFilter===s?"#2C2C2A":"#888780"}}>{s==="all"?"All":s==="unpaid"?"Unpaid":"Paid"}</button>
+            <button key={s} onClick={()=>setPaidFilter(s)} style={{padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:paidFilter===s?"0.5px solid #2A2A30":"0.5px solid transparent",background:paidFilter===s?"#1C1C21":"transparent",color:paidFilter===s?"#F0EEE8":"#908E85"}}>{s==="all"?"All":s==="unpaid"?"Unpaid":"Paid"}</button>
           ))}
         </div>
-        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
+        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#232329",border:"0.5px solid #2A2A30"}}>
           {([["all","All"],["notyet","Not called yet"],["called","Called"]] as const).map(([v,label])=>(
-            <button key={v} onClick={()=>setCalledFilter(v as any)} style={{padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:calledFilter===v?"0.5px solid #D3D1C7":"0.5px solid transparent",background:calledFilter===v?"#fff":"transparent",color:calledFilter===v?(v==="notyet"?"#791F1F":"#2C2C2A"):"#888780"}}>{label}{v==="notyet"&&notYetCount>0?` (${notYetCount})`:""}</button>
+            <button key={v} onClick={()=>setCalledFilter(v as any)} style={{padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:calledFilter===v?"0.5px solid #2A2A30":"0.5px solid transparent",background:calledFilter===v?"#1C1C21":"transparent",color:calledFilter===v?(v==="notyet"?"#E57C7C":"#F0EEE8"):"#908E85"}}>{label}{v==="notyet"&&notYetCount>0?` (${notYetCount})`:""}</button>
           ))}
         </div>
       </div>
 
       {items.length>0 ? (
-        <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3",overflowX:"auto"}}>
+        <div style={{background:"#1C1C21",borderRadius:12,border:"0.5px solid #2A2A30",overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead>
-              <tr style={{color:"#888780",textAlign:"left"}}>
+              <tr style={{color:"#908E85",textAlign:"left"}}>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Customer</th>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Service</th>
-                <th onClick={()=>toggleSort("outstanding")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="outstanding"?"#0052cc":"#888780"}}>Outstanding{sortArrow("outstanding")}</th>
-                <th onClick={()=>toggleSort("overdue")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="overdue"?"#0052cc":"#888780"}}>Days Overdue{sortArrow("overdue")}</th>
-                <th onClick={()=>toggleSort("lastCall")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="lastCall"?"#0052cc":"#888780"}}>Last Call{sortArrow("lastCall")}</th>
+                <th onClick={()=>toggleSort("outstanding")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="outstanding"?"#5B9BE0":"#908E85"}}>Outstanding{sortArrow("outstanding")}</th>
+                <th onClick={()=>toggleSort("overdue")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="overdue"?"#5B9BE0":"#908E85"}}>Days Overdue{sortArrow("overdue")}</th>
+                <th onClick={()=>toggleSort("lastCall")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="lastCall"?"#5B9BE0":"#908E85"}}>Last Call{sortArrow("lastCall")}</th>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Phone</th>
                 <th style={{padding:"10px 12px",fontWeight:500}}>Assigned To</th>
                 <th style={{padding:"10px 12px",fontWeight:500,minWidth:160}}>Note</th>
@@ -665,40 +660,40 @@ function BlitzPage({officeFilter, showToast}: any) {
             </thead>
             <tbody>
               {items.map((it:any)=>(
-                <tr key={it.invoiceId} style={{borderTop:"0.5px solid #F1EFE8",opacity:it.paid?0.6:1,background:it.paid?"#F7FBF8":"transparent"}}>
-                  <td style={{padding:"10px 12px",fontWeight:500,color:"#2C2C2A"}}>
+                <tr key={it.invoiceId} style={{borderTop:"0.5px solid #232329",opacity:it.paid?0.6:1,background:it.paid?"#F7FBF8":"transparent"}}>
+                  <td style={{padding:"10px 12px",fontWeight:500,color:"#F0EEE8"}}>
                     {it.customerName}
                     {it.paid && <span style={{marginLeft:8,fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:6,background:"#DCF2E6",color:"#1D7A50"}}>PAID</span>}
-                    <div style={{fontSize:11,color:"#B4B2A9"}}>{it.serviceAddr||""}</div>
+                    <div style={{fontSize:11,color:"#63615A"}}>{it.serviceAddr||""}</div>
                   </td>
-                  <td style={{padding:"10px 12px"}}><span style={{fontSize:11,padding:"2px 7px",borderRadius:6,background:it.serviceCategory==="Wildlife"?"#E9F1E5":"#EAEEF6",color:it.serviceCategory==="Wildlife"?"#3F6B2E":"#2E4A79"}}>{it.serviceCategory}</span></td>
-                  <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,color:"#791F1F"}}>{money(it.outstanding)}</td>
-                  <td style={{padding:"10px 12px",textAlign:"right",color:it.daysOverdue>=90?"#791F1F":it.daysOverdue>=30?"#B45309":"#6B6A64"}}>{it.daysOverdue}d</td>
-                  <td style={{padding:"10px 12px",textAlign:"right",color:"#6B6A64"}}>
-                    {it.daysSinceCall==null?<span style={{color:"#C9C7BE"}}>never</span>:`${it.daysSinceCall}d`}
+                  <td style={{padding:"10px 12px"}}><span style={{fontSize:11,padding:"2px 7px",borderRadius:6,background:it.serviceCategory==="Wildlife"?"#143229":"#15263a",color:it.serviceCategory==="Wildlife"?"#43B892":"#5B9BE0"}}>{it.serviceCategory}</span></td>
+                  <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,color:"#E57C7C"}}>{money(it.outstanding)}</td>
+                  <td style={{padding:"10px 12px",textAlign:"right",color:it.daysOverdue>=90?"#E57C7C":it.daysOverdue>=30?"#DBA14E":"#C9C7BF"}}>{it.daysOverdue}d</td>
+                  <td style={{padding:"10px 12px",textAlign:"right",color:"#C9C7BF"}}>
+                    {it.daysSinceCall==null?<span style={{color:"#C9C7BF"}}>never</span>:`${it.daysSinceCall}d`}
                   </td>
-                  <td style={{padding:"10px 12px",color:"#6B6A64"}}>{it.phone||"—"}</td>
+                  <td style={{padding:"10px 12px",color:"#C9C7BF"}}>{it.phone||"—"}</td>
                   <td style={{padding:"8px 12px"}}>
                     <select value={it.assignedTo||""} onChange={e=>assign(it.invoiceId,e.target.value)} disabled={savingAssign===it.invoiceId}
-                      style={{padding:"5px 8px",fontSize:12,borderRadius:6,border:"0.5px solid #D3D1C7",background:it.assignedTo?"#EAEEF6":"#fff",maxWidth:130}}>
+                      style={{padding:"5px 8px",fontSize:12,borderRadius:6,border:"0.5px solid #2A2A30",background:it.assignedTo?"#15263a":"#1C1C21",maxWidth:130}}>
                       <option value="">CSRs (pool)</option>
                       {coreUsers.map((u:any)=><option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
                   </td>
-                  <td style={{padding:"10px 12px",color:"#888780",maxWidth:200}}>
-                    {it.arNote && <div style={{fontSize:11,color:"#6B6A64"}} title={it.arNote}>{it.arNote.slice(0,40)}{it.arNote.length>40?"…":""}</div>}
+                  <td style={{padding:"10px 12px",color:"#908E85",maxWidth:200}}>
+                    {it.arNote && <div style={{fontSize:11,color:"#C9C7BF"}} title={it.arNote}>{it.arNote.slice(0,40)}{it.arNote.length>40?"…":""}</div>}
                     {it.lastNote ? (
                       <div style={{marginTop:2}}>
                         <button onClick={()=>setExpanded(p=>({...p,[it.invoiceId]:!p[it.invoiceId]}))}
-                          style={{fontSize:10,color:"#6B6A64",background:"none",border:"none",padding:0,cursor:"pointer",textAlign:"left"}}>
+                          style={{fontSize:10,color:"#C9C7BF",background:"none",border:"none",padding:0,cursor:"pointer",textAlign:"left"}}>
                           {expanded[it.invoiceId]?"▼ hide notes":`▶ Last: ${it.lastNote.text?`${it.lastNote.text.slice(0,30)}${it.lastNote.text.length>30?"…":""} `:""}(${new Date(it.lastNote.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})})${it.noteCount>1?` +${it.noteCount-1} more`:""}`}
                         </button>
                         {expanded[it.invoiceId] && (
-                          <div style={{marginTop:4,padding:8,background:"#F8F7F4",borderRadius:6,border:"0.5px solid #E8E7E3",maxWidth:340}}>
+                          <div style={{marginTop:4,padding:8,background:"#232329",borderRadius:6,border:"0.5px solid #2A2A30",maxWidth:340}}>
                             {(it.allNotes||[]).map((n:any,idx:number)=>(
-                              <div key={idx} style={{fontSize:11,color:"#2C2C2A",paddingBottom:6,marginBottom:6,borderBottom:idx<(it.allNotes.length-1)?"0.5px solid #E8E7E3":"none"}}>
-                                <div style={{whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{n.text||<span style={{color:"#B4B2A9"}}>(no text)</span>}</div>
-                                <div style={{fontSize:10,color:"#B4B2A9",marginTop:2}}>
+                              <div key={idx} style={{fontSize:11,color:"#F0EEE8",paddingBottom:6,marginBottom:6,borderBottom:idx<(it.allNotes.length-1)?"0.5px solid #2A2A30":"none"}}>
+                                <div style={{whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{n.text||<span style={{color:"#63615A"}}>(no text)</span>}</div>
+                                <div style={{fontSize:10,color:"#63615A",marginTop:2}}>
                                   {new Date(n.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}{n.status?` · ${n.status}`:""}{n.promisedAmount?` · promised ${money(n.promisedAmount)}`:""}{n.promisedDate?` by ${new Date(n.promisedDate).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`:""}
                                 </div>
                               </div>
@@ -706,16 +701,16 @@ function BlitzPage({officeFilter, showToast}: any) {
                           </div>
                         )}
                       </div>
-                    ) : (!it.arNote && <span style={{color:"#C9C7BE",fontSize:11}}>—</span>)}
+                    ) : (!it.arNote && <span style={{color:"#C9C7BF",fontSize:11}}>—</span>)}
                   </td>
-                  <td style={{padding:"10px 12px"}}><button onClick={()=>setCallModal(it)} style={{background:"#0052cc",color:"#fff",border:"none",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>Mark Called</button></td>
+                  <td style={{padding:"10px 12px"}}><button onClick={()=>setCallModal(it)} style={{background:"#5B9BE0",color:"#1C1C21",border:"none",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>Mark Called</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : (
-        <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780",background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3"}}>
+        <div style={{padding:40,textAlign:"center",fontSize:13,color:"#908E85",background:"#1C1C21",borderRadius:12,border:"0.5px solid #2A2A30"}}>
           {allItems.length===0?"No overdue invoices. Backlog clear \uD83C\uDF89":"No matches for the current filters."}
         </div>
       )}
@@ -756,33 +751,33 @@ function DistributeModal({users, officeFilter, onClose, onDone}: any) {
 
   return (
     <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
-      <div style={{background:"#fff",borderRadius:14,width:"100%",maxWidth:520,padding:24,maxHeight:"85vh",overflowY:"auto"}}>
+      <div style={{background:"#1C1C21",borderRadius:14,width:"100%",maxWidth:520,padding:24,maxHeight:"85vh",overflowY:"auto"}}>
         <div style={{fontWeight:600,fontSize:16,marginBottom:4}}>Auto-distribute backlog</div>
-        <div style={{fontSize:12,color:"#888780",marginBottom:16}}>Spreads the overdue backlog evenly across the selected people, balanced within each aging bucket (1-30 / 31-60 / 61-90 / 91-180 / 181+).</div>
+        <div style={{fontSize:12,color:"#908E85",marginBottom:16}}>Spreads the overdue backlog evenly across the selected people, balanced within each aging bucket (1-30 / 31-60 / 61-90 / 91-180 / 181+).</div>
 
         {!result ? (<>
-          <div style={{fontSize:12,color:"#6B6A64",marginBottom:8}}>How many each (leave blank for no limit; rest stays in the CSR pool)</div>
+          <div style={{fontSize:12,color:"#C9C7BF",marginBottom:8}}>How many each (leave blank for no limit; rest stays in the CSR pool)</div>
           <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
             {chosen.map((u:any)=>(
               <div key={u.id} style={{display:"flex",alignItems:"center",gap:10}}>
                 <span style={{fontSize:13,minWidth:120}}>{u.name}</span>
                 <input type="number" value={caps[u.id]||""} onChange={e=>setCaps(p=>({...p,[u.id]:e.target.value}))} placeholder="e.g. 150"
-                  style={{padding:"6px 10px",fontSize:13,borderRadius:8,border:"0.5px solid #D3D1C7",width:100}} />
+                  style={{padding:"6px 10px",fontSize:13,borderRadius:8,border:"0.5px solid #2A2A30",width:100}} />
               </div>
             ))}
-            <span style={{fontSize:11,color:"#B4B2A9"}}>Each person's slice is spread evenly across all aging (newest to oldest), and so is the leftover CSR pool.</span>
+            <span style={{fontSize:11,color:"#63615A"}}>Each person's slice is spread evenly across all aging (newest to oldest), and so is the leftover CSR pool.</span>
           </div>
 
-          <div style={{fontSize:12,color:"#6B6A64",marginBottom:8}}>Scope</div>
-          <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3",marginBottom:16}}>
-            <button onClick={()=>setScope("all")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:scope==="all"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:scope==="all"?"#fff":"transparent",color:scope==="all"?"#2C2C2A":"#888780"}}>Reshuffle all</button>
-            <button onClick={()=>setScope("unassigned")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:scope==="unassigned"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:scope==="unassigned"?"#fff":"transparent",color:scope==="unassigned"?"#2C2C2A":"#888780"}}>Only unassigned</button>
+          <div style={{fontSize:12,color:"#C9C7BF",marginBottom:8}}>Scope</div>
+          <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#232329",border:"0.5px solid #2A2A30",marginBottom:16}}>
+            <button onClick={()=>setScope("all")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:scope==="all"?"0.5px solid #2A2A30":"0.5px solid transparent",background:scope==="all"?"#1C1C21":"transparent",color:scope==="all"?"#F0EEE8":"#908E85"}}>Reshuffle all</button>
+            <button onClick={()=>setScope("unassigned")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:scope==="unassigned"?"0.5px solid #2A2A30":"0.5px solid transparent",background:scope==="unassigned"?"#1C1C21":"transparent",color:scope==="unassigned"?"#F0EEE8":"#908E85"}}>Only unassigned</button>
           </div>
 
-          <div style={{fontSize:12,color:"#6B6A64",marginBottom:8}}>People ({chosen.length} selected)</div>
+          <div style={{fontSize:12,color:"#C9C7BF",marginBottom:8}}>People ({chosen.length} selected)</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:18}}>
             {(users||[]).map((u:any)=>(
-              <label key={u.id} style={{display:"flex",alignItems:"center",gap:7,fontSize:13,padding:"5px 8px",borderRadius:7,background:selected[u.id]?"#EAEEF6":"#F7F6F3",cursor:"pointer"}}>
+              <label key={u.id} style={{display:"flex",alignItems:"center",gap:7,fontSize:13,padding:"5px 8px",borderRadius:7,background:selected[u.id]?"#15263a":"#232329",cursor:"pointer"}}>
                 <input type="checkbox" checked={!!selected[u.id]} onChange={e=>setSelected(p=>({...p,[u.id]:e.target.checked}))} />
                 {u.name}
               </label>
@@ -794,14 +789,14 @@ function DistributeModal({users, officeFilter, onClose, onDone}: any) {
           </div>
 
           <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
-            <button onClick={onClose} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"0.5px solid #D3D1C7",background:"#fff",cursor:"pointer"}}>Cancel</button>
-            <button onClick={run} disabled={running||chosen.length===0} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#0052cc",color:"#fff",fontWeight:500,cursor:"pointer",opacity:(running||chosen.length===0)?0.6:1}}>{running?"Distributing\u2026":`Distribute to ${chosen.length}`}</button>
+            <button onClick={onClose} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"0.5px solid #2A2A30",background:"#1C1C21",cursor:"pointer"}}>Cancel</button>
+            <button onClick={run} disabled={running||chosen.length===0} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#5B9BE0",color:"#1C1C21",fontWeight:500,cursor:"pointer",opacity:(running||chosen.length===0)?0.6:1}}>{running?"Distributing\u2026":`Distribute to ${chosen.length}`}</button>
           </div>
         </>) : (<>
-          <div style={{fontSize:13,color:"#2C2C2A",marginBottom:12}}>Distributed <b>{result.distributed}</b> invoices.</div>
-          <div style={{fontSize:12,color:"#6B6A64",marginBottom:8}}>By bucket: 1-30: {result.buckets['1-30']} · 31-60: {result.buckets['31-60']} · 61-90: {result.buckets['61-90']} · 91-180: {result.buckets['91-180']} · 181+: {result.buckets['181+']}</div>
+          <div style={{fontSize:13,color:"#F0EEE8",marginBottom:12}}>Distributed <b>{result.distributed}</b> invoices.</div>
+          <div style={{fontSize:12,color:"#C9C7BF",marginBottom:8}}>By bucket: 1-30: {result.buckets['1-30']} · 31-60: {result.buckets['31-60']} · 61-90: {result.buckets['61-90']} · 91-180: {result.buckets['91-180']} · 181+: {result.buckets['181+']}</div>
           <div style={{display:"flex",justifyContent:"flex-end",marginTop:16}}>
-            <button onClick={()=>onDone(result)} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#0052cc",color:"#fff",fontWeight:500,cursor:"pointer"}}>Done</button>
+            <button onClick={()=>onDone(result)} style={{fontSize:13,padding:"8px 16px",borderRadius:8,border:"none",background:"#5B9BE0",color:"#1C1C21",fontWeight:500,cursor:"pointer"}}>Done</button>
           </div>
         </>)}
       </div>
@@ -810,25 +805,25 @@ function DistributeModal({users, officeFilter, onClose, onDone}: any) {
 }
 
 function RepDetailBlock({title, rows, kind, money, fmtDT, showRep}: any) {
-  const th:any={padding:"7px 10px",fontWeight:500,textAlign:"left",color:"#888780",fontSize:11};
-  const td:any={padding:"7px 10px",fontSize:12,color:"#2C2C2A"};
+  const th:any={padding:"7px 10px",fontWeight:500,textAlign:"left",color:"#908E85",fontSize:11};
+  const td:any={padding:"7px 10px",fontSize:12,color:"#F0EEE8"};
   return (
     <div>
-      <div style={{fontSize:12,fontWeight:600,color:"#6B6A64",marginBottom:6}}>{title}</div>
-      {rows.length===0 ? <div style={{fontSize:12,color:"#B4B2A9",padding:"4px 0"}}>None in this window.</div> : (
-        <div style={{background:"#fff",borderRadius:10,border:"0.5px solid #E8E7E3",overflowX:"auto"}}>
+      <div style={{fontSize:12,fontWeight:600,color:"#C9C7BF",marginBottom:6}}>{title}</div>
+      {rows.length===0 ? <div style={{fontSize:12,color:"#63615A",padding:"4px 0"}}>None in this window.</div> : (
+        <div style={{background:"#1C1C21",borderRadius:10,border:"0.5px solid #2A2A30",overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
             {kind==="collections" && <>
               <thead><tr>{showRep&&<th style={th}>Rep</th>}<th style={th}>Customer</th><th style={{...th,textAlign:"right"}}>Amount</th><th style={th}>Date</th><th style={th}>Source</th><th style={th}>Credited</th></tr></thead>
-              <tbody>{rows.map((r:any,i:number)=>(<tr key={i} style={{borderTop:"0.5px solid #F1EFE8"}}>{showRep&&<td style={td}>{r.rep}</td>}<td style={td}>{r.customer}</td><td style={{...td,textAlign:"right",fontWeight:600,color:"#1D9E75"}}>{money(r.amount)}</td><td style={td}>{fmtDT(r.date)}</td><td style={td}>{r.source}</td><td style={td}>{r.credited?"✓":<span style={{color:"#B4B2A9"}}>self-serve</span>}</td></tr>))}</tbody>
+              <tbody>{rows.map((r:any,i:number)=>(<tr key={i} style={{borderTop:"0.5px solid #232329"}}>{showRep&&<td style={td}>{r.rep}</td>}<td style={td}>{r.customer}</td><td style={{...td,textAlign:"right",fontWeight:600,color:"#43B892"}}>{money(r.amount)}</td><td style={td}>{fmtDT(r.date)}</td><td style={td}>{r.source}</td><td style={td}>{r.credited?"✓":<span style={{color:"#63615A"}}>self-serve</span>}</td></tr>))}</tbody>
             </>}
             {kind==="calls" && <>
               <thead><tr>{showRep&&<th style={th}>Rep</th>}<th style={th}>Customer</th><th style={th}>Number</th><th style={th}>Date</th><th style={th}>Duration</th><th style={th}>State</th></tr></thead>
-              <tbody>{rows.map((r:any,i:number)=>(<tr key={i} style={{borderTop:"0.5px solid #F1EFE8"}}>{showRep&&<td style={td}>{r.rep}</td>}<td style={td}>{r.customer||"—"}</td><td style={td}>{r.phone}</td><td style={td}>{fmtDT(r.date)}</td><td style={td}>{Math.floor((r.durationSec||0)/60)}m {(r.durationSec||0)%60}s</td><td style={td}>{r.state}</td></tr>))}</tbody>
+              <tbody>{rows.map((r:any,i:number)=>(<tr key={i} style={{borderTop:"0.5px solid #232329"}}>{showRep&&<td style={td}>{r.rep}</td>}<td style={td}>{r.customer||"—"}</td><td style={td}>{r.phone}</td><td style={td}>{fmtDT(r.date)}</td><td style={td}>{Math.floor((r.durationSec||0)/60)}m {(r.durationSec||0)%60}s</td><td style={td}>{r.state}</td></tr>))}</tbody>
             </>}
             {kind==="notes" && <>
               <thead><tr>{showRep&&<th style={th}>Rep</th>}<th style={th}>Customer</th><th style={th}>Date</th><th style={th}>Outcome</th><th style={th}>Note</th></tr></thead>
-              <tbody>{rows.map((r:any,i:number)=>(<tr key={i} style={{borderTop:"0.5px solid #F1EFE8"}}>{showRep&&<td style={td}>{r.rep}</td>}<td style={td}>{r.customer}</td><td style={td}>{fmtDT(r.date)}</td><td style={td}>{r.status}</td><td style={{...td,color:"#6B6A64"}}>{r.text}</td></tr>))}</tbody>
+              <tbody>{rows.map((r:any,i:number)=>(<tr key={i} style={{borderTop:"0.5px solid #232329"}}>{showRep&&<td style={td}>{r.rep}</td>}<td style={td}>{r.customer}</td><td style={td}>{fmtDT(r.date)}</td><td style={td}>{r.status}</td><td style={{...td,color:"#C9C7BF"}}>{r.text}</td></tr>))}</tbody>
             </>}
           </table>
         </div>
@@ -874,24 +869,24 @@ function TrackingPage() {
   return (
     <div>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,flexWrap:"wrap"}}>
-        <div style={{fontSize:15,fontWeight:600,color:"#2C2C2A"}}>AR Tracking</div>
-        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3"}}>
-          <button onClick={()=>setTab("leaderboard")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:tab==="leaderboard"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:tab==="leaderboard"?"#fff":"transparent",color:tab==="leaderboard"?"#2C2C2A":"#888780"}}>Leaderboard</button>
-          <button onClick={()=>setTab("activity")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:tab==="activity"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:tab==="activity"?"#fff":"transparent",color:tab==="activity"?"#2C2C2A":"#888780"}}>Activity Log</button>
-          {fsAllowed && <button onClick={()=>setTab("failsafe")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:tab==="failsafe"?"0.5px solid #D3D1C7":"0.5px solid transparent",background:tab==="failsafe"?"#fff":"transparent",color:tab==="failsafe"?"#791F1F":"#888780"}}>Fail-safe audit</button>}
+        <div style={{fontSize:15,fontWeight:600,color:"#F0EEE8"}}>AR Tracking</div>
+        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#232329",border:"0.5px solid #2A2A30"}}>
+          <button onClick={()=>setTab("leaderboard")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:tab==="leaderboard"?"0.5px solid #2A2A30":"0.5px solid transparent",background:tab==="leaderboard"?"#1C1C21":"transparent",color:tab==="leaderboard"?"#F0EEE8":"#908E85"}}>Leaderboard</button>
+          <button onClick={()=>setTab("activity")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:tab==="activity"?"0.5px solid #2A2A30":"0.5px solid transparent",background:tab==="activity"?"#1C1C21":"transparent",color:tab==="activity"?"#F0EEE8":"#908E85"}}>Activity Log</button>
+          {fsAllowed && <button onClick={()=>setTab("failsafe")} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:tab==="failsafe"?"0.5px solid #2A2A30":"0.5px solid transparent",background:tab==="failsafe"?"#1C1C21":"transparent",color:tab==="failsafe"?"#E57C7C":"#908E85"}}>Fail-safe audit</button>}
         </div>
-        <div style={{marginLeft:"auto",fontSize:11,color:"#B4B2A9"}}>All activity since blitz start</div>
+        <div style={{marginLeft:"auto",fontSize:11,color:"#63615A"}}>All activity since blitz start</div>
       </div>
 
-      {loading ? <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780"}}>Loading…</div> : tab==="leaderboard" ? (
+      {loading ? <div style={{padding:40,textAlign:"center",fontSize:13,color:"#908E85"}}>Loading…</div> : tab==="leaderboard" ? (
         <div>
-          <div style={{display:"flex",gap:16,marginBottom:14,fontSize:12,color:"#6B6A64"}}>
-            <span>Credited to reps: <b style={{color:"#1D9E75"}}>{money(lb?.creditedTotal||0)}</b></span>
+          <div style={{display:"flex",gap:16,marginBottom:14,fontSize:12,color:"#C9C7BF"}}>
+            <span>Credited to reps: <b style={{color:"#43B892"}}>{money(lb?.creditedTotal||0)}</b></span>
             <span>Self-serve (portal/ACH/check, no credit): <b>{money(lb?.selfServeTotal||0)}</b></span>
           </div>
-          <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3",overflowX:"auto"}}>
+          <div style={{background:"#1C1C21",borderRadius:12,border:"0.5px solid #2A2A30",overflowX:"auto"}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-              <thead><tr style={{color:"#888780",textAlign:"left"}}>
+              <thead><tr style={{color:"#908E85",textAlign:"left"}}>
                 <th style={{padding:"10px 14px",fontWeight:500}}>#</th>
                 <th style={{padding:"10px 14px",fontWeight:500}}>Rep</th>
                 <th style={{padding:"10px 14px",fontWeight:500,textAlign:"right"}}>Collected</th>
@@ -901,16 +896,16 @@ function TrackingPage() {
               <tbody>
                 {(lb?.board||[]).map((r:any,i:number)=>(
                   <Fragment key={r.userId}>
-                  <tr onClick={()=>toggleRep(r.userId)} style={{borderTop:"0.5px solid #F1EFE8",cursor:"pointer",background:expanded===r.userId?"#F7F6F3":"transparent"}}>
-                    <td style={{padding:"10px 14px",color:"#B4B2A9"}}>{expanded===r.userId?"▾":"▸"} {i+1}</td>
-                    <td style={{padding:"10px 14px",fontWeight:500,color:"#2C2C2A"}}>{r.name}{!r.mapped && <span title="No FieldRoutes employee mapping — collections can't be credited yet" style={{marginLeft:6,fontSize:10,color:"#B45309"}}>⚠ unmapped</span>}</td>
-                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:600,color:"#1D9E75"}}>{money(r.collected)}</td>
-                    <td style={{padding:"10px 14px",textAlign:"right",color:"#6B6A64"}}>{r.paymentsProcessed}</td>
-                    <td style={{padding:"10px 14px",textAlign:"right",color:"#6B6A64"}}>{r.calls}</td>
+                  <tr onClick={()=>toggleRep(r.userId)} style={{borderTop:"0.5px solid #232329",cursor:"pointer",background:expanded===r.userId?"#232329":"transparent"}}>
+                    <td style={{padding:"10px 14px",color:"#63615A"}}>{expanded===r.userId?"▾":"▸"} {i+1}</td>
+                    <td style={{padding:"10px 14px",fontWeight:500,color:"#F0EEE8"}}>{r.name}{!r.mapped && <span title="No FieldRoutes employee mapping — collections can't be credited yet" style={{marginLeft:6,fontSize:10,color:"#DBA14E"}}>⚠ unmapped</span>}</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:600,color:"#43B892"}}>{money(r.collected)}</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",color:"#C9C7BF"}}>{r.paymentsProcessed}</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",color:"#C9C7BF"}}>{r.calls}</td>
                   </tr>
                   {expanded===r.userId && (
-                    <tr><td colSpan={5} style={{padding:"0 14px 14px",background:"#F7F6F3"}}>
-                      {!detail[r.userId] ? <div style={{padding:12,fontSize:12,color:"#888780"}}>Loading detail…</div> : (
+                    <tr><td colSpan={5} style={{padding:"0 14px 14px",background:"#232329"}}>
+                      {!detail[r.userId] ? <div style={{padding:12,fontSize:12,color:"#908E85"}}>Loading detail…</div> : (
                         <div style={{display:"flex",flexDirection:"column",gap:14,paddingTop:10}}>
                           <RepDetailBlock title={`Collections (${detail[r.userId].collections.length})`} rows={detail[r.userId].collections} kind="collections" money={money} fmtDT={fmtDT} />
                           <RepDetailBlock title={`Calls (${detail[r.userId].calls.length})`} rows={detail[r.userId].calls} kind="calls" money={money} fmtDT={fmtDT} />
@@ -921,11 +916,11 @@ function TrackingPage() {
                   )}
                   </Fragment>
                 ))}
-                {(lb?.board||[]).length===0 && <tr><td colSpan={5} style={{padding:30,textAlign:"center",color:"#888780"}}>No activity in this window yet.</td></tr>}
+                {(lb?.board||[]).length===0 && <tr><td colSpan={5} style={{padding:30,textAlign:"center",color:"#908E85"}}>No activity in this window yet.</td></tr>}
               </tbody>
             </table>
           </div>
-          {lb?.unmappedUsers?.length>0 && <div style={{marginTop:10,fontSize:11,color:"#B45309"}}>Not yet credit-eligible (need FieldRoutes employee mapping): {lb.unmappedUsers.join(', ')}</div>}
+          {lb?.unmappedUsers?.length>0 && <div style={{marginTop:10,fontSize:11,color:"#DBA14E"}}>Not yet credit-eligible (need FieldRoutes employee mapping): {lb.unmappedUsers.join(', ')}</div>}
         </div>
       ) : tab==="activity" ? (
         <div style={{display:"flex",flexDirection:"column",gap:16}}>
@@ -935,10 +930,10 @@ function TrackingPage() {
         </div>
       ) : (
         <div>
-          <div style={{background:"#F6EAEA",border:"0.5px solid #E0C4C4",borderRadius:8,padding:"8px 12px",fontSize:11,color:"#791F1F",marginBottom:14}}>Admin-only. Flags logged calls with no matching Dial Pad call to the customer's number. {fs?.flaggedCount||0} of {fs?.checked||0} logged calls flagged.</div>
-          <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3",overflowX:"auto"}}>
+          <div style={{background:"#F6EAEA",border:"0.5px solid #E0C4C4",borderRadius:8,padding:"8px 12px",fontSize:11,color:"#E57C7C",marginBottom:14}}>Admin-only. Flags logged calls with no matching Dial Pad call to the customer's number. {fs?.flaggedCount||0} of {fs?.checked||0} logged calls flagged.</div>
+          <div style={{background:"#1C1C21",borderRadius:12,border:"0.5px solid #2A2A30",overflowX:"auto"}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-              <thead><tr style={{color:"#888780",textAlign:"left"}}>
+              <thead><tr style={{color:"#908E85",textAlign:"left"}}>
                 <th style={{padding:"10px 14px",fontWeight:500}}>Date</th>
                 <th style={{padding:"10px 14px",fontWeight:500}}>Customer</th>
                 <th style={{padding:"10px 14px",fontWeight:500}}>Logged by</th>
@@ -947,15 +942,15 @@ function TrackingPage() {
               </tr></thead>
               <tbody>
                 {(fs?.flagged||[]).map((f:any)=>(
-                  <tr key={f.noteId} style={{borderTop:"0.5px solid #F1EFE8"}}>
-                    <td style={{padding:"10px 14px",color:"#6B6A64"}}>{new Date(f.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</td>
-                    <td style={{padding:"10px 14px",fontWeight:500,color:"#2C2C2A"}}>{f.customerName}</td>
-                    <td style={{padding:"10px 14px",color:"#791F1F"}}>{f.loggedBy}</td>
-                    <td style={{padding:"10px 14px",color:"#6B6A64"}}>{f.phone}</td>
-                    <td style={{padding:"10px 14px",color:"#888780"}}>{f.note}</td>
+                  <tr key={f.noteId} style={{borderTop:"0.5px solid #232329"}}>
+                    <td style={{padding:"10px 14px",color:"#C9C7BF"}}>{new Date(f.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</td>
+                    <td style={{padding:"10px 14px",fontWeight:500,color:"#F0EEE8"}}>{f.customerName}</td>
+                    <td style={{padding:"10px 14px",color:"#E57C7C"}}>{f.loggedBy}</td>
+                    <td style={{padding:"10px 14px",color:"#C9C7BF"}}>{f.phone}</td>
+                    <td style={{padding:"10px 14px",color:"#908E85"}}>{f.note}</td>
                   </tr>
                 ))}
-                {(fs?.flagged||[]).length===0 && <tr><td colSpan={5} style={{padding:30,textAlign:"center",color:"#1D9E75"}}>No mismatches — all logged calls have a matching Dial Pad call. ✓</td></tr>}
+                {(fs?.flagged||[]).length===0 && <tr><td colSpan={5} style={{padding:30,textAlign:"center",color:"#43B892"}}>No mismatches — all logged calls have a matching Dial Pad call. ✓</td></tr>}
               </tbody>
             </table>
           </div>
@@ -978,37 +973,37 @@ function StagesPage({officeFilter, showToast}: any) {
 
   const money=(n:number)=>'$'+Math.round(n).toLocaleString();
   const LABEL:any={COLLECTIONS:"Collections",SCC:"SCC",BAD_DEBT:"Bad Debt"};
-  const COLOR:any={COLLECTIONS:{bg:"#EAEEF6",fg:"#2E4A79"},SCC:{bg:"#FBF0E4",fg:"#8A5A1E"},BAD_DEBT:{bg:"#F6EAEA",fg:"#791F1F"}};
+  const COLOR:any={COLLECTIONS:{bg:"#15263a",fg:"#5B9BE0"},SCC:{bg:"#FBF0E4",fg:"#8A5A1E"},BAD_DEBT:{bg:"#F6EAEA",fg:"#E57C7C"}};
 
   const moveBack=async(invoiceId:string)=>{
     await fetch('/api/ar/call-sheet',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({invoiceId,arStage:null})});
     load(); showToast&&showToast("Moved back to call sheet");
   };
 
-  if(loadingS) return <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780"}}>Loading…</div>;
+  if(loadingS) return <div style={{padding:40,textAlign:"center",fontSize:13,color:"#908E85"}}>Loading…</div>;
   const all=data?.items||[];
   const items=all.filter((it:any)=>filter==="all"||it.status===filter);
 
   return (
     <div>
       <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:16}}>
-        <div style={{fontSize:15,fontWeight:600,color:"#2C2C2A"}}>Collections / SCC / Bad Debt</div>
-        <div style={{fontSize:13,color:"#888780"}}>{items.length} account{items.length!==1?"s":""}</div>
+        <div style={{fontSize:15,fontWeight:600,color:"#F0EEE8"}}>Collections / SCC / Bad Debt</div>
+        <div style={{fontSize:13,color:"#908E85"}}>{items.length} account{items.length!==1?"s":""}</div>
       </div>
 
-      <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#F1EFE8",border:"0.5px solid #E8E7E3",marginBottom:14}}>
+      <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#232329",border:"0.5px solid #2A2A30",marginBottom:14}}>
         {(["all","COLLECTIONS","SCC","BAD_DEBT"] as const).map(s=>(
-          <button key={s} onClick={()=>setFilter(s)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:filter===s?"0.5px solid #D3D1C7":"0.5px solid transparent",background:filter===s?"#fff":"transparent",color:filter===s?"#2C2C2A":"#888780"}}>
+          <button key={s} onClick={()=>setFilter(s)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:filter===s?"0.5px solid #2A2A30":"0.5px solid transparent",background:filter===s?"#1C1C21":"transparent",color:filter===s?"#F0EEE8":"#908E85"}}>
             {s==="all"?"All":LABEL[s]}
           </button>
         ))}
       </div>
 
       {items.length>0 ? (
-        <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3",overflowX:"auto"}}>
+        <div style={{background:"#1C1C21",borderRadius:12,border:"0.5px solid #2A2A30",overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead>
-              <tr style={{color:"#888780",textAlign:"left"}}>
+              <tr style={{color:"#908E85",textAlign:"left"}}>
                 <th style={{padding:"10px 14px",fontWeight:500}}>Customer</th>
                 <th style={{padding:"10px 14px",fontWeight:500}}>Service</th>
                 <th style={{padding:"10px 14px",fontWeight:500,textAlign:"right"}}>Outstanding</th>
@@ -1018,19 +1013,19 @@ function StagesPage({officeFilter, showToast}: any) {
             </thead>
             <tbody>
               {items.map((it:any)=>(
-                <tr key={it.invoiceId} style={{borderTop:"0.5px solid #F1EFE8"}}>
-                  <td style={{padding:"10px 14px",fontWeight:500,color:"#2C2C2A"}}>{it.customerName}<div style={{fontSize:11,color:"#B4B2A9"}}>{it.serviceAddr||""}</div></td>
-                  <td style={{padding:"10px 14px"}}><span style={{fontSize:11,padding:"2px 7px",borderRadius:6,background:it.serviceCategory==="Wildlife"?"#E9F1E5":"#EAEEF6",color:it.serviceCategory==="Wildlife"?"#3F6B2E":"#2E4A79"}}>{it.serviceCategory}</span></td>
-                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:600,color:"#791F1F"}}>{money(it.outstanding)}</td>
+                <tr key={it.invoiceId} style={{borderTop:"0.5px solid #232329"}}>
+                  <td style={{padding:"10px 14px",fontWeight:500,color:"#F0EEE8"}}>{it.customerName}<div style={{fontSize:11,color:"#63615A"}}>{it.serviceAddr||""}</div></td>
+                  <td style={{padding:"10px 14px"}}><span style={{fontSize:11,padding:"2px 7px",borderRadius:6,background:it.serviceCategory==="Wildlife"?"#143229":"#15263a",color:it.serviceCategory==="Wildlife"?"#43B892":"#5B9BE0"}}>{it.serviceCategory}</span></td>
+                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:600,color:"#E57C7C"}}>{money(it.outstanding)}</td>
                   <td style={{padding:"10px 14px"}}><span style={{fontSize:11,padding:"3px 9px",borderRadius:6,fontWeight:500,background:COLOR[it.status]?.bg,color:COLOR[it.status]?.fg}}>{LABEL[it.status]}</span></td>
-                  <td style={{padding:"10px 14px"}}><button onClick={()=>moveBack(it.invoiceId)} style={{background:"#fff",color:"#6B6A64",border:"0.5px solid #D3D1C7",padding:"5px 10px",borderRadius:7,fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>Back to sheet</button></td>
+                  <td style={{padding:"10px 14px"}}><button onClick={()=>moveBack(it.invoiceId)} style={{background:"#1C1C21",color:"#C9C7BF",border:"0.5px solid #2A2A30",padding:"5px 10px",borderRadius:7,fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>Back to sheet</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : (
-        <div style={{padding:40,textAlign:"center",fontSize:13,color:"#888780",background:"#fff",borderRadius:12,border:"0.5px solid #E8E7E3"}}>No accounts in this stage.</div>
+        <div style={{padding:40,textAlign:"center",fontSize:13,color:"#908E85",background:"#1C1C21",borderRadius:12,border:"0.5px solid #2A2A30"}}>No accounts in this stage.</div>
       )}
     </div>
   );
@@ -1045,33 +1040,33 @@ function DashPage({open,totalAR,totalOverdue,collected,agingTotals,payments,prev
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:12}}>
         <MC label="Total AR" value={fmt(totalAR)} sub={openInvoices+" open invoices"} color={ACCENT}/>
         <MC label="Open AR" value={fmt(totalAR)} sub={openInvoices+" invoices"}/>
-        <MC label="Total past due" value={fmt(totalOverdue)} color="#A32D2D"/>
+        <MC label="Total past due" value={fmt(totalOverdue)} color="#E57C7C"/>
         <MC label="Open invoices" value={openInvoices}/>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:12}}>
-        <MC label="1–30 days AR" value={fmt(agingTotals["1-30"])} color="#1D9E75"/>
-        <MC label="31–60 days AR" value={fmt(agingTotals["31-60"])} color="#BA7517"/>
-        <MC label="61–90 days AR" value={fmt(agingTotals["61-90"])} color="#BA7517"/>
-        <MC label="90+ days AR" value={fmt(agingTotals["90+"])} color="#A32D2D"/>
+        <MC label="1–30 days AR" value={fmt(agingTotals["1-30"])} color="#43B892"/>
+        <MC label="31–60 days AR" value={fmt(agingTotals["31-60"])} color="#DBA14E"/>
+        <MC label="61–90 days AR" value={fmt(agingTotals["61-90"])} color="#DBA14E"/>
+        <MC label="90+ days AR" value={fmt(agingTotals["90+"])} color="#E57C7C"/>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
         <MC label="AR benchmark" value={fmt(prevMonthAR)} sub="Previous month"/>
-        <MC label="AR vs benchmark" value={(arVsBenchmark>=0?"+":"")+arVsBenchmark.toFixed(1)+"%"} color={arVsBenchmark>0?"#A32D2D":"#1D9E75"} sub={arVsBenchmark>0?"Above last month":"Below last month"}/>
-        <div style={{background:"#F1EFE8",borderRadius:8,padding:"14px 16px",border:"0.5px solid #E8E7E3"}}>
-          <div style={{fontSize:12,color:"#888780",marginBottom:4,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+        <MC label="AR vs benchmark" value={(arVsBenchmark>=0?"+":"")+arVsBenchmark.toFixed(1)+"%"} color={arVsBenchmark>0?"#E57C7C":"#43B892"} sub={arVsBenchmark>0?"Above last month":"Below last month"}/>
+        <div style={{background:"#232329",borderRadius:8,padding:"14px 16px",border:"0.5px solid #2A2A30"}}>
+          <div style={{fontSize:12,color:"#908E85",marginBottom:4,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
             <span>Payments collected</span>
-            <select value={collectedDays} onChange={e=>setCollectedDays(Number(e.target.value))} style={{fontSize:11,padding:"1px 4px",borderRadius:4,border:"0.5px solid #ccc",background:"#fff"}}>
+            <select value={collectedDays} onChange={e=>setCollectedDays(Number(e.target.value))} style={{fontSize:11,padding:"1px 4px",borderRadius:4,border:"0.5px solid #ccc",background:"#1C1C21"}}>
               <option value={7}>7d</option><option value={30}>30d</option><option value={60}>60d</option><option value={90}>90d</option><option value={365}>YTD</option><option value={0}>Custom</option>
             </select>
             {collectedDays===0 && (
               <div style={{display:"flex",alignItems:"center",gap:4,marginTop:4,width:"100%"}}>
                 <input type="date" value={customDateFrom} onChange={e=>setCustomDateFrom(e.target.value)} style={{fontSize:10,padding:"2px 4px",borderRadius:4,border:"0.5px solid #ccc",width:"100px"}}/>
-                <span style={{fontSize:10,color:"#888780"}}>to</span>
+                <span style={{fontSize:10,color:"#908E85"}}>to</span>
                 <input type="date" value={customDateTo} onChange={e=>setCustomDateTo(e.target.value)} style={{fontSize:10,padding:"2px 4px",borderRadius:4,border:"0.5px solid #ccc",width:"100px"}}/>
               </div>
             )}
           </div>
-          <div style={{fontSize:20,fontWeight:500,color:"#1D9E75"}}>{fmt(collected)}</div>
+          <div style={{fontSize:20,fontWeight:500,color:"#43B892"}}>{fmt(collected)}</div>
         </div>
       </div>
     </div>
@@ -1103,9 +1098,9 @@ function CustPage({customers,enriched,setModal,showToast,loadAll}: any) {
           placeholder="Search by name, phone or FR ID..."
           value={search}
           onChange={e=>{setSearch(e.target.value);setCurrentPage(1);}}
-          style={{flex:1,maxWidth:360,fontSize:13,padding:"7px 10px",border:"0.5px solid #B4B2A9",borderRadius:8,background:"#fff"}}
+          style={{flex:1,maxWidth:360,fontSize:13,padding:"7px 10px",border:"0.5px solid #63615A",borderRadius:8,background:"#1C1C21"}}
         />
-        <span style={{fontSize:12,color:"#888780",marginLeft:"auto"}}>{filtered.length} customers</span>
+        <span style={{fontSize:12,color:"#908E85",marginLeft:"auto"}}>{filtered.length} customers</span>
       </div>
       <Card noPad>
         <div style={{overflowX:"auto",maxHeight:"calc(100vh - 260px)",overflowY:"auto"}}>
@@ -1116,11 +1111,11 @@ function CustPage({customers,enriched,setModal,showToast,loadAll}: any) {
             <tbody>
               {displayed.map((c:any)=>(
                 <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>setModal({type:"customerDetail",customer:c})}>
-                  <Td bold><div>{c.name}</div><div style={{fontSize:11,color:"#888780"}}>{c.email}</div></Td>
+                  <Td bold><div>{c.name}</div><div style={{fontSize:11,color:"#908E85"}}>{c.email}</div></Td>
                   <Td>{c.phone||"—"}</Td>
-                  <Td style={{fontSize:12,color:"#888780"}}>{c.externalId||"—"}</Td>
-                  <Td style={{fontSize:12,color:"#888780",maxWidth:200}}>{c.serviceAddr||"—"}</Td>
-                  <Td right bold color={balBC[c.id]>0?"#2C2C2A":"#B4B2A9"}>{balBC[c.id]?fmt(balBC[c.id]):"—"}</Td>
+                  <Td style={{fontSize:12,color:"#908E85"}}>{c.externalId||"—"}</Td>
+                  <Td style={{fontSize:12,color:"#908E85",maxWidth:200}}>{c.serviceAddr||"—"}</Td>
+                  <Td right bold color={balBC[c.id]>0?"#F0EEE8":"#63615A"}>{balBC[c.id]?fmt(balBC[c.id]):"—"}</Td>
                   <Td>{enriched.filter((i:any)=>i.customerId===c.id).length}</Td>
                 </tr>
               ))}
@@ -1165,12 +1160,12 @@ function InvPage({enriched,setModal,showToast,loadAll,isAdmin}: any) {
   return (
     <div>
       <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
-        <input placeholder="Search invoice # or customer..." value={search} onChange={e=>{setSearch(e.target.value);setCurrentPage(1);}} style={{flex:1,minWidth:200,fontSize:13,padding:"7px 10px",border:"0.5px solid #B4B2A9",borderRadius:8,background:"#fff"}}/>
-        <select value={statusF} onChange={e=>{setStatusF(e.target.value);setCurrentPage(1);}} style={{fontSize:13,padding:"7px 10px",border:"0.5px solid #B4B2A9",borderRadius:8,background:"#fff"}}>
+        <input placeholder="Search invoice # or customer..." value={search} onChange={e=>{setSearch(e.target.value);setCurrentPage(1);}} style={{flex:1,minWidth:200,fontSize:13,padding:"7px 10px",border:"0.5px solid #63615A",borderRadius:8,background:"#1C1C21"}}/>
+        <select value={statusF} onChange={e=>{setStatusF(e.target.value);setCurrentPage(1);}} style={{fontSize:13,padding:"7px 10px",border:"0.5px solid #63615A",borderRadius:8,background:"#1C1C21"}}>
           <option value="">All statuses</option>
           {["CURRENT","OVERDUE","COLLECTIONS","PAYMENT_PLAN","PAID","DISPUTED"].map(s=><option key={s} value={s}>{statusLabels[s]}</option>)}
         </select>
-        <span style={{fontSize:12,color:"#888780",marginLeft:"auto"}}>{filtered.length} invoices</span>
+        <span style={{fontSize:12,color:"#908E85",marginLeft:"auto"}}>{filtered.length} invoices</span>
       </div>
       <Card noPad>
         <div style={{overflowY:"auto",maxHeight:"calc(100vh - 260px)"}}>
@@ -1184,7 +1179,7 @@ function InvPage({enriched,setModal,showToast,loadAll,isAdmin}: any) {
                   <Td bold>{inv.id}</Td>
                   <Td>{inv.customer?.name||"—"}</Td>
                   <Td>{inv.date?.split("T")[0]}</Td>
-                  <Td color={inv.daysOverdue>0?"#A32D2D":"inherit"}>{inv.due?.split("T")[0]||"—"}</Td>
+                  <Td color={inv.daysOverdue>0?"#E57C7C":"inherit"}>{inv.due?.split("T")[0]||"—"}</Td>
                   <Td right>{fmt(Number(inv.amount))}</Td>
                   <Td right bold>{fmt(inv.balance)}</Td>
                   <Td><Badge status={inv.status} small/></Td>
@@ -1194,7 +1189,7 @@ function InvPage({enriched,setModal,showToast,loadAll,isAdmin}: any) {
                       {isAdmin && (inv.status==="OVERDUE"||inv.status==="COLLECTIONS"||inv.due) && (
                         <button onClick={()=>reopen(inv)} disabled={reopening===inv.id}
                           title="Reopen — reset to CURRENT, clear due date, remove from Call Sheet / Blitz / PestAI"
-                          style={{fontSize:11,padding:"4px 9px",borderRadius:6,border:"0.5px solid #B45309",background:"#fff",color:"#B45309",fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>
+                          style={{fontSize:11,padding:"4px 9px",borderRadius:6,border:"0.5px solid #DBA14E",background:"#1C1C21",color:"#DBA14E",fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>
                           {reopening===inv.id?"…":"Reopen"}
                         </button>
                       )}
@@ -1221,7 +1216,7 @@ function PayPage({payments,invoices,custMap,showToast,loadAll,setModal}: any) {
 
   return (
     <div>
-      <div style={{marginBottom:"1rem",fontSize:13,color:"#888780"}}>
+      <div style={{marginBottom:"1rem",fontSize:13,color:"#908E85"}}>
         {payments.length} payments
       </div>
       <Card noPad>
@@ -1237,8 +1232,8 @@ function PayPage({payments,invoices,custMap,showToast,loadAll,setModal}: any) {
                   <Td>{p.invoiceId}</Td>
                   <Td>{p.date?.split("T")[0]}</Td>
                   <Td><span style={{fontSize:12,fontWeight:500,color:"#185FA5"}}>{p.method}</span></Td>
-                  <Td right bold color="#1D9E75">{fmt(Number(p.amount))}</Td>
-                  <Td style={{fontSize:12,color:"#888780"}}>{p.reference||"—"}</Td>
+                  <Td right bold color="#43B892">{fmt(Number(p.amount))}</Td>
+                  <Td style={{fontSize:12,color:"#908E85"}}>{p.reference||"—"}</Td>
                   <Td><Btn small danger onClick={()=>del(p.id)}>✕</Btn></Td>
                 </tr>
               ))}
@@ -1258,7 +1253,7 @@ function AgePage({open,agingTotals,custMap}: any) {
   const [selectedBucket,setSelectedBucket]=useState<string|null>(null);
 
   const buckets=["current","1-30","31-60","61-90","90+"];
-  const bC:any={current:"#1D9E75","1-30":"#1D9E75","31-60":"#BA7517","61-90":"#BA7517","90+":"#A32D2D"};
+  const bC:any={current:"#43B892","1-30":"#43B892","31-60":"#DBA14E","61-90":"#DBA14E","90+":"#E57C7C"};
   const total=Object.values(agingTotals).reduce((a:any,b:any)=>a+b,0)||1;
 
   const byCust=useMemo(()=>{
@@ -1304,7 +1299,7 @@ function AgePage({open,agingTotals,custMap}: any) {
           onClick={()=>{setSelectedBucket(null);setCurrentPage(1);}}
         />
       </div>
-      <div style={{fontSize:14,fontWeight:500,marginBottom:12,color:"#2C2C2A"}}>
+      <div style={{fontSize:14,fontWeight:500,marginBottom:12,color:"#F0EEE8"}}>
         {selectedBucket ? `${tileLabel(selectedBucket)} customers` : "All customers"} — {filtered.length} results
       </div>
       <Card noPad>
@@ -1317,14 +1312,14 @@ function AgePage({open,agingTotals,custMap}: any) {
               {displayed.map((r:any,idx:number)=>(
                 <tr key={idx}>
                   <Td bold>{r.customer?.name||"—"}</Td>
-                  {buckets.map(b=><Td key={b} right color={r[b]>0?bC[b]:"#B4B2A9"} style={{fontWeight:r[b]>0?500:400}}>{r[b]>0?fmt(r[b]):"—"}</Td>)}
+                  {buckets.map(b=><Td key={b} right color={r[b]>0?bC[b]:"#63615A"} style={{fontWeight:r[b]>0?500:400}}>{r[b]>0?fmt(r[b]):"—"}</Td>)}
                   <Td right bold>{fmt(r.total)}</Td>
                 </tr>
               ))}
               {displayed.length===0&&<ER cols={7} msg="No customers in this bucket"/>}
             </tbody>
             <tfoot>
-              <tr style={{background:"#F8F7F4"}}>
+              <tr style={{background:"#232329"}}>
                 <td style={{padding:"9px 12px",fontWeight:500,fontSize:13}}>Total</td>
                 {buckets.map(b=><td key={b} style={{padding:"9px 12px",textAlign:"right",fontWeight:500,fontSize:13,color:bC[b]}}>{fmt((agingTotals as any)[b])}</td>)}
                 <td style={{padding:"9px 12px",textAlign:"right",fontWeight:500,fontSize:13}}>{fmt(Number(total))}</td>
@@ -1382,9 +1377,9 @@ function PayModal({invoice,invoices,enriched,custMap,onClose,showToast,loadAll}:
   };
   return (
     <Modal title={invoice?"Record payment — "+invoice.id:"Record payment"} onClose={onClose}>
-      {invoice&&<div style={{background:"#F7F6F2",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:13}}>
+      {invoice&&<div style={{background:"#232329",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:13}}>
         <div style={{fontWeight:500}}>{custMap[invoice.customerId]?.name} · {invoice.id}</div>
-        <div style={{color:"#888780",marginTop:2}}>Balance: <strong>{fmt(invoice.balance)}</strong></div>
+        <div style={{color:"#908E85",marginTop:2}}>Balance: <strong>{fmt(invoice.balance)}</strong></div>
       </div>}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
         {!invoice&&<Inp label="Invoice *" value={selId} onChange={v=>{setSelId(v);const i=openInvs.find((x:any)=>x.id===v);if(i)set("amount",String(Math.round(i.balance)));}} options={[{value:"",label:"Select invoice…"},...openInvs.map((i:any)=>({value:i.id,label:`${i.id} — ${i.customer?.name} (${fmt(i.balance)})`}))]} style={{gridColumn:"span 2"}}/>}
@@ -1420,13 +1415,13 @@ function CustDetail({customer:c,enriched,custMap,setModal,onClose}: any) {
   const bal=invs.filter((i:any)=>i.status!=="PAID").reduce((s:number,i:any)=>s+i.balance,0);
   return (
     <Modal title={c.name} onClose={onClose} wide>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16,background:"#F7F6F2",borderRadius:8,padding:"12px 14px"}}>
-        <div><div style={{fontSize:11,color:"#888780"}}>Phone</div><div style={{fontSize:13}}>{c.phone||"—"}</div></div>
-        <div><div style={{fontSize:11,color:"#888780"}}>FR ID</div><div style={{fontSize:13}}>{c.externalId||"—"}</div></div>
-        <div><div style={{fontSize:11,color:"#888780"}}>Email</div><div style={{fontSize:13}}>{c.email||"—"}</div></div>
-        <div><div style={{fontSize:11,color:"#888780"}}>Address</div><div style={{fontSize:13}}>{c.serviceAddr||"—"}</div></div>
-        <div><div style={{fontSize:11,color:"#888780"}}>Office</div><div style={{fontSize:13}}>{c.office||"—"}</div></div>
-        <div><div style={{fontSize:11,color:"#888780"}}>Open AR</div><div style={{fontSize:16,fontWeight:500,color:bal>0?"#A32D2D":"inherit"}}>{fmt(bal)}</div></div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16,background:"#232329",borderRadius:8,padding:"12px 14px"}}>
+        <div><div style={{fontSize:11,color:"#908E85"}}>Phone</div><div style={{fontSize:13}}>{c.phone||"—"}</div></div>
+        <div><div style={{fontSize:11,color:"#908E85"}}>FR ID</div><div style={{fontSize:13}}>{c.externalId||"—"}</div></div>
+        <div><div style={{fontSize:11,color:"#908E85"}}>Email</div><div style={{fontSize:13}}>{c.email||"—"}</div></div>
+        <div><div style={{fontSize:11,color:"#908E85"}}>Address</div><div style={{fontSize:13}}>{c.serviceAddr||"—"}</div></div>
+        <div><div style={{fontSize:11,color:"#908E85"}}>Office</div><div style={{fontSize:13}}>{c.office||"—"}</div></div>
+        <div><div style={{fontSize:11,color:"#908E85"}}>Open AR</div><div style={{fontSize:16,fontWeight:500,color:bal>0?"#E57C7C":"inherit"}}>{fmt(bal)}</div></div>
       </div>
       <div style={{fontWeight:500,fontSize:13,marginBottom:8}}>Invoices ({invs.length})</div>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,marginBottom:16}}>
@@ -1448,11 +1443,11 @@ function CloseOutModal({invoice,custMap,onClose,showToast,loadAll}: any) {
   const cust=custMap[invoice.customerId];
   return (
     <Modal title={"Close out — "+invoice.id} onClose={onClose}>
-      <div style={{background:"#F7F6F2",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13}}>
+      <div style={{background:"#232329",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13}}>
         <div style={{fontWeight:500}}>{cust?.name} · {invoice.id}</div>
-        <div style={{color:"#888780",marginTop:2}}>Amount: <strong>{fmt(Number(invoice.amount))}</strong></div>
+        <div style={{color:"#908E85",marginTop:2}}>Amount: <strong>{fmt(Number(invoice.amount))}</strong></div>
       </div>
-      <div style={{fontSize:13,color:"#2C2C2A",marginBottom:12}}>Select the close-out date. Aging starts from this date.</div>
+      <div style={{fontSize:13,color:"#F0EEE8",marginBottom:12}}>Select the close-out date. Aging starts from this date.</div>
       <Inp label="Close-out date" value={closeOutDate} onChange={setCloseOutDate} type="date"/>
       <div style={{display:"flex",gap:8,marginTop:16,justifyContent:"flex-end"}}>
         <Btn onClick={onClose}>Cancel</Btn><Btn primary onClick={submit}>Close out invoice</Btn>
