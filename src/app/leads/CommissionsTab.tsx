@@ -98,7 +98,7 @@ export function CommissionsTab() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
         <select value={year} onChange={e => setYear(Number(e.target.value))}
-          style={{ fontSize: 13, padding: '7px 12px', borderRadius: 9, border: '0.5px solid #2A2A30', color: '#F0EEE8', cursor: 'pointer' }}>
+          style={{ fontSize: 13, padding: '7px 12px', borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8', cursor: 'pointer' }}>
           {[2023, 2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
         </select>
         <span style={{ fontSize: 12, color: '#908E85' }}>
@@ -137,21 +137,21 @@ export function CommissionsTab() {
             }
             return (
               <div style={{ border: '0.5px solid #43B892', borderRadius: 12, overflow: 'hidden', background: '#1C1C21' }}>
-                <div style={{ padding: '10px 14px', background: '#ECF7F2', fontWeight: 600, fontSize: 14, color: '#F0EEE8', borderBottom: '0.5px solid #CDE9DD' }}>
+                <div style={{ padding: '10px 14px', background: '#143229', fontWeight: 600, fontSize: 14, color: '#F0EEE8', borderBottom: '0.5px solid #2e5a4c' }}>
                   All PMs — Summary Totals
                 </div>
-                <div style={{ overflowX: 'auto' }}>
+                <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead>
                       <tr style={{ background: '#232329' }}>
-                        <th style={{ textAlign: 'left', padding: '6px 12px', color: '#908E85', fontWeight: 500, position: 'sticky', left: 0, background: '#232329', minWidth: 170 }}>Metric</th>
-                        {MONTHS.map(m => <th key={m} style={{ textAlign: 'right', padding: '6px 10px', color: '#908E85', fontWeight: 500, minWidth: 78, whiteSpace: 'nowrap' }}>{m}</th>)}
+                        <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.04em', color: '#908E85', fontWeight: 600, position: 'sticky', left: 0, top: 0, background: '#232329', minWidth: 170, zIndex: 3 }}>Metric</th>
+                        {MONTHS.map(m => <th key={m} style={{ textAlign: 'right', padding: '10px 10px', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.04em', color: '#908E85', fontWeight: 600, minWidth: 78, whiteSpace: 'nowrap', position: 'sticky', top: 0, background: '#232329', zIndex: 2 }}>{m}</th>)}
                       </tr>
                     </thead>
                     <tbody>
                       {SUMMARY_DEFS.map(rd => (
                         <tr key={rd.key} style={{ borderTop: '0.5px solid #232329' }}>
-                          <td style={{ padding: '6px 12px', color: rd.key === 'totalCommission' ? '#F0EEE8' : '#64748b', fontWeight: rd.key === 'totalCommission' ? 600 : 400, position: 'sticky', left: 0, background: '#1C1C21' }}>{rd.label}</td>
+                          <td style={{ padding: '6px 12px', color: rd.key === 'totalCommission' ? '#F0EEE8' : '#C9C7BF', fontWeight: rd.key === 'totalCommission' ? 600 : 400, position: 'sticky', left: 0, background: '#1C1C21' }}>{rd.label}</td>
                           {MONTHS.map((_, i) => {
                             const v = sum[rd.key][i];
                             return (
@@ -175,11 +175,11 @@ export function CommissionsTab() {
               <div style={{ padding: '10px 14px', background: '#232329', fontWeight: 600, fontSize: 14, color: '#F0EEE8', borderBottom: '0.5px solid #2A2A30' }}>
                 {pm.pmName}
               </div>
-              <div style={{ overflowX: 'auto' }}>
+              <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: '#232329' }}>
-                      <th style={{ textAlign: 'left', padding: '6px 12px', color: '#908E85', fontWeight: 500, position: 'sticky', left: 0, background: '#232329', minWidth: 170 }}>Metric</th>
+                      <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.04em', color: '#908E85', fontWeight: 600, position: 'sticky', left: 0, top: 0, background: '#232329', minWidth: 170, zIndex: 3 }}>Metric</th>
                       {MONTHS.map((m, i) => {
                         const rec = pm.months[i];
                         const finalized = rec && !rec.empty && (rec.source === 'history' || rec.finalized);
@@ -196,7 +196,7 @@ export function CommissionsTab() {
                   <tbody>
                     {(pm.method === 'lead_bucket' ? BUCKET_ROW_DEFS : ROW_DEFS).map((rd: any) => (
                       <tr key={rd.key} style={{ borderTop: '0.5px solid #232329' }}>
-                        <td style={{ padding: '6px 12px', color: rd.key === 'totalCommission' ? '#F0EEE8' : '#64748b', fontWeight: rd.key === 'totalCommission' ? 600 : 400, position: 'sticky', left: 0, background: '#1C1C21', paddingLeft: rd.key.startsWith('bucket:') ? 24 : 12 }}>
+                        <td style={{ padding: '6px 12px', color: rd.key === 'totalCommission' ? '#F0EEE8' : '#C9C7BF', fontWeight: rd.key === 'totalCommission' ? 600 : 400, position: 'sticky', left: 0, background: '#1C1C21', paddingLeft: rd.key.startsWith('bucket:') ? 24 : 12 }}>
                           {rd.label}
                         </td>
                         {MONTHS.map((_, i) => {
@@ -224,7 +224,7 @@ export function CommissionsTab() {
                                   onChange={e => setEditVal(e.target.value)}
                                   onBlur={() => saveEdit(pm.pmName, i + 1, rd.key)}
                                   onKeyDown={e => { if (e.key === 'Enter') saveEdit(pm.pmName, i + 1, rd.key); if (e.key === 'Escape') setEditCell(null); }}
-                                  style={{ width: 64, fontSize: 12, textAlign: 'right', border: '1px solid #5B9BE0', borderRadius: 4, padding: '2px 4px' }} />
+                                  style={{ width: 64, fontSize: 12, textAlign: 'right', border: '1px solid #5B9BE0', borderRadius: 4, padding: '2px 4px', background: '#26262C', color: '#F0EEE8' }} />
                               ) : fmtRow(v, rd.fmt)}
                             </td>
                           );

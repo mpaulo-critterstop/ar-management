@@ -174,16 +174,16 @@ export function KpiTab() {
 
   const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: 12 };
   const thStyle: React.CSSProperties = {
-    padding: '8px 12px', textAlign: 'right', fontSize: 11, fontWeight: 500, color: '#908E85',
-    borderBottom: '0.5px solid #2A2A30', whiteSpace: 'nowrap', background: '#232329',
+    padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', color: '#908E85',
+    borderBottom: '1px solid #2A2A30', whiteSpace: 'nowrap', background: '#232329', position: 'sticky', top: 0, zIndex: 2,
   };
   const tdStyle: React.CSSProperties = {
     padding: '8px 12px', textAlign: 'right', borderBottom: '0.5px solid #232329', whiteSpace: 'nowrap',
   };
   const rowLabelStyle: React.CSSProperties = {
     padding: '8px 12px', textAlign: 'left', fontSize: 11, color: '#908E85',
-    borderBottom: '0.5px solid #232329', whiteSpace: 'nowrap', background: '#232329',
-    position: 'sticky', left: 0, zIndex: 2,
+    borderBottom: '1px solid #2A2A30', whiteSpace: 'nowrap', background: '#232329',
+    position: 'sticky', left: 0, top: 0, zIndex: 3,
   };
 
   return (
@@ -191,22 +191,22 @@ export function KpiTab() {
       {/* PM Manager Modal */}
       {showPMManager && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#1C1C21', borderRadius: 12, padding: 24, width: 480, maxWidth: '90vw', maxHeight: '80vh', overflowY: 'auto' }}>
+          <div style={{ background: '#1C1C21', borderRadius: 14, border: '1px solid #35353C', padding: 24, width: 680, maxWidth: '94vw', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.5)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontWeight: 500, fontSize: 15, color: '#F0EEE8' }}>Manage PMs</div>
               <button onClick={() => setShowPMManager(false)} style={{ border: 'none', background: 'none', fontSize: 18, cursor: 'pointer', color: '#908E85' }}>×</button>
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
               <input type="text" placeholder="PM name" value={newPMName} onChange={e => setNewPMName(e.target.value)}
-                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', flex: 1, color: '#F0EEE8' }} />
+                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '1px solid #35353C', flex: 1, background: '#26262C', color: '#F0EEE8' }} />
               <select value={newPMOffice} onChange={e => setNewPMOffice(e.target.value)}
-                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', color: '#F0EEE8' }}>
+                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8' }}>
                 {['DFW', 'ATX', 'OKC', 'CStat'].map(o => <option key={o}>{o}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
               <select value={newPMMethod} onChange={e => setNewPMMethod(e.target.value)}
-                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', color: '#F0EEE8', flex: 1 }}>
+                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8', flex: 1 }}>
                 <option value="">No commission plan</option>
                 <option value="abr_tiered">Structure 1 — Booked Revenue Tier (8/10/12%, $80k floor)</option>
                 <option value="abr_adrian">Structure 2 — Booked Revenue Tier (5/7%)</option>
@@ -221,7 +221,7 @@ export function KpiTab() {
               <thead>
                 <tr style={{ background: '#232329' }}>
                   {['Name', 'Office', 'Commission', 'Active', ''].map(h => (
-                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: '#908E85', borderBottom: '0.5px solid #2A2A30' }}>{h}</th>
+                    <th key={h} style={{ padding: '8px 8px', textAlign: 'left', fontSize: 10.5, fontWeight: 600, textTransform: 'uppercase', color: '#908E85', borderBottom: '1px solid #2A2A30' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -234,7 +234,7 @@ export function KpiTab() {
                       <select
                         value={pm.commissionMethod || ''}
                         onChange={e => changePMMethod(pm.id, e.target.value)}
-                        style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '0.5px solid #2A2A30', color: '#F0EEE8', background: pm.commissionMethod ? '#1C1C21' : '#FAF8F2' }}
+                        style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #35353C', color: '#F0EEE8', background: pm.commissionMethod ? '#26262C' : '#3a2e18' }}
                         title="Change commission structure (takes effect from the current month; past months keep their old plan)"
                       >
                         <option value="">None</option>
@@ -300,7 +300,7 @@ export function KpiTab() {
             {office !== 'All' && <span style={{ fontSize: 12, color: '#908E85', fontWeight: 400, marginLeft: 8 }}>— {office}</span>}
           </div>
           <div style={{ background: '#1C1C21', borderRadius: 12, border: '0.5px solid #2A2A30', overflow: 'hidden', marginBottom: 24 }}>
-            <div style={{ overflowX: 'auto' }}>
+            <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh' }}>
               <table style={tableStyle}>
                 <thead>
                   <tr>
@@ -351,7 +351,7 @@ export function KpiTab() {
                 <span style={{ fontSize: 11, color: '#908E85', fontWeight: 400, marginLeft: 8 }}>{pm.office}</span>
               </div>
               <div style={{ background: '#1C1C21', borderRadius: 12, border: '0.5px solid #2A2A30', overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto' }}>
+                <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh' }}>
                   <table style={tableStyle}>
                     <thead>
                       <tr>
