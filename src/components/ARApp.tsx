@@ -1,6 +1,7 @@
 // v2
 "use client";
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
+import CollectionsTracker from "@/components/CollectionsTracker";
 import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, DataTable as CCDataTable, Toolbar as CCToolbar, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell, FilterChips as CCFilterChips } from "@/components/cc/Layout";
 import { SectionHeader as CCSectionHeader, Card as CCCard, StatusPill as CCStatusPill, Btn as CCBtn } from "@/components/cc/Primitives";
 import { LastSynced } from "@/components/LastSynced";
@@ -220,7 +221,7 @@ export default function ARApp() {
     {id:"payments",label:"Payments"},
     {id:"aging",label:"Aging"},
     {id:"callsheet",label:"Call Sheet"},
-    {id:"stages",label:"Collections / SCC / Bad Debt",href:"/ar/collections"},
+    {id:"stages",label:"Collections / SCC / Bad Debt"},
   ];
 
   if(loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:300,fontSize:13,color:"#908E85"}}>Loading AR data…</div>;
@@ -263,7 +264,7 @@ export default function ARApp() {
       {page==="callsheet" && <CallSheetPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="blitz" && <BlitzPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="tracking" && isAdmin && <TrackingPage />}
-      {page==="stages" && <StagesPage officeFilter={officeFilter} showToast={showToast} />}
+      {page==="stages" && <CollectionsTracker embedded />}
       {page==="customers" && <CustPage {...shared} />}
       {page==="invoices" && <InvPage {...shared} />}
       {page==="payments" && <PayPage {...shared} />}
