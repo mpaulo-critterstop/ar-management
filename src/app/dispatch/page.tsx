@@ -6,7 +6,8 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { canAccessModule } from '@/lib/access';
 import { LastSynced } from '@/components/LastSynced';
-import { PageHeader as CCPageHeader, FilterChips as CCFilterChips, SearchBox as CCSearchBox } from '@/components/cc/Layout';
+import { PageHeader as CCPageHeader, FilterChips as CCFilterChips, SearchBox as CCSearchBox, DataTable as CCDataTable, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
+import { Btn as CCBtn } from '@/components/cc/Primitives';
 
 const ACCENT = '#5B9BE0';
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
@@ -343,113 +344,49 @@ export default function DispatchPage() {
         />
       )}
 
-      <div style={{ background: '#1C1C21', borderRadius: 12, border: '0.5px solid #2A2A30', overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 300px)', overflowY: 'auto', scrollbarGutter: 'stable' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
-              <tr style={{ background: '#232329' }}>
-                {[
-                  { label: '', key: null },
-                  { label: 'Customer', key: 'customer' },
-                  { label: 'PM', key: 'pm' },
-                  { label: 'Invoice', key: null },
-                  { label: 'Sold date', key: 'soldDate' },
-                  { label: 'Days since sold', key: 'daysSold' },
-                  { label: 'Last update', key: 'lastUpdate' },
-                  { label: 'Stage', key: 'stage' },
-                  { label: 'Stages', key: null },
-                  { label: 'Trap checks', key: 'trapChecks' },
-                  { label: 'Flags', key: null },
-                ].map(h => (
-                  <th key={h.label} onClick={h.key ? () => toggleSort(h.key!) : undefined}
-                    style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: h.key && sortBy === h.key ? '#5B9BE0' : '#908E85', borderBottom: '0.5px solid #2A2A30', whiteSpace: 'nowrap', cursor: h.key ? 'pointer' : 'default', userSelect: 'none' }}>
-                    {h.label}{h.key ? sortArrow(h.key) : ''}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={11} style={{ padding: 20, textAlign: 'center', color: '#908E85' }}>Loading...</td></tr>
-              ) : displayed.map((job: any) => {
-                const stage = getStage(job);
-                const flags = getFlags(job);
-                const daysSold = job.invoice?.date ? daysSince(job.invoice.date) : null;
-                const daysUpdate = daysSince(job.updatedAt);
-                return (
-                  <tr key={job.id} style={{ borderBottom: '0.5px solid #232329', background: flags.length > 0 ? '#2a2318' : 'transparent' }}>
-                    <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>
-                      <button
-                        onClick={() => { setEditingJob(job); setStageEdit({}); }}
-                        style={{ padding: '2px 8px', fontSize: 11, borderRadius: 4, border: '0.5px solid #2A2A30', background: '#1C1C21', cursor: 'pointer', color: '#908E85' }}
-                      >
-                        Edit
-                      </button>
-                    </td>
-                    <td style={{ padding: '10px 12px', fontWeight: 500, minWidth: 160 }}>
-                      <div>{job.customer?.name || '\u2014'}</div>
-                      <div style={{ fontSize: 11, color: '#908E85' }}>{job.customer?.serviceAddr?.split(',')[0]}</div>
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#908E85', whiteSpace: 'nowrap' }}>{job.pmName || '\u2014'}</td>
-                    <td style={{ padding: '10px 12px', color: '#908E85', whiteSpace: 'nowrap' }}>
-                      <div>{job.invoice?.externalId || '\u2014'}</div>
-                      <div style={{ fontSize: 11, color: '#43B892', fontWeight: 500 }}>{job.invoice?.amount ? fmt(job.invoice.amount) : '\u2014'}</div>
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#908E85', whiteSpace: 'nowrap' }}>{job.invoice?.date ? job.invoice.date.split('T')[0] : '\u2014'}</td>
-                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
-                      {daysSold !== null ? <span style={{ color: daysSold > 30 ? '#E57C7C' : '#F0EEE8', fontWeight: daysSold > 30 ? 500 : 400 }}>{daysSold}d</span> : '\u2014'}
-                    </td>
-                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
-                      {daysUpdate !== null ? <span style={{ color: daysUpdate > 7 ? '#DBA14E' : '#908E85' }}>{daysUpdate}d ago</span> : '\u2014'}
-                    </td>
-                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
-                      <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: stage.bg, color: stage.color }}>{stage.label}</span>
-                    </td>
-                    <td style={{ padding: '10px 12px', minWidth: 200 }}>
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        {job.hasExclusion && <StageChip done={job.exclusionDone} label="Exclusion" date={job.exclusionDate} />}
-                        {job.hasTrapping && <StageChip done={job.trapsDone} label="Trapping" date={job.lastTrapCheck} />}
-                        {job.hasFAR && <StageChip done={job.farDone} label="FAR" date={job.farDate} />}
-                      </div>
-                    </td>
-                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
-                      {job.hasTrapping ? (
-                        <div>
-                          <span style={{ fontWeight: 500, color: job.trapCheckCount >= 3 ? '#E57C7C' : '#F0EEE8' }}>{job.trapCheckCount}</span>
-                          {job.lastTrapCheck && <div style={{ fontSize: 11, color: '#908E85' }}>Last: {job.lastTrapCheck.split('T')[0]}</div>}
-                        </div>
-                      ) : <span style={{ color: '#63615A' }}>{'\u2014'}</span>}
-                    </td>
-                    <td style={{ padding: '10px 12px', minWidth: 160 }}>
-                      {flags.map(f => <AttentionFlag key={f} label={f} />)}
-                    </td>
-                  </tr>
-                );
-              })}
-              {!loading && filteredJobs.length === 0 && (
-                <tr><td colSpan={11} style={{ padding: 20, textAlign: 'center', color: '#908E85' }}>
-                  {customerSearch ? `No jobs matching "${customerSearch}"` : 'No jobs found'}
-                </td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '0.5px solid #2A2A30', background: '#232329', flexWrap: 'wrap', gap: 8 }}>
+        {/* sortable column header helper for cc DataTable labels */}
+        <CCDataTable
+          rowKey={(job: any) => job.id}
+          empty={loading ? 'Loading…' : (customerSearch ? `No jobs matching "${customerSearch}"` : 'No jobs found')}
+          cols={[
+            { key: 'edit', label: '', render: (job: any) => <CCBtn variant="secondary" style={{ padding: '4px 11px', fontSize: 12 }} onClick={() => { setEditingJob(job); setStageEdit({}); }}>Edit</CCBtn> },
+            { key: 'customer', label: <span onClick={() => toggleSort('customer')} style={{ cursor: 'pointer' }}>Customer{sortArrow('customer')}</span> as any, render: (job: any) => {
+              const flags = getFlags(job);
+              return <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {flags.length > 0 && <span title="Needs attention" style={{ color: '#DBA14E' }}>⚑</span>}
+                <CCCustomerCell name={job.customer?.name || '—'} sub={job.customer?.serviceAddr?.split(',')[0] || undefined} />
+              </div>;
+            } },
+            { key: 'pm', label: <span onClick={() => toggleSort('pm')} style={{ cursor: 'pointer' }}>PM{sortArrow('pm')}</span> as any, render: (job: any) => <span style={{ color: '#C9C7BF' }}>{job.pmName || '—'}</span> },
+            { key: 'invoice', label: 'Invoice', render: (job: any) => <div><div style={{ color: '#908E85', fontVariantNumeric: 'tabular-nums' }}>{job.invoice?.externalId || '—'}</div><div style={{ fontSize: 11, color: '#43B892', fontWeight: 600 }}>{job.invoice?.amount ? fmt(job.invoice.amount) : ''}</div></div> },
+            { key: 'soldDate', label: <span onClick={() => toggleSort('soldDate')} style={{ cursor: 'pointer' }}>Sold date{sortArrow('soldDate')}</span> as any, render: (job: any) => <span style={{ color: '#908E85', fontSize: 12.5 }}>{job.invoice?.date ? job.invoice.date.split('T')[0] : '—'}</span> },
+            { key: 'daysSold', label: <span onClick={() => toggleSort('daysSold')} style={{ cursor: 'pointer' }}>Days sold{sortArrow('daysSold')}</span> as any, align: 'right', render: (job: any) => { const d = job.invoice?.date ? daysSince(job.invoice.date) : null; return d !== null ? <span style={{ color: d > 30 ? '#E57C7C' : '#C9C7BF', fontWeight: d > 30 ? 600 : 400, fontVariantNumeric: 'tabular-nums' }}>{d}d</span> : '—'; } },
+            { key: 'lastUpdate', label: <span onClick={() => toggleSort('lastUpdate')} style={{ cursor: 'pointer' }}>Last update{sortArrow('lastUpdate')}</span> as any, align: 'right', render: (job: any) => { const d = daysSince(job.updatedAt); return d !== null ? <span style={{ color: d > 7 ? '#DBA14E' : '#908E85', fontVariantNumeric: 'tabular-nums' }}>{d}d ago</span> : '—'; } },
+            { key: 'stage', label: <span onClick={() => toggleSort('stage')} style={{ cursor: 'pointer' }}>Stage{sortArrow('stage')}</span> as any, render: (job: any) => { const stage = getStage(job); return <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11.5, fontWeight: 600, background: stage.bg, color: stage.color }}>{stage.label}</span>; } },
+            { key: 'stages', label: 'Stages', render: (job: any) => <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {job.hasExclusion && <StageChip done={job.exclusionDone} label="Exclusion" date={job.exclusionDate} />}
+              {job.hasTrapping && <StageChip done={job.trapsDone} label="Trapping" date={job.lastTrapCheck} />}
+              {job.hasFAR && <StageChip done={job.farDone} label="FAR" date={job.farDate} />}
+            </div> },
+            { key: 'trapChecks', label: <span onClick={() => toggleSort('trapChecks')} style={{ cursor: 'pointer' }}>Trap checks{sortArrow('trapChecks')}</span> as any, align: 'right', render: (job: any) => job.hasTrapping ? <div><span style={{ fontWeight: 600, color: job.trapCheckCount >= 3 ? '#E57C7C' : '#F0EEE8', fontVariantNumeric: 'tabular-nums' }}>{job.trapCheckCount}</span>{job.lastTrapCheck && <div style={{ fontSize: 10.5, color: '#908E85' }}>{job.lastTrapCheck.split('T')[0]}</div>}</div> : <span style={{ color: '#63615A' }}>—</span> },
+            { key: 'flags', label: 'Flags', render: (job: any) => <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{getFlags(job).map((f: string) => <AttentionFlag key={f} label={f} />)}</div> },
+          ]}
+          rows={displayed}
+        />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 4px', flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontSize: 12, color: '#908E85' }}>
-            Showing {filteredJobs.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
-            {'\u2013'}
-            {Math.min(currentPage * pageSize, filteredJobs.length)} of {filteredJobs.length} jobs
-            <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} style={{ fontSize: 12, padding: '2px 6px', border: '0.5px solid #63615A', borderRadius: 4, marginLeft: 8 }}>
+            Showing {filteredJobs.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}{'\u2013'}{Math.min(currentPage * pageSize, filteredJobs.length)} of {filteredJobs.length} jobs
+            <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} style={{ fontSize: 12.5, padding: '3px 7px', border: '1px solid #35353C', borderRadius: 6, marginLeft: 8, background: '#26262C', color: '#F0EEE8' }}>
               <option value={100}>100</option>
               <option value={500}>500</option>
             </select> per page
           </div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ padding: '3px 10px', fontSize: 12, border: '0.5px solid #2A2A30', borderRadius: 4, background: currentPage === 1 ? '#232329' : '#1C1C21', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}>Previous</button>
-            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ padding: '3px 10px', fontSize: 12, border: '0.5px solid #2A2A30', borderRadius: 4, background: currentPage === totalPages ? '#232329' : '#1C1C21', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}>Next</button>
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+            <CCBtn variant="secondary" style={{ padding: '5px 11px', fontSize: 12 }} disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}>Prev</CCBtn>
+            <span style={{ fontSize: 12, color: '#908E85' }}>{currentPage} / {totalPages || 1}</span>
+            <CCBtn variant="secondary" style={{ padding: '5px 11px', fontSize: 12 }} disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}>Next</CCBtn>
           </div>
         </div>
-      </div>
     </div>
   );
 }
