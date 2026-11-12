@@ -36,16 +36,53 @@ export async function GET(req: NextRequest) {
   const daysAgoStart = parseInt(sp.get('start') || sp.get('days') || '3');
   const daysAgoEnd = parseInt(sp.get('end') || '0');
 
-  // The sync polls Dialpad for up to ~2 min, which exceeds cron-job.org's 30s timeout (it would mark the job
-  // "failed" and deactivate it even though the work completes). So for the scheduled cron we kick the work off
-  // in the background and return 200 immediately. Pass &wait=1 for manual/backfill runs to block for the result.
+  // Manual/backfill: run the whole thing synchronously and block for the result.
   if (sp.get('wait') === '1' || dry) {
     const result = await runStatsSync(daysAgoStart, daysAgoEnd, dry);
     return NextResponse.json(result, { status: (result as any).error ? 502 : 200 });
   }
-  // fire-and-forget: run in the background, respond fast so cron-job.org sees success
-  runStatsSync(daysAgoStart, daysAgoEnd, false).catch(e => console.error('[dialpad-stats-sync] bg error', e));
-  return NextResponse.json({ ok: true, started: true, note: 'running in background (poll takes ~1-2 min)' });
+
+  // SCHEDULED CRON — reliable request/process split (NO fire-and-forget; that was unreliable on serverless —
+  // the background task got killed after the fast 200, so categories silently stopped updating).
+  // Each call finishes in seconds (within cron-job.org's timeout):
+  //   - If no export is pending: REQUEST a new one, store its id, return.
+  //   - If an export is pending: POLL once; if ready, DOWNLOAD + apply; else return (next run polls again).
+  const PENDING_KEY = 'dialpad_stats_pending';
+  const { prisma: _p } = await import('@/lib/prisma');
+  const apiKey = await getConfig('dialpad_api_key');
+  if (!apiKey) return NextResponse.json({ error: 'no dialpad api key' }, { status: 400 });
+  const H = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', Accept: 'application/json' };
+
+  const pendingRow = await _p.appSetting.findUnique({ where: { key: PENDING_KEY } }).catch(() => null);
+  let pending = pendingRow ? JSON.parse(pendingRow.value) : null;
+  // discard a stale pending (older than 20 min) so we don't get stuck
+  if (pending && Date.now() - pending.at > 20 * 60 * 1000) pending = null;
+
+  if (!pending) {
+    // PHASE 1: request a fresh export
+    const reqBody = { stat_type: 'calls', export_type: 'records', days_ago_start: daysAgoStart, days_ago_end: daysAgoEnd };
+    const postRes = await fetch('https://dialpad.com/api/v2/stats', { method: 'POST', headers: H, body: JSON.stringify(reqBody) });
+    const postJson = await postRes.json().catch(() => null);
+    const requestId = postJson?.request_id || postJson?.id;
+    if (!requestId) return NextResponse.json({ error: 'no request_id from stats POST', status: postRes.status, body: postJson }, { status: 502 });
+    await _p.appSetting.upsert({ where: { key: PENDING_KEY }, create: { key: PENDING_KEY, value: JSON.stringify({ requestId, at: Date.now() }) }, update: { value: JSON.stringify({ requestId, at: Date.now() }) } });
+    return NextResponse.json({ ok: true, phase: 'requested', requestId, note: 'export requested; next run will download it' });
+  }
+
+  // PHASE 2: poll the pending export once; if ready, download + apply
+  const g = await fetch(`https://dialpad.com/api/v2/stats/${pending.requestId}`, { headers: H });
+  const gj = await g.json().catch(() => null);
+  const downloadUrl = gj?.download_url || gj?.file_url;
+  if (gj?.status === 'failed') {
+    await _p.appSetting.delete({ where: { key: PENDING_KEY } }).catch(() => {});
+    return NextResponse.json({ ok: false, phase: 'failed', note: 'export failed; cleared — next run re-requests' });
+  }
+  if (!downloadUrl) {
+    return NextResponse.json({ ok: true, phase: 'pending', status: gj?.status, note: 'not ready yet; next run will check again' });
+  }
+  const applied = await applyExport(downloadUrl, apiKey);
+  await _p.appSetting.delete({ where: { key: PENDING_KEY } }).catch(() => {});
+  return NextResponse.json({ ok: true, phase: 'applied', ...applied });
 }
 
 async function runStatsSync(daysAgoStart: number, daysAgoEnd: number, dry: boolean): Promise<any> {
@@ -123,6 +160,40 @@ async function runStatsSync(daysAgoStart: number, daysAgoEnd: number, dry: boole
 }
 
 // Minimal CSV line parser that respects double-quoted fields (categories is a quoted comma-joined list).
+// Download a ready export CSV and apply the categories -> state. Shared by the sync paths.
+async function applyExport(downloadUrl: string, apiKey: string): Promise<any> {
+  const csvRes = await fetch(downloadUrl, { headers: { Authorization: `Bearer ${apiKey}` } });
+  const csv = await csvRes.text();
+  const lines = csv.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return { note: 'empty export', rows: 0, updated: 0 };
+  const header = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  const idxCallId = header.indexOf('call_id');
+  const idxCategories = header.indexOf('categories');
+  const idxConnected = header.indexOf('date_connected');
+  if (idxCallId < 0 || idxCategories < 0) return { error: 'export missing call_id/categories columns', header };
+  const parsed: { callId: string; categories: string; newState: string | null }[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCsvLine(lines[i]);
+    const callId = (cols[idxCallId] || '').trim();
+    const categories = (cols[idxCategories] || '').trim();
+    const dateConnected = idxConnected >= 0 ? (cols[idxConnected] || '').trim() : '';
+    if (!callId) continue;
+    parsed.push({ callId, categories, newState: stateFromCategories(categories, dateConnected) });
+  }
+  let updated = 0;
+  const CHUNK = 500;
+  for (let i = 0; i < parsed.length; i += CHUNK) {
+    const chunk = parsed.slice(i, i + CHUNK);
+    const valuesSql = chunk.map((_, k) => `($${k * 3 + 1}, $${k * 3 + 2}, $${k * 3 + 3})`).join(',');
+    const params: (string | null)[] = [];
+    for (const r of chunk) params.push(r.callId, r.categories, r.newState);
+    const sql = `UPDATE dialpad_calls AS d SET categories = v.categories, state = COALESCE(v.state, d.state)
+                 FROM (VALUES ${valuesSql}) AS v(id, categories, state) WHERE d.id = v.id`;
+    try { updated += Number(await prisma.$executeRawUnsafe(sql, ...params)) || 0; } catch { /* skip */ }
+  }
+  return { csvRows: lines.length - 1, parsed: parsed.length, updated };
+}
+
 function parseCsvLine(line: string): string[] {
   const out: string[] = []; let cur = ''; let q = false;
   for (let i = 0; i < line.length; i++) {
