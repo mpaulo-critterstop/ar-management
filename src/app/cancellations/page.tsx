@@ -1,5 +1,5 @@
 'use client';
-import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
+import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, DataTable as CCDataTable, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
 import { useEffect, useState } from 'react';
 
 const money = (n: number) => (n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -77,20 +77,12 @@ export default function CancellationsPage() {
         <p style={{ color: '#908E85', fontSize: 13, padding: 30, textAlign: 'center' }}>No cancellation data yet. Run the sync first.</p>
       ) : tab === 'churn' ? (
         <>
-          {/* Totals */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-            {[
-              { label: 'Cancellations', value: churn.totals.count.toLocaleString() },
-              { label: 'Lost Annual Value', value: money(churn.totals.lostARV) },
-              { label: 'Lost Contract Value', value: money(churn.totals.lostCV) },
-              { label: 'Avg Tenure', value: tenure(churn.totals.avgTenureDays) },
-            ].map(s => (
-              <div key={s.label} style={{ flex: 1, minWidth: 150, padding: '14px 16px', border: '0.5px solid #2A2A30', borderRadius: 10, background: '#1C1C21' }}>
-                <div style={{ fontSize: 20, fontWeight: 600, color: '#F0EEE8' }}>{s.value}</div>
-                <div style={{ fontSize: 11, color: '#908E85', marginTop: 2 }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
+          <CCKpiStrip items={[
+            { icon: '📉', label: 'Cancellations', value: churn.totals.count.toLocaleString(), tone: 'red' },
+            { icon: '💸', label: 'Lost Annual Value', value: money(churn.totals.lostARV), tone: 'red' },
+            { icon: '📄', label: 'Lost Contract Value', value: money(churn.totals.lostCV), tone: 'amber' },
+            { icon: '⏱️', label: 'Avg Tenure', value: tenure(churn.totals.avgTenureDays), tone: 'blue' },
+          ]} />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             {/* By reason */}
@@ -142,32 +134,20 @@ export default function CancellationsPage() {
           <div style={{ fontSize: 12, color: '#908E85', marginBottom: 10 }}>
             {winbackAll.length} winnable {winbackAll.length === 1 ? 'lead' : 'leads'} (excludes Moved & Deceased). Most recent first.
           </div>
-          <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#1C1C21' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr>
-                <th style={th}>Customer</th><th style={th}>Contact</th><th style={th}>Service</th>
-                <th style={thR}>Annual Value</th><th style={th}>Tenure</th><th style={th}>Canceled</th><th style={th}>Reason</th>
-              </tr></thead>
-              <tbody>
-                {winback.length === 0 ? (
-                  <tr><td style={{ ...td, textAlign: 'center', color: '#908E85', padding: 30 }} colSpan={7}>No win-back leads for these filters.</td></tr>
-                ) : winback.map((w: any) => (
-                  <tr key={w.id}>
-                    <td style={{ ...td, fontWeight: 500 }}>{w.customerName || <span style={{ color: '#63615A' }}>Unknown</span>}<div style={{ fontSize: 10, color: '#63615A' }}>{w.office}</div></td>
-                    <td style={{ ...td, fontSize: 12, color: '#C9C7BF' }}>{w.customerPhone || '—'}{w.customerEmail ? <div style={{ fontSize: 11 }}>{w.customerEmail}</div> : null}</td>
-                    <td style={{ ...td, color: '#C9C7BF', maxWidth: 200 }}>{w.serviceType || w.category}</td>
-                    <td style={tdR}>{money(w.annualRecurringValue)}</td>
-                    <td style={td}>{tenure(w.tenureDays)}</td>
-                    <td style={{ ...td, whiteSpace: 'nowrap', color: '#C9C7BF' }}>{fmtDate(w.dateCancelled)}</td>
-                    <td style={td}>
-                      <span style={{ fontSize: 11, fontWeight: 500, color: reasonColor[w.reasonBucket] || '#C9C7BF' }}>{w.reasonBucket}</span>
-                      {w.reasonRaw ? <div style={{ fontSize: 10, color: '#63615A', maxWidth: 200 }} title={w.reasonRaw}>{w.reasonRaw.length > 40 ? w.reasonRaw.slice(0, 40) + '…' : w.reasonRaw}</div> : null}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <CCDataTable
+            rowKey={(w: any) => w.id}
+            empty="No win-back leads for these filters."
+            cols={[
+              { key: 'cust', label: 'Customer', render: (w: any) => <CCCustomerCell name={w.customerName || 'Unknown'} sub={w.office || undefined} /> },
+              { key: 'contact', label: 'Contact', wrap: true, render: (w: any) => <div style={{ fontSize: 12, color: '#C9C7BF' }}>{w.customerPhone || '—'}{w.customerEmail ? <div style={{ fontSize: 11, color: '#908E85' }}>{w.customerEmail}</div> : null}</div> },
+              { key: 'service', label: 'Service', wrap: true, render: (w: any) => <span style={{ color: '#C9C7BF', fontSize: 12.5 }}>{w.serviceType || w.category}</span> },
+              { key: 'arv', label: 'Annual Value', align: 'right', render: (w: any) => <span style={{ fontWeight: 700, color: '#F0EEE8', fontVariantNumeric: 'tabular-nums' }}>{money(w.annualRecurringValue)}</span> },
+              { key: 'tenure', label: 'Tenure', render: (w: any) => <span style={{ color: '#908E85', fontSize: 12.5 }}>{tenure(w.tenureDays)}</span> },
+              { key: 'canceled', label: 'Canceled', render: (w: any) => <span style={{ color: '#908E85', fontSize: 12.5 }}>{fmtDate(w.dateCancelled)}</span> },
+              { key: 'reason', label: 'Reason', wrap: true, render: (w: any) => <div><span style={{ fontSize: 11.5, fontWeight: 600, color: reasonColor[w.reasonBucket] || '#C9C7BF' }}>{w.reasonBucket}</span>{w.reasonRaw ? <div style={{ fontSize: 10, color: '#63615A', maxWidth: 200 }} title={w.reasonRaw}>{w.reasonRaw.length > 40 ? w.reasonRaw.slice(0, 40) + '…' : w.reasonRaw}</div> : null}</div> },
+            ]}
+            rows={winback}
+          />
           {winbackAll.length > PAGE && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, fontSize: 12, color: '#908E85' }}>
               <span>Showing {(page - 1) * PAGE + 1}–{Math.min(page * PAGE, winbackAll.length)} of {winbackAll.length}</span>
