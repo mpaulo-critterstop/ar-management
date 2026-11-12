@@ -239,7 +239,9 @@ export default function ARApp() {
         <div style={{display:"inline-flex",gap:7,flexWrap:"wrap"}}>
           {PAGES.map(p=>{
             const on = page===p.id;
-            const base:React.CSSProperties={padding:"7px 14px",borderRadius:9,fontSize:12.5,fontWeight:on?600:500,cursor:"pointer",whiteSpace:"nowrap",textDecoration:"none",border:`1px solid ${on?"#5B9BE0":"#2A2A30"}`,background:on?"#15263a":"#1C1C21",color:on?"#5B9BE0":"#908E85"};
+            // Keep font-weight constant (600) so the active tab doesn't reflow/resize vs inactive ones — active is
+            // distinguished by color + background only. This keeps every tab a consistent width.
+            const base:React.CSSProperties={padding:"7px 14px",borderRadius:9,fontSize:12.5,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",textDecoration:"none",border:`1px solid ${on?"#5B9BE0":"#2A2A30"}`,background:on?"#15263a":"#1C1C21",color:on?"#5B9BE0":"#908E85"};
             return (p as any).href
               ? <a key={p.id} href={(p as any).href} style={{...base,border:"1px solid #2A2A30",background:"#1C1C21",color:"#908E85"}}>{p.label}</a>
               : <button key={p.id} onClick={()=>setPage(p.id)} style={base}>{p.label}</button>;
@@ -258,6 +260,7 @@ export default function ARApp() {
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
+      <div style={{minHeight:"70vh"}}>
       {page==="dashboard" && (loading && !invoices.length
         ? <div style={{padding:60,textAlign:"center",fontSize:14,color:"#908E85"}}>Loading AR data…</div>
         : <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected={collected} agingTotals={agingTotals} collectedDays={collectedDays} setCollectedDays={setCollectedDays} customDateFrom={customDateFrom} customDateTo={customDateTo} setCustomDateFrom={setCustomDateFrom} setCustomDateTo={setCustomDateTo} prevMonthAR={prevMonthAR} />)}
@@ -269,6 +272,7 @@ export default function ARApp() {
       {page==="invoices" && <InvPage {...shared} />}
       {page==="payments" && <PayPage {...shared} />}
       {page==="aging" && <AgePage {...shared} agingTotals={agingTotals} />}
+      </div>
 
       {modal?.type==="editInvoice" && <InvModal {...shared} invoice={modal.invoice} onClose={()=>setModal(null)} />}
       {modal?.type==="recordPayment" && <PayModal {...shared} invoice={modal.invoice} onClose={()=>setModal(null)} />}
