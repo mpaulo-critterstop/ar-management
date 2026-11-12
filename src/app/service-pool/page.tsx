@@ -1,5 +1,6 @@
 'use client';
 import BackButton from '@/components/BackButton';
+import CCDatePicker from '@/components/cc/DatePicker';
 import { useEffect, useState } from 'react';
 
 const money = (n: number) => (n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -91,9 +92,9 @@ export default function ServicePoolPage() {
           {['DFW', 'ATX', 'OKC', 'CStat', ...offices.filter(o => !['DFW', 'ATX', 'OKC', 'CStat'].includes(o))].map(o => <option key={o} value={o}>{o}</option>)}
         </select>
         <span style={{ fontSize: 12, color: '#888780', marginLeft: 8 }}>Due between:</span>
-        <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+        <CCDatePicker value={from} onChange={setFrom} />
         <span style={{ fontSize: 12, color: '#B4B2A9' }}>to</span>
-        <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+        <CCDatePicker value={to} onChange={setTo} />
         {(from || to) && <button onClick={() => { setFrom(''); setTo(''); }} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>Clear</button>}
       </div>
 

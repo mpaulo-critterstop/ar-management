@@ -1,5 +1,6 @@
 'use client';
 import BackButton from '@/components/BackButton';
+import CCDatePicker from '@/components/cc/DatePicker';
 import { useEffect, useState } from 'react';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -127,15 +128,15 @@ export default function CsrPestSalesPage() {
         <div style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: '#888780' }}>Sale date:</span>
-            <input type="date" value={saleFrom} onChange={e => setSaleFrom(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+            <CCDatePicker value={saleFrom} onChange={setSaleFrom} />
             <span style={{ fontSize: 12, color: '#B4B2A9' }}>to</span>
-            <input type="date" value={saleTo} onChange={e => setSaleTo(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+            <CCDatePicker value={saleTo} onChange={setSaleTo} />
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: '#888780' }}>Initial service:</span>
-            <input type="date" value={initFrom} onChange={e => setInitFrom(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+            <CCDatePicker value={initFrom} onChange={setInitFrom} />
             <span style={{ fontSize: 12, color: '#B4B2A9' }}>to</span>
-            <input type="date" value={initTo} onChange={e => setInitTo(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+            <CCDatePicker value={initTo} onChange={setInitTo} />
           </div>
           {(saleFrom || saleTo || initFrom || initTo) && (
             <button onClick={() => { setSaleFrom(''); setSaleTo(''); setInitFrom(''); setInitTo(''); }} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>Clear dates</button>

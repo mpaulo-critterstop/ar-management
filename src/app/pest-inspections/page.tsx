@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import CCDatePicker from '@/components/cc/DatePicker';
 import BackButton from '@/components/BackButton';
 
 const money = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -69,9 +70,9 @@ export default function PestInspectionsPage() {
         <div style={{ display: 'inline-flex', gap: 2, padding: 4, borderRadius: 10, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
           {['All', 'DFW', 'ATX', 'OKC', 'CStat'].map(o => pill(o, office, setOffice))}
         </div>
-        <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ fontSize: 12, padding: '5px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+        <CCDatePicker value={from} onChange={setFrom} />
         <span style={{ fontSize: 12, color: '#888780' }}>–</span>
-        <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ fontSize: 12, padding: '5px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+        <CCDatePicker value={to} onChange={setTo} />
         {(from || to) && <button onClick={() => { setFrom(''); setTo(''); }} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>Clear</button>}
       </div>
 
