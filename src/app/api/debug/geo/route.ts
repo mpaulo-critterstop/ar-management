@@ -5,24 +5,22 @@ export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const now = new Date();
   const mStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
-  // Geo's unconnected user-leg calls this month — show state, categories, span
-  const rows = await prisma.$queryRaw<any[]>`
-    SELECT id::text, state, categories,
-      (date_ended - date_started) AS span_ms,
-      date_started, date_connected
+  // answered USER LEGS vs unique answered calls (by entry_point_call_id) this month
+  const overall = await prisma.$queryRaw<any[]>`
+    SELECT
+      COUNT(*) FILTER (WHERE date_connected IS NOT NULL) AS answered_legs,
+      COUNT(DISTINCT entry_point_call_id) FILTER (WHERE date_connected IS NOT NULL) AS answered_unique_epid,
+      COUNT(DISTINCT id) FILTER (WHERE date_connected IS NOT NULL) AS answered_unique_id
     FROM dialpad_calls
-    WHERE direction='inbound' AND target_type='user' AND date_connected IS NULL
-      AND date_started >= ${mStart}
-      AND (target_name ILIKE '%miranda%' OR target_name ILIKE '%geo%')
-    ORDER BY date_started
+    WHERE direction='inbound' AND target_type='user' AND date_started >= ${mStart}
   `;
-  // also exact target_name match count
-  const names = await prisma.$queryRaw<any[]>`
-    SELECT DISTINCT target_name FROM dialpad_calls
-    WHERE target_name ILIKE '%miranda%' OR target_name ILIKE '%geo%' LIMIT 10`;
-  return NextResponse.json({
-    names: names.map((n:any)=>n.target_name),
-    count: rows.length,
-    rows: rows.map((r:any)=>({ state:r.state, cats:(r.categories||'(empty)'), span_s:r.span_ms!=null?(Number(r.span_ms)/1000).toFixed(1):null, started:String(r.date_started) }))
-  });
+  // Geo specifically
+  const geo = await prisma.$queryRaw<any[]>`
+    SELECT
+      COUNT(*) FILTER (WHERE date_connected IS NOT NULL) AS answered_legs,
+      COUNT(DISTINCT entry_point_call_id) FILTER (WHERE date_connected IS NOT NULL) AS answered_unique
+    FROM dialpad_calls
+    WHERE direction='inbound' AND target_type='user' AND date_started >= ${mStart} AND target_name='Geovany Miranda'
+  `;
+  return NextResponse.json({ overall: overall[0], geo: geo[0] });
 }
