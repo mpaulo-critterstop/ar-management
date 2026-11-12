@@ -6,19 +6,19 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const mStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
   try {
-    // breakdown of Marlon's unconnected calls by state
-    const r = await prisma.$queryRaw<any[]>`
-      SELECT state, COUNT(*)::int AS n
+    // which agents have voicemail state calls this month?
+    const vm = await prisma.$queryRaw<any[]>`
+      SELECT target_name, COUNT(*)::int AS voicemails
       FROM dialpad_calls
-      WHERE direction='inbound' AND target_type='user' AND date_connected IS NULL
-        AND date_started >= ${mStart} AND target_name='Marlon Marzon'
+      WHERE direction='inbound' AND target_type='user' AND state='voicemail'
+        AND date_started >= ${mStart}
+      GROUP BY target_name ORDER BY voicemails DESC LIMIT 10`;
+    // overall state distribution for unconnected inbound user calls
+    const dist = await prisma.$queryRaw<any[]>`
+      SELECT state, COUNT(*)::int AS n
+      FROM dialpad_calls WHERE direction='inbound' AND target_type='user' AND date_connected IS NULL
+        AND date_started >= ${mStart}
       GROUP BY state ORDER BY n DESC`;
-    // what get_agent_stats counts as missed for Marlon
-    const missedCount = await prisma.$queryRaw<any[]>`
-      SELECT COUNT(*) FILTER (WHERE date_connected IS NULL AND state != 'abandoned')::int AS missed,
-             COUNT(*) FILTER (WHERE state='voicemail')::int AS voicemail
-      FROM dialpad_calls WHERE direction='inbound' AND target_type='user'
-        AND date_started >= ${mStart} AND target_name='Marlon Marzon'`;
-    return NextResponse.json({ marlon_unconnected_by_state: r, marlon_counts: missedCount[0] });
+    return NextResponse.json({ agents_with_voicemail: vm, unconnected_state_distribution: dist });
   } catch (e) { return NextResponse.json({ error: String(e) }, { status: 500 }); }
 }
