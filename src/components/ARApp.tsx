@@ -1,7 +1,7 @@
 // v2
 "use client";
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
-import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, DataTable as CCDataTable, Toolbar as CCToolbar, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell } from "@/components/cc/Layout";
+import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, DataTable as CCDataTable, Toolbar as CCToolbar, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell, FilterChips as CCFilterChips } from "@/components/cc/Layout";
 import { SectionHeader as CCSectionHeader, Card as CCCard, StatusPill as CCStatusPill, Btn as CCBtn } from "@/components/cc/Primitives";
 import { LastSynced } from "@/components/LastSynced";
 
@@ -1203,33 +1203,24 @@ function PayPage({payments,invoices,custMap,showToast,loadAll,setModal}: any) {
 
   return (
     <div>
-      <div style={{marginBottom:"1rem",fontSize:13,color:"#908E85"}}>
-        {payments.length} payments
-      </div>
-      <Card noPad>
-        <div style={{overflowX:"auto",maxHeight:"calc(100vh - 320px)",overflowY:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead style={{position:"sticky",top:0,zIndex:5}}>
-              <tr><Th>Customer</Th><Th>Invoice</Th><Th>Date</Th><Th>Method</Th><Th right>Amount</Th><Th>Reference</Th><Th>&nbsp;</Th></tr>
-            </thead>
-            <tbody>
-              {displayed.map((p:any)=>(
-                <tr key={p.id}>
-                  <Td bold>{p.customer?.name||"—"}</Td>
-                  <Td>{p.invoiceId}</Td>
-                  <Td>{p.date?.split("T")[0]}</Td>
-                  <Td><span style={{fontSize:12,fontWeight:500,color:"#185FA5"}}>{p.method}</span></Td>
-                  <Td right bold color="#43B892">{fmt(Number(p.amount))}</Td>
-                  <Td style={{fontSize:12,color:"#908E85"}}>{p.reference||"—"}</Td>
-                  <Td><Btn small danger onClick={()=>del(p.id)}>✕</Btn></Td>
-                </tr>
-              ))}
-              {displayed.length===0&&<ER cols={7} msg="No payments yet"/>}
-            </tbody>
-          </table>
-        </div>
-        <Pagination current={currentPage} total={ep.length} pageSize={pageSize} onPage={setCurrentPage} onSize={(s:number)=>{setPageSize(s);setCurrentPage(1);}}/>
-      </Card>
+      <CCToolbar>
+        <div style={{fontSize:13,fontWeight:600,color:"#C9C7BF"}}>Payments <span style={{color:"#63615A",fontWeight:400}}>· {payments.length}</span></div>
+      </CCToolbar>
+      <CCDataTable
+        rowKey={(p:any)=>p.id}
+        empty="No payments yet"
+        cols={[
+          { key:"cust", label:"Customer", render:(p:any)=><CCCustomerCell name={p.customer?.name||"—"} /> },
+          { key:"inv", label:"Invoice", render:(p:any)=><span style={{fontVariantNumeric:"tabular-nums",color:"#908E85"}}>{p.invoiceId}</span> },
+          { key:"date", label:"Date", render:(p:any)=><span style={{color:"#908E85",fontSize:12.5}}>{p.date?.split("T")[0]}</span> },
+          { key:"method", label:"Method", render:(p:any)=><CCStatusPill tone="blue">{p.method}</CCStatusPill> },
+          { key:"amount", label:"Amount", align:"right", render:(p:any)=><span style={{fontWeight:700,color:"#43B892",fontVariantNumeric:"tabular-nums"}}>{fmt(Number(p.amount))}</span> },
+          { key:"ref", label:"Reference", render:(p:any)=><span style={{fontSize:12,color:"#908E85"}}>{p.reference||"—"}</span> },
+          { key:"act", label:"", align:"right", render:(p:any)=><CCBtn variant="danger" style={{padding:"4px 10px",fontSize:12}} onClick={()=>del(p.id)}>✕</CCBtn> },
+        ]}
+        rows={displayed}
+      />
+      <Pagination current={currentPage} total={ep.length} pageSize={pageSize} onPage={setCurrentPage} onSize={(s:number)=>{setPageSize(s);setCurrentPage(1);}}/>
     </div>
   );
 }
@@ -1262,60 +1253,32 @@ function AgePage({open,agingTotals,custMap}: any) {
 
   const tileLabel = (b:string) => b==="current"?"Current":b+" days";
 
+  const chipTone:any={current:"green","1-30":"green","31-60":"amber","61-90":"amber","90+":"red"};
+  const invCountIn=(b:string)=>open.filter((i:any)=>{const d=i.daysOverdue;const bk=d<=0?"current":d<=30?"1-30":d<=60?"31-60":d<=90?"61-90":"90+";return bk===b;}).length;
   return (
     <div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:"1.5rem"}}>
-        {buckets.map(b=>(
-          <MC
-            key={b}
-            label={tileLabel(b)}
-            value={fmt((agingTotals as any)[b])}
-            sub={open.filter((i:any)=>{const d=i.daysOverdue;const bk=d<=0?"current":d<=30?"1-30":d<=60?"31-60":d<=90?"61-90":"90+";return bk===b;}).length+" invoices"}
-            color={bC[b]}
-            clickable
-            selected={selectedBucket===b}
-            onClick={()=>{setSelectedBucket(selectedBucket===b?null:b);setCurrentPage(1);}}
-          />
-        ))}
-        <MC
-          label="Total AR"
-          value={fmt(Number(total))}
-          sub={open.length+" invoices"}
-          clickable
-          selected={selectedBucket===null}
-          onClick={()=>{setSelectedBucket(null);setCurrentPage(1);}}
-        />
-      </div>
-      <div style={{fontSize:14,fontWeight:500,marginBottom:12,color:"#F0EEE8"}}>
-        {selectedBucket ? `${tileLabel(selectedBucket)} customers` : "All customers"} — {filtered.length} results
-      </div>
-      <Card noPad>
-        <div style={{overflowX:"auto",maxHeight:"calc(100vh - 360px)",overflowY:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead style={{position:"sticky",top:0,zIndex:5}}>
-              <tr><Th>Customer</Th>{buckets.map(b=><Th key={b} right>{tileLabel(b)}</Th>)}<Th right>Total</Th></tr>
-            </thead>
-            <tbody>
-              {displayed.map((r:any,idx:number)=>(
-                <tr key={idx}>
-                  <Td bold>{r.customer?.name||"—"}</Td>
-                  {buckets.map(b=><Td key={b} right color={r[b]>0?bC[b]:"#63615A"} style={{fontWeight:r[b]>0?500:400}}>{r[b]>0?fmt(r[b]):"—"}</Td>)}
-                  <Td right bold>{fmt(r.total)}</Td>
-                </tr>
-              ))}
-              {displayed.length===0&&<ER cols={7} msg="No customers in this bucket"/>}
-            </tbody>
-            <tfoot>
-              <tr style={{background:"#232329"}}>
-                <td style={{padding:"9px 12px",fontWeight:500,fontSize:13}}>Total</td>
-                {buckets.map(b=><td key={b} style={{padding:"9px 12px",textAlign:"right",fontWeight:500,fontSize:13,color:bC[b]}}>{fmt((agingTotals as any)[b])}</td>)}
-                <td style={{padding:"9px 12px",textAlign:"right",fontWeight:500,fontSize:13}}>{fmt(Number(total))}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        <Pagination current={currentPage} total={filtered.length} pageSize={pageSize} onPage={setCurrentPage} onSize={(s:number)=>{setPageSize(s);setCurrentPage(1);}}/>
-      </Card>
+      <CCFilterChips
+        active={selectedBucket===null?"__all":selectedBucket}
+        onChange={(k:string)=>{setSelectedBucket(k==="__all"?null:k);setCurrentPage(1);}}
+        chips={[
+          ...buckets.map(b=>({ key:b, label:tileLabel(b), value:fmt((agingTotals as any)[b]), sub:`${invCountIn(b)} invoices`, valueTone:chipTone[b] })),
+          { key:"__all", label:"Total AR", value:fmt(Number(total)), sub:`${open.length} invoices` },
+        ]}
+      />
+      <CCToolbar>
+        <div style={{fontSize:13,fontWeight:600,color:"#C9C7BF"}}>{selectedBucket ? `${tileLabel(selectedBucket)} customers` : "All customers"} <span style={{color:"#63615A",fontWeight:400}}>· {filtered.length}</span></div>
+      </CCToolbar>
+      <CCDataTable
+        rowKey={(_r:any,i:number)=>String(i)}
+        empty="No customers in this bucket"
+        cols={[
+          { key:"cust", label:"Customer", render:(r:any)=><CCCustomerCell name={r.customer?.name||"—"} /> },
+          ...buckets.map(b=>({ key:b, label:tileLabel(b), align:"right" as const, render:(r:any)=><span style={{color:r[b]>0?bC[b]:"#63615A",fontWeight:r[b]>0?600:400,fontVariantNumeric:"tabular-nums"}}>{r[b]>0?fmt(r[b]):"—"}</span> })),
+          { key:"total", label:"Total", align:"right" as const, render:(r:any)=><span style={{fontWeight:700,color:"#F0EEE8",fontVariantNumeric:"tabular-nums"}}>{fmt(r.total)}</span> },
+        ]}
+        rows={displayed}
+      />
+      <Pagination current={currentPage} total={filtered.length} pageSize={pageSize} onPage={setCurrentPage} onSize={(s:number)=>{setPageSize(s);setCurrentPage(1);}}/>
     </div>
   );
 }
