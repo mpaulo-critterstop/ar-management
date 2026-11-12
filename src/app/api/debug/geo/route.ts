@@ -8,15 +8,15 @@ export async function GET(req: NextRequest) {
   try {
     // ALL connected calls mentioning Geo, grouped by direction+target_type — to see the 4 that fall outside inbound/user
     const groups = await prisma.$queryRaw<any[]>`
-      SELECT direction, target_type, is_transferred,
+      SELECT direction, target_type,
         COUNT(*) FILTER (WHERE date_connected IS NOT NULL)::int AS answered
       FROM dialpad_calls
       WHERE date_started >= ${mStart} AND target_name='Geovany Miranda'
-      GROUP BY direction, target_type, is_transferred ORDER BY answered DESC
+      GROUP BY direction, target_type ORDER BY answered DESC
     `;
     // specifically: inbound connected calls that are NOT target_type='user' (transfers/other)
     const nonUser = await prisma.$queryRaw<any[]>`
-      SELECT id::text, target_type, is_transferred, categories, (duration)::int AS dur
+      SELECT id::text, target_type, categories, (duration)::int AS dur
       FROM dialpad_calls
       WHERE date_started >= ${mStart} AND target_name='Geovany Miranda'
         AND direction='inbound' AND date_connected IS NOT NULL AND target_type != 'user'
