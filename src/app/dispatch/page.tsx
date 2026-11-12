@@ -317,10 +317,6 @@ export default function DispatchPage() {
             <button key={o} onClick={() => setOffice(o)} style={{ padding: '7px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on?'#5B9BE0':'#2A2A30'}`, background: on?'#15263a':'#1C1C21', color: on?'#5B9BE0':'#908E85' }}>{o}</button>
           );})}
         </div>
-        <select value={stageFilter} onChange={e => { setStageFilter(e.target.value); setCurrentPage(1); }}
-          style={{ fontSize: 12.5, padding: '8px 11px', borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8', cursor: 'pointer' }}>
-          {STAGE_FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-        </select>
         <div style={{ marginLeft: 'auto', minWidth: 230 }}>
           <CCSearchBox value={customerSearch} onChange={(v: string) => { setCustomerSearch(v); setCurrentPage(1); }} placeholder="Search customer…" />
         </div>
