@@ -343,7 +343,9 @@ export function KpiTab() {
             )}
           </div>
 
-          {/* PM KPI tables */}
+          {/* PM KPI tables — all inside ONE scroll container so the company table + nav above stay fixed */}
+          <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#908E85', margin: '4px 0 10px' }}>Individual PMs</div>
+          <div style={{ maxHeight: '58vh', overflowY: 'auto', scrollbarGutter: 'stable', paddingRight: 4 }}>
           {pmData.map((pm: any) => (
             <div key={pm.pm} style={{ marginBottom: 24 }}>
               <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 14 }}>
@@ -351,7 +353,7 @@ export function KpiTab() {
                 <span style={{ fontSize: 11, color: '#908E85', fontWeight: 400, marginLeft: 8 }}>{pm.office}</span>
               </div>
               <div style={{ background: '#1C1C21', borderRadius: 12, border: '0.5px solid #2A2A30', overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh', scrollbarGutter: 'stable' }}>
+                <div style={{ overflowX: 'auto', overflowY: 'visible', scrollbarGutter: 'stable' }}>
                   <table style={tableStyle}>
                     <thead>
                       <tr>
@@ -380,6 +382,7 @@ export function KpiTab() {
               </div>
             </div>
           ))}
+          </div>
         </>
       )}
     </div>
