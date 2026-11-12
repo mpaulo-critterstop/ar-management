@@ -129,7 +129,7 @@ export default function CsrPage() {
         <div style={{ background: '#1C1C21', border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ borderBottom: '0.5px solid #2A2A30', background: '#F9F8F5' }}>
+              <tr style={{ borderBottom: '0.5px solid #2A2A30', background: '#232329' }}>
                 <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#908E85', width: 40 }}>#</th>
                 <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#908E85' }}>CSR name</th>
                 <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#908E85', width: 100 }}>Completed</th>
@@ -154,7 +154,7 @@ export default function CsrPage() {
                   const res = await fetch('/api/leads/csr-detail?' + params.toString());
                   setDrawerData(await res.json());
                   setDrawerLoading(false);
-                }} style={{ borderBottom: '0.5px solid #2A2A30', background: i % 2 === 0 ? '#1C1C21' : '#FAFAF8', cursor: 'pointer' }}>
+                }} style={{ borderBottom: '0.5px solid #2A2A30', background: i % 2 === 0 ? '#1C1C21' : '#232329', cursor: 'pointer' }}>
                   <td style={{ padding: '10px 14px', color: '#908E85', fontSize: 12 }}>{i + 1}</td>
                   <td style={{ padding: '10px 14px', fontWeight: 500, color: '#F0EEE8' }}>{csr.name}</td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', color: '#C9C7BF' }}>{csr.completed}</td>
@@ -163,7 +163,7 @@ export default function CsrPage() {
                   <td style={{ padding: '10px 14px', textAlign: 'right', color: '#C9C7BF' }}>{csr.totalLeads}</td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#5B9BE0' }}>{csr.totalPoints.toFixed(1)}</td>
                   <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                    <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: csr.active ? '#EAF3DE' : '#FCEBEB', color: csr.active ? '#3B6D11' : '#E57C7C' }}>
+                    <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: csr.active ? '#143229' : '#361e1e', color: csr.active ? '#3B6D11' : '#E57C7C' }}>
                       {csr.active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
@@ -208,7 +208,7 @@ export default function CsrPage() {
                     <button onClick={async () => {
                       await fetch('/api/leads/csr-employees', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: emp.name, active: !emp.active }) });
                       fetchCSREmployees();
-                    }} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: 'none', background: emp.active ? '#EAF3DE' : '#FCEBEB', color: emp.active ? '#3B6D11' : '#E57C7C', cursor: 'pointer' }}>
+                    }} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: 'none', background: emp.active ? '#143229' : '#361e1e', color: emp.active ? '#3B6D11' : '#E57C7C', cursor: 'pointer' }}>
                       {emp.active ? 'Active' : 'Inactive'}
                     </button>
                     <button onClick={async () => {
@@ -242,9 +242,9 @@ export default function CsrPage() {
               ) : drawerData && (
                 <>
                   {[
-                    { key: 'completed', label: 'Completed', bg: '#EAF3DE', color: '#3B6D11', extraCol: null },
-                    { key: 'rescheduledByOthers', label: 'Rescheduled by others', bg: '#FEF3E2', color: '#854F0B', extraCol: { header: 'Rescheduled by', field: 'rescheduledBy' } },
-                    { key: 'rescheduledFromOthers', label: 'Rescheduled from others', bg: '#E6F1FB', color: '#185FA5', extraCol: { header: 'Originally booked by', field: 'originallyBookedBy' } },
+                    { key: 'completed', label: 'Completed', bg: '#143229', color: '#3B6D11', extraCol: null },
+                    { key: 'rescheduledByOthers', label: 'Rescheduled by others', bg: '#352a16', color: '#854F0B', extraCol: { header: 'Rescheduled by', field: 'rescheduledBy' } },
+                    { key: 'rescheduledFromOthers', label: 'Rescheduled from others', bg: '#15263a', color: '#185FA5', extraCol: { header: 'Originally booked by', field: 'originallyBookedBy' } },
                   ].map(section => {
                     const rows = drawerData[section.key] || [];
                     return (

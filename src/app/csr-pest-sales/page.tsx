@@ -9,13 +9,13 @@ const catColor: Record<string, { bg: string; fg: string }> = {
   'Pest Control': { bg: '#15263a', fg: '#5B9BE0' },
   'Rodent Bundle': { bg: '#352a16', fg: '#DBA14E' },
   'Termite': { bg: '#241f36', fg: '#9D8BE6' },
-  'Mosquito': { bg: '#e6f9ec', fg: '#43B892' },
-  'Mosquito Misting': { bg: '#e6f9ec', fg: '#0f766e' },
-  'Bed Bugs': { bg: '#fee2e2', fg: '#E57C7C' },
-  'Flea & German Roaches': { bg: '#fef9e6', fg: '#a16207' },
-  'Bait Station': { bg: '#f1efe8', fg: '#C9C7BF' },
-  'Fly Control': { bg: '#f1efe8', fg: '#C9C7BF' },
-  'Mole/OLT': { bg: '#eef2e6', fg: '#5a7302' },
+  'Mosquito': { bg: '#143229', fg: '#43B892' },
+  'Mosquito Misting': { bg: '#143229', fg: '#0f766e' },
+  'Bed Bugs': { bg: '#361e1e', fg: '#E57C7C' },
+  'Flea & German Roaches': { bg: '#352a16', fg: '#a16207' },
+  'Bait Station': { bg: '#232329', fg: '#C9C7BF' },
+  'Fly Control': { bg: '#232329', fg: '#C9C7BF' },
+  'Mole/OLT': { bg: '#143229', fg: '#5a7302' },
 };
 const money = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -163,7 +163,7 @@ export default function CsrPestSalesPage() {
                 {sales.length === 0 ? (
                   <tr><td style={{ ...td, textAlign: 'center', color: '#908E85', padding: 30 }} colSpan={8}>No CSR pest sales for these filters. Run the sync to pull sales.</td></tr>
                 ) : sales.map((s: any) => {
-                  const c = catColor[s.category] || { bg: '#f1efe8', fg: '#C9C7BF' };
+                  const c = catColor[s.category] || { bg: '#232329', fg: '#C9C7BF' };
                   return (
                     <tr key={s.id}>
                       <td style={td}>{s.customerName || <span style={{ color: '#63615A' }}>Unknown</span>}</td>
@@ -201,7 +201,7 @@ export default function CsrPestSalesPage() {
                   </tr>
                 ))}
                 {rollup.length > 0 && (
-                  <tr style={{ background: '#faf9f6' }}>
+                  <tr style={{ background: '#232329' }}>
                     <td style={{ ...td, fontWeight: 600 }}>TOTAL</td>
                     <td style={{ ...tdR, fontWeight: 600 }}>{rollup.reduce((a: number, r: any) => a + r.sold, 0)}</td>
                     <td style={{ ...tdR, fontWeight: 600 }}>{rollup.reduce((a: number, r: any) => a + r.completed, 0)}</td>
