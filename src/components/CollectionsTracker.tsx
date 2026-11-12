@@ -28,7 +28,7 @@ export default function CollectionsTracker({ embedded }: { embedded?: boolean })
   const rows = data ? (tab === 'collections' ? data.collections : tab === 'scc' ? data.scc : data.badDebt) : [];
   const th: React.CSSProperties = { textAlign: 'left', padding: '13px 16px', fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#908E85', background: '#232329', borderBottom: '1px solid #2A2A30', whiteSpace: 'nowrap', position: 'sticky', top: 0, zIndex: 2 };
   const td: React.CSSProperties = { textAlign: 'left', padding: '12px 16px', fontSize: 13, color: '#C9C7BF', borderBottom: '1px solid #2A2A30', whiteSpace: 'nowrap' };
-  const btn = (bg: string, fg: string): React.CSSProperties => ({ fontSize: 11, padding: '4px 9px', borderRadius: 6, border: 'none', background: bg, color: fg, cursor: 'pointer', fontWeight: 500, marginRight: 4 });
+  const btn = (bg: string, fg: string): React.CSSProperties => ({ fontSize: 12, padding: '5px 11px', borderRadius: 7, border: '1px solid '+fg+'44', background: bg, color: fg, cursor: 'pointer', fontWeight: 600, marginRight: 5 });
 
   // countdown / flag cell
   function statusCell(row: any) {
@@ -70,11 +70,11 @@ export default function CollectionsTracker({ embedded }: { embedded?: boolean })
     if (row.stage === 'SENT') return <button style={btn('#232329', '#908E85')} onClick={() => setModal({ id: row.id, kind: 'partial', date: todayStr() })}>Log partial payment</button>;
     // countdown stages — engagement + final-call + send
     const els = [];
-    if (!row.respondedAt) els.push(<button key="r" style={btn('#E6F1FB', '#5B9BE0')} onClick={() => setModal({ id: row.id, kind: 'responded', date: todayStr() })}>Responded</button>);
-    if (!row.promisedAt) els.push(<button key="p" style={btn('#143229', '#0F6E56')} onClick={() => setModal({ id: row.id, kind: 'promised', date: todayStr() })}>Promised to Pay</button>);
-    els.push(<button key="pr" style={btn('#F1EFE8', '#908E85')} onClick={() => setModal({ id: row.id, kind: 'partial', date: todayStr() })}>Partial pmt</button>);
+    if (!row.respondedAt) els.push(<button key="r" style={btn('#15263a', '#5B9BE0')} onClick={() => setModal({ id: row.id, kind: 'responded', date: todayStr() })}>Responded</button>);
+    if (!row.promisedAt) els.push(<button key="p" style={btn('#143229', '#43B892')} onClick={() => setModal({ id: row.id, kind: 'promised', date: todayStr() })}>Promised to Pay</button>);
+    els.push(<button key="pr" style={btn('#26262C', '#C9C7BF')} onClick={() => setModal({ id: row.id, kind: 'partial', date: todayStr() })}>Partial pmt</button>);
     if (row.actionDue) {
-      if (!row.finalCallMadeAt) els.push(<button key="fc" style={btn('#FBF3E5', '#BA7517')} onClick={() => act(row.id, 'finalCall')}>✓ Final call made</button>);
+      if (!row.finalCallMadeAt) els.push(<button key="fc" style={btn('#352a16', '#DBA14E')} onClick={() => act(row.id, 'finalCall')}>✓ Final call made</button>);
       else {
         const armLabel = row.track === 'SCC' ? 'File SCC' : row.recommendedArm === 'CONTINGENCY' ? 'Send to ARM (Contingency)' : 'Send to ARM (Flat rate)';
         const confirmMsg = row.track === 'SCC' ? 'Mark SCC Filed?' : `Send to ARM as ${row.recommendedArm === 'CONTINGENCY' ? 'CONTINGENCY (No Recovery No Fee)' : 'FLAT RATE (uses a slot)'}?`;
