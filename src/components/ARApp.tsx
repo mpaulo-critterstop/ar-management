@@ -2,7 +2,7 @@
 "use client";
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, DataTable as CCDataTable, Toolbar as CCToolbar, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell } from "@/components/cc/Layout";
-import { SectionHeader as CCSectionHeader, Card as CCCard, StatusPill as CCStatusPill } from "@/components/cc/Primitives";
+import { SectionHeader as CCSectionHeader, Card as CCCard, StatusPill as CCStatusPill, Btn as CCBtn } from "@/components/cc/Primitives";
 import { LastSynced } from "@/components/LastSynced";
 
 const ACCENT = '#5B9BE0';
@@ -1157,52 +1157,39 @@ function InvPage({enriched,setModal,showToast,loadAll,isAdmin}: any) {
 
   const del=async(id:string)=>{if(!confirm("Delete invoice "+id+"?"))return;await fetch(`/api/invoices/${id}`,{method:"DELETE"});showToast("Invoice deleted");loadAll();};
 
+  const stTone:any={CURRENT:"blue",OVERDUE:"red",COLLECTIONS:"red",PAYMENT_PLAN:"amber",PAID:"green",DISPUTED:"violet"};
   return (
     <div>
-      <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
-        <input placeholder="Search invoice # or customer..." value={search} onChange={e=>{setSearch(e.target.value);setCurrentPage(1);}} style={{flex:1,minWidth:200,fontSize:13,padding:"7px 10px",border:"0.5px solid #63615A",borderRadius:8,background:"#1C1C21"}}/>
-        <select value={statusF} onChange={e=>{setStatusF(e.target.value);setCurrentPage(1);}} style={{fontSize:13,padding:"7px 10px",border:"0.5px solid #63615A",borderRadius:8,background:"#1C1C21"}}>
+      <CCToolbar>
+        <div style={{fontSize:13,fontWeight:600,color:"#C9C7BF"}}>Invoices <span style={{color:"#63615A",fontWeight:400}}>· {filtered.length}</span></div>
+        <select value={statusF} onChange={e=>{setStatusF(e.target.value);setCurrentPage(1);}} style={{fontSize:12.5,padding:"8px 11px",borderRadius:9,border:"1px solid #35353C",background:"#26262C",color:"#F0EEE8"}}>
           <option value="">All statuses</option>
           {["CURRENT","OVERDUE","COLLECTIONS","PAYMENT_PLAN","PAID","DISPUTED"].map(s=><option key={s} value={s}>{statusLabels[s]}</option>)}
         </select>
-        <span style={{fontSize:12,color:"#908E85",marginLeft:"auto"}}>{filtered.length} invoices</span>
-      </div>
-      <Card noPad>
-        <div style={{overflowY:"auto",maxHeight:"calc(100vh - 260px)"}}>
-          <table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead style={{position:"sticky",top:0,zIndex:5}}>
-              <tr><Th>Invoice #</Th><Th>Customer</Th><Th>Date</Th><Th>Due date</Th><Th right>Amount</Th><Th right>Balance</Th><Th>Status</Th><Th>&nbsp;</Th></tr>
-            </thead>
-            <tbody>
-              {displayed.map((inv:any)=>(
-                <tr key={inv.id}>
-                  <Td bold>{inv.id}</Td>
-                  <Td>{inv.customer?.name||"—"}</Td>
-                  <Td>{inv.date?.split("T")[0]}</Td>
-                  <Td color={inv.daysOverdue>0?"#E57C7C":"inherit"}>{inv.due?.split("T")[0]||"—"}</Td>
-                  <Td right>{fmt(Number(inv.amount))}</Td>
-                  <Td right bold>{fmt(inv.balance)}</Td>
-                  <Td><Badge status={inv.status} small/></Td>
-                  <Td>
-                    <div style={{display:"flex",gap:6,justifyContent:"flex-end",alignItems:"center"}}>
-                      {inv.balance>0&&<Btn small onClick={()=>setModal({type:"closeOut",invoice:inv})}>Close out</Btn>}
-                      {isAdmin && (inv.status==="OVERDUE"||inv.status==="COLLECTIONS"||inv.due) && (
-                        <button onClick={()=>reopen(inv)} disabled={reopening===inv.id}
-                          title="Reopen — reset to CURRENT, clear due date, remove from Call Sheet / Blitz / PestAI"
-                          style={{fontSize:11,padding:"4px 9px",borderRadius:6,border:"0.5px solid #DBA14E",background:"#1C1C21",color:"#DBA14E",fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>
-                          {reopening===inv.id?"…":"Reopen"}
-                        </button>
-                      )}
-                    </div>
-                  </Td>
-                </tr>
-              ))}
-              {displayed.length===0&&<ER cols={8} msg="No invoices match"/>}
-            </tbody>
-          </table>
-        </div>
-        <Pagination current={currentPage} total={filtered.length} pageSize={pageSize} onPage={setCurrentPage} onSize={(s:number)=>{setPageSize(s);setCurrentPage(1);}}/>
-      </Card>
+        <CCSearchBox value={search} onChange={(v:string)=>{setSearch(v);setCurrentPage(1);}} placeholder="Search invoice # or customer…" />
+      </CCToolbar>
+      <CCDataTable
+        rowKey={(inv:any)=>inv.id}
+        empty="No invoices match"
+        cols={[
+          { key:"inv", label:"Invoice #", render:(inv:any)=><span style={{fontWeight:600,color:"#F0EEE8",fontVariantNumeric:"tabular-nums"}}>{inv.id}</span> },
+          { key:"cust", label:"Customer", render:(inv:any)=><CCCustomerCell name={inv.customer?.name||"—"} /> },
+          { key:"date", label:"Date", render:(inv:any)=><span style={{color:"#908E85",fontSize:12.5}}>{inv.date?.split("T")[0]}</span> },
+          { key:"due", label:"Due date", render:(inv:any)=><span style={{color:inv.daysOverdue>0?"#E57C7C":"#908E85",fontSize:12.5}}>{inv.due?.split("T")[0]||"—"}</span> },
+          { key:"amount", label:"Amount", align:"right", render:(inv:any)=><span style={{color:"#C9C7BF",fontVariantNumeric:"tabular-nums"}}>{fmt(Number(inv.amount))}</span> },
+          { key:"balance", label:"Balance", align:"right", render:(inv:any)=><span style={{fontWeight:700,color:inv.balance>0?"#F0EEE8":"#63615A",fontVariantNumeric:"tabular-nums"}}>{fmt(inv.balance)}</span> },
+          { key:"status", label:"Status", render:(inv:any)=><CCStatusPill tone={stTone[inv.status]||"neutral"}>{statusLabels[inv.status]||inv.status}</CCStatusPill> },
+          { key:"act", label:"", align:"right", render:(inv:any)=>(
+            <div style={{display:"flex",gap:6,justifyContent:"flex-end",alignItems:"center"}}>
+              {inv.balance>0&&<CCBtn variant="secondary" style={{padding:"5px 11px",fontSize:12}} onClick={()=>setModal({type:"closeOut",invoice:inv})}>Close out</CCBtn>}
+              {isAdmin && (inv.status==="OVERDUE"||inv.status==="COLLECTIONS"||inv.due) && (
+                <CCBtn variant="secondary" disabled={reopening===inv.id} style={{padding:"5px 11px",fontSize:12,color:"#DBA14E",borderColor:"#4a3a1e"}} onClick={()=>reopen(inv)}>{reopening===inv.id?"…":"Reopen"}</CCBtn>
+              )}
+            </div>) },
+        ]}
+        rows={displayed}
+      />
+      <Pagination current={currentPage} total={filtered.length} pageSize={pageSize} onPage={setCurrentPage} onSize={(s:number)=>{setPageSize(s);setCurrentPage(1);}}/>
     </div>
   );
 }
