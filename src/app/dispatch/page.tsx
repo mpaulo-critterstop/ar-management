@@ -49,7 +49,7 @@ function AttentionFlag({ label }: { label: string }) {
   return (
     <span style={{
       display: 'inline-block', padding: '2px 8px', borderRadius: 20,
-      fontSize: 11, fontWeight: 500, background: '#FAEEDA', color: '#DBA14E',
+      fontSize: 11, fontWeight: 500, background: '#352a16', color: '#DBA14E',
     }}>
       {'\u26A0'} {label}
     </span>
@@ -121,9 +121,9 @@ export default function DispatchPage() {
   }
 
   function getStage(job: any) {
-    if (job.closedOut) return { label: 'Closed out', color: '#1d9e75', bg: '#e1f5ee' };
+    if (job.closedOut) return { label: 'Closed out', color: '#43B892', bg: '#143229' };
     if (job.hasExclusion && !job.exclusionDone) return { label: 'Exclusion pending', color: '#a32d2d', bg: '#361e1e' };
-    if (job.hasTrapping && job.trapCheckCount === 0 && !job.trapsDone) return { label: 'Trapping pending', color: '#5B3FA6', bg: '#EEEBF8' };
+    if (job.hasTrapping && job.trapCheckCount === 0 && !job.trapsDone) return { label: 'Trapping pending', color: '#9D8BE6', bg: '#241f36' };
     if (job.hasTrapping && job.trapCheckCount > 0 && !job.trapsDone) return { label: 'Trapping in progress', color: '#185fa5', bg: '#15263a' };
     if (job.hasFAR && !job.farDone) return { label: 'FAR pending', color: '#854f0b', bg: '#352a16' };
     return { label: 'Active', color: '#908E85', bg: '#232329' };
@@ -377,7 +377,7 @@ export default function DispatchPage() {
                 const daysSold = job.invoice?.date ? daysSince(job.invoice.date) : null;
                 const daysUpdate = daysSince(job.updatedAt);
                 return (
-                  <tr key={job.id} style={{ borderBottom: '0.5px solid #232329', background: flags.length > 0 ? '#FFFBF5' : 'inherit' }}>
+                  <tr key={job.id} style={{ borderBottom: '0.5px solid #232329', background: flags.length > 0 ? '#2a2318' : 'transparent' }}>
                     <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>
                       <button
                         onClick={() => { setEditingJob(job); setStageEdit({}); }}
