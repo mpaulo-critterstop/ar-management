@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import CCDatePicker from '@/components/cc/DatePicker';
 import { teamPill, statusPill, card, th, td } from './helpers';
 
 interface Props { office: string; }
@@ -145,7 +146,7 @@ export function RosterTab({ office }: Props) {
             </div>
             <div><label style={labelStyle}>Site leader</label><input style={inputStyle} value={form.siteLeader} onChange={e => setForm(f => ({ ...f, siteLeader: e.target.value }))} /></div>
             <div><label style={labelStyle}>Crew leader</label><input style={inputStyle} value={form.crewLeader} onChange={e => setForm(f => ({ ...f, crewLeader: e.target.value }))} /></div>
-            <div><label style={labelStyle}>Hire date</label><input type="date" style={inputStyle} value={form.hireDate} onChange={e => setForm(f => ({ ...f, hireDate: e.target.value }))} /></div>
+            <div><label style={labelStyle}>Hire date</label><CCDatePicker value={form.hireDate} onChange={(v: string) => setForm(f => ({ ...f, hireDate: v }))} /></div>
             <div><label style={labelStyle}>FR Employee ID</label><input style={inputStyle} value={form.frEmployeeId} onChange={e => setForm(f => ({ ...f, frEmployeeId: e.target.value }))} placeholder="e.g. 10583" /></div>
           </div>
           <div style={{ marginTop: 12 }}><label style={labelStyle}>Notes</label><input style={inputStyle} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>

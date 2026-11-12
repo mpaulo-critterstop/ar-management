@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import CCDatePicker from '@/components/cc/DatePicker';
 
 const fmtDate = (d: any) => d ? new Date(d).toISOString().slice(0, 10) : '';
 
@@ -131,8 +132,8 @@ export default function PtoTrackerPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
             <label style={{ fontSize: 12, color: '#888780' }}>Name *<select value={editing.name || ''} onChange={e => setEditing({ ...editing, name: e.target.value })} style={inp}><option value="">Select…</option>{[...new Set([...summary.map((s: any) => s.name), 'Mark Paulo', 'Ana Navas', 'Anni Suutari'])].map((n: any) => <option key={n} value={n}>{n}</option>)}</select></label>
             <label style={{ fontSize: 12, color: '#888780' }}>Type<select value={editing.leaveType || 'PTO'} onChange={e => setEditing({ ...editing, leaveType: e.target.value })} style={inp}><option value="PTO">PTO</option><option value="Holiday">Holiday</option></select></label>
-            <label style={{ fontSize: 12, color: '#888780' }}>Start *<input type="date" value={fmtDate(editing.startDate)} onChange={e => setEditing({ ...editing, startDate: e.target.value })} style={inp} /></label>
-            <label style={{ fontSize: 12, color: '#888780' }}>End<input type="date" value={fmtDate(editing.endDate)} onChange={e => setEditing({ ...editing, endDate: e.target.value })} style={inp} /></label>
+            <label style={{ fontSize: 12, color: '#888780' }}>Start *<CCDatePicker value={fmtDate(editing.startDate)} onChange={(v: string) => setEditing({ ...editing, startDate: v })} /></label>
+            <label style={{ fontSize: 12, color: '#888780' }}>End<CCDatePicker value={fmtDate(editing.endDate)} onChange={(v: string) => setEditing({ ...editing, endDate: v })} /></label>
             <label style={{ fontSize: 12, color: '#888780' }}>Business days<input type="number" step="0.5" value={editing.businessDays ?? ''} onChange={e => setEditing({ ...editing, businessDays: e.target.value })} style={inp} /></label>
             <label style={{ fontSize: 12, color: '#888780' }}>Notes<input value={editing.notes || ''} onChange={e => setEditing({ ...editing, notes: e.target.value })} placeholder="Holiday name…" style={inp} /></label>
           </div>

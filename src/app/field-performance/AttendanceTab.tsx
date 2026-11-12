@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import CCDatePicker from '@/components/cc/DatePicker';
 import { useSession } from 'next-auth/react';
 import { teamPill, card, th, td, useSort, sortRows, SortableTh , periodParams, type Period } from './helpers';
 
@@ -287,8 +288,7 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
             </div>
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Date</label>
-              <input type="date" value={addForm.date} onChange={e => setAddForm(f => ({ ...f, date: e.target.value }))}
-                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }} />
+              <CCDatePicker value={addForm.date} onChange={(v: string) => setAddForm(f => ({ ...f, date: v }))} />
             </div>
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Scheduled start time</label>

@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import CCDatePicker from '@/components/cc/DatePicker';
 
 const fmtDate = (d: any) => d ? new Date(d).toISOString().slice(0, 10) : '';
 function daysSince(d: any): number | null { if (!d) return null; return Math.floor((Date.now() - new Date(d).getTime()) / 86400000); }
@@ -69,10 +70,10 @@ export default function EmployeeRaiseTracker({ region, backHref }: { region: 'US
             <label style={{ fontSize: 12, color: '#888780' }}>Email<input value={editing.email || ''} onChange={e => setEditing({ ...editing, email: e.target.value })} style={inp} /></label>
             <label style={{ fontSize: 12, color: '#888780' }}>Pay<input type="number" step="0.01" value={editing.currentSalary ?? ''} onChange={e => setEditing({ ...editing, currentSalary: e.target.value })} style={inp} /></label>
             <label style={{ fontSize: 12, color: '#888780' }}>Pay type<select value={editing.payType || 'hourly'} onChange={e => setEditing({ ...editing, payType: e.target.value })} style={inp}><option value="hourly">Hourly</option><option value="monthly">Monthly</option><option value="annual">Annual</option></select></label>
-            <label style={{ fontSize: 12, color: '#888780' }}>Start date<input type="date" value={fmtDate(editing.startDate)} onChange={e => setEditing({ ...editing, startDate: e.target.value })} style={inp} /></label>
-            <label style={{ fontSize: 12, color: '#888780' }}>Most recent raise<input type="date" value={fmtDate(editing.mostRecentRaiseDate)} onChange={e => setEditing({ ...editing, mostRecentRaiseDate: e.target.value })} style={inp} /></label>
+            <label style={{ fontSize: 12, color: '#888780' }}>Start date<CCDatePicker value={fmtDate(editing.startDate)} onChange={(v: string) => setEditing({ ...editing, startDate: v })} /></label>
+            <label style={{ fontSize: 12, color: '#888780' }}>Most recent raise<CCDatePicker value={fmtDate(editing.mostRecentRaiseDate)} onChange={(v: string) => setEditing({ ...editing, mostRecentRaiseDate: v })} /></label>
             <label style={{ fontSize: 12, color: '#888780' }}>Raise amount<input value={editing.raiseAmount || ''} onChange={e => setEditing({ ...editing, raiseAmount: e.target.value })} placeholder="$23 to $24.25" style={inp} /></label>
-            <label style={{ fontSize: 12, color: '#888780' }}>Previous raise date<input type="date" value={fmtDate(editing.previousRaiseDate)} onChange={e => setEditing({ ...editing, previousRaiseDate: e.target.value })} style={inp} /></label>
+            <label style={{ fontSize: 12, color: '#888780' }}>Previous raise date<CCDatePicker value={fmtDate(editing.previousRaiseDate)} onChange={(v: string) => setEditing({ ...editing, previousRaiseDate: v })} /></label>
             <label style={{ fontSize: 12, color: '#888780' }}>Previous raise amount<input value={editing.previousRaiseAmount || ''} onChange={e => setEditing({ ...editing, previousRaiseAmount: e.target.value })} style={inp} /></label>
             <label style={{ fontSize: 12, color: '#888780' }}>Notes<input value={editing.notes || ''} onChange={e => setEditing({ ...editing, notes: e.target.value })} style={inp} /></label>
           </div>

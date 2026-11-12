@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import CCDatePicker from '@/components/cc/DatePicker';
 import * as XLSX from 'xlsx';
 
 const money = (n: number) => '$' + Math.abs(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -203,7 +204,7 @@ export default function TollsPage() {
           <div style={{ border: '0.5px solid #534AB7', borderRadius: 12, padding: 16, background: '#F7F6FD', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#2C2C2A' }}>Save to payroll week:</div>
             <label style={{ fontSize: 12, color: '#888780' }}>Pay date (Mon after period)
-              <input type="date" value={payDate} onChange={e => { setPayDate(e.target.value); setSavedMsg(''); }} style={{ display: 'block', fontSize: 13, padding: '7px 10px', borderRadius: 6, border: '0.5px solid #E8E7E3', marginTop: 4 }} />
+              <CCDatePicker value={payDate} onChange={(v: string) => { setPayDate(v); setSavedMsg(''); }} />
             </label>
             {payDate && <span style={{ fontSize: 12, color: '#888780' }}>Period: {(() => { const pe = new Date(payDate + 'T12:00:00Z'); pe.setUTCDate(pe.getUTCDate() - 1); const ps = new Date(pe); ps.setUTCDate(pe.getUTCDate() - 6); return `${ps.toISOString().slice(5, 10)} – ${pe.toISOString().slice(5, 10)}`; })()}</span>}
             <button onClick={saveWeek} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#534AB7', color: '#fff', fontWeight: 500, cursor: 'pointer' }}>Save week</button>

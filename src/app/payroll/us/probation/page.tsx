@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import CCDatePicker from '@/components/cc/DatePicker';
 
 const fmtDate = (d: any) => d ? new Date(d).toISOString().slice(0, 10) : '';
 function daysUntil(d: any): number | null { if (!d) return null; return Math.ceil((new Date(d).getTime() - Date.now()) / 86400000); }
@@ -64,10 +65,10 @@ export default function ProbationTrackerPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
             <label style={{ fontSize: 12, color: '#888780' }}>Name *<input value={editing.employeeName || ''} onChange={e => setEditing({ ...editing, employeeName: e.target.value })} style={inp} /></label>
             <label style={{ fontSize: 12, color: '#888780' }}>Tech ID<input value={editing.techId || ''} onChange={e => setEditing({ ...editing, techId: e.target.value })} placeholder="I-035" style={inp} /></label>
-            <label style={{ fontSize: 12, color: '#888780' }}>Hire date<input type="date" value={fmtDate(editing.hireDate)} onChange={e => setEditing({ ...editing, hireDate: e.target.value, probationEndDate: editing.probationEndDate || plus90(e.target.value) })} style={inp} /></label>
-            <label style={{ fontSize: 12, color: '#888780' }}>Probation end<input type="date" value={fmtDate(editing.probationEndDate)} onChange={e => setEditing({ ...editing, probationEndDate: e.target.value })} style={inp} /></label>
+            <label style={{ fontSize: 12, color: '#888780' }}>Hire date<CCDatePicker value={fmtDate(editing.hireDate)} onChange={(v: string) => setEditing({ ...editing, hireDate: v, probationEndDate: editing.probationEndDate || plus90(v) })} /></label>
+            <label style={{ fontSize: 12, color: '#888780' }}>Probation end<CCDatePicker value={fmtDate(editing.probationEndDate)} onChange={(v: string) => setEditing({ ...editing, probationEndDate: v })} /></label>
             <label style={{ fontSize: 12, color: '#888780' }}>Status<select value={editing.status || 'In probation'} onChange={e => setEditing({ ...editing, status: e.target.value })} style={inp}><option value="In probation">In probation</option><option value="Done - added">Done - added</option></select></label>
-            <label style={{ fontSize: 12, color: '#888780' }}>Added to OnPay date<input type="date" value={fmtDate(editing.addedToOnPayDate)} onChange={e => setEditing({ ...editing, addedToOnPayDate: e.target.value, addedToOnPay: !!e.target.value })} style={inp} /></label>
+            <label style={{ fontSize: 12, color: '#888780' }}>Added to OnPay date<CCDatePicker value={fmtDate(editing.addedToOnPayDate)} onChange={(v: string) => setEditing({ ...editing, addedToOnPayDate: v, addedToOnPay: !!v })} /></label>
           </div>
           <div style={{ marginTop: 10 }}><label style={{ fontSize: 12, color: '#888780', display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={!!editing.addedToOnPay} onChange={e => setEditing({ ...editing, addedToOnPay: e.target.checked })} /> Added to OnPay</label></div>
           <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
