@@ -157,7 +157,7 @@ export function CommissionsTab() {
                             return (
                               <td key={i} style={{
                                 padding: '6px 10px', textAlign: 'right',
-                                color: rd.kind === 'delta' && typeof v === 'number' && v < 0 ? '#E57C7C' : rd.kind === 'delta' && typeof v === 'number' && v > 0 ? '#43B892' : rd.key === 'totalCommission' ? '#F0EEE8' : '#C9C7BF',
+                                color: rd.kind === 'delta' && typeof v === 'number' && v < 0 ? '#E57C7C' : rd.kind === 'delta' && typeof v === 'number' && v > 0 ? '#43B892' : rd.key === 'totalCommission' ? '#F0EEE8' : '#444441',
                                 fontWeight: rd.key === 'totalCommission' ? 600 : 400,
                               }}>{v === null ? '—' : fmt(v)}</td>
                             );
@@ -170,14 +170,12 @@ export function CommissionsTab() {
               </div>
             );
           })()}
-          <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#908E85', margin: '16px 0 10px' }}>Individual PMs</div>
-          <div style={{ maxHeight: '60vh', overflowY: 'auto', scrollbarGutter: 'stable', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {rows.map((pm: any) => (
             <div key={pm.pmName} style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden', background: '#1C1C21' }}>
               <div style={{ padding: '10px 14px', background: '#232329', fontWeight: 600, fontSize: 14, color: '#F0EEE8', borderBottom: '0.5px solid #2A2A30' }}>
                 {pm.pmName}
               </div>
-              <div style={{ overflowX: 'auto', overflowY: 'hidden', scrollbarGutter: 'stable' }}>
+              <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh', scrollbarGutter: 'stable' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: '#232329' }}>
@@ -216,10 +214,10 @@ export function CommissionsTab() {
                                 padding: '6px 10px', textAlign: 'right',
                                 color: rd.kind === 'delta' && typeof v === 'number' && v < 0 ? '#E57C7C'
                                      : rd.kind === 'delta' && typeof v === 'number' && v > 0 ? '#43B892'
-                                     : rd.key === 'totalCommission' ? '#F0EEE8' : '#C9C7BF',
+                                     : rd.key === 'totalCommission' ? '#F0EEE8' : '#444441',
                                 fontWeight: rd.key === 'totalCommission' ? 600 : 400,
                                 cursor: editable ? 'pointer' : 'default',
-                                background: editable ? '#2e2a1a' : 'transparent',
+                                background: editable ? '#FCFBF6' : 'transparent',
                               }}>
                               {isEditing ? (
                                 <input autoFocus value={editVal}
@@ -238,7 +236,6 @@ export function CommissionsTab() {
               </div>
             </div>
           ))}
-          </div>
         </div>
       )}
     </div>
