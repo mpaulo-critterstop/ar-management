@@ -11,7 +11,7 @@ import CommandShell from '@/components/CommandShell';
 const NO_SHELL = ['/login', '/change-password'];
 const SELF_SHELL = ['/overview']; // pages that render CommandShell themselves
 // Modules whose interiors have been restyled to dark — they get a dark content surface (no light wrapper).
-const DARK_CONTENT = ['/stax', '/calls', '/accounts-receivable'];
+const DARK_CONTENT = ['/stax', '/calls', '/accounts-receivable', '/ar/collections'];
 
 export default function ShellWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || '';
