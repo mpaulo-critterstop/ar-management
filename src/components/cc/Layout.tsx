@@ -24,22 +24,30 @@ export function PageHeader({ icon, title, subtitle, actions }:
 // --- KpiStrip: a row of accent-bar metric cards ---
 export type Kpi = { icon?: string; label: string; value: React.ReactNode; delta?: React.ReactNode; deltaTone?: Tone; tone?: Tone };
 export function KpiStrip({ items }: { items: Kpi[] }) {
+  // Fit all tiles on one line (one equal column per item). On narrow screens, fall back to auto-fit wrapping.
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(176px,1fr))', gap: 13, marginBottom: 28 }}>
+    <>
+    <style>{`
+      .cc-kpi-strip { grid-template-columns: repeat(${items.length}, minmax(0,1fr)); }
+      @media (max-width: 1100px) { .cc-kpi-strip { grid-template-columns: repeat(3, minmax(0,1fr)) !important; } }
+      @media (max-width: 680px)  { .cc-kpi-strip { grid-template-columns: repeat(2, minmax(0,1fr)) !important; } }
+    `}</style>
+    <div style={{ display: 'grid', gap: 12, marginBottom: 28 }} className="cc-kpi-strip">
       {items.map((k, i) => {
         const accent = toneColors(k.tone || 'blue').fg;
         const dTone = k.deltaTone ? toneColors(k.deltaTone).fg : cc.faint;
         return (
-          <div key={i} style={{ background: cc.panel, border: `1px solid ${cc.line}`, borderRadius: cc.r, padding: '16px 17px', position: 'relative', overflow: 'hidden' }}>
+          <div key={i} style={{ background: cc.panel, border: `1px solid ${cc.line}`, borderRadius: cc.r, padding: '15px 15px', position: 'relative', overflow: 'hidden', minWidth: 0 }}>
             <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: accent, borderRadius: 3 }} />
-            {k.icon ? <div style={{ fontSize: 15, opacity: 0.9 }}>{k.icon}</div> : null}
-            <div style={{ fontSize: 12.5, color: cc.muted, fontWeight: 500, marginTop: 2 }}>{k.label}</div>
-            <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-.02em', marginTop: 9, lineHeight: 1, color: cc.ink }}>{k.value}</div>
-            {k.delta ? <div style={{ fontSize: 11.5, marginTop: 7, color: dTone }}>{k.delta}</div> : null}
+            {k.icon ? <div style={{ fontSize: 14, opacity: 0.9 }}>{k.icon}</div> : null}
+            <div style={{ fontSize: 12, color: cc.muted, fontWeight: 500, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</div>
+            <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-.02em', marginTop: 8, lineHeight: 1, color: cc.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.value}</div>
+            {k.delta ? <div style={{ fontSize: 11, marginTop: 6, color: dTone, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.delta}</div> : null}
           </div>
         );
       })}
     </div>
+    </>
   );
 }
 
