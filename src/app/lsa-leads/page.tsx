@@ -1,5 +1,6 @@
 'use client';
-import BackButton from '@/components/BackButton';
+import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, DataTable as CCDataTable, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell, FilterChips as CCFilterChips } from '@/components/cc/Layout';
+import { StatusPill as CCStatusPill } from '@/components/cc/Primitives';
 import { useEffect, useState } from 'react';
 import LagReportView from './LagReportView';
 
@@ -12,15 +13,15 @@ const STAGES = PESTAI_SEND_ENABLED
   ? ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Moved to DialPad', 'Sent to Pest AI', 'Booked', 'Lost']
   : ['New', 'Awaiting Customer', 'Customer Replied', 'Need Follow-up', 'Moved to DialPad', 'Booked', 'Lost'];
 const stageColor: Record<string, { bg: string; fg: string }> = {
-  'New': { bg: '#e6f0ff', fg: '#0052cc' },
+  'New': { bg: '#e6f0ff', fg: '#5B9BE0' },
   'Awaiting Customer': { bg: '#fef9e6', fg: '#a16207' },
-  'Customer Replied': { bg: '#e6f7ff', fg: '#0891b2' },
-  'Need Follow-up': { bg: '#fee2e2', fg: '#b91c1c' },
+  'Customer Replied': { bg: '#15263a', fg: '#5B9BE0' },
+  'Need Follow-up': { bg: '#fee2e2', fg: '#E57C7C' },
   'Moved to DialPad': { bg: '#e0f2f1', fg: '#0d7a6f' },
   'Sent to Pest AI': { bg: '#ede9fb', fg: '#6D28D9' },
-  'Booked': { bg: '#e6f9ec', fg: '#128a3f' },
-  'Lost': { bg: '#f1efe8', fg: '#888780' },
-  'Call — handled': { bg: '#f1efe8', fg: '#B4B2A9' },
+  'Booked': { bg: '#143229', fg: '#43B892' },
+  'Lost': { bg: '#232329', fg: '#908E85' },
+  'Call — handled': { bg: '#232329', fg: '#63615A' },
 };
 const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 const fmtWhen = (d: string | null) => {
@@ -100,34 +101,30 @@ export default function LsaLeadsPage() {
   useEffect(() => { setPage(1); }, [status, leadType, search]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages, page]);
 
-  const th: React.CSSProperties = { textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3', textTransform: 'uppercase', letterSpacing: '0.03em' };
-  const td: React.CSSProperties = { padding: '9px 12px', fontSize: 13, color: '#2C2C2A', borderBottom: '0.5px solid #F1EFE8', verticalAlign: 'top' };
+  const th: React.CSSProperties = { textAlign: 'left', padding: '12px 14px', fontSize: 11, fontWeight: 600, color: '#908E85', borderBottom: '1px solid #2A2A30', textTransform: 'uppercase', letterSpacing: '.04em', background: '#232329', position: 'sticky', top: 0, zIndex: 2 };
+  const td: React.CSSProperties = { padding: '9px 12px', fontSize: 13, color: '#F0EEE8', borderBottom: '0.5px solid #232329', verticalAlign: 'top' };
 
   return (
-    <div style={{ padding: '0 24px 24px', maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ padding: '16px 20px 0' }}><BackButton /></div>
-      <div style={{ paddingTop: 24, marginBottom: 4 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>LSA Leads</h1>
-        <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>Google Local Services Ads leads. Stages update automatically from message activity — reply in LSA and it moves to Awaiting Customer; 1 day silent flips to Need Follow-up with a Slack alert. You can still override a stage manually.</p>
-      </div>
+    <div style={{ padding: '30px 34px 70px', maxWidth: 1400, margin: '0 auto' }}>
+      <CCPageHeader icon="📣" title="LSA Leads" subtitle="Google Local Services Ads leads — stages auto-update from message activity" />
 
       {/* Location selector — 'All' aggregates every office; or pick one */}
-      <div style={{ display: 'flex', gap: 4, marginTop: 16, background: '#f1efe8', borderRadius: 8, padding: 3, flexWrap: 'wrap', width: 'fit-content' }}>
+      <div style={{ display: 'inline-flex', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
         {['All', ...(data?.locations || ['Southlake'])].map((loc: string) => (
           <button key={loc} onClick={() => setLocation(loc)}
-            style={{ fontSize: 12, padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
-              background: location === loc ? '#fff' : 'transparent', color: location === loc ? '#2C2C2A' : '#888780', fontWeight: location === loc ? 600 : 400 }}>
+            style={{ fontSize: 12.5, padding: '7px 13px', borderRadius: 9, cursor: 'pointer', fontWeight: 600,
+              border: `1px solid ${location === loc ? '#5B9BE0' : '#2A2A30'}`, background: location === loc ? '#15263a' : '#1C1C21', color: location === loc ? '#5B9BE0' : '#908E85' }}>
             {loc}
           </button>
         ))}
       </div>
 
       {/* Tabs: Leads tracker vs. Lag Report (both scoped to the selected location) */}
-      <div style={{ display: 'flex', gap: 24, marginTop: 20, borderBottom: '0.5px solid #E8E7E3' }}>
+      <div style={{ display: 'flex', gap: 24, marginTop: 20, borderBottom: '0.5px solid #2A2A30' }}>
         {([['leads', 'Leads'], ['report', 'Lag Report']] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
-            style={{ fontSize: 14, fontWeight: tab === k ? 600 : 400, color: tab === k ? '#2C2C2A' : '#888780',
-              background: 'none', border: 'none', borderBottom: `2px solid ${tab === k ? '#2C2C2A' : 'transparent'}`,
+            style={{ fontSize: 14, fontWeight: tab === k ? 600 : 400, color: tab === k ? '#F0EEE8' : '#908E85',
+              background: 'none', border: 'none', borderBottom: `2px solid ${tab === k ? '#F0EEE8' : 'transparent'}`,
               padding: '0 0 10px', marginBottom: -0.5, cursor: 'pointer' }}>
             {label}
           </button>
@@ -138,48 +135,43 @@ export default function LsaLeadsPage() {
         <div style={{ marginTop: 16 }}><LagReportView location={location} /></div>
       ) : (
       <>
-      {/* Pipeline header */}
-      <div style={{ display: 'flex', gap: 8, marginTop: 20, marginBottom: 16, flexWrap: 'wrap' }}>
-        {STAGES.map(s => {
-          const c = stageColor[s];
-          const active = status === s;
-          return (
-            <button key={s} onClick={() => setStatus(active ? 'All' : s)}
-              style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 14px', borderRadius: 10, minWidth: 92,
-                background: active ? c.bg : '#fff', border: `0.5px solid ${active ? c.fg : '#E8E7E3'}`, cursor: 'pointer', textAlign: 'left' }}>
-              <span style={{ fontSize: 18, fontWeight: 600, color: c.fg }}>{data?.byStage?.[s] ?? '—'}</span>
-              <span style={{ fontSize: 11, color: '#888780' }}>{s}</span>
-            </button>
-          );
-        })}
+      {/* Pipeline stages as filter chips */}
+      <div style={{ marginTop: 16 }}>
+        <CCFilterChips
+          active={status}
+          onChange={(k: string) => setStatus(k === status ? 'All' : k)}
+          chips={STAGES.map((s: string) => {
+            const t: any = s === 'Lost' ? 'red' : s === 'Booked' ? 'green' : s === 'Need Follow-up' ? 'amber' : s === 'Customer Replied' ? 'blue' : 'neutral';
+            return { key: s, label: s, value: data?.byStage?.[s] ?? '—', valueTone: t };
+          })}
+        />
       </div>
 
       {/* Priority callout */}
       {data && (data.followupNeeded > 0 || data.messageOpen > 0) && (
         <div style={{ display: 'flex', gap: 16, marginBottom: 16, fontSize: 13 }}>
-          {data.followupNeeded > 0 && <span style={{ color: '#b91c1c' }}>🔴 <strong>{data.followupNeeded}</strong> need follow-up now</span>}
-          {data.messageOpen > 0 && <span style={{ color: '#0891b2' }}>💬 <strong>{data.messageOpen}</strong> open message leads</span>}
+          {data.followupNeeded > 0 && <span style={{ color: '#E57C7C' }}>🔴 <strong>{data.followupNeeded}</strong> need follow-up now</span>}
+          {data.messageOpen > 0 && <span style={{ color: '#5B9BE0' }}>💬 <strong>{data.messageOpen}</strong> open message leads</span>}
         </div>
       )}
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, color: '#888780' }}>Filters:</span>
-        <input type="text" placeholder="Search name/phone..." value={search} onChange={e => setSearch(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', minWidth: 180 }} />
-        <select value={leadType} onChange={e => setLeadType(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+        <select value={leadType} onChange={e => setLeadType(e.target.value)} style={{ fontSize: 12.5, padding: '8px 11px', borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8' }}>
           <option value="All">All types</option>
           <option value="MESSAGE">Message</option>
           <option value="PHONE_CALL">Phone call</option>
           <option value="BOOKING">Booking</option>
         </select>
-        <select value={status} onChange={e => setStatus(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+        <select value={status} onChange={e => setStatus(e.target.value)} style={{ fontSize: 12.5, padding: '8px 11px', borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8' }}>
           <option value="All">All stages</option>
-          {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+          {STAGES.map((s: string) => <option key={s} value={s}>{s}</option>)}
         </select>
+        <div style={{ marginLeft: 'auto', minWidth: 220 }}><CCSearchBox value={search} onChange={setSearch} placeholder="Search name / phone…" /></div>
       </div>
 
       {/* Table */}
-      <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+      <div style={{ border: '1px solid #2A2A30', borderRadius: 14, overflow: 'auto', maxHeight: '60vh', background: '#1C1C21', scrollbarGutter: 'stable' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr>
             <th style={th}>Lead ID</th><th style={th}>Contact</th><th style={th}>Type</th><th style={th}>Last Message</th>
@@ -187,54 +179,54 @@ export default function LsaLeadsPage() {
           </tr></thead>
           <tbody>
             {loading ? (
-              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={8}>Loading…</td></tr>
+              <tr><td style={{ ...td, textAlign: 'center', color: '#908E85', padding: 30 }} colSpan={8}>Loading…</td></tr>
             ) : leads.length === 0 ? (
-              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={8}>No LSA leads for these filters. Run the sync to pull leads.</td></tr>
+              <tr><td style={{ ...td, textAlign: 'center', color: '#908E85', padding: 30 }} colSpan={8}>No LSA leads for these filters. Run the sync to pull leads.</td></tr>
             ) : pageLeads.map((l: any) => {
               const isMsg = l.leadType === 'MESSAGE';
               return (
-                <tr key={l.id} style={l.status === 'Need Follow-up' ? { background: '#fef6f6' } : undefined}>
+                <tr key={l.id} style={l.status === 'Need Follow-up' ? { background: '#2a1e1e' } : undefined}>
                   <td style={td}>
                     <button title="Click to copy Lead ID" onClick={() => { navigator.clipboard?.writeText(l.leadId); setCopiedId(l.leadId); setTimeout(() => setCopiedId(c => c === l.leadId ? null : c), 1500); }}
-                      style={{ fontSize: 11, fontFamily: 'ui-monospace, monospace', color: copiedId === l.leadId ? '#128a3f' : '#6B6A64', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
+                      style={{ fontSize: 11, fontFamily: 'ui-monospace, monospace', color: copiedId === l.leadId ? '#43B892' : '#C9C7BF', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
                       {copiedId === l.leadId ? '✓ copied' : l.leadId}
                     </button>
                   </td>
                   <td style={td}>
-                    <div style={{ fontWeight: 500 }}>{l.contactName || <span style={{ color: '#B4B2A9' }}>Unknown</span>}</div>
-                    {l.contactPhone && <div style={{ fontSize: 11, color: '#888780' }}>{l.contactPhone}</div>}
+                    <div style={{ fontWeight: 500 }}>{l.contactName || <span style={{ color: '#63615A' }}>Unknown</span>}</div>
+                    {l.contactPhone && <div style={{ fontSize: 11, color: '#908E85' }}>{l.contactPhone}</div>}
                   </td>
                   <td style={td}>
-                    <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 6, background: isMsg ? '#e6f7ff' : '#f1efe8', color: isMsg ? '#0891b2' : '#6B6A64' }}>
+                    <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 6, background: isMsg ? '#15263a' : '#232329', color: isMsg ? '#5B9BE0' : '#C9C7BF' }}>
                       {isMsg ? '💬 Message' : l.leadType === 'PHONE_CALL' ? '📞 Call' : l.leadType === 'BOOKING' ? '📅 Booking' : l.leadType}
                     </span>
                   </td>
-                  <td style={{ ...td, maxWidth: 320, color: '#6B6A64' }}>{l.lastMessageText ? (l.lastMessageText.length > 120 ? l.lastMessageText.slice(0, 120) + '…' : l.lastMessageText) : '—'}</td>
-                  <td style={{ ...td, color: '#6B6A64', whiteSpace: 'nowrap' }}>{fmtDate(l.creationDateTime)}</td>
-                  <td style={{ ...td, color: '#6B6A64', whiteSpace: 'nowrap' }}>{fmtWhen(l.lastActivityAt)}</td>
+                  <td style={{ ...td, maxWidth: 320, color: '#C9C7BF' }}>{l.lastMessageText ? (l.lastMessageText.length > 120 ? l.lastMessageText.slice(0, 120) + '…' : l.lastMessageText) : '—'}</td>
+                  <td style={{ ...td, color: '#C9C7BF', whiteSpace: 'nowrap' }}>{fmtDate(l.creationDateTime)}</td>
+                  <td style={{ ...td, color: '#C9C7BF', whiteSpace: 'nowrap' }}>{fmtWhen(l.lastActivityAt)}</td>
                   <td style={td}>
                     <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6,
-                      background: stageColor[l.status]?.bg || '#f1efe8', color: stageColor[l.status]?.fg || '#6B6A64', whiteSpace: 'nowrap' }}>
+                      background: stageColor[l.status]?.bg || '#232329', color: stageColor[l.status]?.fg || '#C9C7BF', whiteSpace: 'nowrap' }}>
                       {l.status}
                     </span>
                   </td>
                   <td style={td}>
                     {l.leadType === 'PHONE_CALL' ? (
-                      <span style={{ fontSize: 11, color: '#B4B2A9' }}>—</span>
+                      <span style={{ fontSize: 11, color: '#63615A' }}>—</span>
                     ) : undoable[l.leadId] !== undefined ? (
                       <button onClick={() => untagLead(l.leadId)}
-                        style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>
+                        style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#908E85', cursor: 'pointer' }}>
                         ↶ Undo
                       </button>
                     ) : (PESTAI_SEND_ENABLED && l.status === 'Sent to Pest AI') ? (
                       // Already sent to Pest AI — button greyed/disabled; offer release back to automatic.
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <button disabled title={l.pestAiSentAt ? `Sent ${new Date(l.pestAiSentAt).toLocaleString()}` : 'Sent to Pest AI'}
-                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#f1efe8', color: '#B4B2A9', cursor: 'not-allowed' }}>
+                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#232329', color: '#63615A', cursor: 'not-allowed' }}>
                           ✓ Sent to Pest AI
                         </button>
                         <button onClick={() => untagLead(l.leadId)}
-                          style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#B4B2A9', cursor: 'pointer' }}>
+                          style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#63615A', cursor: 'pointer' }}>
                           × untag
                         </button>
                       </div>
@@ -242,18 +234,18 @@ export default function LsaLeadsPage() {
                       // already tagged terminal — offer release back to automatic (only meaningful if manual)
                       l.manualOverride ? (
                         <button onClick={() => untagLead(l.leadId)}
-                          style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#B4B2A9', cursor: 'pointer' }}>
+                          style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#63615A', cursor: 'pointer' }}>
                           × untag
                         </button>
-                      ) : <span style={{ fontSize: 11, color: '#B4B2A9' }}>auto</span>
+                      ) : <span style={{ fontSize: 11, color: '#63615A' }}>auto</span>
                     ) : (
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                         <button onClick={() => tagLead(l.leadId, 'Booked', l.status)}
-                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #128a3f', background: '#e6f9ec', color: '#128a3f', cursor: 'pointer' }}>
+                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #43B892', background: '#143229', color: '#43B892', cursor: 'pointer' }}>
                           ✓ Booked
                         </button>
                         <button onClick={() => tagLead(l.leadId, 'Lost', l.status)}
-                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #B4B2A9', background: '#f1efe8', color: '#888780', cursor: 'pointer' }}>
+                          style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #63615A', background: '#232329', color: '#908E85', cursor: 'pointer' }}>
                           ✕ Lost
                         </button>
                         <button onClick={() => tagLead(l.leadId, 'Moved to DialPad', l.status)} title="Lead gave a phone # but went quiet in LSA — continue follow-ups in DialPad"
@@ -278,20 +270,20 @@ export default function LsaLeadsPage() {
 
       {/* Pagination */}
       {!loading && leads.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, fontSize: 12, color: '#888780' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, fontSize: 12, color: '#908E85' }}>
           <span>
             Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, leads.length)} of {leads.length}
           </span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <button onClick={() => setPage(1)} disabled={page === 1}
-              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: page === 1 ? '#D3D1C7' : '#2C2C2A', cursor: page === 1 ? 'default' : 'pointer' }}>« First</button>
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: page === 1 ? '#2A2A30' : '#F0EEE8', cursor: page === 1 ? 'default' : 'pointer' }}>« First</button>
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: page === 1 ? '#D3D1C7' : '#2C2C2A', cursor: page === 1 ? 'default' : 'pointer' }}>‹ Prev</button>
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: page === 1 ? '#2A2A30' : '#F0EEE8', cursor: page === 1 ? 'default' : 'pointer' }}>‹ Prev</button>
             <span style={{ padding: '0 8px' }}>Page {page} of {totalPages}</span>
             <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: page === totalPages ? '#D3D1C7' : '#2C2C2A', cursor: page === totalPages ? 'default' : 'pointer' }}>Next ›</button>
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: page === totalPages ? '#2A2A30' : '#F0EEE8', cursor: page === totalPages ? 'default' : 'pointer' }}>Next ›</button>
             <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
-              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', color: page === totalPages ? '#D3D1C7' : '#2C2C2A', cursor: page === totalPages ? 'default' : 'pointer' }}>Last »</button>
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: page === totalPages ? '#2A2A30' : '#F0EEE8', cursor: page === totalPages ? 'default' : 'pointer' }}>Last »</button>
           </div>
         </div>
       )}
