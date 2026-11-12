@@ -14,6 +14,7 @@ export default function ServicePoolPage() {
   const [search, setSearch] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [poolTab, setPoolTab] = useState<'overdue' | 'upcoming'>('overdue');
 
   useEffect(() => {
     setLoading(true);
@@ -102,23 +103,27 @@ export default function ServicePoolPage() {
             { icon: '📅', label: from || to ? 'Due in window' : 'Due upcoming', value: data.totals.windowCount, tone: 'blue', delta: money(data.totals.windowCV) },
           ]} />
 
-          {/* Overdue — red, prominent, on top */}
-          {overdue.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#E57C7C', marginBottom: 8 }}>⚠ Overdue — {overdue.length} not scheduled</div>
-              <div style={{ border: '0.5px solid #4a2626', borderRadius: 12, overflow: 'auto', background: '#1C1C21' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <Header />
-                  <tbody>{overdue.map((i: any) => <Row key={i.id} i={i} overdue />)}</tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          {/* Tabs */}
+          <div style={{ display: 'inline-flex', gap: 6, marginBottom: 14 }}>
+            {([['overdue', `⚠ Overdue (${overdue.length})`], ['upcoming', `Due ${from || to ? 'in window' : 'upcoming'} (${inWindow.length})`]] as const).map(([k, label]) => {
+              const on = poolTab === k;
+              return <button key={k} onClick={() => setPoolTab(k)} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on ? '#5B9BE0' : '#2A2A30'}`, background: on ? '#15263a' : '#1C1C21', color: on ? '#5B9BE0' : '#908E85' }}>{label}</button>;
+            })}
+          </div>
 
-          {/* Due in window / upcoming */}
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#F0EEE8', marginBottom: 8 }}>Due {from || to ? 'in selected window' : 'upcoming'} — {inWindow.length}</div>
-            <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#1C1C21' }}>
+          {poolTab === 'overdue' ? (
+            <div style={{ border: '1px solid #4a2626', borderRadius: 14, overflow: 'auto', maxHeight: '62vh', background: '#1C1C21', scrollbarGutter: 'stable' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <Header />
+                <tbody>
+                  {overdue.length === 0 ? (
+                    <tr><td style={{ ...td, textAlign: 'center', color: '#908E85', padding: 30 }} colSpan={9}>None overdue 🎉</td></tr>
+                  ) : overdue.map((i: any) => <Row key={i.id} i={i} overdue />)}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ border: '1px solid #2A2A30', borderRadius: 14, overflow: 'auto', maxHeight: '62vh', background: '#1C1C21', scrollbarGutter: 'stable' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <Header />
                 <tbody>
@@ -128,7 +133,7 @@ export default function ServicePoolPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          )}
 
           {data.lastSync && <p style={{ fontSize: 11, color: '#63615A', marginTop: 12 }}>Last synced {new Date(data.lastSync).toLocaleString()}</p>}
         </>

@@ -60,7 +60,8 @@ export default function CommandShell({ children, title }: { children: React.Reac
     })).filter(g => g.items.length > 0);
   }, [user, q]);
 
-  const isActive = (href: string) => pathname === href || (href !== '/overview' && pathname?.startsWith(href));
+  // Match exact path, or a sub-path at a boundary (so /csr doesn't light up on /csr-pest-sales).
+  const isActive = (href: string) => pathname === href || (href !== '/overview' && !!pathname && (pathname.startsWith(href + '/')));
 
   return (
     <div style={S.app}>
