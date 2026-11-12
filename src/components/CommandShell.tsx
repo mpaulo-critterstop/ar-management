@@ -125,5 +125,5 @@ const S: Record<string, React.CSSProperties> = {
   footRole: { fontSize: 11, color: DARK.muted },
   signout: { background: 'transparent', border: 'none', color: DARK.muted, cursor: 'pointer', fontSize: 15 },
   // Main scrolls; sidebar stays fixed. Full width (no max-width cap), centered content with generous max for readability.
-  main: { flex: 1, minWidth: 0, height: '100vh', overflowY: 'auto', padding: '24px 32px 60px' },
+  main: { flex: 1, minWidth: 0, height: '100vh', overflowY: 'scroll', scrollbarGutter: 'stable', padding: '24px 32px 60px' },
 };

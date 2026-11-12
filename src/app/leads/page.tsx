@@ -222,6 +222,7 @@ export default function LeadsPage() {
   return (
     <div style={{ padding: '30px 34px 70px', maxWidth: 1400, margin: '0 auto' }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: '#121216', paddingTop: 2, margin: '0 -34px', padding: '2px 34px 6px' }}>
       <CCPageHeader icon="🎯" title="Leads Tracker" subtitle="Wildlife inspection leads, PM performance, conversion and commissions"
         actions={<LastSynced office={office} />} />
 
@@ -240,6 +241,7 @@ export default function LeadsPage() {
             <button onClick={() => setActiveTab('commissions')} style={{ padding: '7px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on?'#5B9BE0':'#2A2A30'}`, background: on?'#15263a':'#1C1C21', color: on?'#5B9BE0':'#908E85' }}>Commissions</button>
           );})()}
         </div>
+      </div>
       </div>
 
       {/* LEADS TAB */}
