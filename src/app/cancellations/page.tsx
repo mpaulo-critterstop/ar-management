@@ -58,14 +58,14 @@ export default function CancellationsPage() {
       {/* Office filter */}
       <div style={{ display: 'flex', gap: 8, marginTop: 16, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, color: '#908E85' }}>Office:</span>
-        <select value={office} onChange={e => setOffice(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21' }}>
+        <select value={office} onChange={e => setOffice(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8' }}>
           <option value="All">All offices</option>
           {['DFW', 'ATX', 'OKC', 'CStat', ...offices.filter(o => !['DFW', 'ATX', 'OKC', 'CStat'].includes(o))].map(o => <option key={o} value={o}>{o}</option>)}
         </select>
         {tab === 'winback' && (
           <>
             <span style={{ fontSize: 12, color: '#908E85', marginLeft: 8 }}>Reason:</span>
-            <select value={reasonFilter} onChange={e => setReasonFilter(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21' }}>
+            <select value={reasonFilter} onChange={e => setReasonFilter(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8' }}>
               <option value="All">All reasons</option>
               {(churn?.byReason || []).map((r: any) => <option key={r.reason} value={r.reason}>{r.reason}</option>)}
             </select>

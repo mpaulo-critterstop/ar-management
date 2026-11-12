@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import CCDatePicker from '@/components/cc/DatePicker';
-import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip } from '@/components/cc/Layout';
+import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, SearchBox as CCSearchBox } from '@/components/cc/Layout';
 
 const money = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : '—';
@@ -126,8 +126,8 @@ export default function PestInspectionsPage() {
       ) : (
         <>
           <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'center' }}>
-            <input type="text" placeholder="Search customer / FR ID…" value={search} onChange={e => setSearch(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', minWidth: 220 }} />
-            <select value={pmF} onChange={e => setPmF(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21' }}>
+            <div style={{ minWidth: 230 }}><CCSearchBox value={search} onChange={setSearch} placeholder="Search customer / FR ID…" /></div>
+            <select value={pmF} onChange={e => setPmF(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8' }}>
               {pmOptions.map((p: string) => <option key={p} value={p}>{p === 'All' ? 'All PMs' : p}</option>)}
             </select>
             <div style={{ display: 'inline-flex', gap: 2, padding: 4, borderRadius: 10, background: '#232329', border: '0.5px solid #2A2A30' }}>

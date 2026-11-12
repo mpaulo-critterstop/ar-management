@@ -1,6 +1,6 @@
 'use client';
 import CCDatePicker from '@/components/cc/DatePicker';
-import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
+import { PageHeader as CCPageHeader, SearchBox as CCSearchBox } from '@/components/cc/Layout';
 import { useEffect, useState } from 'react';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -82,13 +82,13 @@ export default function CsrPestSalesPage() {
       {/* Office filter (shared) */}
       <div style={{ display: 'flex', gap: 8, marginTop: 16, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, color: '#908E85' }}>Office:</span>
-        <select value={office} onChange={e => setOffice(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21' }}>
+        <select value={office} onChange={e => setOffice(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8' }}>
           <option value="All">All offices</option>
           {['DFW', 'ATX', 'OKC', 'CStat', ...offices.filter(o => !['DFW', 'ATX', 'OKC', 'CStat'].includes(o))].map(o => <option key={o} value={o}>{o}</option>)}
         </select>
         {tab === 'sales' && <>
-          <input type="text" placeholder="Search customer/CSR..." value={search} onChange={e => setSearch(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', minWidth: 180 }} />
-          <select value={status} onChange={e => setStatus(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21' }}>
+          <div style={{ minWidth: 220 }}><CCSearchBox value={search} onChange={setSearch} placeholder="Search customer / CSR…" /></div>
+          <select value={status} onChange={e => setStatus(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8' }}>
             <option value="All">All statuses</option><option value="Serviced">Serviced</option><option value="Pending">Pending initial</option>
           </select>
         </>}

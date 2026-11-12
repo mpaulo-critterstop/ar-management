@@ -1,6 +1,6 @@
 'use client';
 import CCDatePicker from '@/components/cc/DatePicker';
-import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip } from '@/components/cc/Layout';
+import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, SearchBox as CCSearchBox } from '@/components/cc/Layout';
 import { useEffect, useState } from 'react';
 
 const money = (n: number) => (n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -80,10 +80,9 @@ export default function ServicePoolPage() {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 12, marginTop: 16, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input type="text" placeholder="Search customer / phone / FR ID..." value={search} onChange={e => setSearch(e.target.value)}
-          style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', minWidth: 220 }} />
+        <div style={{ minWidth: 240 }}><CCSearchBox value={search} onChange={setSearch} placeholder="Search customer / phone / FR ID…" /></div>
         <span style={{ fontSize: 12, color: '#908E85' }}>Office:</span>
-        <select value={office} onChange={e => setOffice(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21' }}>
+        <select value={office} onChange={e => setOffice(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8' }}>
           <option value="All">All offices</option>
           {['DFW', 'ATX', 'OKC', 'CStat', ...offices.filter(o => !['DFW', 'ATX', 'OKC', 'CStat'].includes(o))].map(o => <option key={o} value={o}>{o}</option>)}
         </select>

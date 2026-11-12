@@ -56,7 +56,7 @@ export default function ExclusionScheduling() {
       )}
 
       {data && (data.jobs || []).length > 0 && (
-        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+        <div style={{ border: '1px solid #2A2A30', borderRadius: 14, overflow: 'hidden', background: '#1C1C21' }}>
           <div style={{ maxHeight: 640, overflowY: 'auto', overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
@@ -75,7 +75,7 @@ export default function ExclusionScheduling() {
               <tbody>
                 {(data.jobs || []).map((j: any, i: number) => (
                   <>
-                    <tr key={i} style={{ background: i % 2 ? '#232329' : undefined }}>
+                    <tr key={i} style={{ background: i % 2 ? '#1f1f24' : 'transparent' }}>
                       <td style={{ ...td, fontWeight: 600 }}>{j.customer || j.frCustomerId || '—'}</td>
                       <td style={{ ...td, color: '#C9C7BF' }}>{j.pm || '—'}</td>
                       <td style={{ ...td, textAlign: 'center', color: '#908E85' }}>{j.frCustomerId || '—'}</td>
@@ -87,7 +87,7 @@ export default function ExclusionScheduling() {
                       <td style={{ ...td, textAlign: 'center' }} title={j.bookedWallClockHours != null ? `${j.bookedWallClockHours}h wall-clock × ${j.crewSize} tech${j.crewSize === 1 ? '' : 's'}` : ''}>{j.bookedHours != null ? <>{j.bookedHours}h{j.crewSize ? <span style={{ color: '#63615A', fontSize: 11 }}> ({j.bookedWallClockHours}h×{j.crewSize})</span> : null}</> : '—'}</td>
                       <td style={td}><span style={{ ...statusStyle(j.schedulingNote), fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 20, whiteSpace: 'nowrap' }}>{j.schedulingNote}</span></td>
                       <td style={{ ...td, textAlign: 'center' }}>
-                        {j.breakdown && <button onClick={() => setExpanded(expanded === j.proposalUuid ? null : j.proposalUuid)} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', cursor: 'pointer' }}>{expanded === j.proposalUuid ? '▲' : '▼'}</button>}
+                        {j.breakdown && <button onClick={() => setExpanded(expanded === j.proposalUuid ? null : j.proposalUuid)} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8', cursor: 'pointer' }}>{expanded === j.proposalUuid ? '▲' : '▼'}</button>}
                       </td>
                     </tr>
                     {expanded === j.proposalUuid && j.breakdown && (

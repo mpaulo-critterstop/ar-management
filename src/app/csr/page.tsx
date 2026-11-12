@@ -181,8 +181,8 @@ export default function CsrPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 500 }}>CSR employees</h3>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setShowAddCSR(true)} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', cursor: 'pointer' }}>+ Add CSR</button>
-                <button onClick={() => { setShowManageCSR(false); setShowAddCSR(false); }} style={{ padding: '6px 10px', fontSize: 12, borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', cursor: 'pointer' }}>✕</button>
+                <button onClick={() => setShowAddCSR(true)} style={{ padding: '7px 13px', fontSize: 12, borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8', cursor: 'pointer', fontWeight: 600 }}>+ Add CSR</button>
+                <button onClick={() => { setShowManageCSR(false); setShowAddCSR(false); }} style={{ padding: '7px 11px', fontSize: 12, borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8', cursor: 'pointer' }}>✕</button>
               </div>
             </div>
             {showAddCSR && (
