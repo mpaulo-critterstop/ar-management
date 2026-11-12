@@ -1,6 +1,7 @@
 'use client';
-import BackButton from '@/components/BackButton';
 import { useEffect, useState } from 'react';
+import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, DataTable as CCDataTable, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
+import { Btn as CCBtn, StatusPill as CCStatusPill } from '@/components/cc/Primitives';
 
 const OFFICES = ['DFW', 'ATX', 'OKC', 'CStat'];
 const CATEGORIES = ['All', 'Pest Control', 'Rodent Bundle', 'Termite'];
@@ -49,108 +50,86 @@ export default function PestSalesPage() {
   });
   const th: React.CSSProperties = { textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3', textTransform: 'uppercase', letterSpacing: '0.03em' };
   const td: React.CSSProperties = { padding: '9px 12px', fontSize: 13, color: '#2C2C2A', borderBottom: '0.5px solid #F1EFE8' };
+  const selStyle: React.CSSProperties = { fontSize: 12.5, padding: '8px 11px', borderRadius: 9, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8', cursor: 'pointer' };
+  const dateStyle: React.CSSProperties = { fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '1px solid #35353C', background: '#26262C', color: '#F0EEE8' };
+
+  const catTone: any = { 'Pest Control': 'blue', 'Rodent Bundle': 'amber', 'Termite': 'violet' };
+  const totalCV = sales.reduce((a: number, s: any) => a + (s.contractValue || 0), 0);
+  const servicedN = sales.filter((s: any) => s.initialDone).length;
+  const pendingN = sales.filter((s: any) => !s.initialDone).length;
 
   return (
-    <div style={{ padding: '0 24px 24px', maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ padding: '16px 20px 0' }}><BackButton /></div>
-      <div style={{ paddingTop: 24, marginBottom: 4 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Pest Control Sales</h1>
-        <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>PM pest, rodent bundle, and termite sales from FieldRoutes. Commission counts once the initial service is completed.</p>
-      </div>
+    <div style={{ padding: '30px 34px 70px', maxWidth: 1400, margin: '0 auto' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: '#121216', margin: '0 -34px', padding: '2px 34px 6px' }}>
+      <CCPageHeader icon="🐀" title="Pest Control Sales" subtitle="PM pest, rodent-bundle and termite sales with initial-service tracking" />
 
-      {/* Office toggle */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', paddingTop: 20 }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
-          {OFFICES.map(o => (
-            <button key={o} onClick={() => setOffice(o)} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: office === o ? '#2C2C2A' : '#888780', background: office === o ? '#fff' : 'transparent', border: office === o ? '0.5px solid #D3D1C7' : '0.5px solid transparent', cursor: 'pointer' }}>{o}</button>
-          ))}
+      {/* Office pills + filters */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'inline-flex', gap: 6 }}>
+          {OFFICES.map(o => { const on = office === o; return (
+            <button key={o} onClick={() => setOffice(o)} style={{ padding: '7px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on ? '#5B9BE0' : '#2A2A30'}`, background: on ? '#15263a' : '#1C1C21', color: on ? '#5B9BE0' : '#908E85' }}>{o}</button>
+          );})}
         </div>
-      </div>
-
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, color: '#888780' }}>Filters:</span>
-        <input type="text" placeholder="Search customer..." value={search} onChange={e => setSearch(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', minWidth: 180 }} />
-        <select value={category} onChange={e => setCategory(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+        <select value={category} onChange={e => setCategory(e.target.value)} style={selStyle}>
           {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
-        <select value={pm} onChange={e => setPm(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+        <select value={pm} onChange={e => setPm(e.target.value)} style={selStyle}>
           <option value="All">All PMs</option>
           {(data?.pmNames || []).map((p: string) => <option key={p} value={p}>{p}</option>)}
         </select>
-        <select value={status} onChange={e => setStatus(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+        <select value={status} onChange={e => setStatus(e.target.value)} style={selStyle}>
           <option value="All">All statuses</option>
           <option value="Serviced">Serviced</option>
           <option value="Pending">Pending initial</option>
         </select>
+        <div style={{ marginLeft: 'auto', minWidth: 230 }}>
+          <CCSearchBox value={search} onChange={setSearch} placeholder="Search customer…" />
+        </div>
       </div>
 
       {/* Date-range filters */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: '#888780' }}>Sale date:</span>
-          <input type="date" value={saleFrom} onChange={e => setSaleFrom(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
-          <span style={{ fontSize: 12, color: '#B4B2A9' }}>to</span>
-          <input type="date" value={saleTo} onChange={e => setSaleTo(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+          <span style={{ fontSize: 12, color: '#908E85' }}>Sale date:</span>
+          <input type="date" value={saleFrom} onChange={e => setSaleFrom(e.target.value)} style={dateStyle} />
+          <span style={{ fontSize: 12, color: '#63615A' }}>to</span>
+          <input type="date" value={saleTo} onChange={e => setSaleTo(e.target.value)} style={dateStyle} />
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: '#888780' }}>Initial service date:</span>
-          <input type="date" value={initFrom} onChange={e => setInitFrom(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
-          <span style={{ fontSize: 12, color: '#B4B2A9' }}>to</span>
-          <input type="date" value={initTo} onChange={e => setInitTo(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
+          <span style={{ fontSize: 12, color: '#908E85' }}>Initial service:</span>
+          <input type="date" value={initFrom} onChange={e => setInitFrom(e.target.value)} style={dateStyle} />
+          <span style={{ fontSize: 12, color: '#63615A' }}>to</span>
+          <input type="date" value={initTo} onChange={e => setInitTo(e.target.value)} style={dateStyle} />
         </div>
         {(saleFrom || saleTo || initFrom || initTo) && (
-          <button onClick={() => { setSaleFrom(''); setSaleTo(''); setInitFrom(''); setInitTo(''); }}
-            style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>Clear dates</button>
+          <CCBtn variant="ghost" onClick={() => { setSaleFrom(''); setSaleTo(''); setInitFrom(''); setInitTo(''); }}>Clear dates</CCBtn>
         )}
       </div>
+      </div>
 
-      {/* Summary — computed from the currently-filtered rows so it respects date/other filters */}
-      {!loading && (
-        <div style={{ display: 'flex', gap: 20, marginBottom: 16, fontSize: 13, color: '#2C2C2A', flexWrap: 'wrap' }}>
-          <span><strong>{sales.length}</strong> sales</span>
-          <span><strong>{money(sales.reduce((a: number, s: any) => a + (s.contractValue || 0), 0))}</strong> contract value</span>
-          <span style={{ color: '#128a3f' }}><strong>{sales.filter((s: any) => s.initialDone).length}</strong> serviced</span>
-          <span style={{ color: '#b45309' }}><strong>{sales.filter((s: any) => !s.initialDone).length}</strong> pending initial</span>
-          {((saleFrom && saleTo) || (initFrom && initTo)) && <span style={{ color: '#888780' }}>(filtered)</span>}
-        </div>
-      )}
+      {/* KPI strip */}
+      <CCKpiStrip items={[
+        { icon: '🐀', label: 'Sales', value: loading ? '…' : sales.length, tone: 'blue' },
+        { icon: '💵', label: 'Contract value', value: loading ? '…' : money(totalCV), tone: 'green' },
+        { icon: '✅', label: 'Serviced', value: loading ? '…' : servicedN, tone: 'green' },
+        { icon: '⏳', label: 'Pending initial', value: loading ? '…' : pendingN, tone: 'amber' },
+      ]} />
 
       {/* Table */}
-      <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr>
-            <th style={th}>Customer</th><th style={th}>PM</th><th style={th}>Category</th>
-            <th style={th}>Service</th><th style={{ ...th, textAlign: 'right' }}>Contract Value</th>
-            <th style={th}>Sale Date</th><th style={th}>Initial Service Date</th><th style={th}>Status</th>
-          </tr></thead>
-          <tbody>
-            {loading ? (
-              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={8}>Loading…</td></tr>
-            ) : sales.length === 0 ? (
-              <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={8}>No pest sales for these filters.</td></tr>
-            ) : sales.map((s: any) => {
-              const c = catColor[s.category] || { bg: '#f1efe8', fg: '#888780' };
-              return (
-                <tr key={s.id}>
-                  <td style={td}>{s.customerName || <span style={{ color: '#B4B2A9' }}>#{s.customerId}</span>}</td>
-                  <td style={td}>{s.pmName}</td>
-                  <td style={td}><span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 6, background: c.bg, color: c.fg }}>{s.category}</span></td>
-                  <td style={{ ...td, color: '#6B6A64' }}>{s.category === 'Rodent Bundle' ? (s.chargeChildService ? `Bundle · ${s.chargeChildService}` : 'Bundle') : s.serviceName}</td>
-                  <td style={{ ...td, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{money(s.contractValue)}</td>
-                  <td style={{ ...td, color: '#6B6A64' }}>{fmtDate(s.saleDate)}</td>
-                  <td style={{ ...td, color: '#6B6A64', fontVariantNumeric: 'tabular-nums' }}>{s.initialDone ? fmtDate(s.initialCompletedAt) : '—'}</td>
-                  <td style={td}>
-                    {s.initialDone
-                      ? <span style={{ fontSize: 12, color: '#128a3f' }}>Serviced</span>
-                      : <span style={{ fontSize: 12, color: '#b45309' }}>Pending initial</span>}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <CCDataTable
+        rowKey={(s: any) => s.id}
+        empty={loading ? 'Loading…' : 'No pest sales for these filters.'}
+        cols={[
+          { key: 'cust', label: 'Customer', render: (s: any) => <CCCustomerCell name={s.customerName || `#${s.customerId}`} sub={s.pmName || undefined} /> },
+          { key: 'cat', label: 'Category', render: (s: any) => <CCStatusPill tone={catTone[s.category] || 'neutral'}>{s.category}</CCStatusPill> },
+          { key: 'service', label: 'Service', wrap: true, render: (s: any) => <span style={{ color: '#C9C7BF', fontSize: 12.5 }}>{s.category === 'Rodent Bundle' ? (s.chargeChildService ? `Bundle · ${s.chargeChildService}` : 'Bundle') : s.serviceName}</span> },
+          { key: 'cv', label: 'Contract Value', align: 'right', render: (s: any) => <span style={{ fontWeight: 700, color: '#F0EEE8', fontVariantNumeric: 'tabular-nums' }}>{money(s.contractValue)}</span> },
+          { key: 'saleDate', label: 'Sale date', render: (s: any) => <span style={{ color: '#908E85', fontSize: 12.5 }}>{fmtDate(s.saleDate)}</span> },
+          { key: 'initDate', label: 'Initial service', render: (s: any) => <span style={{ color: '#908E85', fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>{s.initialDone ? fmtDate(s.initialCompletedAt) : '—'}</span> },
+          { key: 'status', label: 'Status', render: (s: any) => s.initialDone ? <CCStatusPill tone="green">Serviced</CCStatusPill> : <CCStatusPill tone="amber">Pending</CCStatusPill> },
+        ]}
+        rows={sales}
+      />
     </div>
   );
 }
