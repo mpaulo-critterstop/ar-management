@@ -215,12 +215,12 @@ export default function ARApp() {
 
   const PAGES = [
     {id:"dashboard",label:"Dashboard"},
-    {id:"callsheet",label:"Call Sheet"},
-    {id:"stages",label:"Collections / SCC / Bad Debt",href:"/ar/collections"},
     {id:"customers",label:"Customers"},
     {id:"invoices",label:"Invoices"},
     {id:"payments",label:"Payments"},
     {id:"aging",label:"Aging"},
+    {id:"callsheet",label:"Call Sheet"},
+    {id:"stages",label:"Collections / SCC / Bad Debt",href:"/ar/collections"},
   ];
 
   if(loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:300,fontSize:13,color:"#908E85"}}>Loading AR data…</div>;
@@ -340,44 +340,36 @@ function CallSheetPage({officeFilter, showToast}: any) {
 
   return (
     <div>
-      <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:16}}>
-        <div style={{fontSize:15,fontWeight:600,color:"#F0EEE8"}}>Today&apos;s Call Sheet</div>
-        <div style={{fontSize:13,color:"#908E85"}}>{items.length} to call{allItems.length===0?" — all caught up 🎉":""}</div>
-      </div>
+      <CCSectionHeader note={`${items.length} to call${allItems.length===0?" — all caught up 🎉":""}`}>Today&apos;s Call Sheet</CCSectionHeader>
 
-      {/* Search + service filter */}
-      <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center",flexWrap:"wrap"}}>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customer…"
-          style={{padding:"7px 12px",fontSize:13,borderRadius:8,border:"0.5px solid #2A2A30",minWidth:220}} />
-        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#232329",border:"0.5px solid #2A2A30"}}>
-          {(["all","Pest Control","Wildlife"] as const).map(s=>(
-            <button key={s} onClick={()=>setSvcFilter(s)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:svcFilter===s?"0.5px solid #2A2A30":"0.5px solid transparent",background:svcFilter===s?"#1C1C21":"transparent",color:svcFilter===s?"#F0EEE8":"#908E85"}}>
-              {s==="all"?"All Services":s}
-            </button>
-          ))}
+      {/* Filters */}
+      <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
+        <div style={{display:"inline-flex",gap:6}}>
+          {(["all","Pest Control","Wildlife"] as const).map(s=>{const on=svcFilter===s;return(
+            <button key={s} onClick={()=>setSvcFilter(s)} style={{padding:"7px 13px",borderRadius:9,fontSize:12.5,fontWeight:on?600:500,cursor:"pointer",border:`1px solid ${on?"#5B9BE0":"#2A2A30"}`,background:on?"#15263a":"#1C1C21",color:on?"#5B9BE0":"#908E85"}}>{s==="all"?"All Services":s}</button>
+          );})}
         </div>
-        <div style={{display:"inline-flex",gap:2,padding:4,borderRadius:10,background:"#232329",border:"0.5px solid #2A2A30"}}>
-          {([["all","All"],["notyet","Not called yet"],["called","Called"]] as const).map(([v,label])=>(
-            <button key={v} onClick={()=>setCalledFilter(v as any)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",border:calledFilter===v?"0.5px solid #2A2A30":"0.5px solid transparent",background:calledFilter===v?"#1C1C21":"transparent",color:calledFilter===v?(v==="notyet"?"#E57C7C":"#F0EEE8"):"#908E85"}}>
-              {label}{v==="notyet"&&notYetCount>0?` (${notYetCount})`:""}
-            </button>
-          ))}
+        <div style={{display:"inline-flex",gap:6}}>
+          {([["all","All"],["notyet","Not called yet"],["called","Called"]] as const).map(([v,label])=>{const on=calledFilter===v;return(
+            <button key={v} onClick={()=>setCalledFilter(v as any)} style={{padding:"7px 13px",borderRadius:9,fontSize:12.5,fontWeight:on?600:500,cursor:"pointer",border:`1px solid ${on?(v==="notyet"?"#E57C7C":"#5B9BE0"):"#2A2A30"}`,background:on?(v==="notyet"?"#361e1e":"#15263a"):"#1C1C21",color:on?(v==="notyet"?"#E57C7C":"#5B9BE0"):"#908E85"}}>{label}{v==="notyet"&&notYetCount>0?` (${notYetCount})`:""}</button>
+          );})}
         </div>
+        <div style={{marginLeft:"auto",minWidth:220}}><CCSearchBox value={search} onChange={setSearch} placeholder="Search customer…" /></div>
       </div>
 
       {items.length>0 ? (
-        <div style={{background:"#1C1C21",borderRadius:12,border:"0.5px solid #2A2A30",overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+        <div style={{background:"#1C1C21",borderRadius:14,border:"1px solid #2A2A30",overflow:"auto",maxHeight:"64vh"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
             <thead>
-              <tr style={{color:"#908E85",textAlign:"left"}}>
-                <th style={{padding:"10px 12px",fontWeight:500}}>Customer</th>
-                <th style={{padding:"10px 12px",fontWeight:500}}>Service</th>
-                <th onClick={()=>toggleSort("outstanding")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="outstanding"?"#5B9BE0":"#908E85"}}>Outstanding{sortArrow("outstanding")}</th>
-                <th onClick={()=>toggleSort("overdue")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="overdue"?"#5B9BE0":"#908E85"}}>Overdue{sortArrow("overdue")}</th>
-                <th onClick={()=>toggleSort("lastCall")} style={{padding:"10px 12px",fontWeight:500,textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="lastCall"?"#5B9BE0":"#908E85"}}>Last Call{sortArrow("lastCall")}</th>
-                <th style={{padding:"10px 12px",fontWeight:500}}>Phone</th>
-                <th style={{padding:"10px 12px",fontWeight:500,minWidth:180}}>Note</th>
-                <th style={{padding:"10px 12px",fontWeight:500}}></th>
+              <tr style={{textAlign:"left"}}>
+                <th style={{padding:"13px 16px",fontWeight:600,fontSize:11,letterSpacing:".05em",textTransform:"uppercase",color:"#908E85",background:"#232329",borderBottom:"1px solid #2A2A30",position:"sticky",top:0,zIndex:2}}>Customer</th>
+                <th style={{padding:"13px 16px",fontWeight:600,fontSize:11,letterSpacing:".05em",textTransform:"uppercase",color:"#908E85",background:"#232329",borderBottom:"1px solid #2A2A30",position:"sticky",top:0,zIndex:2}}>Service</th>
+                <th onClick={()=>toggleSort("outstanding")} style={{padding:"13px 16px",fontWeight:600,fontSize:11,letterSpacing:".05em",textTransform:"uppercase",textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="outstanding"?"#5B9BE0":"#908E85",background:"#232329",borderBottom:"1px solid #2A2A30",position:"sticky",top:0,zIndex:2}}>Outstanding{sortArrow("outstanding")}</th>
+                <th onClick={()=>toggleSort("overdue")} style={{padding:"13px 16px",fontWeight:600,fontSize:11,letterSpacing:".05em",textTransform:"uppercase",textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="overdue"?"#5B9BE0":"#908E85",background:"#232329",borderBottom:"1px solid #2A2A30",position:"sticky",top:0,zIndex:2}}>Overdue{sortArrow("overdue")}</th>
+                <th onClick={()=>toggleSort("lastCall")} style={{padding:"13px 16px",fontWeight:600,fontSize:11,letterSpacing:".05em",textTransform:"uppercase",textAlign:"right",cursor:"pointer",userSelect:"none",color:sortBy==="lastCall"?"#5B9BE0":"#908E85",background:"#232329",borderBottom:"1px solid #2A2A30",position:"sticky",top:0,zIndex:2}}>Last Call{sortArrow("lastCall")}</th>
+                <th style={{padding:"13px 16px",fontWeight:600,fontSize:11,letterSpacing:".05em",textTransform:"uppercase",color:"#908E85",background:"#232329",borderBottom:"1px solid #2A2A30",position:"sticky",top:0,zIndex:2}}>Phone</th>
+                <th style={{padding:"13px 16px",fontWeight:600,fontSize:11,letterSpacing:".05em",textTransform:"uppercase",color:"#908E85",background:"#232329",borderBottom:"1px solid #2A2A30",minWidth:180,position:"sticky",top:0,zIndex:2}}>Note</th>
+                <th style={{padding:"13px 16px",fontWeight:600,fontSize:11,letterSpacing:".05em",textTransform:"uppercase",color:"#908E85",background:"#232329",borderBottom:"1px solid #2A2A30",position:"sticky",top:0,zIndex:2}}></th>
               </tr>
             </thead>
             <tbody>
@@ -385,26 +377,26 @@ function CallSheetPage({officeFilter, showToast}: any) {
                 const noteVal = noteEdits[it.invoiceId]!==undefined ? noteEdits[it.invoiceId] : it.arNote;
                 const dirty = noteEdits[it.invoiceId]!==undefined && noteEdits[it.invoiceId]!==it.arNote;
                 return (
-                <tr key={it.invoiceId} style={{borderTop:"0.5px solid #232329"}}>
-                  <td style={{padding:"10px 12px",fontWeight:500,color:"#F0EEE8"}}>
+                <tr key={it.invoiceId} style={{borderTop:"1px solid #2A2A30"}}>
+                  <td style={{padding:"12px 16px",fontWeight:600,color:"#F0EEE8"}}>
                     {it.customerName}
                     <div style={{fontSize:11,color:"#63615A"}}>{it.serviceAddr||""}</div>
                   </td>
-                  <td style={{padding:"10px 12px"}}>
-                    <span style={{fontSize:11,padding:"2px 7px",borderRadius:6,background:it.serviceCategory==="Wildlife"?"#143229":"#15263a",color:it.serviceCategory==="Wildlife"?"#43B892":"#5B9BE0"}}>{it.serviceCategory}</span>
+                  <td style={{padding:"12px 16px"}}>
+                    <span style={{fontSize:11.5,fontWeight:600,padding:"3px 10px",borderRadius:20,background:it.serviceCategory==="Wildlife"?"#143229":"#15263a",color:it.serviceCategory==="Wildlife"?"#43B892":"#5B9BE0"}}>{it.serviceCategory}</span>
                   </td>
-                  <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,color:"#E57C7C"}}>{money(it.outstanding)}</td>
-                  <td style={{padding:"10px 12px",textAlign:"right"}}>{it.daysOverdue}d</td>
-                  <td style={{padding:"10px 12px",textAlign:"right",color:"#C9C7BF"}}>
+                  <td style={{padding:"12px 16px",textAlign:"right",fontWeight:700,color:"#E57C7C",fontVariantNumeric:"tabular-nums"}}>{money(it.outstanding)}</td>
+                  <td style={{padding:"12px 16px",textAlign:"right",color:"#C9C7BF",fontVariantNumeric:"tabular-nums"}}>{it.daysOverdue}d</td>
+                  <td style={{padding:"12px 16px",textAlign:"right",color:"#C9C7BF",fontVariantNumeric:"tabular-nums"}}>
                     {it.daysSinceCall==null?<span style={{color:"#C9C7BF"}}>never</span>:`${it.daysSinceCall}d`}
                     {it.calledThisWindow && <div style={{fontSize:10,color:"#43B892"}}>✓ called</div>}
                   </td>
-                  <td style={{padding:"10px 12px",color:"#C9C7BF"}}>{it.phone||"—"}</td>
+                  <td style={{padding:"12px 16px",color:"#C9C7BF"}}>{it.phone||"—"}</td>
                   <td style={{padding:"8px 12px"}}>
                     <div style={{display:"flex",gap:4,alignItems:"center"}}>
                       <input value={noteVal} onChange={e=>setNoteEdits(p=>({...p,[it.invoiceId]:e.target.value}))}
                         placeholder="Add note…" style={{flex:1,padding:"5px 8px",fontSize:12,borderRadius:6,border:"0.5px solid #2A2A30",minWidth:120}} />
-                      {dirty && <button onClick={()=>saveNote(it.invoiceId)} disabled={savingNote===it.invoiceId} style={{padding:"5px 8px",fontSize:11,borderRadius:6,border:"none",background:"#5B9BE0",color:"#1C1C21",cursor:"pointer"}}>{savingNote===it.invoiceId?"…":"Save"}</button>}
+                      {dirty && <CCBtn variant="blue" style={{padding:"5px 11px",fontSize:11.5}} onClick={()=>saveNote(it.invoiceId)} disabled={savingNote===it.invoiceId}>{savingNote===it.invoiceId?"…":"Save"}</CCBtn>}
                     </div>
                     {it.lastNote && (
                       <div style={{marginTop:3}}>
@@ -427,10 +419,10 @@ function CallSheetPage({officeFilter, showToast}: any) {
                       </div>
                     )}
                   </td>
-                  <td style={{padding:"10px 12px"}}>
+                  <td style={{padding:"12px 16px"}}>
                     <div style={{display:"flex",gap:6,whiteSpace:"nowrap"}}>
-                      <button onClick={()=>setCallModal(it)} style={{background:"#5B9BE0",color:"#1C1C21",border:"none",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer"}}>Mark Called</button>
-                      <button onClick={()=>setMoveModal(it)} style={{background:"#1C1C21",color:"#E57C7C",border:"0.5px solid #D3B0B0",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer"}}>Move To</button>
+                      <CCBtn variant="blue" style={{padding:"5px 12px",fontSize:12}} onClick={()=>setCallModal(it)}>Mark Called</CCBtn>
+                      <CCBtn variant="danger" style={{padding:"5px 12px",fontSize:12}} onClick={()=>setMoveModal(it)}>Move To</CCBtn>
                     </div>
                   </td>
                 </tr>
