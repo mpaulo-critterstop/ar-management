@@ -1197,7 +1197,14 @@ function InvPage({enriched,setModal,showToast,loadAll,isAdmin}: any) {
 function PayPage({payments,invoices,custMap,showToast,loadAll,setModal}: any) {
   const [pageSize,setPageSize]=useState(100);
   const [currentPage,setCurrentPage]=useState(1);
-  const ep=payments.map((p:any)=>{const inv=invoices.find((i:any)=>i.id===p.invoiceId);return{...p,customer:inv?custMap[inv.customerId]:null}}).sort((a:any,b:any)=>a.date>b.date?-1:1);
+  // Resolve the customer name directly from the payment's own invoice->customer join (the payments API already
+  // includes it). The old lookup via the loaded `invoices` list failed for PAID invoices, which are excluded
+  // from that list by default — so most payments (which paid their invoice off) showed no customer name.
+  const ep=payments.map((p:any)=>{
+    const inv=invoices.find((i:any)=>i.id===p.invoiceId);
+    const name = p.invoice?.customer?.name || (inv ? custMap[inv.customerId]?.name : null) || null;
+    return {...p, customer: name ? { name } : null};
+  }).sort((a:any,b:any)=>a.date>b.date?-1:1);
   const del=async(id:string)=>{if(!confirm("Delete this payment?"))return;await fetch(`/api/payments/${id}`,{method:"DELETE"});showToast("Payment deleted");loadAll();};
   const displayed=ep.slice((currentPage-1)*pageSize,currentPage*pageSize);
 
