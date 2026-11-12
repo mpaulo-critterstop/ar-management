@@ -1118,7 +1118,7 @@ function CustPage({customers,enriched,setModal,showToast,loadAll}: any) {
           { key:"cust", label:"Customer", render:(c:any)=><div onClick={()=>setModal({type:"customerDetail",customer:c})} style={{cursor:"pointer"}}><CCCustomerCell name={c.name||"Customer"} sub={c.email||undefined}/></div> },
           { key:"phone", label:"Phone", render:(c:any)=><span style={{color:"#C9C7BF"}}>{c.phone||"—"}</span> },
           { key:"frid", label:"FR ID", render:(c:any)=><span style={{fontVariantNumeric:"tabular-nums",color:"#908E85"}}>{c.externalId||"—"}</span> },
-          { key:"addr", label:"Address", render:(c:any)=><span style={{color:"#908E85",fontSize:12.5}}>{c.serviceAddr||"—"}</span> },
+          { key:"addr", label:"Address", render:(c:any)=><span style={{color:"#908E85",fontSize:12.5,display:"inline-block",maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",verticalAlign:"bottom"}} title={c.serviceAddr||""}>{c.serviceAddr||"—"}</span> },
           { key:"ar", label:"Open AR", align:"right", render:(c:any)=><span style={{fontWeight:700,color:balBC[c.id]>0?"#F0EEE8":"#63615A",fontVariantNumeric:"tabular-nums"}}>{balBC[c.id]?fmt(balBC[c.id]):"—"}</span> },
           { key:"inv", label:"Invoices", align:"right", render:(c:any)=><span style={{color:"#908E85",fontVariantNumeric:"tabular-nums"}}>{invCount[c.id]||0}</span> },
         ]}
