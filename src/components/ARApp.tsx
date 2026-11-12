@@ -1,8 +1,8 @@
 // v2
 "use client";
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
-import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip } from "@/components/cc/Layout";
-import { SectionHeader as CCSectionHeader, Card as CCCard } from "@/components/cc/Primitives";
+import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, DataTable as CCDataTable, Toolbar as CCToolbar, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell } from "@/components/cc/Layout";
+import { SectionHeader as CCSectionHeader, Card as CCCard, StatusPill as CCStatusPill } from "@/components/cc/Primitives";
 import { LastSynced } from "@/components/LastSynced";
 
 const ACCENT = '#5B9BE0';
@@ -1103,40 +1103,28 @@ function CustPage({customers,enriched,setModal,showToast,loadAll}: any) {
   const totalPages=Math.ceil(filtered.length/pageSize);
   const displayed=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
 
+  const invCount=useMemo(()=>{const m:any={};enriched.forEach((i:any)=>{m[i.customerId]=(m[i.customerId]||0)+1});return m},[enriched]);
+
   return (
     <div>
-      <div style={{display:"flex",gap:8,marginBottom:12,alignItems:"center"}}>
-        <input
-          placeholder="Search by name, phone or FR ID..."
-          value={search}
-          onChange={e=>{setSearch(e.target.value);setCurrentPage(1);}}
-          style={{flex:1,maxWidth:360,fontSize:13,padding:"7px 10px",border:"0.5px solid #63615A",borderRadius:8,background:"#1C1C21"}}
-        />
-        <span style={{fontSize:12,color:"#908E85",marginLeft:"auto"}}>{filtered.length} customers</span>
-      </div>
-      <Card noPad>
-        <div style={{overflowX:"auto",maxHeight:"calc(100vh - 260px)",overflowY:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead style={{position:"sticky",top:0,zIndex:5}}>
-              <tr><Th>Customer</Th><Th>Phone</Th><Th>FR ID</Th><Th>Address</Th><Th right>Open AR</Th><Th>Invoices</Th></tr>
-            </thead>
-            <tbody>
-              {displayed.map((c:any)=>(
-                <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>setModal({type:"customerDetail",customer:c})}>
-                  <Td bold><div>{c.name}</div><div style={{fontSize:11,color:"#908E85"}}>{c.email}</div></Td>
-                  <Td>{c.phone||"—"}</Td>
-                  <Td style={{fontSize:12,color:"#908E85"}}>{c.externalId||"—"}</Td>
-                  <Td style={{fontSize:12,color:"#908E85",maxWidth:200}}>{c.serviceAddr||"—"}</Td>
-                  <Td right bold color={balBC[c.id]>0?"#F0EEE8":"#63615A"}>{balBC[c.id]?fmt(balBC[c.id]):"—"}</Td>
-                  <Td>{enriched.filter((i:any)=>i.customerId===c.id).length}</Td>
-                </tr>
-              ))}
-              {displayed.length===0&&<ER cols={6} msg="No customers found"/>}
-            </tbody>
-          </table>
-        </div>
-        <Pagination current={currentPage} total={filtered.length} pageSize={pageSize} onPage={setCurrentPage} onSize={(s:number)=>{setPageSize(s);setCurrentPage(1);}}/>
-      </Card>
+      <CCToolbar>
+        <div style={{fontSize:13,fontWeight:600,color:"#C9C7BF"}}>Customers <span style={{color:"#63615A",fontWeight:400}}>· {filtered.length}</span></div>
+        <CCSearchBox value={search} onChange={(v:string)=>{setSearch(v);setCurrentPage(1);}} placeholder="Search name, phone or FR ID…" />
+      </CCToolbar>
+      <CCDataTable
+        rowKey={(c:any)=>c.id}
+        empty="No customers found"
+        cols={[
+          { key:"cust", label:"Customer", render:(c:any)=><div onClick={()=>setModal({type:"customerDetail",customer:c})} style={{cursor:"pointer"}}><CCCustomerCell name={c.name||"Customer"} sub={c.email||undefined}/></div> },
+          { key:"phone", label:"Phone", render:(c:any)=><span style={{color:"#C9C7BF"}}>{c.phone||"—"}</span> },
+          { key:"frid", label:"FR ID", render:(c:any)=><span style={{fontVariantNumeric:"tabular-nums",color:"#908E85"}}>{c.externalId||"—"}</span> },
+          { key:"addr", label:"Address", render:(c:any)=><span style={{color:"#908E85",fontSize:12.5}}>{c.serviceAddr||"—"}</span> },
+          { key:"ar", label:"Open AR", align:"right", render:(c:any)=><span style={{fontWeight:700,color:balBC[c.id]>0?"#F0EEE8":"#63615A",fontVariantNumeric:"tabular-nums"}}>{balBC[c.id]?fmt(balBC[c.id]):"—"}</span> },
+          { key:"inv", label:"Invoices", align:"right", render:(c:any)=><span style={{color:"#908E85",fontVariantNumeric:"tabular-nums"}}>{invCount[c.id]||0}</span> },
+        ]}
+        rows={displayed}
+      />
+      <Pagination current={currentPage} total={filtered.length} pageSize={pageSize} onPage={setCurrentPage} onSize={(s:number)=>{setPageSize(s);setCurrentPage(1);}}/>
     </div>
   );
 }
