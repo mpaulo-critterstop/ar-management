@@ -306,7 +306,7 @@ export default function LeadsPage() {
             {importResult && (
               <div style={{ marginBottom: 16, padding: 10, borderRadius: 8, background: importResult.error ? '#FCEBEB' : '#143229', fontSize: 12 }}>
                 {importResult.error
-                  ? <span style={{ color: '#A32D2D' }}>❌ {importResult.error}</span>
+                  ? <span style={{ color: '#E57C7C' }}>❌ {importResult.error}</span>
                   : <span style={{ color: '#43B892' }}>✓ Created: {importResult.created} | Updated: {importResult.updated} | Skipped: {importResult.skipped}</span>
                 }
               </div>

@@ -245,7 +245,7 @@ export function KpiTab() {
                       </select>
                     </td>
                     <td style={{ padding: '8px 12px' }}>
-                      <span style={{ color: pm.active ? '#43B892' : '#A32D2D', fontWeight: 500 }}>{pm.active ? 'Active' : 'Inactive'}</span>
+                      <span style={{ color: pm.active ? '#43B892' : '#E57C7C', fontWeight: 500 }}>{pm.active ? 'Active' : 'Inactive'}</span>
                     </td>
                     <td style={{ padding: '8px 12px' }}>
                       <button onClick={() => togglePM(pm.id, pm.active)} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', cursor: 'pointer', color: '#908E85' }}>
@@ -318,7 +318,7 @@ export function KpiTab() {
                           {row.fn(m)}
                         </td>
                       ))}
-                      <td style={{ ...tdStyle, borderLeft: '2px solid #2A2A30', background: '#F7F6F3', fontWeight: 600, color: row.bold ? '#43B892' : '#F0EEE8' }}>
+                      <td style={{ ...tdStyle, borderLeft: '2px solid #2A2A30', background: '#232329', fontWeight: 600, color: row.bold ? '#43B892' : '#F0EEE8' }}>
                         {data.companyCumulative ? row.fn(data.companyCumulative) : '—'}
                       </td>
                     </tr>
@@ -369,7 +369,7 @@ export function KpiTab() {
                               {row.fn(m)}
                             </td>
                           ))}
-                          <td style={{ ...tdStyle, borderLeft: '2px solid #2A2A30', background: '#F7F6F3', fontWeight: 600, color: row.bold ? '#43B892' : '#F0EEE8' }}>
+                          <td style={{ ...tdStyle, borderLeft: '2px solid #2A2A30', background: '#232329', fontWeight: 600, color: row.bold ? '#43B892' : '#F0EEE8' }}>
                             {pm.cumulative ? row.fn(pm.cumulative) : '—'}
                           </td>
                         </tr>

@@ -143,8 +143,8 @@ export function CommissionsTab() {
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead>
-                      <tr style={{ background: '#FCFBF9' }}>
-                        <th style={{ textAlign: 'left', padding: '6px 12px', color: '#908E85', fontWeight: 500, position: 'sticky', left: 0, background: '#FCFBF9', minWidth: 170 }}>Metric</th>
+                      <tr style={{ background: '#232329' }}>
+                        <th style={{ textAlign: 'left', padding: '6px 12px', color: '#908E85', fontWeight: 500, position: 'sticky', left: 0, background: '#232329', minWidth: 170 }}>Metric</th>
                         {MONTHS.map(m => <th key={m} style={{ textAlign: 'right', padding: '6px 10px', color: '#908E85', fontWeight: 500, minWidth: 78, whiteSpace: 'nowrap' }}>{m}</th>)}
                       </tr>
                     </thead>
@@ -157,7 +157,7 @@ export function CommissionsTab() {
                             return (
                               <td key={i} style={{
                                 padding: '6px 10px', textAlign: 'right',
-                                color: rd.kind === 'delta' && typeof v === 'number' && v < 0 ? '#A32D2D' : rd.kind === 'delta' && typeof v === 'number' && v > 0 ? '#43B892' : rd.key === 'totalCommission' ? '#F0EEE8' : '#444441',
+                                color: rd.kind === 'delta' && typeof v === 'number' && v < 0 ? '#E57C7C' : rd.kind === 'delta' && typeof v === 'number' && v > 0 ? '#43B892' : rd.key === 'totalCommission' ? '#F0EEE8' : '#444441',
                                 fontWeight: rd.key === 'totalCommission' ? 600 : 400,
                               }}>{v === null ? '—' : fmt(v)}</td>
                             );
@@ -178,8 +178,8 @@ export function CommissionsTab() {
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
-                    <tr style={{ background: '#FCFBF9' }}>
-                      <th style={{ textAlign: 'left', padding: '6px 12px', color: '#908E85', fontWeight: 500, position: 'sticky', left: 0, background: '#FCFBF9', minWidth: 170 }}>Metric</th>
+                    <tr style={{ background: '#232329' }}>
+                      <th style={{ textAlign: 'left', padding: '6px 12px', color: '#908E85', fontWeight: 500, position: 'sticky', left: 0, background: '#232329', minWidth: 170 }}>Metric</th>
                       {MONTHS.map((m, i) => {
                         const rec = pm.months[i];
                         const finalized = rec && !rec.empty && (rec.source === 'history' || rec.finalized);
@@ -212,7 +212,7 @@ export function CommissionsTab() {
                               onClick={() => { if (editable) { setEditCell(cellId); setEditVal(String(v ?? 0)); } }}
                               style={{
                                 padding: '6px 10px', textAlign: 'right',
-                                color: rd.kind === 'delta' && typeof v === 'number' && v < 0 ? '#A32D2D'
+                                color: rd.kind === 'delta' && typeof v === 'number' && v < 0 ? '#E57C7C'
                                      : rd.kind === 'delta' && typeof v === 'number' && v > 0 ? '#43B892'
                                      : rd.key === 'totalCommission' ? '#F0EEE8' : '#444441',
                                 fontWeight: rd.key === 'totalCommission' ? 600 : 400,
