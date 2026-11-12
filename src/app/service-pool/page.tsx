@@ -1,6 +1,6 @@
 'use client';
-import BackButton from '@/components/BackButton';
 import CCDatePicker from '@/components/cc/DatePicker';
+import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip } from '@/components/cc/Layout';
 import { useEffect, useState } from 'react';
 
 const money = (n: number) => (n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -39,30 +39,30 @@ export default function ServicePoolPage() {
   const inWindow = (data?.inWindow || []).filter(matchSearch);
   const offices: string[] = data?.offices || [];
 
-  const th: React.CSSProperties = { textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap' };
+  const th: React.CSSProperties = { textAlign: 'left', padding: '12px 14px', fontSize: 11, fontWeight: 600, color: '#908E85', borderBottom: '1px solid #2A2A30', textTransform: 'uppercase', letterSpacing: '.04em', whiteSpace: 'nowrap', background: '#232329', position: 'sticky', top: 0, zIndex: 2 };
   const thR = { ...th, textAlign: 'right' as const };
-  const td: React.CSSProperties = { padding: '9px 12px', fontSize: 13, color: '#2C2C2A', borderBottom: '0.5px solid #F1EFE8' };
+  const td: React.CSSProperties = { padding: '9px 12px', fontSize: 13, color: '#F0EEE8', borderBottom: '0.5px solid #232329' };
   const tdR = { ...td, textAlign: 'right' as const };
 
   const CopyId = ({ label, val }: { label: string; val: string }) => (
     <button title={`Copy ${label} ${val}`} onClick={() => { navigator.clipboard?.writeText(val); setCopiedId(val); setTimeout(() => setCopiedId(c => c === val ? null : c), 1500); }}
-      style={{ fontSize: 11, fontFamily: 'ui-monospace, monospace', color: copiedId === val ? '#128a3f' : '#6B6A64', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', textAlign: 'left' }}>
+      style={{ fontSize: 11, fontFamily: 'ui-monospace, monospace', color: copiedId === val ? '#43B892' : '#C9C7BF', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', textAlign: 'left' }}>
       {copiedId === val ? '✓ copied' : `${label}: ${val}`}
     </button>
   );
 
   const Row = ({ i, overdue }: { i: any; overdue?: boolean }) => (
     <tr>
-      <td style={{ ...td, fontWeight: 500 }}>{i.customerName || <span style={{ color: '#B4B2A9' }}>Unknown</span>}<div style={{ fontSize: 10, color: '#B4B2A9' }}>{i.office}</div></td>
+      <td style={{ ...td, fontWeight: 500 }}>{i.customerName || <span style={{ color: '#63615A' }}>Unknown</span>}<div style={{ fontSize: 10, color: '#63615A' }}>{i.office}</div></td>
       <td style={td}>
         <CopyId label="FRID" val={i.customerId} />
       </td>
-      <td style={{ ...td, fontSize: 12, color: '#6b6a64' }}>{i.customerPhone || '—'}</td>
-      <td style={{ ...td, color: '#6b6a64', maxWidth: 220 }}>{i.serviceType || i.category}</td>
-      <td style={{ ...td, color: '#6b6a64' }}>{i.frequencyDays ? `${i.frequencyDays}d` : '—'}</td>
-      <td style={{ ...td, whiteSpace: 'nowrap', color: '#6b6a64' }}>{fmtDate(i.lastCompleted)}</td>
-      <td style={{ ...td, whiteSpace: 'nowrap', fontWeight: 500, color: overdue ? '#b91c1c' : '#2C2C2A' }}>{fmtDate(i.dueDate)}</td>
-      <td style={{ ...tdR, fontWeight: 500, color: overdue ? '#b91c1c' : '#128a3f' }}>{overdue ? `${i.daysOverdue}d overdue` : `in ${-i.daysOverdue}d`}</td>
+      <td style={{ ...td, fontSize: 12, color: '#C9C7BF' }}>{i.customerPhone || '—'}</td>
+      <td style={{ ...td, color: '#C9C7BF', maxWidth: 220 }}>{i.serviceType || i.category}</td>
+      <td style={{ ...td, color: '#C9C7BF' }}>{i.frequencyDays ? `${i.frequencyDays}d` : '—'}</td>
+      <td style={{ ...td, whiteSpace: 'nowrap', color: '#C9C7BF' }}>{fmtDate(i.lastCompleted)}</td>
+      <td style={{ ...td, whiteSpace: 'nowrap', fontWeight: 500, color: overdue ? '#E57C7C' : '#F0EEE8' }}>{fmtDate(i.dueDate)}</td>
+      <td style={{ ...tdR, fontWeight: 500, color: overdue ? '#E57C7C' : '#43B892' }}>{overdue ? `${i.daysOverdue}d overdue` : `in ${-i.daysOverdue}d`}</td>
       <td style={tdR}>{money(i.contractValue)}</td>
     </tr>
   );
@@ -75,50 +75,39 @@ export default function ServicePoolPage() {
   );
 
   return (
-    <div style={{ padding: '0 24px 40px', maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ paddingTop: 16 }}><BackButton /></div>
-      <div style={{ paddingTop: 24 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Pest Control Job Pool</h1>
-        <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>Active pest &amp; termite subscriptions due for service (last service + frequency) that have no appointment scheduled yet. Overdue shown first.</p>
-      </div>
+    <div style={{ padding: '30px 34px 70px', maxWidth: 1400, margin: '0 auto' }}>
+      <CCPageHeader icon="🪣" title="Pest Control Job Pool" subtitle="Active pest & termite subscriptions due for service with no appointment scheduled yet" />
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 12, marginTop: 16, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         <input type="text" placeholder="Search customer / phone / FR ID..." value={search} onChange={e => setSearch(e.target.value)}
-          style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', minWidth: 220 }} />
-        <span style={{ fontSize: 12, color: '#888780' }}>Office:</span>
-        <select value={office} onChange={e => setOffice(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+          style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', minWidth: 220 }} />
+        <span style={{ fontSize: 12, color: '#908E85' }}>Office:</span>
+        <select value={office} onChange={e => setOffice(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21' }}>
           <option value="All">All offices</option>
           {['DFW', 'ATX', 'OKC', 'CStat', ...offices.filter(o => !['DFW', 'ATX', 'OKC', 'CStat'].includes(o))].map(o => <option key={o} value={o}>{o}</option>)}
         </select>
-        <span style={{ fontSize: 12, color: '#888780', marginLeft: 8 }}>Due between:</span>
+        <span style={{ fontSize: 12, color: '#908E85', marginLeft: 8 }}>Due between:</span>
         <CCDatePicker value={from} onChange={setFrom} />
-        <span style={{ fontSize: 12, color: '#B4B2A9' }}>to</span>
+        <span style={{ fontSize: 12, color: '#63615A' }}>to</span>
         <CCDatePicker value={to} onChange={setTo} />
-        {(from || to) && <button onClick={() => { setFrom(''); setTo(''); }} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>Clear</button>}
+        {(from || to) && <button onClick={() => { setFrom(''); setTo(''); }} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#908E85', cursor: 'pointer' }}>Clear</button>}
       </div>
 
-      {loading ? <p style={{ color: '#888780', fontSize: 13, padding: 30, textAlign: 'center' }}>Loading…</p> : !data ? (
-        <p style={{ color: '#888780', fontSize: 13, padding: 30, textAlign: 'center' }}>No data. Run the service-pool sync first.</p>
+      {loading ? <p style={{ color: '#908E85', fontSize: 13, padding: 30, textAlign: 'center' }}>Loading…</p> : !data ? (
+        <p style={{ color: '#908E85', fontSize: 13, padding: 30, textAlign: 'center' }}>No data. Run the service-pool sync first.</p>
       ) : (
         <>
-          {/* Totals */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 160, padding: '14px 16px', border: '0.5px solid #f3c9c9', borderRadius: 10, background: '#fdf5f5' }}>
-              <div style={{ fontSize: 20, fontWeight: 600, color: '#b91c1c' }}>{data.totals.overdueCount}</div>
-              <div style={{ fontSize: 11, color: '#888780', marginTop: 2 }}>Overdue &middot; {money(data.totals.overdueCV)}</div>
-            </div>
-            <div style={{ flex: 1, minWidth: 160, padding: '14px 16px', border: '0.5px solid #E8E7E3', borderRadius: 10, background: '#fff' }}>
-              <div style={{ fontSize: 20, fontWeight: 600, color: '#2C2C2A' }}>{data.totals.windowCount}</div>
-              <div style={{ fontSize: 11, color: '#888780', marginTop: 2 }}>Due{from || to ? ' in window' : ' upcoming'} &middot; {money(data.totals.windowCV)}</div>
-            </div>
-          </div>
+          <CCKpiStrip items={[
+            { icon: '⚠️', label: 'Overdue', value: data.totals.overdueCount, tone: 'red', delta: money(data.totals.overdueCV), deltaTone: 'red' },
+            { icon: '📅', label: from || to ? 'Due in window' : 'Due upcoming', value: data.totals.windowCount, tone: 'blue', delta: money(data.totals.windowCV) },
+          ]} />
 
           {/* Overdue — red, prominent, on top */}
           {overdue.length > 0 && (
             <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#b91c1c', marginBottom: 8 }}>⚠ Overdue — {overdue.length} not scheduled</div>
-              <div style={{ border: '0.5px solid #f3c9c9', borderRadius: 12, overflow: 'auto', background: '#fff' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#E57C7C', marginBottom: 8 }}>⚠ Overdue — {overdue.length} not scheduled</div>
+              <div style={{ border: '0.5px solid #4a2626', borderRadius: 12, overflow: 'auto', background: '#1C1C21' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <Header />
                   <tbody>{overdue.map((i: any) => <Row key={i.id} i={i} overdue />)}</tbody>
@@ -129,20 +118,20 @@ export default function ServicePoolPage() {
 
           {/* Due in window / upcoming */}
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#2C2C2A', marginBottom: 8 }}>Due {from || to ? 'in selected window' : 'upcoming'} — {inWindow.length}</div>
-            <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', background: '#fff' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#F0EEE8', marginBottom: 8 }}>Due {from || to ? 'in selected window' : 'upcoming'} — {inWindow.length}</div>
+            <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#1C1C21' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <Header />
                 <tbody>
                   {inWindow.length === 0 ? (
-                    <tr><td style={{ ...td, textAlign: 'center', color: '#888780', padding: 30 }} colSpan={9}>{from || to ? 'None due in this window.' : 'None upcoming.'}</td></tr>
+                    <tr><td style={{ ...td, textAlign: 'center', color: '#908E85', padding: 30 }} colSpan={9}>{from || to ? 'None due in this window.' : 'None upcoming.'}</td></tr>
                   ) : inWindow.map((i: any) => <Row key={i.id} i={i} />)}
                 </tbody>
               </table>
             </div>
           </div>
 
-          {data.lastSync && <p style={{ fontSize: 11, color: '#B4B2A9', marginTop: 12 }}>Last synced {new Date(data.lastSync).toLocaleString()}</p>}
+          {data.lastSync && <p style={{ fontSize: 11, color: '#63615A', marginTop: 12 }}>Last synced {new Date(data.lastSync).toLocaleString()}</p>}
         </>
       )}
     </div>
