@@ -9,8 +9,9 @@ import { CommissionsTab } from './CommissionsTab';
 import { KpiTab } from './KpiTab';
 import { LastSynced } from '@/components/LastSynced';
 import { canAccessModule, perm } from '@/lib/access';
+import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip } from '@/components/cc/Layout';
 
-const ACCENT = '#0052cc';
+const ACCENT = '#5B9BE0';
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
 
 function fmt(n: number) {
@@ -183,38 +184,26 @@ export default function LeadsPage() {
   if (status === 'loading') return null;
 
   return (
-    <div style={{ padding: '0 24px 24px', maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ padding: '16px 20px 0' }}><BackButton /></div>
+    <div style={{ padding: '30px 34px 70px', maxWidth: 1400, margin: '0 auto' }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <CCPageHeader icon="🎯" title="Leads Tracker" subtitle="Wildlife inspection leads, PM performance, conversion and commissions"
+        actions={<LastSynced office={office} />} />
 
-      {/* Title */}
-      <div style={{ paddingTop: 24, marginBottom: 4 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Leads Tracker</h1>
-      </div>
-
-      {/* Nav bar */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', paddingTop: 20 }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
-            {canLeads && OFFICES.map(o => (
-              <button key={o} onClick={() => { setOffice(o); setActiveTab('leads'); }} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: activeTab === 'leads' && office === o ? '#2C2C2A' : '#888780', background: activeTab === 'leads' && office === o ? '#ffffff' : 'transparent', border: activeTab === 'leads' && office === o ? '0.5px solid #D3D1C7' : '0.5px solid transparent', cursor: 'pointer' }}>
-                {o}
-              </button>
-            ))}
-            {canKpis && <>
-              <div style={{ width: '0.5px', background: '#D3D1C7', height: 20, margin: '0 2px' }} />
-              <button onClick={() => setActiveTab('kpi')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: activeTab === 'kpi' ? '#0052cc' : '#888780', background: activeTab === 'kpi' ? '#e6f0ff' : 'transparent', border: activeTab === 'kpi' ? '0.5px solid #b3d0ff' : '0.5px solid transparent', cursor: 'pointer' }}>
-                KPIs
-              </button>
-            </>}
-            {canCommissions && (
-              <button onClick={() => setActiveTab('commissions')} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: activeTab === 'commissions' ? '#0052cc' : '#888780', background: activeTab === 'commissions' ? '#e6f0ff' : 'transparent', border: activeTab === 'commissions' ? '0.5px solid #b3d0ff' : '0.5px solid transparent', cursor: 'pointer' }}>
-                Commissions
-              </button>
-            )}
-          </div>
+      {/* Nav: office pills + tabs */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+        {canLeads && <div style={{ display: 'inline-flex', gap: 6 }}>
+          {OFFICES.map(o => { const on = activeTab==='leads' && office===o; return (
+            <button key={o} onClick={() => { setOffice(o); setActiveTab('leads'); }} style={{ padding: '7px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on?'#5B9BE0':'#2A2A30'}`, background: on?'#15263a':'#1C1C21', color: on?'#5B9BE0':'#908E85' }}>{o}</button>
+          );})}
+        </div>}
+        <div style={{ display: 'inline-flex', gap: 6 }}>
+          {canKpis && (()=>{ const on=activeTab==='kpi'; return (
+            <button onClick={() => setActiveTab('kpi')} style={{ padding: '7px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on?'#5B9BE0':'#2A2A30'}`, background: on?'#15263a':'#1C1C21', color: on?'#5B9BE0':'#908E85' }}>KPIs</button>
+          );})()}
+          {canCommissions && (()=>{ const on=activeTab==='commissions'; return (
+            <button onClick={() => setActiveTab('commissions')} style={{ padding: '7px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on?'#5B9BE0':'#2A2A30'}`, background: on?'#15263a':'#1C1C21', color: on?'#5B9BE0':'#908E85' }}>Commissions</button>
+          );})()}
         </div>
-        <LastSynced office={office} />
       </div>
 
       {/* LEADS TAB */}
@@ -223,60 +212,52 @@ export default function LeadsPage() {
           {/* Filters */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, color: '#888780' }}>Filters:</span>
-              <input type="text" placeholder="Search customer..." value={search} onChange={e => setSearch(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', minWidth: 180 }} />
-              <select value={statusInput} onChange={e => setStatusInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+              <span style={{ fontSize: 12, color: '#908E85' }}>Filters:</span>
+              <input type="text" placeholder="Search customer..." value={search} onChange={e => setSearch(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', minWidth: 180 }} />
+              <select value={statusInput} onChange={e => setStatusInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21' }}>
                 <option value="All">All</option>
                 <option value="SOLD">Sold</option>
               </select>
-              <select value={pmInput} onChange={e => setPmInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff' }}>
+              <select value={pmInput} onChange={e => setPmInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21' }}>
                 {pms.map(p => <option key={p}>{p}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <input type="date" value={fromInput} onChange={e => setFromInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
-              <span style={{ fontSize: 12, color: '#888780' }}>to</span>
-              <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }} />
-              <button onClick={() => { setFrom(fromInput); setTo(toInput); setStatusFilter(statusInput); setPmFilter(pmInput); }} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500 }}>Apply</button>
+              <input type="date" value={fromInput} onChange={e => setFromInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30' }} />
+              <span style={{ fontSize: 12, color: '#908E85' }}>to</span>
+              <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #2A2A30' }} />
+              <button onClick={() => { setFrom(fromInput); setTo(toInput); setStatusFilter(statusInput); setPmFilter(pmInput); }} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#F0EEE8', cursor: 'pointer', fontWeight: 500 }}>Apply</button>
               {(from || to || statusFilter !== 'All' || pmFilter !== 'All') && (
-                <button onClick={() => { setFrom(''); setTo(''); setFromInput(''); setToInput(''); setStatusFilter('All'); setStatusInput('All'); setPmFilter('All'); setPmInput('All'); }} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer' }}>Clear</button>
+                <button onClick={() => { setFrom(''); setTo(''); setFromInput(''); setToInput(''); setStatusFilter('All'); setStatusInput('All'); setPmFilter('All'); setPmInput('All'); }} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#908E85', cursor: 'pointer' }}>Clear</button>
               )}
             </div>
           </div>
 
-          {/* KPI cards */}
+          {/* KPI strip */}
           {kpis && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-              {[
-                { label: 'Total leads', value: kpis.total, sub: 'All inspections', accent: '#0052cc' },
-                { label: 'Sold', value: kpis.sold, sub: '+' + kpis.inspected + ' inspected', color: '#1D9E75', accent: '#1D9E75' },
-                { label: 'Conversion rate', value: pct(kpis.conversionRate), sub: 'Sold / Total', accent: '#BA7517' },
-                { label: 'Booked revenue', value: fmt((kpis.bookedRevenue || 0) + (kpis.upsellRevenue || 0)), sub: 'Avg ' + fmt(kpis.avgSale), color: '#1D9E75', accent: '#1D9E75' },
-              ].map(card => (
-                <div key={card.label} style={{ background: '#fff', borderRadius: 12, padding: '14px 18px', border: '0.5px solid #E8E7E3', borderLeft: `3px solid ${(card as any).accent}` }}>
-                  <div style={{ fontSize: 11, color: '#888780', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{card.label}</div>
-                  <div style={{ fontSize: 28, fontWeight: 500, color: (card as any).color || '#2C2C2A' }}>{loading ? '...' : card.value}</div>
-                  <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 2 }}>{card.sub}</div>
-                </div>
-              ))}
-            </div>
+            <CCKpiStrip items={[
+              { icon:'🎯', label:'Total leads', value: loading?'…':kpis.total, tone:'blue', delta:'all inspections' },
+              { icon:'✅', label:'Sold', value: loading?'…':kpis.sold, tone:'green', delta:`+${kpis.inspected} inspected`, deltaTone:'green' },
+              { icon:'📈', label:'Conversion rate', value: loading?'…':pct(kpis.conversionRate), tone:'amber', delta:'sold / total' },
+              { icon:'💵', label:'Booked revenue', value: loading?'…':fmt((kpis.bookedRevenue||0)+(kpis.upsellRevenue||0)), tone:'green', delta:`avg ${fmt(kpis.avgSale)}`, deltaTone:'green' },
+            ]} />
           )}
 
           {/* Lead records table */}
           <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 14 }}>Lead records</div>
-          <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #E8E7E3', overflow: 'hidden', marginBottom: 24 }}>
+          <div style={{ background: '#1C1C21', borderRadius: 12, border: '0.5px solid #2A2A30', overflow: 'hidden', marginBottom: 24 }}>
             <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
-                  <tr style={{ background: '#F8F7F4' }}>
+                  <tr style={{ background: '#232329' }}>
                     {['Customer', 'Inspection Date', 'Sold Date', 'PM', 'Status', 'Invoice', 'Amount', 'Office'].map(h => (
-                      <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>{h}</th>
+                      <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: '#908E85', borderBottom: '0.5px solid #2A2A30' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: '#888780' }}>Loading...</td></tr>
+                    <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: '#908E85' }}>Loading...</td></tr>
                   ) : displayed.flatMap((lead: any) => {
                     const rows = [];
 
@@ -294,19 +275,19 @@ export default function LeadsPage() {
 
                     if (primaryInRange) {
                       rows.push(
-                      <tr key={lead.id} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
+                      <tr key={lead.id} style={{ borderBottom: '0.5px solid #232329' }}>
                         <td style={{ padding: '10px 12px', fontWeight: 500 }}>{lead.customer?.name || '—'}</td>
-                        <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.inspectionDate ? lead.inspectionDate.split('T')[0] : '—'}</td>
-                        <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.invoice?.date ? lead.invoice.date.split('T')[0] : '—'}</td>
+                        <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.inspectionDate ? lead.inspectionDate.split('T')[0] : '—'}</td>
+                        <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.invoice?.date ? lead.invoice.date.split('T')[0] : '—'}</td>
                         <td style={{ padding: '10px 12px' }}>{lead.pmName || '—'}</td>
                         <td style={{ padding: '10px 12px' }}>
-                          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: lead.status === 'SOLD' ? '#E1F5EE' : lead.status === 'INSPECTED' ? '#E6F1FB' : '#FAEEDA', color: lead.status === 'SOLD' ? '#0F6E56' : lead.status === 'INSPECTED' ? '#185FA5' : '#854F0B' }}>
+                          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: lead.status === 'SOLD' ? '#143229' : lead.status === 'INSPECTED' ? '#E6F1FB' : '#FAEEDA', color: lead.status === 'SOLD' ? '#43B892' : lead.status === 'INSPECTED' ? '#185FA5' : '#854F0B' }}>
                             {lead.status}
                           </span>
                         </td>
-                        <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.invoice?.externalId || '—'}</td>
+                        <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.invoice?.externalId || '—'}</td>
                         <td style={{ padding: '10px 12px' }}>{lead.amount ? fmt(lead.amount) : '—'}</td>
-                        <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.office}</td>
+                        <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.office}</td>
                       </tr>
                       );
                     }
@@ -316,19 +297,19 @@ export default function LeadsPage() {
                         ((!fromDate || upsellDateStr >= fromDate) && (!toDate || upsellDateStr <= toDate));
                       if (upsellInRange) {
                         rows.push(
-                        <tr key={lead.id + '_upsell'} style={{ borderBottom: '0.5px solid #F1EFE8', background: '#FDFCF8' }}>
+                        <tr key={lead.id + '_upsell'} style={{ borderBottom: '0.5px solid #232329', background: '#232329' }}>
                           <td style={{ padding: '10px 12px', fontWeight: 500 }}>{lead.customer?.name || '—'}</td>
-                          <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.inspectionDate ? lead.inspectionDate.split('T')[0] : '—'}</td>
-                          <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.upsellDate.split('T')[0]}</td>
+                          <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.inspectionDate ? lead.inspectionDate.split('T')[0] : '—'}</td>
+                          <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.upsellDate.split('T')[0]}</td>
                           <td style={{ padding: '10px 12px' }}>{lead.pmName || '—'}</td>
                           <td style={{ padding: '10px 12px' }}>
                             <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: '#F0EAFD', color: '#6B3FA0' }}>
                               Upsell
                             </span>
                           </td>
-                          <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.upsellInvoice?.externalId || '—'}</td>
+                          <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.upsellInvoice?.externalId || '—'}</td>
                           <td style={{ padding: '10px 12px' }}>{fmt(lead.upsellAmount)}</td>
-                          <td style={{ padding: '10px 12px', color: '#888780' }}>{lead.office}</td>
+                          <td style={{ padding: '10px 12px', color: '#908E85' }}>{lead.office}</td>
                         </tr>
                       );
                       }
@@ -336,27 +317,27 @@ export default function LeadsPage() {
                     return rows;
                   })}
                   {!loading && leads.length === 0 && (
-                    <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: '#888780' }}>No leads found</td></tr>
+                    <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: '#908E85' }}>No leads found</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '0.5px solid #E8E7E3', background: '#F8F7F4', flexWrap: 'wrap', gap: 8 }}>
-              <div style={{ fontSize: 12, color: '#888780' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '0.5px solid #2A2A30', background: '#232329', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ fontSize: 12, color: '#908E85' }}>
                 Showing {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length} leads
-                <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} style={{ fontSize: 12, padding: '2px 6px', border: '0.5px solid #B4B2A9', borderRadius: 4, marginLeft: 6 }}>
+                <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} style={{ fontSize: 12, padding: '2px 6px', border: '0.5px solid #63615A', borderRadius: 4, marginLeft: 6 }}>
                   <option value={100}>100</option>
                   <option value={500}>500</option>
                   <option value={1000}>1000</option>
                 </select> per page
               </div>
               <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ padding: '3px 10px', fontSize: 12, border: '0.5px solid #D3D1C7', borderRadius: 4, background: currentPage === 1 ? '#F8F7F4' : '#fff', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}>Previous</button>
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ padding: '3px 10px', fontSize: 12, border: '0.5px solid #2A2A30', borderRadius: 4, background: currentPage === 1 ? '#232329' : '#1C1C21', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}>Previous</button>
                 {pageNums().map((p, i) => p === -1
                   ? <span key={i} style={{ padding: '3px 6px', fontSize: 12 }}>…</span>
-                  : <button key={p} onClick={() => setCurrentPage(p)} style={{ padding: '3px 10px', fontSize: 12, border: '0.5px solid #D3D1C7', borderRadius: 4, background: currentPage === p ? ACCENT : '#fff', color: currentPage === p ? '#fff' : '#2C2C2A', cursor: 'pointer' }}>{p}</button>
+                  : <button key={p} onClick={() => setCurrentPage(p)} style={{ padding: '3px 10px', fontSize: 12, border: '0.5px solid #2A2A30', borderRadius: 4, background: currentPage === p ? ACCENT : '#1C1C21', color: currentPage === p ? '#1C1C21' : '#F0EEE8', cursor: 'pointer' }}>{p}</button>
                 )}
-                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ padding: '3px 10px', fontSize: 12, border: '0.5px solid #D3D1C7', borderRadius: 4, background: currentPage === totalPages ? '#F8F7F4' : '#fff', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}>Next</button>
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ padding: '3px 10px', fontSize: 12, border: '0.5px solid #2A2A30', borderRadius: 4, background: currentPage === totalPages ? '#232329' : '#1C1C21', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}>Next</button>
               </div>
             </div>
           </div>
@@ -366,33 +347,33 @@ export default function LeadsPage() {
       {/* Import Modal */}
       {showImport && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 480, maxWidth: '90vw' }}>
+          <div style={{ background: '#1C1C21', borderRadius: 12, padding: 24, width: 480, maxWidth: '90vw' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontWeight: 500, fontSize: 15 }}>Import Leads CSV</div>
-              <button onClick={() => setShowImport(false)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#888780' }}>✕</button>
+              <button onClick={() => setShowImport(false)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#908E85' }}>✕</button>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, color: '#888780', display: 'block', marginBottom: 4 }}>Office</label>
-              <select value={importOffice} onChange={e => setImportOffice(e.target.value)} style={{ width: '100%', fontSize: 13, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }}>
+              <label style={{ fontSize: 12, color: '#908E85', display: 'block', marginBottom: 4 }}>Office</label>
+              <select value={importOffice} onChange={e => setImportOffice(e.target.value)} style={{ width: '100%', fontSize: 13, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #2A2A30' }}>
                 {['DFW', 'ATX', 'OKC', 'CStat'].map(o => <option key={o}>{o}</option>)}
               </select>
             </div>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, color: '#888780', display: 'block', marginBottom: 4 }}>CSV / TSV File</label>
+              <label style={{ fontSize: 12, color: '#908E85', display: 'block', marginBottom: 4 }}>CSV / TSV File</label>
               <input ref={fileRef} type="file" accept=".csv,.tsv,.txt" onChange={handleFileChange} style={{ fontSize: 12, width: '100%' }} />
-              {importRows.length > 0 && <div style={{ fontSize: 12, color: '#1D9E75', marginTop: 6 }}>✓ {importRows.length} rows ready to import</div>}
+              {importRows.length > 0 && <div style={{ fontSize: 12, color: '#43B892', marginTop: 6 }}>✓ {importRows.length} rows ready to import</div>}
             </div>
             {importResult && (
-              <div style={{ marginBottom: 16, padding: 10, borderRadius: 8, background: importResult.error ? '#FCEBEB' : '#E1F5EE', fontSize: 12 }}>
+              <div style={{ marginBottom: 16, padding: 10, borderRadius: 8, background: importResult.error ? '#FCEBEB' : '#143229', fontSize: 12 }}>
                 {importResult.error
                   ? <span style={{ color: '#A32D2D' }}>❌ {importResult.error}</span>
-                  : <span style={{ color: '#0F6E56' }}>✓ Created: {importResult.created} | Updated: {importResult.updated} | Skipped: {importResult.skipped}</span>
+                  : <span style={{ color: '#43B892' }}>✓ Created: {importResult.created} | Updated: {importResult.updated} | Skipped: {importResult.skipped}</span>
                 }
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowImport(false)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleImport} disabled={importing || importRows.length === 0} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: 'none', background: importRows.length === 0 ? '#D3D1C7' : ACCENT, color: '#fff', cursor: importRows.length === 0 ? 'not-allowed' : 'pointer', fontWeight: 500 }}>
+              <button onClick={() => setShowImport(false)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleImport} disabled={importing || importRows.length === 0} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: 'none', background: importRows.length === 0 ? '#2A2A30' : ACCENT, color: '#1C1C21', cursor: importRows.length === 0 ? 'not-allowed' : 'pointer', fontWeight: 500 }}>
                 {importing ? 'Importing...' : 'Import ' + importRows.length + ' rows'}
               </button>
             </div>

@@ -98,10 +98,10 @@ export function CommissionsTab() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
         <select value={year} onChange={e => setYear(Number(e.target.value))}
-          style={{ fontSize: 13, padding: '7px 12px', borderRadius: 9, border: '0.5px solid #D3D1C7', color: '#2C2C2A', cursor: 'pointer' }}>
+          style={{ fontSize: 13, padding: '7px 12px', borderRadius: 9, border: '0.5px solid #2A2A30', color: '#F0EEE8', cursor: 'pointer' }}>
           {[2023, 2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
         </select>
-        <span style={{ fontSize: 12, color: '#888780' }}>
+        <span style={{ fontSize: 12, color: '#908E85' }}>
           Months through June 2026 are finalized historical figures; July 2026 onward is live.
         </span>
       </div>
@@ -136,28 +136,28 @@ export function CommissionsTab() {
               });
             }
             return (
-              <div style={{ border: '0.5px solid #1D9E75', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
-                <div style={{ padding: '10px 14px', background: '#ECF7F2', fontWeight: 600, fontSize: 14, color: '#2C2C2A', borderBottom: '0.5px solid #CDE9DD' }}>
+              <div style={{ border: '0.5px solid #43B892', borderRadius: 12, overflow: 'hidden', background: '#1C1C21' }}>
+                <div style={{ padding: '10px 14px', background: '#ECF7F2', fontWeight: 600, fontSize: 14, color: '#F0EEE8', borderBottom: '0.5px solid #CDE9DD' }}>
                   All PMs — Summary Totals
                 </div>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead>
                       <tr style={{ background: '#FCFBF9' }}>
-                        <th style={{ textAlign: 'left', padding: '6px 12px', color: '#888780', fontWeight: 500, position: 'sticky', left: 0, background: '#FCFBF9', minWidth: 170 }}>Metric</th>
-                        {MONTHS.map(m => <th key={m} style={{ textAlign: 'right', padding: '6px 10px', color: '#888780', fontWeight: 500, minWidth: 78, whiteSpace: 'nowrap' }}>{m}</th>)}
+                        <th style={{ textAlign: 'left', padding: '6px 12px', color: '#908E85', fontWeight: 500, position: 'sticky', left: 0, background: '#FCFBF9', minWidth: 170 }}>Metric</th>
+                        {MONTHS.map(m => <th key={m} style={{ textAlign: 'right', padding: '6px 10px', color: '#908E85', fontWeight: 500, minWidth: 78, whiteSpace: 'nowrap' }}>{m}</th>)}
                       </tr>
                     </thead>
                     <tbody>
                       {SUMMARY_DEFS.map(rd => (
-                        <tr key={rd.key} style={{ borderTop: '0.5px solid #F1EFE8' }}>
-                          <td style={{ padding: '6px 12px', color: rd.key === 'totalCommission' ? '#2C2C2A' : '#64748b', fontWeight: rd.key === 'totalCommission' ? 600 : 400, position: 'sticky', left: 0, background: '#fff' }}>{rd.label}</td>
+                        <tr key={rd.key} style={{ borderTop: '0.5px solid #232329' }}>
+                          <td style={{ padding: '6px 12px', color: rd.key === 'totalCommission' ? '#F0EEE8' : '#64748b', fontWeight: rd.key === 'totalCommission' ? 600 : 400, position: 'sticky', left: 0, background: '#1C1C21' }}>{rd.label}</td>
                           {MONTHS.map((_, i) => {
                             const v = sum[rd.key][i];
                             return (
                               <td key={i} style={{
                                 padding: '6px 10px', textAlign: 'right',
-                                color: rd.kind === 'delta' && typeof v === 'number' && v < 0 ? '#A32D2D' : rd.kind === 'delta' && typeof v === 'number' && v > 0 ? '#1D9E75' : rd.key === 'totalCommission' ? '#2C2C2A' : '#444441',
+                                color: rd.kind === 'delta' && typeof v === 'number' && v < 0 ? '#A32D2D' : rd.kind === 'delta' && typeof v === 'number' && v > 0 ? '#43B892' : rd.key === 'totalCommission' ? '#F0EEE8' : '#444441',
                                 fontWeight: rd.key === 'totalCommission' ? 600 : 400,
                               }}>{v === null ? '—' : fmt(v)}</td>
                             );
@@ -171,23 +171,23 @@ export function CommissionsTab() {
             );
           })()}
           {rows.map((pm: any) => (
-            <div key={pm.pmName} style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
-              <div style={{ padding: '10px 14px', background: '#F8F7F4', fontWeight: 600, fontSize: 14, color: '#2C2C2A', borderBottom: '0.5px solid #E8E7E3' }}>
+            <div key={pm.pmName} style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden', background: '#1C1C21' }}>
+              <div style={{ padding: '10px 14px', background: '#232329', fontWeight: 600, fontSize: 14, color: '#F0EEE8', borderBottom: '0.5px solid #2A2A30' }}>
                 {pm.pmName}
               </div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: '#FCFBF9' }}>
-                      <th style={{ textAlign: 'left', padding: '6px 12px', color: '#888780', fontWeight: 500, position: 'sticky', left: 0, background: '#FCFBF9', minWidth: 170 }}>Metric</th>
+                      <th style={{ textAlign: 'left', padding: '6px 12px', color: '#908E85', fontWeight: 500, position: 'sticky', left: 0, background: '#FCFBF9', minWidth: 170 }}>Metric</th>
                       {MONTHS.map((m, i) => {
                         const rec = pm.months[i];
                         const finalized = rec && !rec.empty && (rec.source === 'history' || rec.finalized);
                         return (
-                          <th key={m} style={{ textAlign: 'right', padding: '6px 10px', color: '#888780', fontWeight: 500, minWidth: 78, whiteSpace: 'nowrap' }}>
+                          <th key={m} style={{ textAlign: 'right', padding: '6px 10px', color: '#908E85', fontWeight: 500, minWidth: 78, whiteSpace: 'nowrap' }}>
                             {m}
-                            {finalized && <span title="Finalized" style={{ marginLeft: 3, color: '#1D9E75', fontSize: 10 }}>🔒</span>}
-                            {rec && !rec.empty && rec.source === 'live' && <span title="Live" style={{ marginLeft: 3, color: '#0052cc', fontSize: 9 }}>●</span>}
+                            {finalized && <span title="Finalized" style={{ marginLeft: 3, color: '#43B892', fontSize: 10 }}>🔒</span>}
+                            {rec && !rec.empty && rec.source === 'live' && <span title="Live" style={{ marginLeft: 3, color: '#5B9BE0', fontSize: 9 }}>●</span>}
                           </th>
                         );
                       })}
@@ -195,8 +195,8 @@ export function CommissionsTab() {
                   </thead>
                   <tbody>
                     {(pm.method === 'lead_bucket' ? BUCKET_ROW_DEFS : ROW_DEFS).map((rd: any) => (
-                      <tr key={rd.key} style={{ borderTop: '0.5px solid #F1EFE8' }}>
-                        <td style={{ padding: '6px 12px', color: rd.key === 'totalCommission' ? '#2C2C2A' : '#64748b', fontWeight: rd.key === 'totalCommission' ? 600 : 400, position: 'sticky', left: 0, background: '#fff', paddingLeft: rd.key.startsWith('bucket:') ? 24 : 12 }}>
+                      <tr key={rd.key} style={{ borderTop: '0.5px solid #232329' }}>
+                        <td style={{ padding: '6px 12px', color: rd.key === 'totalCommission' ? '#F0EEE8' : '#64748b', fontWeight: rd.key === 'totalCommission' ? 600 : 400, position: 'sticky', left: 0, background: '#1C1C21', paddingLeft: rd.key.startsWith('bucket:') ? 24 : 12 }}>
                           {rd.label}
                         </td>
                         {MONTHS.map((_, i) => {
@@ -213,8 +213,8 @@ export function CommissionsTab() {
                               style={{
                                 padding: '6px 10px', textAlign: 'right',
                                 color: rd.kind === 'delta' && typeof v === 'number' && v < 0 ? '#A32D2D'
-                                     : rd.kind === 'delta' && typeof v === 'number' && v > 0 ? '#1D9E75'
-                                     : rd.key === 'totalCommission' ? '#2C2C2A' : '#444441',
+                                     : rd.kind === 'delta' && typeof v === 'number' && v > 0 ? '#43B892'
+                                     : rd.key === 'totalCommission' ? '#F0EEE8' : '#444441',
                                 fontWeight: rd.key === 'totalCommission' ? 600 : 400,
                                 cursor: editable ? 'pointer' : 'default',
                                 background: editable ? '#FCFBF6' : 'transparent',
@@ -224,7 +224,7 @@ export function CommissionsTab() {
                                   onChange={e => setEditVal(e.target.value)}
                                   onBlur={() => saveEdit(pm.pmName, i + 1, rd.key)}
                                   onKeyDown={e => { if (e.key === 'Enter') saveEdit(pm.pmName, i + 1, rd.key); if (e.key === 'Escape') setEditCell(null); }}
-                                  style={{ width: 64, fontSize: 12, textAlign: 'right', border: '1px solid #0052cc', borderRadius: 4, padding: '2px 4px' }} />
+                                  style={{ width: 64, fontSize: 12, textAlign: 'right', border: '1px solid #5B9BE0', borderRadius: 4, padding: '2px 4px' }} />
                               ) : fmtRow(v, rd.fmt)}
                             </td>
                           );

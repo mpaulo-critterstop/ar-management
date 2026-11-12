@@ -174,15 +174,15 @@ export function KpiTab() {
 
   const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: 12 };
   const thStyle: React.CSSProperties = {
-    padding: '8px 12px', textAlign: 'right', fontSize: 11, fontWeight: 500, color: '#888780',
-    borderBottom: '0.5px solid #E8E7E3', whiteSpace: 'nowrap', background: '#F8F7F4',
+    padding: '8px 12px', textAlign: 'right', fontSize: 11, fontWeight: 500, color: '#908E85',
+    borderBottom: '0.5px solid #2A2A30', whiteSpace: 'nowrap', background: '#232329',
   };
   const tdStyle: React.CSSProperties = {
-    padding: '8px 12px', textAlign: 'right', borderBottom: '0.5px solid #F1EFE8', whiteSpace: 'nowrap',
+    padding: '8px 12px', textAlign: 'right', borderBottom: '0.5px solid #232329', whiteSpace: 'nowrap',
   };
   const rowLabelStyle: React.CSSProperties = {
-    padding: '8px 12px', textAlign: 'left', fontSize: 11, color: '#888780',
-    borderBottom: '0.5px solid #F1EFE8', whiteSpace: 'nowrap', background: '#F8F7F4',
+    padding: '8px 12px', textAlign: 'left', fontSize: 11, color: '#908E85',
+    borderBottom: '0.5px solid #232329', whiteSpace: 'nowrap', background: '#232329',
     position: 'sticky', left: 0, zIndex: 2,
   };
 
@@ -191,50 +191,50 @@ export function KpiTab() {
       {/* PM Manager Modal */}
       {showPMManager && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 480, maxWidth: '90vw', maxHeight: '80vh', overflowY: 'auto' }}>
+          <div style={{ background: '#1C1C21', borderRadius: 12, padding: 24, width: 480, maxWidth: '90vw', maxHeight: '80vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontWeight: 500, fontSize: 15, color: '#2C2C2A' }}>Manage PMs</div>
-              <button onClick={() => setShowPMManager(false)} style={{ border: 'none', background: 'none', fontSize: 18, cursor: 'pointer', color: '#888780' }}>×</button>
+              <div style={{ fontWeight: 500, fontSize: 15, color: '#F0EEE8' }}>Manage PMs</div>
+              <button onClick={() => setShowPMManager(false)} style={{ border: 'none', background: 'none', fontSize: 18, cursor: 'pointer', color: '#908E85' }}>×</button>
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
               <input type="text" placeholder="PM name" value={newPMName} onChange={e => setNewPMName(e.target.value)}
-                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', flex: 1, color: '#2C2C2A' }} />
+                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', flex: 1, color: '#F0EEE8' }} />
               <select value={newPMOffice} onChange={e => setNewPMOffice(e.target.value)}
-                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', color: '#2C2C2A' }}>
+                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', color: '#F0EEE8' }}>
                 {['DFW', 'ATX', 'OKC', 'CStat'].map(o => <option key={o}>{o}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
               <select value={newPMMethod} onChange={e => setNewPMMethod(e.target.value)}
-                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', color: '#2C2C2A', flex: 1 }}>
+                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', color: '#F0EEE8', flex: 1 }}>
                 <option value="">No commission plan</option>
                 <option value="abr_tiered">Structure 1 — Booked Revenue Tier (8/10/12%, $80k floor)</option>
                 <option value="abr_adrian">Structure 2 — Booked Revenue Tier (5/7%)</option>
                 <option value="abr_cynthia">Structure 2b — Booked Revenue Tier (5/7%, $15k)</option>
                 <option value="lead_bucket">Structure 3 — Lead buckets (8/10/12/14% by rev/lead)</option>
               </select>
-              <button onClick={addPM} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500 }}>
+              <button onClick={addPM} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#F0EEE8', cursor: 'pointer', fontWeight: 500 }}>
                 Add
               </button>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ background: '#F8F7F4' }}>
+                <tr style={{ background: '#232329' }}>
                   {['Name', 'Office', 'Commission', 'Active', ''].map(h => (
-                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: '#888780', borderBottom: '0.5px solid #E8E7E3' }}>{h}</th>
+                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: '#908E85', borderBottom: '0.5px solid #2A2A30' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {pms.map((pm: any) => (
-                  <tr key={pm.id} style={{ borderBottom: '0.5px solid #F1EFE8' }}>
-                    <td style={{ padding: '8px 12px', color: '#2C2C2A' }}>{pm.name}</td>
-                    <td style={{ padding: '8px 12px', color: '#888780' }}>{pm.office}</td>
+                  <tr key={pm.id} style={{ borderBottom: '0.5px solid #232329' }}>
+                    <td style={{ padding: '8px 12px', color: '#F0EEE8' }}>{pm.name}</td>
+                    <td style={{ padding: '8px 12px', color: '#908E85' }}>{pm.office}</td>
                     <td style={{ padding: '8px 12px' }}>
                       <select
                         value={pm.commissionMethod || ''}
                         onChange={e => changePMMethod(pm.id, e.target.value)}
-                        style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '0.5px solid #D3D1C7', color: '#2C2C2A', background: pm.commissionMethod ? '#fff' : '#FAF8F2' }}
+                        style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '0.5px solid #2A2A30', color: '#F0EEE8', background: pm.commissionMethod ? '#1C1C21' : '#FAF8F2' }}
                         title="Change commission structure (takes effect from the current month; past months keep their old plan)"
                       >
                         <option value="">None</option>
@@ -245,10 +245,10 @@ export function KpiTab() {
                       </select>
                     </td>
                     <td style={{ padding: '8px 12px' }}>
-                      <span style={{ color: pm.active ? '#1D9E75' : '#A32D2D', fontWeight: 500 }}>{pm.active ? 'Active' : 'Inactive'}</span>
+                      <span style={{ color: pm.active ? '#43B892' : '#A32D2D', fontWeight: 500 }}>{pm.active ? 'Active' : 'Inactive'}</span>
                     </td>
                     <td style={{ padding: '8px 12px' }}>
-                      <button onClick={() => togglePM(pm.id, pm.active)} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#888780' }}>
+                      <button onClick={() => togglePM(pm.id, pm.active)} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', cursor: 'pointer', color: '#908E85' }}>
                         {pm.active ? 'Deactivate' : 'Activate'}
                       </button>
                     </td>
@@ -262,28 +262,28 @@ export function KpiTab() {
 
       {/* Controls */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, borderRadius: 12, background: '#232329', border: '0.5px solid #2A2A30' }}>
           {OFFICES.map(o => (
-            <button key={o} onClick={() => setOffice(o)} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: office === o ? '#2C2C2A' : '#888780', background: office === o ? '#ffffff' : 'transparent', border: office === o ? '0.5px solid #D3D1C7' : '0.5px solid transparent', boxShadow: office === o ? '0 1px 3px rgba(44,44,42,0.08)' : 'none', cursor: 'pointer' }}>
+            <button key={o} onClick={() => setOffice(o)} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: office === o ? '#F0EEE8' : '#908E85', background: office === o ? '#1C1C21' : 'transparent', border: office === o ? '0.5px solid #2A2A30' : '0.5px solid transparent', boxShadow: office === o ? '0 1px 3px rgba(44,44,42,0.08)' : 'none', cursor: 'pointer' }}>
               {o}
             </button>
           ))}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, borderRadius: 12, background: '#232329', border: '0.5px solid #2A2A30' }}>
             {(['monthly', 'weekly'] as const).map(p => (
-              <button key={p} onClick={() => setPeriod(p)} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: period === p ? '#2C2C2A' : '#888780', background: period === p ? '#ffffff' : 'transparent', border: period === p ? '0.5px solid #D3D1C7' : '0.5px solid transparent', boxShadow: period === p ? '0 1px 3px rgba(44,44,42,0.08)' : 'none', cursor: 'pointer' }}>
+              <button key={p} onClick={() => setPeriod(p)} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: period === p ? '#F0EEE8' : '#908E85', background: period === p ? '#1C1C21' : 'transparent', border: period === p ? '0.5px solid #2A2A30' : '0.5px solid transparent', boxShadow: period === p ? '0 1px 3px rgba(44,44,42,0.08)' : 'none', cursor: 'pointer' }}>
                 {p.charAt(0).toUpperCase() + p.slice(1)}
               </button>
             ))}
           </div>
-          <button onClick={() => { setShowPMManager(true); fetchPMs(); }} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer', fontWeight: 500 }}>
+          <button onClick={() => { setShowPMManager(true); fetchPMs(); }} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#908E85', cursor: 'pointer', fontWeight: 500 }}>
             Manage PMs
           </button>
-          <button onClick={exportCSV} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500 }}>
+          <button onClick={exportCSV} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 9, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#F0EEE8', cursor: 'pointer', fontWeight: 500 }}>
             Export CSV
           </button>
-          <select value={pmFilter} onChange={e => setPmFilter(e.target.value)} style={{ fontSize: 13, padding: '7px 12px', borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer' }}>
+          <select value={pmFilter} onChange={e => setPmFilter(e.target.value)} style={{ fontSize: 13, padding: '7px 12px', borderRadius: 9, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#F0EEE8', cursor: 'pointer' }}>
             <option value="All">All PMs</option>
             {pms.map((pm: any) => <option key={pm.id} value={pm.name}>{pm.name}</option>)}
           </select>
@@ -291,22 +291,22 @@ export function KpiTab() {
       </div>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: '#888780' }}>Loading...</div>
+        <div style={{ padding: 40, textAlign: 'center', color: '#908E85' }}>Loading...</div>
       ) : (
         <>
           {/* Company-wide KPI table */}
-          <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 14, color: '#2C2C2A' }}>
+          <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 14, color: '#F0EEE8' }}>
             Company-wide {period === 'monthly' ? 'Monthly' : 'Weekly'} KPIs
-            {office !== 'All' && <span style={{ fontSize: 12, color: '#888780', fontWeight: 400, marginLeft: 8 }}>— {office}</span>}
+            {office !== 'All' && <span style={{ fontSize: 12, color: '#908E85', fontWeight: 400, marginLeft: 8 }}>— {office}</span>}
           </div>
-          <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #E8E7E3', overflow: 'hidden', marginBottom: 24 }}>
+          <div style={{ background: '#1C1C21', borderRadius: 12, border: '0.5px solid #2A2A30', overflow: 'hidden', marginBottom: 24 }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={tableStyle}>
                 <thead>
                   <tr>
                     <th style={{ ...thStyle, textAlign: 'left', position: 'sticky', left: 0, zIndex: 3 }}>Metric</th>
                     {labels.map((l: string) => <th key={l} style={thStyle}>{l}</th>)}
-                    <th style={{ ...thStyle, borderLeft: '2px solid #D3D1C7', background: '#F1EFE8', fontWeight: 600 }}>Cumulative</th>
+                    <th style={{ ...thStyle, borderLeft: '2px solid #2A2A30', background: '#232329', fontWeight: 600 }}>Cumulative</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -314,11 +314,11 @@ export function KpiTab() {
                     <tr key={row.label}>
                       <td style={rowLabelStyle}>{row.label}</td>
                       {company.map((m: any, i: number) => (
-                        <td key={i} style={{ ...tdStyle, fontWeight: row.bold ? 500 : 400, color: row.bold ? '#1D9E75' : '#2C2C2A' }}>
+                        <td key={i} style={{ ...tdStyle, fontWeight: row.bold ? 500 : 400, color: row.bold ? '#43B892' : '#F0EEE8' }}>
                           {row.fn(m)}
                         </td>
                       ))}
-                      <td style={{ ...tdStyle, borderLeft: '2px solid #D3D1C7', background: '#F7F6F3', fontWeight: 600, color: row.bold ? '#1D9E75' : '#2C2C2A' }}>
+                      <td style={{ ...tdStyle, borderLeft: '2px solid #2A2A30', background: '#F7F6F3', fontWeight: 600, color: row.bold ? '#43B892' : '#F0EEE8' }}>
                         {data.companyCumulative ? row.fn(data.companyCumulative) : '—'}
                       </td>
                     </tr>
@@ -332,12 +332,12 @@ export function KpiTab() {
               Per-PM tables stay at the rolling 12. Pre-2026 columns show locked legacy numbers. */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: -12, marginBottom: 24 }}>
             <button onClick={() => setCompanyCount(c => c + 12)}
-              style={{ padding: '7px 16px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500 }}>
+              style={{ padding: '7px 16px', fontSize: 13, borderRadius: 9, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#F0EEE8', cursor: 'pointer', fontWeight: 500 }}>
               Load 12 earlier {period === 'monthly' ? 'months' : 'weeks'} →
             </button>
             {companyCount > 12 && (
               <button onClick={() => setCompanyCount(12)}
-                style={{ padding: '7px 16px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#888780', cursor: 'pointer', fontWeight: 500 }}>
+                style={{ padding: '7px 16px', fontSize: 13, borderRadius: 9, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#908E85', cursor: 'pointer', fontWeight: 500 }}>
                 Reset
               </button>
             )}
@@ -348,16 +348,16 @@ export function KpiTab() {
             <div key={pm.pm} style={{ marginBottom: 24 }}>
               <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 14 }}>
                 {pm.pm}
-                <span style={{ fontSize: 11, color: '#888780', fontWeight: 400, marginLeft: 8 }}>{pm.office}</span>
+                <span style={{ fontSize: 11, color: '#908E85', fontWeight: 400, marginLeft: 8 }}>{pm.office}</span>
               </div>
-              <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #E8E7E3', overflow: 'hidden' }}>
+              <div style={{ background: '#1C1C21', borderRadius: 12, border: '0.5px solid #2A2A30', overflow: 'hidden' }}>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={tableStyle}>
                     <thead>
                       <tr>
                         <th style={{ ...thStyle, textAlign: 'left', position: 'sticky', left: 0, zIndex: 3 }}>Metric</th>
                         {labels.map((l: string) => <th key={l} style={thStyle}>{l}</th>)}
-                        <th style={{ ...thStyle, borderLeft: '2px solid #D3D1C7', background: '#F1EFE8', fontWeight: 600 }}>Cumulative</th>
+                        <th style={{ ...thStyle, borderLeft: '2px solid #2A2A30', background: '#232329', fontWeight: 600 }}>Cumulative</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -365,11 +365,11 @@ export function KpiTab() {
                         <tr key={row.label}>
                           <td style={rowLabelStyle}>{row.label}</td>
                           {(period === 'monthly' ? (pm.months || []) : (pm.weeks || [])).map((m: any, i: number) => (
-                            <td key={i} style={{ ...tdStyle, fontWeight: row.bold ? 500 : 400, color: row.bold ? '#1D9E75' : '#2C2C2A' }}>
+                            <td key={i} style={{ ...tdStyle, fontWeight: row.bold ? 500 : 400, color: row.bold ? '#43B892' : '#F0EEE8' }}>
                               {row.fn(m)}
                             </td>
                           ))}
-                          <td style={{ ...tdStyle, borderLeft: '2px solid #D3D1C7', background: '#F7F6F3', fontWeight: 600, color: row.bold ? '#1D9E75' : '#2C2C2A' }}>
+                          <td style={{ ...tdStyle, borderLeft: '2px solid #2A2A30', background: '#F7F6F3', fontWeight: 600, color: row.bold ? '#43B892' : '#F0EEE8' }}>
                             {pm.cumulative ? row.fn(pm.cumulative) : '—'}
                           </td>
                         </tr>
