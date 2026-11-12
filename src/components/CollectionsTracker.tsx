@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { PageHeader as CCPageHeader, SegTabs as CCSegTabs } from '@/components/cc/Layout';
-import { Btn as CCBtn } from '@/components/cc/Primitives';
+import { PageHeader as CCPageHeader, SegTabs as CCSegTabs, DataTable as CCDataTable, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
+import { Btn as CCBtn, StatusPill as CCStatusPill } from '@/components/cc/Primitives';
 
 const money = (n: number) => '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt = (d: any) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -107,30 +107,24 @@ export default function CollectionsTracker({ embedded }: { embedded?: boolean })
       </div>
 
       {loading ? <div style={{ color: '#908E85' }}>Loading…</div> : (
-        <div style={{ border: '1px solid #2A2A30', borderRadius: 14, overflow: 'auto', maxHeight: '62vh', background: '#1C1C21' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr>
-              <th style={th}>Customer</th><th style={th}>Invoice</th><th style={th}>Office</th>
-              <th style={{ ...th, textAlign: 'right' }}>Amount</th><th style={th}>Due</th>
-              <th style={th}>Status</th><th style={th}>Engagement</th><th style={th}>Actions</th>
-            </tr></thead>
-            <tbody>
-              {rows.map((row: any) => (
-                <tr key={row.id} style={{ background: (row.actionDue || row.stage === 'BAD_DEBT_PROPOSED') ? '#361e1e' : row.finalWarning ? '#352a16' : undefined }}>
-                  <td style={{ ...td, fontWeight: 600 }}>{row.customerName || '—'}</td>
-                  <td style={td}>#{row.invoiceNumber || '—'}</td>
-                  <td style={td}>{row.office || '—'}</td>
-                  <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(row.amount)}</td>
-                  <td style={td}>{fmt(row.dueDate)}</td>
-                  <td style={td}>{statusCell(row)}</td>
-                  <td style={td}>{engagementCell(row)}</td>
-                  <td style={td}>{actionsCell(row)}</td>
-                </tr>
-              ))}
-              {!rows.length && <tr><td colSpan={8} style={{ ...td, color: '#908E85', padding: 20 }}>Nothing in this tab.</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <CCDataTable
+          rowKey={(row:any)=>row.id}
+          empty="Nothing in this tab."
+          cols={[
+            { key:'cust', label:'Customer', render:(row:any)=><div style={{display:'flex',alignItems:'center',gap:8}}>
+                {(row.actionDue || row.stage==='BAD_DEBT_PROPOSED') ? <span title="Action due" style={{color:'#E57C7C'}}>⚑</span> : row.finalWarning ? <span title="Final warning" style={{color:'#DBA14E'}}>⚑</span> : null}
+                <CCCustomerCell name={row.customerName || '—'} />
+              </div> },
+            { key:'inv', label:'Invoice', render:(row:any)=><span style={{fontVariantNumeric:'tabular-nums',color:'#908E85'}}>#{row.invoiceNumber || '—'}</span> },
+            { key:'office', label:'Office', render:(row:any)=> row.office ? <CCStatusPill tone="blue">{row.office}</CCStatusPill> : '—' },
+            { key:'amount', label:'Amount', align:'right', render:(row:any)=><span style={{fontWeight:700,color:'#F0EEE8',fontVariantNumeric:'tabular-nums'}}>{money(row.amount)}</span> },
+            { key:'due', label:'Due', render:(row:any)=><span style={{color:'#908E85',fontSize:12.5}}>{fmt(row.dueDate)}</span> },
+            { key:'status', label:'Status', render:(row:any)=>statusCell(row) },
+            { key:'eng', label:'Engagement', render:(row:any)=>engagementCell(row) },
+            { key:'act', label:'Actions', render:(row:any)=><div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{actionsCell(row)}</div> },
+          ]}
+          rows={rows}
+        />
       )}
 
       {/* date-picker modal for Responded / Promised / Partial */}
