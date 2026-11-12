@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import CollectionsTracker from "@/components/CollectionsTracker";
 import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, DataTable as CCDataTable, Toolbar as CCToolbar, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell, FilterChips as CCFilterChips } from "@/components/cc/Layout";
 import { SectionHeader as CCSectionHeader, Card as CCCard, StatusPill as CCStatusPill, Btn as CCBtn } from "@/components/cc/Primitives";
+import CCDatePicker from "@/components/cc/DatePicker";
 import { LastSynced } from "@/components/LastSynced";
 
 const ACCENT = '#5B9BE0';
@@ -86,6 +87,8 @@ const Inp = ({label,value,onChange,type,placeholder,options,style:s,disabled}: {
     {label && <label style={{fontSize:12,color:"#908E85",fontWeight:600}}>{label}</label>}
     {options
       ? <select value={value} onChange={e=>onChange(e.target.value)} disabled={disabled} style={{fontSize:14,padding:"10px 12px",border:"1px solid #35353C",borderRadius:8,background:"#26262C",color:"#F0EEE8"}}>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>
+      : type==="date"
+      ? <CCDatePicker value={value} onChange={onChange} style={{ marginTop: 2 }} />
       : <input type={type||"text"} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} disabled={disabled} style={{fontSize:14,padding:"10px 12px",border:"1px solid #35353C",borderRadius:8,background:"#26262C",color:"#F0EEE8"}} />
     }
   </div>
@@ -486,7 +489,7 @@ function MarkCalledModal({item, onClose, onSaved}: any) {
                 <input value={promisedAmount} onChange={e=>setPromisedAmount(e.target.value)} type="number" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #2A2A30",fontSize:13}} />
               </label>
               <label style={{fontSize:12,color:"#C9C7BF",flex:1}}>By date
-                <input value={promisedDate} onChange={e=>setPromisedDate(e.target.value)} type="date" style={{width:"100%",marginTop:4,padding:"8px 10px",borderRadius:8,border:"0.5px solid #2A2A30",fontSize:13}} />
+                <div style={{marginTop:4}}><CCDatePicker value={promisedDate} onChange={setPromisedDate} /></div>
               </label>
             </div>
           )}
@@ -1069,9 +1072,9 @@ function DashPage({open,totalAR,totalOverdue,collected,agingTotals,payments,prev
             </select>
             {collectedDays===0 && (
               <div style={{display:"flex",alignItems:"center",gap:4,marginTop:4,width:"100%"}}>
-                <input type="date" value={customDateFrom} onChange={e=>setCustomDateFrom(e.target.value)} style={{fontSize:10,padding:"3px 5px",borderRadius:5,border:"1px solid #35353C",background:"#26262C",color:"#F0EEE8"}}/>
+                <CCDatePicker value={customDateFrom} onChange={setCustomDateFrom} placeholder="From" />
                 <span style={{fontSize:10,color:"#908E85"}}>to</span>
-                <input type="date" value={customDateTo} onChange={e=>setCustomDateTo(e.target.value)} style={{fontSize:10,padding:"3px 5px",borderRadius:5,border:"1px solid #35353C",background:"#26262C",color:"#F0EEE8"}}/>
+                <CCDatePicker value={customDateTo} onChange={setCustomDateTo} placeholder="To" />
               </div>
             )}
           </div>

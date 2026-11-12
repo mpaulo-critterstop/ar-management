@@ -8,6 +8,7 @@ import { canAccessModule } from '@/lib/access';
 import { LastSynced } from '@/components/LastSynced';
 import { PageHeader as CCPageHeader, FilterChips as CCFilterChips, SearchBox as CCSearchBox, DataTable as CCDataTable, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
 import { Btn as CCBtn } from '@/components/cc/Primitives';
+import CCDatePicker from '@/components/cc/DatePicker';
 
 const ACCENT = '#5B9BE0';
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
@@ -222,10 +223,7 @@ export default function DispatchPage() {
                   {current.exclusionDone && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <label style={{ fontSize: 11, color: '#908E85', width: 80 }}>Date:</label>
-                      <input type="date"
-                        value={stageEdit.exclusionDate || (editingJob.exclusionDate ? editingJob.exclusionDate.split('T')[0] : '')}
-                        onChange={e => setStageEdit((p: any) => ({ ...p, exclusionDate: e.target.value }))}
-                        style={{ fontSize: 12, padding: '4px 7px', border: '1px solid #35353C', borderRadius: 6, background: '#26262C', color: '#F0EEE8' }} />
+                      <CCDatePicker value={stageEdit.exclusionDate || (editingJob.exclusionDate ? editingJob.exclusionDate.split('T')[0] : '')} onChange={(v: string) => setStageEdit((p: any) => ({ ...p, exclusionDate: v }))} />
                     </div>
                   )}
                 </div>
@@ -249,10 +247,7 @@ export default function DispatchPage() {
                   {current.trapsDone && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <label style={{ fontSize: 11, color: '#908E85', width: 80 }}>Last check:</label>
-                      <input type="date"
-                        value={stageEdit.lastTrapCheck || (editingJob.lastTrapCheck ? editingJob.lastTrapCheck.split('T')[0] : '')}
-                        onChange={e => setStageEdit((p: any) => ({ ...p, lastTrapCheck: e.target.value }))}
-                        style={{ fontSize: 12, padding: '4px 7px', border: '1px solid #35353C', borderRadius: 6, background: '#26262C', color: '#F0EEE8' }} />
+                      <CCDatePicker value={stageEdit.lastTrapCheck || (editingJob.lastTrapCheck ? editingJob.lastTrapCheck.split('T')[0] : '')} onChange={(v: string) => setStageEdit((p: any) => ({ ...p, lastTrapCheck: v }))} />
                     </div>
                   )}
                 </div>
@@ -269,10 +264,7 @@ export default function DispatchPage() {
                   {current.farDone && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <label style={{ fontSize: 11, color: '#908E85', width: 80 }}>Date:</label>
-                      <input type="date"
-                        value={stageEdit.farDate || (editingJob.farDate ? editingJob.farDate.split('T')[0] : '')}
-                        onChange={e => setStageEdit((p: any) => ({ ...p, farDate: e.target.value }))}
-                        style={{ fontSize: 12, padding: '4px 7px', border: '1px solid #35353C', borderRadius: 6, background: '#26262C', color: '#F0EEE8' }} />
+                      <CCDatePicker value={stageEdit.farDate || (editingJob.farDate ? editingJob.farDate.split('T')[0] : '')} onChange={(v: string) => setStageEdit((p: any) => ({ ...p, farDate: v }))} />
                     </div>
                   )}
                 </div>
@@ -288,10 +280,7 @@ export default function DispatchPage() {
                 {current.closedOut && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <label style={{ fontSize: 11, color: '#908E85', width: 80 }}>Date:</label>
-                    <input type="date"
-                      value={stageEdit.closedOutDate || (editingJob.closedOutDate ? editingJob.closedOutDate.split('T')[0] : '')}
-                      onChange={e => setStageEdit((p: any) => ({ ...p, closedOutDate: e.target.value }))}
-                      style={{ fontSize: 12, padding: '4px 7px', border: '1px solid #35353C', borderRadius: 6, background: '#26262C', color: '#F0EEE8' }} />
+                    <CCDatePicker value={stageEdit.closedOutDate || (editingJob.closedOutDate ? editingJob.closedOutDate.split('T')[0] : '')} onChange={(v: string) => setStageEdit((p: any) => ({ ...p, closedOutDate: v }))} />
                   </div>
                 )}
               </div>

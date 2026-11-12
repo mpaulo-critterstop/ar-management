@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { PageHeader as CCPageHeader, SegTabs as CCSegTabs, DataTable as CCDataTable, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
 import { Btn as CCBtn, StatusPill as CCStatusPill } from '@/components/cc/Primitives';
+import CCDatePicker from '@/components/cc/DatePicker';
 
 const money = (n: number) => '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt = (d: any) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -137,7 +138,7 @@ export default function CollectionsTracker({ embedded }: { embedded?: boolean })
             <div style={{ fontSize: 13, color: '#908E85', marginBottom: 14 }}>
               {modal.kind === 'partial' ? 'Resets the 15-day countdown from the payment date and re-enables engagement.' : 'Pick the ACTUAL date it happened (not today, if it was earlier). The countdown extends from this date.'}
             </div>
-            <label style={{ fontSize: 12, color: '#908E85' }}>Date<input type="date" value={modal.date} max={todayStr()} onChange={e => setModal({ ...modal, date: e.target.value })} style={{ display: 'block', width: '100%', fontSize: 14, padding: '10px 12px', borderRadius: 8, border: '1px solid #35353C', marginTop: 4, boxSizing: 'border-box', background: '#26262C', color: '#F0EEE8' }} /></label>
+            <label style={{ fontSize: 12, color: '#908E85' }}>Date<div style={{ marginTop: 4 }}><CCDatePicker value={modal.date} max={todayStr()} onChange={(v: string) => setModal({ ...modal, date: v })} /></div></label>
             <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
               <button onClick={() => setModal(null)} style={{ flex: 1, fontSize: 13, padding: '10px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#908E85', cursor: 'pointer' }}>Cancel</button>
               <button onClick={() => { const { id, kind, date } = modal; setModal(null); act(id, kind === 'responded' ? 'logResponded' : kind === 'promised' ? 'logPromised' : 'partialReset', { date }); }} style={{ flex: 1, fontSize: 13, padding: '10px', borderRadius: 8, border: 'none', background: '#5B9BE0', color: '#1C1C21', fontWeight: 600, cursor: 'pointer' }}>Confirm</button>

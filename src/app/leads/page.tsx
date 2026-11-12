@@ -11,6 +11,7 @@ import { LastSynced } from '@/components/LastSynced';
 import { canAccessModule, perm } from '@/lib/access';
 import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, DataTable as CCDataTable, Toolbar as CCToolbar, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
 import { Btn as CCBtn, StatusPill as CCStatusPill, SectionHeader as CCSectionHeader } from '@/components/cc/Primitives';
+import CCDatePicker from '@/components/cc/DatePicker';
 
 const ACCENT = '#5B9BE0';
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
@@ -255,9 +256,9 @@ export default function LeadsPage() {
             <select value={pmInput} onChange={e => setPmInput(e.target.value)} style={selStyle}>
               {pms.map(p => <option key={p}>{p}</option>)}
             </select>
-            <input type="date" value={fromInput} onChange={e => setFromInput(e.target.value)} style={selStyle} />
+            <CCDatePicker value={fromInput} onChange={setFromInput} placeholder="From" />
             <span style={{ fontSize: 12, color: '#908E85' }}>to</span>
-            <input type="date" value={toInput} onChange={e => setToInput(e.target.value)} style={selStyle} />
+            <CCDatePicker value={toInput} onChange={setToInput} placeholder="To" />
             <CCBtn variant="secondary" onClick={() => { setFrom(fromInput); setTo(toInput); setStatusFilter(statusInput); setPmFilter(pmInput); }}>Apply</CCBtn>
             {(from || to || statusFilter !== 'All' || pmFilter !== 'All') && (
               <CCBtn variant="ghost" onClick={() => { setFrom(''); setTo(''); setFromInput(''); setToInput(''); setStatusFilter('All'); setStatusInput('All'); setPmFilter('All'); setPmInput('All'); }}>Clear</CCBtn>

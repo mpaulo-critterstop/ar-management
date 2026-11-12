@@ -3,3 +3,4 @@ export * from './tokens';
 export * from './Primitives';
 export * from './Layout';
 export * from './Modal';
+export { default as DatePicker } from './DatePicker';

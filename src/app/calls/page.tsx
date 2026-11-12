@@ -6,6 +6,7 @@ import { canAccessModule } from '@/lib/access';
 import { PageHeader, KpiStrip, DataTable, Toolbar, SearchBox, CustomerCell } from '@/components/cc/Layout';
 import { Btn, StatusPill, SectionHeader, Card } from '@/components/cc/Primitives';
 import { cc } from '@/components/cc/tokens';
+import CCDatePicker from '@/components/cc/DatePicker';
 
 const RANGES = [
   { label: 'Today', value: 'today' },
@@ -109,9 +110,9 @@ export default function CallsPage() {
       </div>
       {showCustom && (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 22 }}>
-          <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} style={{ fontSize: 13, padding: '8px 11px', borderRadius: 8, border: `1px solid ${cc.line2}`, background: cc.panel2, color: cc.ink }} />
+          <CCDatePicker value={customStart} onChange={setCustomStart} placeholder="From" />
           <span style={{ color: cc.muted }}>to</span>
-          <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} style={{ fontSize: 13, padding: '8px 11px', borderRadius: 8, border: `1px solid ${cc.line2}`, background: cc.panel2, color: cc.ink }} />
+          <CCDatePicker value={customEnd} onChange={setCustomEnd} placeholder="To" />
         </div>
       )}
 

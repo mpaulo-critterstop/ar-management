@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, DataTable as CCDataTable, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
 import { Btn as CCBtn, StatusPill as CCStatusPill } from '@/components/cc/Primitives';
+import CCDatePicker from '@/components/cc/DatePicker';
 
 const OFFICES = ['DFW', 'ATX', 'OKC', 'CStat'];
 const CATEGORIES = ['All', 'Pest Control', 'Rodent Bundle', 'Termite'];
@@ -91,15 +92,15 @@ export default function PestSalesPage() {
       <div style={{ display: 'flex', gap: 16, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <span style={{ fontSize: 12, color: '#908E85' }}>Sale date:</span>
-          <input type="date" value={saleFrom} onChange={e => setSaleFrom(e.target.value)} style={dateStyle} />
+          <CCDatePicker value={saleFrom} onChange={setSaleFrom} placeholder="From" />
           <span style={{ fontSize: 12, color: '#63615A' }}>to</span>
-          <input type="date" value={saleTo} onChange={e => setSaleTo(e.target.value)} style={dateStyle} />
+          <CCDatePicker value={saleTo} onChange={setSaleTo} placeholder="To" />
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <span style={{ fontSize: 12, color: '#908E85' }}>Initial service:</span>
-          <input type="date" value={initFrom} onChange={e => setInitFrom(e.target.value)} style={dateStyle} />
+          <CCDatePicker value={initFrom} onChange={setInitFrom} placeholder="From" />
           <span style={{ fontSize: 12, color: '#63615A' }}>to</span>
-          <input type="date" value={initTo} onChange={e => setInitTo(e.target.value)} style={dateStyle} />
+          <CCDatePicker value={initTo} onChange={setInitTo} placeholder="To" />
         </div>
         {(saleFrom || saleTo || initFrom || initTo) && (
           <CCBtn variant="ghost" onClick={() => { setSaleFrom(''); setSaleTo(''); setInitFrom(''); setInitTo(''); }}>Clear dates</CCBtn>
