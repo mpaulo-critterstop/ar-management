@@ -111,7 +111,7 @@ export function CommissionsTab() {
       ) : rows.length === 0 ? (
         <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>No commission plans. Add a structure to a PM in Manage PMs.</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ maxHeight: 'calc(100vh - 230px)', overflowY: 'auto', scrollbarGutter: 'stable', paddingRight: 4 }}>
           {(() => {
             // Summary totals across all PMs, per month, for the requested metrics.
             const SUMMARY_DEFS: { key: string; label: string; kind?: 'delta' }[] = [
@@ -170,12 +170,13 @@ export function CommissionsTab() {
               </div>
             );
           })()}
+          <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#908E85', margin: '4px 0 10px' }}>Individual PMs</div>
           {rows.map((pm: any) => (
-            <div key={pm.pmName} style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden', background: '#1C1C21' }}>
+            <div key={pm.pmName} style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden', background: '#1C1C21', marginBottom: 16 }}>
               <div style={{ padding: '10px 14px', background: '#232329', fontWeight: 600, fontSize: 14, color: '#F0EEE8', borderBottom: '0.5px solid #2A2A30' }}>
                 {pm.pmName}
               </div>
-              <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh', scrollbarGutter: 'stable' }}>
+              <div style={{ overflowX: 'auto', scrollbarGutter: 'stable' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: '#232329' }}>
@@ -217,7 +218,7 @@ export function CommissionsTab() {
                                      : rd.key === 'totalCommission' ? '#F0EEE8' : '#444441',
                                 fontWeight: rd.key === 'totalCommission' ? 600 : 400,
                                 cursor: editable ? 'pointer' : 'default',
-                                background: editable ? '#FCFBF6' : 'transparent',
+                                background: editable ? '#2e2a1a' : 'transparent',
                               }}>
                               {isEditing ? (
                                 <input autoFocus value={editVal}
