@@ -57,7 +57,10 @@ export default function CallsPage() {
 
   const total = data?.total || 0;
   const answered = data?.answered || 0;
-  const answerRate = total ? Math.round((answered / total) * 100) : 0;
+  const agentMissed = data?.agent_missed || 0;
+  // Answer rate = answered / (answered + missed) — the true attempt basis (excludes abandoned/voicemail/missed-opportunity).
+  const answerDenom = answered + agentMissed;
+  const answerRate = answerDenom ? Math.round((answered / answerDenom) * 100) : 0;
   const rangeLabel = RANGES.find(r => r.value === range)?.label || '';
 
   const kpiItems = [
@@ -76,12 +79,13 @@ export default function CallsPage() {
     .slice().sort((a: any, b: any) => (b.answered || 0) - (a.answered || 0));
 
   const agentCols: any[] = [
+    // Total = answered + missed (true inbound attempts). Excludes abandoned/voicemail so the answer rate is accurate.
     { key: 'agent', label: 'Agent', render: (a: any) => <CustomerCell name={a.name} /> },
-    { key: 'total', label: 'Total', align: 'right', render: (a: any) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{a.total}</span> },
+    { key: 'total', label: 'Total', align: 'right', render: (a: any) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{(a.answered || 0) + (a.missed || 0)}</span> },
     { key: 'answered', label: 'Answered', align: 'right', render: (a: any) => <span style={{ color: cc.green, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{a.answered}</span> },
     { key: 'missed', label: 'Missed', align: 'right', render: (a: any) => <span style={{ color: (a.missed ? cc.amber : cc.muted), fontVariantNumeric: 'tabular-nums' }}>{a.missed}</span> },
     { key: 'ftc', label: 'First-time', align: 'right', render: (a: any) => <span style={{ fontVariantNumeric: 'tabular-nums', color: cc.muted }}>{a.first_time ?? '—'}</span> },
-    { key: 'ar', label: 'Answer rate', align: 'right', render: (a: any) => { const ar = Math.round((a.answered / Math.max(a.total, 1)) * 100); return <StatusPill tone={ar >= 90 ? 'green' : ar >= 75 ? 'amber' : 'red'}>{ar}%</StatusPill>; } },
+    { key: 'ar', label: 'Answer rate', align: 'right', render: (a: any) => { const denom = (a.answered || 0) + (a.missed || 0); const ar = denom ? Math.round((a.answered / denom) * 100) : 0; return <StatusPill tone={ar >= 90 ? 'green' : ar >= 75 ? 'amber' : 'red'}>{ar}%</StatusPill>; } },
     { key: 'dur', label: 'Avg duration', align: 'right', render: (a: any) => <span style={{ color: cc.muted, fontVariantNumeric: 'tabular-nums' }}>{fmtDuration(a.answered > 0 ? Math.round(a.totalDuration / a.answered) : 0)}</span> },
   ];
 
