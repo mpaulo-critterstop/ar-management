@@ -300,7 +300,7 @@ export function KpiTab() {
             {office !== 'All' && <span style={{ fontSize: 12, color: '#908E85', fontWeight: 400, marginLeft: 8 }}>— {office}</span>}
           </div>
           <div style={{ background: '#1C1C21', borderRadius: 12, border: '0.5px solid #2A2A30', overflow: 'hidden', marginBottom: 24 }}>
-            <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh' }}>
+            <div style={{ overflowX: 'auto', overflowY: 'hidden', scrollbarGutter: 'stable' }}>
               <table style={tableStyle}>
                 <thead>
                   <tr>
@@ -351,7 +351,7 @@ export function KpiTab() {
                 <span style={{ fontSize: 11, color: '#908E85', fontWeight: 400, marginLeft: 8 }}>{pm.office}</span>
               </div>
               <div style={{ background: '#1C1C21', borderRadius: 12, border: '0.5px solid #2A2A30', overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh' }}>
+                <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh', scrollbarGutter: 'stable' }}>
                   <table style={tableStyle}>
                     <thead>
                       <tr>

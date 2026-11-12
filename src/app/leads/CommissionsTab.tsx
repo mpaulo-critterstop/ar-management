@@ -140,7 +140,7 @@ export function CommissionsTab() {
                 <div style={{ padding: '10px 14px', background: '#143229', fontWeight: 600, fontSize: 14, color: '#F0EEE8', borderBottom: '0.5px solid #2e5a4c' }}>
                   All PMs — Summary Totals
                 </div>
-                <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh' }}>
+                <div style={{ overflowX: 'auto', overflowY: 'hidden', scrollbarGutter: 'stable' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead>
                       <tr style={{ background: '#232329' }}>
@@ -175,7 +175,7 @@ export function CommissionsTab() {
               <div style={{ padding: '10px 14px', background: '#232329', fontWeight: 600, fontSize: 14, color: '#F0EEE8', borderBottom: '0.5px solid #2A2A30' }}>
                 {pm.pmName}
               </div>
-              <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh' }}>
+              <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '58vh', scrollbarGutter: 'stable' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: '#232329' }}>
