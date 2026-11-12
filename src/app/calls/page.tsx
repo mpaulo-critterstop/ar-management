@@ -64,8 +64,9 @@ export default function CallsPage() {
   const rangeLabel = RANGES.find(r => r.value === range)?.label || '';
 
   const kpiItems = [
+    { icon: '🎯', label: 'Team answer rate', value: loading ? '…' : `${answerRate}%`, tone: (answerRate >= 90 ? 'green' : answerRate >= 75 ? 'amber' : 'red') as 'green' | 'amber' | 'red', delta: `${answered.toLocaleString()} of ${answerDenom.toLocaleString()} attempts`, deltaTone: (answerRate >= 90 ? 'green' : 'amber') as 'green' | 'amber' },
     { icon: '📞', label: 'Total calls', value: loading ? '…' : total.toLocaleString(), tone: 'blue' as const, delta: rangeLabel },
-    { icon: '✅', label: 'Answered', value: loading ? '…' : answered.toLocaleString(), tone: 'green' as const, delta: `${answerRate}% answer rate`, deltaTone: (answerRate >= 90 ? 'green' : 'amber') as 'green' | 'amber' },
+    { icon: '✅', label: 'Answered', value: loading ? '…' : answered.toLocaleString(), tone: 'green' as const, delta: `${agentMissed.toLocaleString()} missed`, deltaTone: 'green' as const },
     { icon: '📵', label: 'Agent missed', value: loading ? '…' : (data?.agent_missed || 0).toLocaleString(), tone: 'amber' as const, delta: `${(data?.ring_no_answer || 0).toLocaleString()} ring no answer` },
     { icon: '⚠️', label: 'Missed opportunity', value: loading ? '…' : (data?.missed_opportunity || 0).toLocaleString(), tone: 'red' as const, delta: 'no agent reached' },
     { icon: '🆕', label: 'First-time callers', value: loading ? '…' : (data?.first_time || 0).toLocaleString(), tone: 'violet' as const, delta: 'new numbers' },
