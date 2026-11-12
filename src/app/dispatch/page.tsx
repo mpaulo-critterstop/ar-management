@@ -197,7 +197,7 @@ export default function DispatchPage() {
       )}
 
       {editingJob && current && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(2px)', zIndex: 100, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px', overflowY: 'auto' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(2px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', overflowY: 'auto' }}>
           <div style={{ background: '#1C1C21', border: '1px solid #35353C', borderRadius: 14, padding: 24, width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,.5)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
@@ -363,13 +363,13 @@ export default function DispatchPage() {
             { key: 'daysSold', label: <span onClick={() => toggleSort('daysSold')} style={{ cursor: 'pointer' }}>Days sold{sortArrow('daysSold')}</span> as any, align: 'right', render: (job: any) => { const d = job.invoice?.date ? daysSince(job.invoice.date) : null; return d !== null ? <span style={{ color: d > 30 ? '#E57C7C' : '#C9C7BF', fontWeight: d > 30 ? 600 : 400, fontVariantNumeric: 'tabular-nums' }}>{d}d</span> : '—'; } },
             { key: 'lastUpdate', label: <span onClick={() => toggleSort('lastUpdate')} style={{ cursor: 'pointer' }}>Last update{sortArrow('lastUpdate')}</span> as any, align: 'right', render: (job: any) => { const d = daysSince(job.updatedAt); return d !== null ? <span style={{ color: d > 7 ? '#DBA14E' : '#908E85', fontVariantNumeric: 'tabular-nums' }}>{d}d ago</span> : '—'; } },
             { key: 'stage', label: <span onClick={() => toggleSort('stage')} style={{ cursor: 'pointer' }}>Stage{sortArrow('stage')}</span> as any, render: (job: any) => { const stage = getStage(job); return <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11.5, fontWeight: 600, background: stage.bg, color: stage.color }}>{stage.label}</span>; } },
-            { key: 'stages', label: 'Stages', render: (job: any) => <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            { key: 'stages', label: 'Stages', wrap: true, render: (job: any) => <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', maxWidth: 180, whiteSpace: 'normal' }}>
               {job.hasExclusion && <StageChip done={job.exclusionDone} label="Exclusion" date={job.exclusionDate} />}
               {job.hasTrapping && <StageChip done={job.trapsDone} label="Trapping" date={job.lastTrapCheck} />}
               {job.hasFAR && <StageChip done={job.farDone} label="FAR" date={job.farDate} />}
             </div> },
             { key: 'trapChecks', label: <span onClick={() => toggleSort('trapChecks')} style={{ cursor: 'pointer' }}>Trap checks{sortArrow('trapChecks')}</span> as any, align: 'right', render: (job: any) => job.hasTrapping ? <div><span style={{ fontWeight: 600, color: job.trapCheckCount >= 3 ? '#E57C7C' : '#F0EEE8', fontVariantNumeric: 'tabular-nums' }}>{job.trapCheckCount}</span>{job.lastTrapCheck && <div style={{ fontSize: 10.5, color: '#908E85' }}>{job.lastTrapCheck.split('T')[0]}</div>}</div> : <span style={{ color: '#63615A' }}>—</span> },
-            { key: 'flags', label: 'Flags', render: (job: any) => <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{getFlags(job).map((f: string) => <AttentionFlag key={f} label={f} />)}</div> },
+            { key: 'flags', label: 'Flags', wrap: true, render: (job: any) => <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', maxWidth: 150, whiteSpace: 'normal' }}>{getFlags(job).map((f: string) => <AttentionFlag key={f} label={f} />)}</div> },
           ]}
           rows={displayed}
         />

@@ -109,7 +109,7 @@ export function SearchBox({ value, onChange, placeholder }: { value: string; onC
 }
 
 // --- DataTable: the redesigned table (generous rows, hover, header) ---
-export type Col = { key: string; label: string; align?: 'left' | 'right' | 'center'; render?: (row: any) => React.ReactNode; width?: number | string };
+export type Col = { key: string; label: React.ReactNode; align?: 'left' | 'right' | 'center'; render?: (row: any) => React.ReactNode; width?: number | string; wrap?: boolean };
 export function DataTable({ cols, rows, empty = 'None.', rowKey }:
   { cols: Col[]; rows: any[]; empty?: string; rowKey?: (r: any, i: number) => string }) {
   // Sticky header (frozen while the table body scrolls). position:sticky + top:0 keeps the header row fixed.
@@ -129,7 +129,7 @@ export function DataTable({ cols, rows, empty = 'None.', rowKey }:
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = cc.panel2}
               onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
               style={{ transition: 'background .12s' }}>
-              {cols.map(c => <td key={c.key} style={{ ...tdBase, textAlign: c.align || 'left' }}>{c.render ? c.render(r) : r[c.key]}</td>)}
+              {cols.map(c => <td key={c.key} style={{ ...tdBase, textAlign: c.align || 'left', ...(c.wrap ? { whiteSpace: 'normal' } : {}) }}>{c.render ? c.render(r) : r[c.key]}</td>)}
             </tr>
           ))}
         </tbody>
