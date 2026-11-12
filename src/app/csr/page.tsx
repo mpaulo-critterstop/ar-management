@@ -1,5 +1,6 @@
 'use client';
-import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
+import { PageHeader as CCPageHeader, DataTable as CCDataTable, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
+import { StatusPill as CCStatusPill } from '@/components/cc/Primitives';
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -126,52 +127,27 @@ export default function CsrPage() {
       {csrLoading ? (
         <div style={{ textAlign: 'center', padding: 40, color: '#908E85' }}>Loading...</div>
       ) : (
-        <div style={{ background: '#1C1C21', border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: '0.5px solid #2A2A30', background: '#232329' }}>
-                <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#908E85', width: 40 }}>#</th>
-                <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#908E85' }}>CSR name</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#908E85', width: 100 }}>Completed</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#908E85', width: 140 }}>Rescheduled by others</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#908E85', width: 150 }}>Rescheduled from others</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#908E85', width: 90 }}>Total leads</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#908E85', width: 80 }}>Points</th>
-                <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 500, color: '#908E85', width: 80 }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {csrStats.length === 0 ? (
-                <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#908E85' }}>No CSR data yet — run the backfill first.</td></tr>
-              ) : csrStats.map((csr, i) => (
-                <tr key={csr.name} onClick={async () => {
-                  setDrawerCSR(csr);
-                  setDrawerData(null);
-                  setDrawerLoading(true);
-                  const params = new URLSearchParams({ csrName: csr.name });
-                  if (csrFrom) params.set('from', csrFrom);
-                  if (csrTo) params.set('to', csrTo);
-                  const res = await fetch('/api/leads/csr-detail?' + params.toString());
-                  setDrawerData(await res.json());
-                  setDrawerLoading(false);
-                }} style={{ borderBottom: '0.5px solid #2A2A30', background: i % 2 === 0 ? '#1C1C21' : '#232329', cursor: 'pointer' }}>
-                  <td style={{ padding: '10px 14px', color: '#908E85', fontSize: 12 }}>{i + 1}</td>
-                  <td style={{ padding: '10px 14px', fontWeight: 500, color: '#F0EEE8' }}>{csr.name}</td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', color: '#C9C7BF' }}>{csr.completed}</td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', color: '#C9C7BF' }}>{csr.rescheduledByOthers}</td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', color: '#C9C7BF' }}>{csr.rescheduledFromOthers}</td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', color: '#C9C7BF' }}>{csr.totalLeads}</td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 500, color: '#5B9BE0' }}>{csr.totalPoints.toFixed(1)}</td>
-                  <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                    <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: csr.active ? '#143229' : '#361e1e', color: csr.active ? '#3B6D11' : '#E57C7C' }}>
-                      {csr.active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <CCDataTable
+          rowKey={(csr: any) => csr.name}
+          empty="No CSR data yet — run the backfill first."
+          cols={[
+            { key: 'csr', label: 'CSR', render: (csr: any) => <div onClick={async () => {
+                setDrawerCSR(csr); setDrawerData(null); setDrawerLoading(true);
+                const params = new URLSearchParams({ csrName: csr.name });
+                if (csrFrom) params.set('from', csrFrom);
+                if (csrTo) params.set('to', csrTo);
+                const res = await fetch('/api/leads/csr-detail?' + params.toString());
+                setDrawerData(await res.json()); setDrawerLoading(false);
+              }} style={{ cursor: 'pointer' }}><CCCustomerCell name={csr.name} /></div> },
+            { key: 'completed', label: 'Completed', align: 'right', render: (csr: any) => <span style={{ color: '#C9C7BF', fontVariantNumeric: 'tabular-nums' }}>{csr.completed}</span> },
+            { key: 'rby', label: 'Resched. by others', align: 'right', render: (csr: any) => <span style={{ color: '#C9C7BF', fontVariantNumeric: 'tabular-nums' }}>{csr.rescheduledByOthers}</span> },
+            { key: 'rfrom', label: 'Resched. from others', align: 'right', render: (csr: any) => <span style={{ color: '#C9C7BF', fontVariantNumeric: 'tabular-nums' }}>{csr.rescheduledFromOthers}</span> },
+            { key: 'total', label: 'Total leads', align: 'right', render: (csr: any) => <span style={{ color: '#C9C7BF', fontVariantNumeric: 'tabular-nums' }}>{csr.totalLeads}</span> },
+            { key: 'points', label: 'Points', align: 'right', render: (csr: any) => <span style={{ fontWeight: 700, color: '#5B9BE0', fontVariantNumeric: 'tabular-nums' }}>{csr.totalPoints.toFixed(1)}</span> },
+            { key: 'status', label: 'Status', align: 'center', render: (csr: any) => <CCStatusPill tone={csr.active ? 'green' : 'red'}>{csr.active ? 'Active' : 'Inactive'}</CCStatusPill> },
+          ]}
+          rows={csrStats}
+        />
       )}
 
       {/* Manage CSRs Modal */}
