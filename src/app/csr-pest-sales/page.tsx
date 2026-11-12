@@ -1,10 +1,12 @@
 'use client';
 import CCDatePicker from '@/components/cc/DatePicker';
-import { PageHeader as CCPageHeader, SearchBox as CCSearchBox } from '@/components/cc/Layout';
+import { PageHeader as CCPageHeader, SearchBox as CCSearchBox, DataTable as CCDataTable, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
+import { StatusPill as CCStatusPill } from '@/components/cc/Primitives';
 import { useEffect, useState } from 'react';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+const catTone: any = { 'Pest Control': 'blue', 'Rodent Bundle': 'amber', 'Termite': 'violet' };
 const catColor: Record<string, { bg: string; fg: string }> = {
   'Pest Control': { bg: '#15263a', fg: '#5B9BE0' },
   'Rodent Bundle': { bg: '#352a16', fg: '#DBA14E' },
@@ -151,68 +153,34 @@ export default function CsrPestSalesPage() {
         </div>
       )}
 
-      {loading ? <p style={{ color: '#908E85', fontSize: 13, padding: 30, textAlign: 'center' }}>Loading…</p> : (
-        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#1C1C21' }}>
-          {tab === 'sales' ? (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr>
-                <th style={th}>Customer</th><th style={th}>CSR</th><th style={th}>Category</th><th style={th}>Service</th>
-                <th style={thR}>Contract Value</th><th style={th}>Sale Date</th><th style={th}>Initial Service Date</th><th style={th}>Status</th>
-              </tr></thead>
-              <tbody>
-                {sales.length === 0 ? (
-                  <tr><td style={{ ...td, textAlign: 'center', color: '#908E85', padding: 30 }} colSpan={8}>No CSR pest sales for these filters. Run the sync to pull sales.</td></tr>
-                ) : sales.map((s: any) => {
-                  const c = catColor[s.category] || { bg: '#232329', fg: '#C9C7BF' };
-                  return (
-                    <tr key={s.id}>
-                      <td style={td}>{s.customerName || <span style={{ color: '#63615A' }}>Unknown</span>}</td>
-                      <td style={{ ...td, fontWeight: 500 }}>{s.sellerName}</td>
-                      <td style={td}><span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 6, background: c.bg, color: c.fg }}>{s.category}</span></td>
-                      <td style={{ ...td, color: '#C9C7BF', maxWidth: 240 }}>{s.serviceName || '—'}</td>
-                      <td style={tdR}>{money(s.contractValue || 0)}</td>
-                      <td style={{ ...td, color: '#C9C7BF', whiteSpace: 'nowrap' }}>{fmtDate(s.saleDate)}</td>
-                      <td style={{ ...td, color: '#C9C7BF', whiteSpace: 'nowrap' }}>{fmtDate(s.initialCompletedAt)}</td>
-                      <td style={td}><span style={{ fontSize: 11, fontWeight: 500, color: s.initialDone ? '#43B892' : '#a16207' }}>{s.initialDone ? 'Serviced' : 'Pending'}</span></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr>
-                <th style={th}>CSR Name</th>
-                <th style={thR}># of Subscriptions Sold</th>
-                <th style={thR}>Completed</th>
-                <th style={thR}>Pending Initial Service</th>
-                <th style={thR}>Contract Value</th>
-              </tr></thead>
-              <tbody>
-                {rollup.length === 0 ? (
-                  <tr><td style={{ ...td, textAlign: 'center', color: '#908E85', padding: 30 }} colSpan={5}>No CSR pest sales yet.</td></tr>
-                ) : rollup.map((r: any) => (
-                  <tr key={r.csrName}>
-                    <td style={{ ...td, fontWeight: 500 }}>{r.csrName}</td>
-                    <td style={tdR}>{r.sold}</td>
-                    <td style={{ ...tdR, color: '#43B892' }}>{r.completed}</td>
-                    <td style={{ ...tdR, color: '#a16207' }}>{r.pending}</td>
-                    <td style={tdR}>{money(r.completedCV || 0)}</td>
-                  </tr>
-                ))}
-                {rollup.length > 0 && (
-                  <tr style={{ background: '#232329' }}>
-                    <td style={{ ...td, fontWeight: 600 }}>TOTAL</td>
-                    <td style={{ ...tdR, fontWeight: 600 }}>{rollup.reduce((a: number, r: any) => a + r.sold, 0)}</td>
-                    <td style={{ ...tdR, fontWeight: 600 }}>{rollup.reduce((a: number, r: any) => a + r.completed, 0)}</td>
-                    <td style={{ ...tdR, fontWeight: 600 }}>{rollup.reduce((a: number, r: any) => a + r.pending, 0)}</td>
-                    <td style={{ ...tdR, fontWeight: 600 }}>{money(rollup.reduce((a: number, r: any) => a + (r.completedCV || 0), 0))}</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
+      {loading ? <p style={{ color: '#908E85', fontSize: 13, padding: 30, textAlign: 'center' }}>Loading…</p> : tab === 'sales' ? (
+        <CCDataTable
+          rowKey={(s: any) => s.id}
+          empty="No CSR pest sales for these filters. Run the sync to pull sales."
+          cols={[
+            { key: 'cust', label: 'Customer', render: (s: any) => <CCCustomerCell name={s.customerName || 'Unknown'} sub={s.sellerName || undefined} /> },
+            { key: 'cat', label: 'Category', render: (s: any) => <CCStatusPill tone={catTone[s.category] || 'neutral'}>{s.category}</CCStatusPill> },
+            { key: 'service', label: 'Service', wrap: true, render: (s: any) => <span style={{ color: '#C9C7BF', fontSize: 12.5 }}>{s.serviceName || '—'}</span> },
+            { key: 'cv', label: 'Contract Value', align: 'right', render: (s: any) => <span style={{ fontWeight: 700, color: '#F0EEE8', fontVariantNumeric: 'tabular-nums' }}>{money(s.contractValue || 0)}</span> },
+            { key: 'saleDate', label: 'Sale date', render: (s: any) => <span style={{ color: '#908E85', fontSize: 12.5 }}>{fmtDate(s.saleDate)}</span> },
+            { key: 'initDate', label: 'Initial service', render: (s: any) => <span style={{ color: '#908E85', fontSize: 12.5 }}>{fmtDate(s.initialCompletedAt)}</span> },
+            { key: 'status', label: 'Status', render: (s: any) => s.initialDone ? <CCStatusPill tone="green">Serviced</CCStatusPill> : <CCStatusPill tone="amber">Pending</CCStatusPill> },
+          ]}
+          rows={sales}
+        />
+      ) : (
+        <CCDataTable
+          rowKey={(r: any) => r.csrName}
+          empty="No CSR pest sales yet."
+          cols={[
+            { key: 'csr', label: 'CSR', render: (r: any) => r.csrName === '__TOTAL__' ? <span style={{ fontWeight: 700, color: '#F0EEE8' }}>TOTAL</span> : <CCCustomerCell name={r.csrName} /> },
+            { key: 'sold', label: 'Subscriptions sold', align: 'right', render: (r: any) => <span style={{ fontWeight: r.csrName === '__TOTAL__' ? 700 : 400, color: '#F0EEE8', fontVariantNumeric: 'tabular-nums' }}>{r.sold}</span> },
+            { key: 'completed', label: 'Completed', align: 'right', render: (r: any) => <span style={{ color: '#43B892', fontWeight: r.csrName === '__TOTAL__' ? 700 : 400, fontVariantNumeric: 'tabular-nums' }}>{r.completed}</span> },
+            { key: 'pending', label: 'Pending initial', align: 'right', render: (r: any) => <span style={{ color: '#DBA14E', fontWeight: r.csrName === '__TOTAL__' ? 700 : 400, fontVariantNumeric: 'tabular-nums' }}>{r.pending}</span> },
+            { key: 'cv', label: 'Contract Value', align: 'right', render: (r: any) => <span style={{ fontWeight: 700, color: '#F0EEE8', fontVariantNumeric: 'tabular-nums' }}>{money(r.completedCV || 0)}</span> },
+          ]}
+          rows={rollup.length > 0 ? [...rollup, { csrName: '__TOTAL__', sold: rollup.reduce((a: number, r: any) => a + r.sold, 0), completed: rollup.reduce((a: number, r: any) => a + r.completed, 0), pending: rollup.reduce((a: number, r: any) => a + r.pending, 0), completedCV: rollup.reduce((a: number, r: any) => a + (r.completedCV || 0), 0) }] : []}
+        />
       )}
       {tab === 'byCsr' && <p style={{ fontSize: 11, color: '#63615A', marginTop: 10 }}>Contract Value shown is for completed (serviced) subscriptions only, per the report definition.</p>}
     </div>
