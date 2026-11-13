@@ -111,30 +111,32 @@ export const card: React.CSSProperties = {
 
 export const cardHead: React.CSSProperties = {
   padding: '12px 16px 0',
-  fontSize: 11,
-  fontWeight: 500,
+  fontSize: 12,
+  fontWeight: 600,
   color: TEXT_SECONDARY,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
   marginBottom: 10,
 };
 
+// Matches the cc DataTable header/cell styling (same as Stax, AR, Leads, etc.)
 export const th: React.CSSProperties = {
   textAlign: 'left',
   fontSize: 11,
-  fontWeight: 500,
+  fontWeight: 600,
+  textTransform: 'uppercase',
   color: TEXT_SECONDARY,
-  padding: '7px 12px',
-  borderBottom: `0.5px solid ${BORDER}`,
+  padding: '13px 16px',
+  borderBottom: `1px solid ${BORDER}`,
   background: BG_ALT,
   whiteSpace: 'nowrap',
-  letterSpacing: '0.02em',
+  letterSpacing: '0.05em',
 };
 
 export const td: React.CSSProperties = {
-  padding: '8px 12px',
-  borderBottom: `0.5px solid #232329`,
-  fontSize: 13,
+  padding: '13px 16px',
+  borderBottom: `1px solid #2A2A30`,
+  fontSize: 13.5,
   color: TEXT_PRIMARY,
   verticalAlign: 'middle',
 };
