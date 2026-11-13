@@ -8,6 +8,7 @@ const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], disp
 const dmMono = DM_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono-data", display: "swap", fallback: ["ui-monospace", "Menlo", "Consolas", "monospace"], adjustFontFallback: false });
 import { Providers } from "@/components/Providers";
 import { TopNav } from "@/components/TopNav";
+import LightOverlay from "@/components/LightOverlay";
 import ShellWrapper from "@/components/ShellWrapper";
 
 export const metadata: Metadata = {
@@ -33,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-title" content="The Hub" />
       </head>
         <body className={`${dmSans.className} ${dmMono.variable}`} style={{ margin: 0, minHeight: '100vh', backgroundImage: 'url(/bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat', backgroundAttachment: 'fixed' }}>
-        <div style={{ position: 'fixed', inset: 0, zIndex: 0, background: 'rgba(255,255,255,0.88)' }} />
+        <LightOverlay />
         <div style={{ position: 'relative', zIndex: 1 }}>
         <Providers>
           <TopNav />
