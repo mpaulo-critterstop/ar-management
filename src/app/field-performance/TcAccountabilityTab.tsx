@@ -269,8 +269,8 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
             <tbody>
               {filtered.map(r => {
                 const isPending = r.apptStatus === 'pending';
-                const rowBg = isPending ? '#FFF8F0' : '#fff';
-                const rowHover = isPending ? '#FFF0DC' : '#232329';
+                const rowBg = isPending ? '#352a16' : '#fff';
+                const rowHover = isPending ? '#352a16' : '#232329';
                 return (
                 <tr key={r.id} style={{ background: rowBg }}
                   onMouseEnter={e => (e.currentTarget.style.background = rowHover)}

@@ -22,7 +22,7 @@ export const TEAM_COLORS = {
 
 // Score thresholds
 export const SCORE_GREEN = { bg: '#143229', text: '#0A5C2A', bar: '#22C55E' };
-export const SCORE_AMBER = { bg: '#FEF6E4', text: '#7A4500', bar: '#DBA14E' };
+export const SCORE_AMBER = { bg: '#352a16', text: '#7A4500', bar: '#DBA14E' };
 export const SCORE_RED   = { bg: '#361e1e', text: '#7A1A1A', bar: '#E57C7C' };
 
 export function scoreColors(score: number | null) {
