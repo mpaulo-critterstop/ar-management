@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { DataTable as CCDataTable, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
 import CCDatePicker from '@/components/cc/DatePicker';
 import { teamPill, statusPill, card, th, td } from './helpers';
 
@@ -178,56 +179,26 @@ export function RosterTab({ office }: Props) {
         </button>
       </div>
 
-      <div style={card}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <thead>
-              <tr>
-                <th style={{ ...th, width: 62 }}>Tech ID</th>
-                <th style={{ ...th, width: 160 }}>Name</th>
-                <th style={{ ...th, width: 46 }}>Team</th>
-                <th style={{ ...th, width: 58 }}>Office</th>
-                <th style={{ ...th, width: 65 }}>Schedule</th>
-                <th style={{ ...th, width: 75 }}>Start time</th>
-                <th style={{ ...th, width: 130 }}>Crew leader</th>
-                <th style={{ ...th, width: 80 }}>Hire date</th>
-                <th style={{ ...th, width: 68 }}>Status</th>
-                <th style={{ ...th, width: 36 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#63615A', padding: 32 }}>Loading...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#63615A', padding: 32 }}>No technicians found.</td></tr>
-              ) : filtered.map(t => (
-                <tr key={t.id} style={{ opacity: t.status === 'INACTIVE' ? 0.5 : 1 }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#232329'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
-                >
-                  <td style={{ ...td, fontSize: 11, color: '#908E85' }}>{t.techId}</td>
-                  <td style={{ ...td, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</td>
-                  <td style={td}>{teamPill(t.team)}</td>
-                  <td style={td}>{t.office}</td>
-                  <td style={{ ...td, fontSize: 12 }}>{t.hrDays} hr</td>
-                  <td style={{ ...td, fontSize: 12 }}>{t.startTime}</td>
-                  <td style={{ ...td, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.crewLeader ?? '—'}</td>
-                  <td style={{ ...td, fontSize: 11, color: '#908E85' }}>{t.hireDate ? new Date(t.hireDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}</td>
-                  <td style={td}>{statusPill(t.status)}</td>
-                  <td style={td}>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => openEdit(t)} title="Edit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#908E85', fontSize: 14, padding: 0 }}>✎</button>
-                      {t.status === 'ACTIVE' && (
-                        <button onClick={() => deactivate(t)} title="Deactivate" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#63615A', fontSize: 14, padding: 0 }}>×</button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <CCDataTable
+        rowKey={(t: any) => t.id}
+        empty={loading ? 'Loading…' : 'No technicians found.'}
+        cols={[
+          { key: 'name', label: 'Technician', render: (t: any) => <div style={{ opacity: t.status === 'INACTIVE' ? 0.55 : 1 }}><CCCustomerCell name={t.name} sub={`#${t.techId}`} /></div> },
+          { key: 'team', label: 'Team', render: (t: any) => teamPill(t.team) },
+          { key: 'office', label: 'Office', render: (t: any) => <span style={{ color: '#C9C7BF' }}>{t.office}</span> },
+          { key: 'sched', label: 'Schedule', render: (t: any) => <span style={{ color: '#C9C7BF', fontSize: 12.5 }}>{t.hrDays} hr</span> },
+          { key: 'start', label: 'Start time', render: (t: any) => <span style={{ color: '#C9C7BF', fontSize: 12.5 }}>{t.startTime}</span> },
+          { key: 'crew', label: 'Crew leader', wrap: true, render: (t: any) => <span style={{ color: '#C9C7BF', fontSize: 12.5 }}>{t.crewLeader ?? '—'}</span> },
+          { key: 'hire', label: 'Hire date', render: (t: any) => <span style={{ color: '#908E85', fontSize: 12 }}>{t.hireDate ? new Date(t.hireDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}</span> },
+          { key: 'status', label: 'Status', render: (t: any) => statusPill(t.status) },
+          { key: 'actions', label: '', align: 'right', render: (t: any) => (
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => openEdit(t)} title="Edit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#908E85', fontSize: 14, padding: 0 }}>✎</button>
+              {t.status === 'ACTIVE' && <button onClick={() => deactivate(t)} title="Deactivate" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#63615A', fontSize: 14, padding: 0 }}>×</button>}
+            </div>) },
+        ]}
+        rows={filtered}
+      />
       <div style={{ fontSize: 12, color: '#63615A', marginTop: 8 }}>{filtered.length} technician{filtered.length !== 1 ? 's' : ''}</div>
     </div>
   );
