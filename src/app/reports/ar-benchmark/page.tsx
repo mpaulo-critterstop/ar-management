@@ -45,11 +45,11 @@ export default function ArBenchmarkPage() {
       <a href="/reports" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Reports</a>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <div style={{ marginTop: 6 }}><CCPageHeader icon="📊" title="AR Benchmark" /></div><div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <select value={selWeek} onChange={e => pickWeek(e.target.value)} style={{ fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', minWidth: 230 }}>
+          <select value={selWeek} onChange={e => pickWeek(e.target.value)} style={{ fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', minWidth: 230 }}>
             {!weeks.length && <option value="">Latest</option>}
             {weeks.map(w => { const [y, m, dd] = w.weekKey.split('-'); return <option key={w.weekKey} value={w.weekKey}>Week of {m}/{dd}/{y.slice(2)}</option>; })}
           </select>
-          <button onClick={refresh} disabled={refreshing} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: refreshing ? 'wait' : 'pointer' }}>{refreshing ? 'Computing…' : '↻ Refresh this week'}</button>
+          <button onClick={refresh} disabled={refreshing} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #9D8BE6', background: '#1C1C21', color: '#9D8BE6', fontWeight: 500, cursor: refreshing ? 'wait' : 'pointer' }}>{refreshing ? 'Computing…' : '↻ Refresh this week'}</button>
         </div>
       </div>
       <p style={{ fontSize: 13, color: '#908E85', margin: '0 0 6px', lineHeight: 1.6 }}>
@@ -58,11 +58,11 @@ export default function ArBenchmarkPage() {
       {data?.weekKey && <p style={{ fontSize: 12, color: '#63615A', margin: '0 0 20px' }}>{(() => { const [y, m, dd] = data.weekKey.split('-'); return `Week of ${m}/${dd}/${y.slice(2)} (Sat–Fri)`; })()} · computed {data.computedAt ? new Date(data.computedAt).toLocaleString() : '—'}</p>}
 
       {loading ? <div style={{ color: '#908E85' }}>Loading…</div> : !data?.data ? (
-        <div style={{ color: '#908E85', fontSize: 14, padding: 20, background: '#fff', borderRadius: 12, border: '0.5px solid #2A2A30' }}>No benchmark computed yet. Click "Refresh this week".</div>
+        <div style={{ color: '#908E85', fontSize: 14, padding: 20, background: '#1C1C21', borderRadius: 12, border: '0.5px solid #2A2A30' }}>No benchmark computed yet. Click "Refresh this week".</div>
       ) : (<>
         {/* Payment timing — one row per line, using each line's own trailing window */}
         <div style={{ fontSize: 13, fontWeight: 600, color: '#F0EEE8', marginBottom: 8 }}>Days to pay <span style={{ fontWeight: 400, color: '#908E85' }}>— each line over its own trailing window</span></div>
-        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#fff', marginBottom: 24 }}>
+        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#1C1C21', marginBottom: 24 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <colgroup><col style={{ width: '28%' }} /><col style={{ width: '18%' }} /><col style={{ width: '18%' }} /><col style={{ width: '18%' }} /><col style={{ width: '18%' }} /></colgroup>
             <thead><tr><th style={thL}>Service Line</th><th style={th}>Window</th><th style={th}>Average</th><th style={th}>Median</th><th style={th}>Invoices</th></tr></thead>
@@ -94,7 +94,7 @@ export default function ArBenchmarkPage() {
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#F0EEE8', margin: '8px 0' }}>AR Benchmark — Expected AR</div>
               <div style={{ fontSize: 12, color: '#908E85', marginBottom: 12, lineHeight: 1.6 }}>What AR <i>should</i> be, using Chisam's formula. <b>Actuals</b> uses real payment timing from the Hub; <b>Chisam's</b> uses the theoretical values in the current scorecard formula.</div>
-              <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#fff' }}>
+              <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#1C1C21' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                   <colgroup><col style={{ width: '34%' }} /><col style={{ width: '33%' }} /><col style={{ width: '33%' }} /></colgroup>
                   <thead><tr><th style={thL}>Component</th><th style={th}>Actuals-based</th><th style={th}>Chisam's (theoretical)</th></tr></thead>

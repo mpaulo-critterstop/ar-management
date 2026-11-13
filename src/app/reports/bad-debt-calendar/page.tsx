@@ -17,7 +17,7 @@ export default function BadDebtCalendarPage() {
       .then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
   }, []);
 
-  const th: React.CSSProperties = { textAlign: 'center', padding: '9px 12px', fontSize: 11, fontWeight: 600, color: '#908E85', borderBottom: '0.5px solid #2A2A30', whiteSpace: 'nowrap', background: '#fff', position: 'sticky', top: 0 };
+  const th: React.CSSProperties = { textAlign: 'center', padding: '9px 12px', fontSize: 11, fontWeight: 600, color: '#908E85', borderBottom: '0.5px solid #2A2A30', whiteSpace: 'nowrap', background: '#1C1C21', position: 'sticky', top: 0 };
   const td: React.CSSProperties = { textAlign: 'center', padding: '9px 12px', fontSize: 13, borderBottom: '0.5px solid #232329', whiteSpace: 'nowrap' };
   const thR = { ...th, textAlign: 'right' as const };
   const tdR = { ...td, textAlign: 'right' as const };
@@ -41,15 +41,15 @@ export default function BadDebtCalendarPage() {
       {data && !loading && (<>
         {/* Summary */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-          <div style={{ border: '0.5px solid #F7C1C1', borderRadius: 10, padding: '12px 16px', background: '#361e1e', minWidth: 180 }}>
+          <div style={{ border: '0.5px solid #4a2626', borderRadius: 10, padding: '12px 16px', background: '#361e1e', minWidth: 180 }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: '#E57C7C' }}>{money(data.alreadyShouldHaveAccrued)}</div>
             <div style={{ fontSize: 11, color: '#908E85' }}>Should have already accrued (to date)</div>
           </div>
-          <div style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '12px 16px', background: '#fff', minWidth: 180 }}>
+          <div style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '12px 16px', background: '#1C1C21', minWidth: 180 }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: '#F0EEE8' }}>{money(data.grandTotalOverdue)}</div>
             <div style={{ fontSize: 11, color: '#908E85' }}>Total projected bad debt (all overdue)</div>
           </div>
-          <div style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '12px 16px', background: '#fff', minWidth: 120 }}>
+          <div style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '12px 16px', background: '#1C1C21', minWidth: 120 }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: '#F0EEE8' }}>{(data.calendar || []).length}</div>
             <div style={{ fontSize: 11, color: '#908E85' }}>Months spanned</div>
           </div>
@@ -57,7 +57,7 @@ export default function BadDebtCalendarPage() {
 
         {/* The calendar */}
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Monthly accrual schedule</div>
-        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden', background: '#fff', marginBottom: 24 }}>
+        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden', background: '#1C1C21', marginBottom: 24 }}>
           <div style={{ maxHeight: 560, overflowY: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>

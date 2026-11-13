@@ -32,7 +32,7 @@ export default function ProbationTrackerPage() {
     load();
   }
 
-  const th: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#908E85', borderBottom: '0.5px solid #2A2A30', position: 'sticky', top: 0, background: '#fff', zIndex: 2, whiteSpace: 'nowrap' };
+  const th: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#908E85', borderBottom: '0.5px solid #2A2A30', position: 'sticky', top: 0, background: '#1C1C21', zIndex: 2, whiteSpace: 'nowrap' };
   const td: React.CSSProperties = { textAlign: 'left', padding: '7px 10px', fontSize: 13, borderBottom: '0.5px solid #232329', whiteSpace: 'nowrap' };
   const inp: React.CSSProperties = { display: 'block', width: '100%', fontSize: 13, padding: '8px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', marginTop: 4 };
 
@@ -46,21 +46,21 @@ export default function ProbationTrackerPage() {
       <a href="/payroll/us" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ US Payroll</a>
       <div style={{ marginTop: 6 }}><CCPageHeader icon="🎓" title="Probation Tracker" /></div>
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', position: 'sticky', top: 0, background: '#fff', zIndex: 3, padding: '8px 0' }}>
-        <button onClick={() => setEditing({ active: true, status: 'In probation' })} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>+ Add employee</button>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', position: 'sticky', top: 0, background: '#1C1C21', zIndex: 3, padding: '8px 0' }}>
+        <button onClick={() => setEditing({ active: true, status: 'In probation' })} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #9D8BE6', background: '#1C1C21', color: '#9D8BE6', fontWeight: 500, cursor: 'pointer' }}>+ Add employee</button>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name or Tech ID…" style={{ fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '0.5px solid #2A2A30', flex: 1, minWidth: 180 }} />
         <select value={statusF} onChange={e => setStatusF(e.target.value)} style={{ fontSize: 12, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #2A2A30' }}>
           <option value="">All statuses</option><option value="In probation">In probation</option><option value="Done - added">Done - added</option>
         </select>
         <div style={{ display: 'flex', gap: 4, background: '#232329', borderRadius: 8, padding: 3 }}>
           {(['active', 'inactive'] as const).map(v => (
-            <button key={v} onClick={() => setView(v)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: view === v ? '#fff' : 'transparent', color: view === v ? '#F0EEE8' : '#908E85', fontWeight: view === v ? 600 : 400, textTransform: 'capitalize' }}>{v}</button>
+            <button key={v} onClick={() => setView(v)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: view === v ? '#1C1C21' : 'transparent', color: view === v ? '#F0EEE8' : '#908E85', fontWeight: view === v ? 600 : 400, textTransform: 'capitalize' }}>{v}</button>
           ))}
         </div>
       </div>
 
       {editing && (
-        <div style={{ border: '0.5px solid #534AB7', borderRadius: 12, padding: 16, background: '#F7F6FD', marginBottom: 16 }}>
+        <div style={{ border: '0.5px solid #9D8BE6', borderRadius: 12, padding: 16, background: '#241f36', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>{editing.id ? 'Edit' : 'Add'} employee</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
             <label style={{ fontSize: 12, color: '#908E85' }}>Name *<input value={editing.employeeName || ''} onChange={e => setEditing({ ...editing, employeeName: e.target.value })} style={inp} /></label>
@@ -72,13 +72,13 @@ export default function ProbationTrackerPage() {
           </div>
           <div style={{ marginTop: 10 }}><label style={{ fontSize: 12, color: '#908E85', display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={!!editing.addedToOnPay} onChange={e => setEditing({ ...editing, addedToOnPay: e.target.checked })} /> Added to OnPay</label></div>
           <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
-            <button onClick={save} disabled={saving} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#534AB7', color: '#fff', fontWeight: 500, cursor: saving ? 'wait' : 'pointer' }}>{saving ? 'Saving…' : 'Save'}</button>
-            <button onClick={() => setEditing(null)} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', color: '#908E85', cursor: 'pointer' }}>Cancel</button>
+            <button onClick={save} disabled={saving} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#9D8BE6', color: '#fff', fontWeight: 500, cursor: saving ? 'wait' : 'pointer' }}>{saving ? 'Saving…' : 'Save'}</button>
+            <button onClick={() => setEditing(null)} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#908E85', cursor: 'pointer' }}>Cancel</button>
           </div>
         </div>
       )}
 
-      <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#fff', maxHeight: '62vh' }}>
+      <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#1C1C21', maxHeight: '62vh' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr>
             <th style={th}>Name</th><th style={th}>Tech ID</th><th style={th}>Hire</th><th style={th}>Probation End</th>
@@ -95,13 +95,13 @@ export default function ProbationTrackerPage() {
                   <td style={td}>{fmtDate(r.hireDate) || '—'}</td>
                   <td style={td}>{fmtDate(r.probationEndDate) || '—'}</td>
                   <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: eligible ? '#43B892' : '#F0EEE8' }}>{r.status === 'Done - added' ? '—' : (du != null ? (eligible ? `Eligible (${-du}d ago)` : du) : '—')}</td>
-                  <td style={td}><span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: r.status === 'Done - added' ? '#143229' : '#352a16', color: r.status === 'Done - added' ? '#0F6E56' : '#DBA14E' }}>{r.status || 'In probation'}</span></td>
+                  <td style={td}><span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: r.status === 'Done - added' ? '#143229' : '#352a16', color: r.status === 'Done - added' ? '#43B892' : '#DBA14E' }}>{r.status || 'In probation'}</span></td>
                   <td style={td}>{r.addedToOnPay ? '✓' : '—'}</td>
                   <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                    <button onClick={() => setEditing({ ...r, hireDate: fmtDate(r.hireDate), probationEndDate: fmtDate(r.probationEndDate), addedToOnPayDate: fmtDate(r.addedToOnPayDate) })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', color: '#534AB7', cursor: 'pointer', marginRight: 6 }}>Edit</button>
+                    <button onClick={() => setEditing({ ...r, hireDate: fmtDate(r.hireDate), probationEndDate: fmtDate(r.probationEndDate), addedToOnPayDate: fmtDate(r.addedToOnPayDate) })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#9D8BE6', cursor: 'pointer', marginRight: 6 }}>Edit</button>
                     {r.active === false
-                      ? <button onClick={() => setActive(r, true)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', color: '#43B892', cursor: 'pointer' }}>Reactivate</button>
-                      : <button onClick={() => setActive(r, false)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', color: '#E57C7C', cursor: 'pointer' }}>Deactivate</button>}
+                      ? <button onClick={() => setActive(r, true)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#43B892', cursor: 'pointer' }}>Reactivate</button>
+                      : <button onClick={() => setActive(r, false)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#E57C7C', cursor: 'pointer' }}>Deactivate</button>}
                   </td>
                 </tr>
               );

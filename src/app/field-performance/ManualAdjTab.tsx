@@ -68,7 +68,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
 
   const inputStyle: React.CSSProperties = {
     width: '100%', fontSize: 13, padding: '7px 10px',
-    border: '1px solid #2A2A30', borderRadius: 8, background: '#fff', color: '#0f172a'
+    border: '1px solid #2A2A30', borderRadius: 8, background: '#1C1C21', color: '#F0EEE8'
   };
   const labelStyle: React.CSSProperties = { fontSize: 11, color: '#908E85', marginBottom: 4, display: 'block' };
 
@@ -83,13 +83,13 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 10 }}>
         {[
           { label: 'Total adjustments', value: adjs.length },
-          { label: 'Positive (+)', value: positive, color: '#27500A' },
-          { label: 'Negative (−)', value: negative, color: '#791F1F' },
-          { label: 'Net points', value: totalAdj > 0 ? `+${totalAdj}` : totalAdj, color: totalAdj > 0 ? '#27500A' : totalAdj < 0 ? '#791F1F' : '#0f172a' },
+          { label: 'Positive (+)', value: positive, color: '#43B892' },
+          { label: 'Negative (−)', value: negative, color: '#E57C7C' },
+          { label: 'Net points', value: totalAdj > 0 ? `+${totalAdj}` : totalAdj, color: totalAdj > 0 ? '#43B892' : totalAdj < 0 ? '#E57C7C' : '#F0EEE8' },
         ].map(k => (
           <div key={k.label} style={{ background: '#232329', borderRadius: 8, padding: '10px 14px' }}>
             <div style={{ fontSize: 11, color: '#908E85', marginBottom: 3 }}>{k.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 500, color: (k as any).color || '#0f172a' }}>{k.value}</div>
+            <div style={{ fontSize: 20, fontWeight: 500, color: (k as any).color || '#F0EEE8' }}>{k.value}</div>
           </div>
         ))}
       </div>
@@ -99,7 +99,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
         <select
           value={memberFilter}
           onChange={e => setMemberFilter(e.target.value)}
-          style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #2A2A30', background: memberFilter ? '#15263a' : '#fff', color: '#444441', cursor: 'pointer' }}
+          style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #2A2A30', background: memberFilter ? '#15263a' : '#1C1C21', color: '#C9C7BF', cursor: 'pointer' }}
         >
           <option value="">All team members</option>
           {[...techs].sort((a, b) => a.name.localeCompare(b.name)).map(t => (
@@ -115,7 +115,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
       {canEdit && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
           <button onClick={() => setShowForm(true)}
-            style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: '1px solid #2A2A30', background: '#232329', cursor: 'pointer', color: '#0f172a' }}>
+            style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: '1px solid #2A2A30', background: '#232329', cursor: 'pointer', color: '#F0EEE8' }}>
             + Add adjustment
           </button>
         </div>
@@ -144,9 +144,9 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={13} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>Loading...</td></tr>
+                <tr><td colSpan={13} style={{ ...td, textAlign: 'center', color: '#908E85', padding: 32 }}>Loading...</td></tr>
               ) : adjs.length === 0 ? (
-                <tr><td colSpan={13} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>No adjustments recorded.</td></tr>
+                <tr><td colSpan={13} style={{ ...td, textAlign: 'center', color: '#908E85', padding: 32 }}>No adjustments recorded.</td></tr>
               ) : adjs.map(a => (
                 <tr key={a.id}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#232329'}
@@ -157,7 +157,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
                   <td style={{ ...td, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.technician?.name}</td>
                   <td style={td}>{teamPill(a.technician?.team || '')}</td>
                   <td style={{ ...td, fontSize: 12 }}>{a.technician?.office}</td>
-                  <td style={{ ...td, fontWeight: 500, color: a.totalPoints > 0 ? '#27500A' : '#791F1F' }}>
+                  <td style={{ ...td, fontWeight: 500, color: a.totalPoints > 0 ? '#43B892' : '#E57C7C' }}>
                     {a.totalPoints > 0 ? `+${a.totalPoints}` : a.totalPoints}
                   </td>
                   <td style={{ ...td, fontSize: 12 }}>{a.leadershipPts ? (a.leadershipPts > 0 ? `+${a.leadershipPts}` : a.leadershipPts) : '—'}</td>
@@ -169,7 +169,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
                   {canEdit && (
                     <td style={td}>
                       <button onClick={() => deleteAdj(a.id)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 14, padding: 0 }}>×</button>
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#908E85', fontSize: 14, padding: 0 }}>×</button>
                     </td>
                   )}
                 </tr>
@@ -182,7 +182,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
       {/* Add modal */}
       {showForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', border: '0.5px solid #2A2A30', borderRadius: 12, padding: 24, width: 480, maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: '#1C1C21', border: '0.5px solid #2A2A30', borderRadius: 12, padding: 24, width: 480, maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>Add Manual Adjustment</div>
             <div style={{ fontSize: 12, color: '#908E85', marginBottom: 16 }}>Week of {weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
 
@@ -196,7 +196,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
 
             {/* Leadership */}
             <div style={{ background: '#232329', borderRadius: 8, padding: 12, marginBottom: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#0f172a', marginBottom: 8 }}>Leadership Feedback</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: '#F0EEE8', marginBottom: 8 }}>Leadership Feedback</div>
               <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 8 }}>
                 <div>
                   <label style={labelStyle}>Points</label>
@@ -211,7 +211,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
 
             {/* FR */}
             <div style={{ background: '#232329', borderRadius: 8, padding: 12, marginBottom: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#0f172a', marginBottom: 8 }}>Office + FR Feedback</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: '#F0EEE8', marginBottom: 8 }}>Office + FR Feedback</div>
               <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 8 }}>
                 <div>
                   <label style={labelStyle}>Points</label>
@@ -226,7 +226,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
 
             {/* Reviews */}
             <div style={{ background: '#232329', borderRadius: 8, padding: 12, marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#0f172a', marginBottom: 8 }}>Reviews</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: '#F0EEE8', marginBottom: 8 }}>Reviews</div>
               <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 8 }}>
                 <div>
                   <label style={labelStyle}>Points</label>
@@ -239,7 +239,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
               </div>
             </div>
 
-            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 14, padding: '8px 12px', background: totalPoints > 0 ? '#143229' : totalPoints < 0 ? '#361e1e' : '#232329', borderRadius: 8, color: totalPoints > 0 ? '#27500A' : totalPoints < 0 ? '#791F1F' : '#908E85' }}>
+            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 14, padding: '8px 12px', background: totalPoints > 0 ? '#143229' : totalPoints < 0 ? '#361e1e' : '#232329', borderRadius: 8, color: totalPoints > 0 ? '#43B892' : totalPoints < 0 ? '#E57C7C' : '#908E85' }}>
               Total: {totalPoints > 0 ? `+${totalPoints}` : totalPoints} points
             </div>
 
@@ -249,7 +249,7 @@ export function ManualAdjTab({ office, weekEnd }: Props) {
                 Cancel
               </button>
               <button onClick={save} disabled={saving || !form.techId || totalPoints === 0}
-                style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving || !form.techId || totalPoints === 0 ? '#94a3b8' : '#5B9BE0', color: '#fff', cursor: saving || !form.techId || totalPoints === 0 ? 'default' : 'pointer' }}>
+                style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving || !form.techId || totalPoints === 0 ? '#908E85' : '#5B9BE0', color: '#1C1C21', cursor: saving || !form.techId || totalPoints === 0 ? 'default' : 'pointer' }}>
                 {saving ? 'Saving...' : 'Save adjustment'}
               </button>
             </div>

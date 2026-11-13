@@ -23,7 +23,7 @@ function UsFlag() {
   return (
     <svg width="30" height="21" viewBox="0 0 30 21" style={{ borderRadius: 3, border: '0.5px solid #2A2A30', display: 'block' }} aria-label="US flag">
       <rect width="30" height="21" fill="#1C1C21" />
-      {[0, 2, 4, 6, 8, 10, 12].map(i => <rect key={i} y={i * 1.615} width="30" height="1.615" fill="#B22234" />)}
+      {[0, 2, 4, 6, 8, 10, 12].map(i => <rect key={i} y={i * 1.615} width="30" height="1.615" fill="#E57C7C" />)}
       <rect width="12" height="11.3" fill="#3C3B6E" />
     </svg>
   );

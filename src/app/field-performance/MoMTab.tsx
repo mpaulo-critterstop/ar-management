@@ -77,13 +77,13 @@ export function MoMTab({ office }: Props) {
     const meetsStd = higher ? val >= standard : val <= standard;
     const near = higher ? val >= standard * 0.85 : val <= standard * 1.30;
     const bg = meetsStd ? '#143229' : near ? '#352a16' : '#361e1e';
-    const color = meetsStd ? '#27500A' : near ? '#633806' : '#791F1F';
+    const color = meetsStd ? '#43B892' : near ? '#DBA14E' : '#E57C7C';
     return <td key={key} style={{ ...td, textAlign: 'center', background: bg, color, fontSize: 11, fontWeight: 500, padding: '6px 4px' }}>{(val * 100).toFixed(1) + '%'}</td>;
   }
 
   const inputStyle: React.CSSProperties = {
     fontSize: 12, padding: '6px 9px', border: '1px solid #2A2A30',
-    borderRadius: 8, background: '#fff', color: '#0f172a'
+    borderRadius: 8, background: '#1C1C21', color: '#F0EEE8'
   };
 
   const teamAvg = teamAverages[metric] ?? { ytd: null, monthly: {} };
@@ -126,8 +126,8 @@ export function MoMTab({ office }: Props) {
             style={{
               fontSize: 13, padding: '7px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 500,
               border: view === v ? '1px solid #5B9BE0' : '0.5px solid #2A2A30',
-              background: view === v ? '#5B9BE0' : '#fff',
-              color: view === v ? '#fff' : '#F0EEE8',
+              background: view === v ? '#5B9BE0' : '#1C1C21',
+              color: view === v ? '#1C1C21' : '#F0EEE8',
             }}>
             {v === 'scores' ? 'MoM Scores' : 'Bonuses'}
           </button>
@@ -149,7 +149,7 @@ export function MoMTab({ office }: Props) {
             style={{
               fontSize: 12, padding: '6px 11px', borderRadius: 8, cursor: 'pointer',
               border: metric === m.key ? '1px solid #5B9BE0' : '0.5px solid #2A2A30',
-              background: metric === m.key ? '#15263a' : '#fff',
+              background: metric === m.key ? '#15263a' : '#1C1C21',
               color: metric === m.key ? '#5B9BE0' : '#908E85',
               fontWeight: metric === m.key ? 600 : 400,
             }}>
@@ -169,7 +169,7 @@ export function MoMTab({ office }: Props) {
           <option value="IP">IP</option>
         </select>
         {leaders.length > 0 && (
-          <select value={leaderFilter} onChange={e => setLeaderFilter(e.target.value)} style={{ ...inputStyle, background: leaderFilter ? '#15263a' : '#fff' }}>
+          <select value={leaderFilter} onChange={e => setLeaderFilter(e.target.value)} style={{ ...inputStyle, background: leaderFilter ? '#15263a' : '#1C1C21' }}>
             <option value="">All team leaders</option>
             {leaders.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
@@ -201,9 +201,9 @@ export function MoMTab({ office }: Props) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>Loading...</td></tr>
+                <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: '#908E85', padding: 32 }}>Loading...</td></tr>
               ) : leaderRollup.length === 0 ? (
-                <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>No data available.</td></tr>
+                <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: '#908E85', padding: 32 }}>No data available.</td></tr>
               ) : (
                 <>
                   <tr style={{ background: '#232329' }}>
@@ -251,9 +251,9 @@ export function MoMTab({ office }: Props) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={17} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>Loading...</td></tr>
+                <tr><td colSpan={17} style={{ ...td, textAlign: 'center', color: '#908E85', padding: 32 }}>Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={17} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>No data available.</td></tr>
+                <tr><td colSpan={17} style={{ ...td, textAlign: 'center', color: '#908E85', padding: 32 }}>No data available.</td></tr>
               ) : (
                 <>
                   {/* Standard + Team-average summary row */}
@@ -289,7 +289,7 @@ export function MoMTab({ office }: Props) {
           </table>
         </div>
       </div>
-      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>
+      <div style={{ fontSize: 12, color: '#908E85', marginTop: 8 }}>
         {filtered.length} technicians · {activeMetric?.label} · {year} — crew-leader values are averages of each crew's techs; monthly values are averages of that month's weekly scores
       </div>
       </>
@@ -358,7 +358,7 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
           + Add Bonus
         </button>
         <button onClick={() => setShowLunch(true)}
-          style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', color: '#F0EEE8', fontWeight: 500, cursor: 'pointer' }}>
+          style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#F0EEE8', fontWeight: 500, cursor: 'pointer' }}>
           🍔 Lunch on Critter Stop
         </button>
       </div>
@@ -434,7 +434,7 @@ function AddBonusModal({ year, onClose, onSaved }: { year: number; onClose: () =
   return (
     <div onClick={e => { if (e.target === e.currentTarget) onClose(); }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 440, padding: 24 }}>
+      <div style={{ background: '#1C1C21', borderRadius: 14, width: '100%', maxWidth: 440, padding: 24 }}>
         <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 16 }}>Add Bonus</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <label style={{ fontSize: 12, color: '#C9C7BF' }}>Tech ID
@@ -464,10 +464,10 @@ function AddBonusModal({ year, onClose, onSaved }: { year: number; onClose: () =
             <input value={note} onChange={e => setNote(e.target.value)}
               style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', fontSize: 13 }} />
           </label>
-          {error && <div style={{ color: '#B91C1C', fontSize: 12 }}>{error}</div>}
+          {error && <div style={{ color: '#E57C7C', fontSize: 12 }}>{error}</div>}
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={onClose} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', cursor: 'pointer' }}>Cancel</button>
           <button onClick={save} disabled={saving}
             style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#5B9BE0', color: '#fff', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Saving…' : 'Save Bonus'}
@@ -497,7 +497,7 @@ function LunchDrawer({ lunch, onClose }: { lunch: any; onClose: () => void }) {
   return (
     <div onClick={e => { if (e.target === e.currentTarget) onClose(); }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 620, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ background: '#1C1C21', borderRadius: 14, width: '100%', maxWidth: 620, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid #2A2A30' }}>
           <div style={{ fontWeight: 600, fontSize: 15 }}>🍔 Lunch on Critter Stop <span style={{ fontWeight: 400, fontSize: 12, color: '#908E85' }}>· up to $14 solo / $18 with another member</span></div>
           <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#908E85' }}>×</button>
@@ -507,7 +507,7 @@ function LunchDrawer({ lunch, onClose }: { lunch: any; onClose: () => void }) {
             <button key={t} onClick={() => setTab(t)}
               style={{ fontSize: 13, padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 500,
                 border: tab === t ? '1px solid #5B9BE0' : '0.5px solid #2A2A30',
-                background: tab === t ? '#5B9BE0' : '#fff', color: tab === t ? '#fff' : '#F0EEE8' }}>
+                background: tab === t ? '#5B9BE0' : '#1C1C21', color: tab === t ? '#1C1C21' : '#F0EEE8' }}>
               {t === 'weekly' ? 'Weekly (Highest TEM)' : 'Monthly (Driving + Reliability)'}
             </button>
           ))}

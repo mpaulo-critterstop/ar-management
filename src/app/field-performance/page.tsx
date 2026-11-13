@@ -153,25 +153,25 @@ export default function FieldPerformancePage() {
                 <>
                   <button
                     onClick={() => setWeekIdx(i => Math.min(i + 1, WEEKS.length - 1))}
-                    style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #2A2A30', background: '#fff', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#908E85' }}
+                    style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #2A2A30', background: '#1C1C21', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#908E85' }}
                   >‹</button>
                   <span style={{ fontSize: 12, color: '#908E85', minWidth: 90, textAlign: 'center', fontWeight: 500 }}>Wk of {fmtWeek(selectedWeek)}</span>
                   <button
                     onClick={() => setWeekIdx(i => Math.max(i - 1, 0))}
                     disabled={weekIdx === 0}
-                    style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #2A2A30', background: weekIdx === 0 ? '#232329' : '#fff', cursor: weekIdx === 0 ? 'default' : 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#908E85', opacity: weekIdx === 0 ? 0.4 : 1 }}
+                    style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #2A2A30', background: weekIdx === 0 ? '#232329' : '#1C1C21', cursor: weekIdx === 0 ? 'default' : 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#908E85', opacity: weekIdx === 0 ? 0.4 : 1 }}
                   >›</button>
                 </>
               ) : (
                 <>
                   <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
-                    style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', color: '#444441', cursor: 'pointer' }}>
+                    style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#C9C7BF', cursor: 'pointer' }}>
                     {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
                       <option key={m} value={i + 1}>{m}</option>
                     ))}
                   </select>
                   <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
-                    style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', color: '#444441', cursor: 'pointer' }}>
+                    style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#C9C7BF', cursor: 'pointer' }}>
                     {[2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </>
@@ -183,7 +183,7 @@ export default function FieldPerformancePage() {
             <select
               value={leaderFilter}
               onChange={e => setLeaderFilter(e.target.value)}
-              style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #2A2A30', background: leaderFilter ? '#15263a' : '#fff', color: '#444441', cursor: 'pointer' }}
+              style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #2A2A30', background: leaderFilter ? '#15263a' : '#1C1C21', color: '#C9C7BF', cursor: 'pointer' }}
               title="Filter by team leader"
             >
               <option value="">All team leaders</option>

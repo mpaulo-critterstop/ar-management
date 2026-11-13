@@ -20,8 +20,8 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
       .catch(() => setLoading(false));
   }, [office, periodKey]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#b0aea6' }}>Loading...</div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: '#b0aea6' }}>No data available.</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#63615A' }}>Loading...</div>;
+  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: '#63615A' }}>No data available.</div>;
 
   const { crewLeaders, siteLeaders } = data;
   const sortedCrew = sortRows(crewLeaders as any[], crewSort, {
@@ -72,7 +72,7 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
             </thead>
             <tbody>
               {sortedCrew.length === 0 ? (
-                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 24 }}>No data for this week yet.</td></tr>
+                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#63615A', padding: 24 }}>No data for this week yet.</td></tr>
               ) : sortedCrew.map((c: any) => (
                 <tr key={c.leader}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#232329'}
@@ -113,7 +113,7 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
             </thead>
             <tbody>
               {sortedSite.length === 0 ? (
-                <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 24 }}>No data for this week yet.</td></tr>
+                <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#63615A', padding: 24 }}>No data for this week yet.</td></tr>
               ) : sortedSite.map((s: any) => (
                 <tr key={s.leader}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#232329'}

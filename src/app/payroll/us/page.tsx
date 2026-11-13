@@ -21,7 +21,7 @@ export default function USPayrollPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
         {SECTIONS.map(s => {
           const inner = (
-            <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, padding: 18, background: '#fff', height: '100%', opacity: s.status === 'coming-soon' ? 0.7 : 1 }}>
+            <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, padding: 18, background: '#1C1C21', height: '100%', opacity: s.status === 'coming-soon' ? 0.7 : 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                 <div style={{ fontSize: 16, fontWeight: 600, color: '#F0EEE8' }}>{s.title}</div>
                 {s.status === 'coming-soon' && <span style={{ fontSize: 10, fontWeight: 600, color: '#DBA14E', background: '#352a16', padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>Coming soon</span>}

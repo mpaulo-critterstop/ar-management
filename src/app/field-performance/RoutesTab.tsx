@@ -36,8 +36,8 @@ const money = (n: number) => '$' + (n || 0).toLocaleString('en-US', { minimumFra
 const pct = (v: number | null) => v === null || v === undefined ? '—' : (v * 100).toFixed(0) + '%';
 
 function pctColor(v: number | null, good: number) {
-  if (v === null || v === undefined) return '#b0aea6';
-  return v >= good ? '#0A5C2A' : v >= good - 0.1 ? '#7A4500' : '#7A1A1A';
+  if (v === null || v === undefined) return '#63615A';
+  return v >= good ? '#43B892' : v >= good - 0.1 ? '#DBA14E' : '#E57C7C';
 }
 
 interface Props {
@@ -93,7 +93,7 @@ export function RoutesTab({ weekEnd, office, leaderFilter = '' }: Props) {
   const totalRoutes = data.reduce((s, t) => s + t.routeCount, 0);
 
   return (
-    <div style={{ background: '#fff', border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden' }}>
+    <div style={{ background: '#1C1C21', border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden' }}>
       <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #2A2A30', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: '#F0EEE8' }}>PC Routes · {data.length} techs · {totalRoutes} routes · {money(totalProd)} production</div>
         <div style={{ fontSize: 11, color: '#908E85' }}>Tap a tech for per-route detail</div>
@@ -115,7 +115,7 @@ export function RoutesTab({ weekEnd, office, leaderFilter = '' }: Props) {
               const isOpen = expanded === t.techId;
               return (
                 <>
-                  <tr key={t.techId} onClick={() => setExpanded(isOpen ? null : t.techId)} style={{ cursor: 'pointer', background: isOpen ? '#232329' : '#fff' }}>
+                  <tr key={t.techId} onClick={() => setExpanded(isOpen ? null : t.techId)} style={{ cursor: 'pointer', background: isOpen ? '#232329' : '#1C1C21' }}>
                     <td style={{ ...td, fontWeight: 500 }}>
                       <span style={{ color: '#908E85', marginRight: 6, fontSize: 10 }}>{isOpen ? '▼' : '▶'}</span>
                       {t.name}

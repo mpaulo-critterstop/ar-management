@@ -68,7 +68,7 @@ export default function InsulationRevenueReport() {
 
   const rows: Row[] = data?.rows || [];
   const totals = data?.totals || { jobs: 0, totalRevenue: 0, totalTechDays: 0 };
-  const th: React.CSSProperties = { textAlign: 'right', padding: '8px 12px', fontSize: 11, fontWeight: 600, color: '#908E85', borderBottom: '0.5px solid #2A2A30', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: '#fff' };
+  const th: React.CSSProperties = { textAlign: 'right', padding: '8px 12px', fontSize: 11, fontWeight: 600, color: '#908E85', borderBottom: '0.5px solid #2A2A30', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: '#1C1C21' };
   const thL: React.CSSProperties = { ...th, textAlign: 'left' };
   const td: React.CSSProperties = { textAlign: 'right', padding: '7px 12px', fontSize: 13, color: '#F0EEE8', borderBottom: '0.5px solid #232329', whiteSpace: 'nowrap' };
   const tdL: React.CSSProperties = { ...td, textAlign: 'left' };
@@ -81,23 +81,23 @@ export default function InsulationRevenueReport() {
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 4, background: '#232329', borderRadius: 8, padding: 3 }}>
           {['DFW', 'ATX', 'OKC', 'CStat'].map(o => (
-            <button key={o} onClick={() => setOffice(o)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: office === o ? '#fff' : 'transparent', color: office === o ? '#F0EEE8' : '#908E85', fontWeight: office === o ? 600 : 400 }}>{o}</button>
+            <button key={o} onClick={() => setOffice(o)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: office === o ? '#1C1C21' : 'transparent', color: office === o ? '#F0EEE8' : '#908E85', fontWeight: office === o ? 600 : 400 }}>{o}</button>
           ))}
         </div>
         <div style={{ display: 'flex', gap: 4, background: '#232329', borderRadius: 8, padding: 3 }}>
           {(['week', 'month'] as const).map(p => (
-            <button key={p} onClick={() => setPeriod(p)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: period === p ? '#fff' : 'transparent', color: period === p ? '#F0EEE8' : '#908E85', fontWeight: period === p ? 600 : 400 }}>{p === 'week' ? 'Weekly' : 'Monthly'}</button>
+            <button key={p} onClick={() => setPeriod(p)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: period === p ? '#1C1C21' : 'transparent', color: period === p ? '#F0EEE8' : '#908E85', fontWeight: period === p ? 600 : 400 }}>{p === 'week' ? 'Weekly' : 'Monthly'}</button>
           ))}
         </div>
-        <select value={sel} onChange={e => setSel(e.target.value)} style={{ fontSize: 12, padding: '7px 12px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', color: '#F0EEE8' }}>
+        <select value={sel} onChange={e => setSel(e.target.value)} style={{ fontSize: 12, padding: '7px 12px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#F0EEE8' }}>
           {options.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
         </select>
-        <button onClick={refresh} disabled={refreshing} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '0.5px solid #5B9BE0', background: '#fff', color: '#5B9BE0', fontWeight: 500, cursor: refreshing ? 'wait' : 'pointer' }}>{refreshing ? 'Refreshing… (up to ~5 min)' : '↻ Refresh from FR'}</button>
-        <a href={`/api/cron/insulation-revenue?token=critterstop2026&period=${period}&date=${sel}&office=${office}&csv=1`} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '0.5px solid #43B892', background: '#fff', color: '#43B892', fontWeight: 500, textDecoration: 'none' }}>⤓ CSV</a>
+        <button onClick={refresh} disabled={refreshing} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '0.5px solid #5B9BE0', background: '#1C1C21', color: '#5B9BE0', fontWeight: 500, cursor: refreshing ? 'wait' : 'pointer' }}>{refreshing ? 'Refreshing… (up to ~5 min)' : '↻ Refresh from FR'}</button>
+        <a href={`/api/cron/insulation-revenue?token=critterstop2026&period=${period}&date=${sel}&office=${office}&csv=1`} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '0.5px solid #43B892', background: '#1C1C21', color: '#43B892', fontWeight: 500, textDecoration: 'none' }}>⤓ CSV</a>
       </div>
 
       {data && !data.cached && !loading && (
-        <div style={{ fontSize: 13, color: '#B45309', background: '#352a16', border: '0.5px solid #F0D9A8', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: '#DBA14E', background: '#352a16', border: '0.5px solid #4a3a1e', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
           This period hasn’t been computed yet. Click “Refresh from FR” to pull it (takes a few minutes).
         </div>
       )}
@@ -110,7 +110,7 @@ export default function InsulationRevenueReport() {
           { label: 'Tech-days', value: totals.totalTechDays },
           { label: 'Blended rev / tech-day', value: totals.totalTechDays ? money(totals.totalRevenue / totals.totalTechDays) : '—' },
         ].map(s => (
-          <div key={s.label} style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '10px 16px', minWidth: 120, background: '#fff' }}>
+          <div key={s.label} style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '10px 16px', minWidth: 120, background: '#1C1C21' }}>
             <div style={{ fontSize: 19, fontWeight: 700, color: '#F0EEE8' }}>{s.value}</div>
             <div style={{ fontSize: 11, color: '#908E85' }}>{s.label}</div>
           </div>
@@ -118,7 +118,7 @@ export default function InsulationRevenueReport() {
       </div>
 
       {loading ? <div style={{ color: '#908E85', fontSize: 14 }}>Loading…</div> : (
-        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', maxHeight: '65vh', background: '#fff' }}>
+        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', maxHeight: '65vh', background: '#1C1C21' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr>
               <th style={thL}>Customer</th><th style={thL}>Office</th>

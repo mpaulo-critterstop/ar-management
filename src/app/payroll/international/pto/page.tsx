@@ -60,11 +60,11 @@ export default function PtoTrackerPage() {
       {/* Employee allotments + usage table */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 15, fontWeight: 600 }}>Employees ({year})</div>
-        <button onClick={() => setAllotEdit({ name: '', ptoAllotment: 15, holidayAllotment: 6, isNew: true })} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>+ Add employee</button>
+        <button onClick={() => setAllotEdit({ name: '', ptoAllotment: 15, holidayAllotment: 6, isNew: true })} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #9D8BE6', background: '#1C1C21', color: '#9D8BE6', fontWeight: 500, cursor: 'pointer' }}>+ Add employee</button>
       </div>
 
       {allotEdit && (
-        <div style={{ border: '0.5px solid #534AB7', borderRadius: 12, padding: 16, background: '#F7F6FD', marginBottom: 16 }}>
+        <div style={{ border: '0.5px solid #9D8BE6', borderRadius: 12, padding: 16, background: '#241f36', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>{allotEdit.isNew ? 'Add employee' : `Edit — ${allotEdit.name}`} ({year})</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             {allotEdit.isNew && <label style={{ fontSize: 12, color: '#908E85' }}>Name<input value={allotEdit.name} onChange={e => setAllotEdit({ ...allotEdit, name: e.target.value })} placeholder="Employee name" style={{ ...inp, width: 200 }} /></label>}
@@ -72,13 +72,13 @@ export default function PtoTrackerPage() {
             <label style={{ fontSize: 12, color: '#908E85' }}>Holiday days<input type="number" step="0.5" value={allotEdit.holidayAllotment} onChange={e => setAllotEdit({ ...allotEdit, holidayAllotment: e.target.value })} style={{ ...inp, width: 120 }} /></label>
           </div>
           <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-            <button onClick={saveAllot} disabled={saving} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#534AB7', color: '#fff', fontWeight: 500, cursor: 'pointer' }}>Save</button>
-            <button onClick={() => setAllotEdit(null)} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', color: '#908E85', cursor: 'pointer' }}>Cancel</button>
+            <button onClick={saveAllot} disabled={saving} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#9D8BE6', color: '#fff', fontWeight: 500, cursor: 'pointer' }}>Save</button>
+            <button onClick={() => setAllotEdit(null)} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#908E85', cursor: 'pointer' }}>Cancel</button>
           </div>
         </div>
       )}
 
-      <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#fff', marginBottom: 26 }}>
+      <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#1C1C21', marginBottom: 26 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr>
             <th style={th}>Name</th>
@@ -101,8 +101,8 @@ export default function PtoTrackerPage() {
                 <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: s.pto.remaining <= 0 ? '#E57C7C' : '#43B892' }}>{s.pto.remaining}</td>
                 <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: s.holiday.remaining <= 0 ? '#E57C7C' : '#43B892' }}>{s.holiday.remaining}</td>
                 <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <button onClick={() => setAllotEdit({ name: s.name, ptoAllotment: s.pto.allotment, holidayAllotment: s.holiday.allotment })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', color: '#534AB7', cursor: 'pointer', marginRight: 6 }}>Edit</button>
-                  <button onClick={() => delEmployee(s.name)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', color: '#E57C7C', cursor: 'pointer' }}>Del</button>
+                  <button onClick={() => setAllotEdit({ name: s.name, ptoAllotment: s.pto.allotment, holidayAllotment: s.holiday.allotment })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#9D8BE6', cursor: 'pointer', marginRight: 6 }}>Edit</button>
+                  <button onClick={() => delEmployee(s.name)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#E57C7C', cursor: 'pointer' }}>Del</button>
                 </td>
               </tr>
             ))}
@@ -122,12 +122,12 @@ export default function PtoTrackerPage() {
           <select value={fType} onChange={e => setFType(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '0.5px solid #2A2A30' }}>
             <option value="">All types</option><option value="PTO">PTO</option><option value="Holiday">Holiday</option>
           </select>
-          <button onClick={() => setEditing({ leaveType: 'PTO', businessDays: 1 })} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>+ Add leave</button>
+          <button onClick={() => setEditing({ leaveType: 'PTO', businessDays: 1 })} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #9D8BE6', background: '#1C1C21', color: '#9D8BE6', fontWeight: 500, cursor: 'pointer' }}>+ Add leave</button>
         </div>
       </div>
 
       {editing && (
-        <div style={{ border: '0.5px solid #534AB7', borderRadius: 12, padding: 16, background: '#F7F6FD', marginBottom: 16 }}>
+        <div style={{ border: '0.5px solid #9D8BE6', borderRadius: 12, padding: 16, background: '#241f36', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>{editing.id ? 'Edit' : 'Add'} leave</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
             <label style={{ fontSize: 12, color: '#908E85' }}>Name *<select value={editing.name || ''} onChange={e => setEditing({ ...editing, name: e.target.value })} style={inp}><option value="">Select…</option>{[...new Set([...summary.map((s: any) => s.name), 'Mark Paulo', 'Ana Navas', 'Anni Suutari'])].map((n: any) => <option key={n} value={n}>{n}</option>)}</select></label>
@@ -138,39 +138,39 @@ export default function PtoTrackerPage() {
             <label style={{ fontSize: 12, color: '#908E85' }}>Notes<input value={editing.notes || ''} onChange={e => setEditing({ ...editing, notes: e.target.value })} placeholder="Holiday name…" style={inp} /></label>
           </div>
           <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
-            <button onClick={saveLeave} disabled={saving} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#534AB7', color: '#fff', fontWeight: 500, cursor: 'pointer' }}>{saving ? 'Saving…' : 'Save'}</button>
-            <button onClick={() => setEditing(null)} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', color: '#908E85', cursor: 'pointer' }}>Cancel</button>
+            <button onClick={saveLeave} disabled={saving} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#9D8BE6', color: '#fff', fontWeight: 500, cursor: 'pointer' }}>{saving ? 'Saving…' : 'Save'}</button>
+            <button onClick={() => setEditing(null)} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#908E85', cursor: 'pointer' }}>Cancel</button>
           </div>
         </div>
       )}
 
-      <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#fff', maxHeight: '50vh' }}>
+      <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#1C1C21', maxHeight: '50vh' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr>
-            <th style={{ ...th, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}>Name</th>
-            <th style={{ ...th, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}>Type</th>
-            <th style={{ ...th, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}>Start</th>
-            <th style={{ ...th, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}>End</th>
-            <th style={{ ...th, position: 'sticky', top: 0, background: '#fff', zIndex: 2, textAlign: 'right' }}>Days</th>
-            <th style={{ ...th, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}>Notes</th>
-            <th style={{ ...th, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}></th>
+            <th style={{ ...th, position: 'sticky', top: 0, background: '#1C1C21', zIndex: 2 }}>Name</th>
+            <th style={{ ...th, position: 'sticky', top: 0, background: '#1C1C21', zIndex: 2 }}>Type</th>
+            <th style={{ ...th, position: 'sticky', top: 0, background: '#1C1C21', zIndex: 2 }}>Start</th>
+            <th style={{ ...th, position: 'sticky', top: 0, background: '#1C1C21', zIndex: 2 }}>End</th>
+            <th style={{ ...th, position: 'sticky', top: 0, background: '#1C1C21', zIndex: 2, textAlign: 'right' }}>Days</th>
+            <th style={{ ...th, position: 'sticky', top: 0, background: '#1C1C21', zIndex: 2 }}>Notes</th>
+            <th style={{ ...th, position: 'sticky', top: 0, background: '#1C1C21', zIndex: 2 }}></th>
           </tr></thead>
           <tbody>
             {leaves.map((l: any) => (
               <tr key={l.id}>
                 <td style={td}>{l.name}</td>
-                <td style={td}><span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: l.leaveType === 'Holiday' ? '#241f36' : '#143229', color: l.leaveType === 'Holiday' ? '#534AB7' : '#0F6E56' }}>{l.leaveType}</span></td>
+                <td style={td}><span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: l.leaveType === 'Holiday' ? '#241f36' : '#143229', color: l.leaveType === 'Holiday' ? '#9D8BE6' : '#43B892' }}>{l.leaveType}</span></td>
                 <td style={td}>{fmtDate(l.startDate)}</td>
                 <td style={td}>{fmtDate(l.endDate)}</td>
                 <td style={{ ...td, textAlign: 'right' }}>{l.businessDays}</td>
                 <td style={td}>{l.notes || '—'}</td>
                 <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
                   {l.used ? (
-                    <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 999, background: '#143229', color: '#0F6E56', fontWeight: 600 }}>✓ Used</span>
+                    <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 999, background: '#143229', color: '#43B892', fontWeight: 600 }}>✓ Used</span>
                   ) : (<>
-                    <button onClick={() => markUsed(l.id)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #43B892', background: '#fff', color: '#43B892', cursor: 'pointer', marginRight: 6 }}>Used</button>
-                    <button onClick={() => setEditing({ ...l, startDate: fmtDate(l.startDate), endDate: fmtDate(l.endDate) })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', color: '#534AB7', cursor: 'pointer', marginRight: 6 }}>Edit</button>
-                    <button onClick={() => delLeave(l.id)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', color: '#E57C7C', cursor: 'pointer' }}>Del</button>
+                    <button onClick={() => markUsed(l.id)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #43B892', background: '#1C1C21', color: '#43B892', cursor: 'pointer', marginRight: 6 }}>Used</button>
+                    <button onClick={() => setEditing({ ...l, startDate: fmtDate(l.startDate), endDate: fmtDate(l.endDate) })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#9D8BE6', cursor: 'pointer', marginRight: 6 }}>Edit</button>
+                    <button onClick={() => delLeave(l.id)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#E57C7C', cursor: 'pointer' }}>Del</button>
                   </>)}
                 </td>
               </tr>

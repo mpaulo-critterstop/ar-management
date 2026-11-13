@@ -87,7 +87,7 @@ export default function ClockVsArrivalPage() {
     setSyncing(false); setSyncStep('');
   }
 
-  const th: React.CSSProperties = { textAlign: 'center', padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#908E85', borderBottom: '0.5px solid #2A2A30', whiteSpace: 'nowrap', background: '#fff', position: 'sticky', top: 0 };
+  const th: React.CSSProperties = { textAlign: 'center', padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#908E85', borderBottom: '0.5px solid #2A2A30', whiteSpace: 'nowrap', background: '#1C1C21', position: 'sticky', top: 0 };
   const td: React.CSSProperties = { textAlign: 'center', padding: '7px 10px', fontSize: 13, borderBottom: '0.5px solid #232329', whiteSpace: 'nowrap' };
   const tdL: React.CSSProperties = { ...td, textAlign: 'left' };
 
@@ -95,7 +95,7 @@ export default function ClockVsArrivalPage() {
 
   function statusCell(r: any) {
     if (r.status === 'FLAG') return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#361e1e', color: '#E57C7C', fontWeight: 600 }}>⚑ Flag</span>;
-    if (r.status === 'OK') return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#143229', color: '#0F6E56' }}>OK</span>;
+    if (r.status === 'OK') return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#143229', color: '#43B892' }}>OK</span>;
     if (r.status === 'NO_MATCH') return <span style={{ fontSize: 11, color: '#DBA14E' }}>No match</span>;
     if (r.status === 'NO_ROUTE') return <span style={{ fontSize: 11, color: '#908E85' }}>No route (event/off)</span>;
     if (r.status === 'NO_BOUNCIE') return <span style={{ fontSize: 11, color: '#908E85' }}>No GPS data</span>;
@@ -108,7 +108,7 @@ export default function ClockVsArrivalPage() {
       <div style={{ marginTop: 6 }}><CCPageHeader icon="⏰" title="Clock-In vs. Arrival" /></div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <label style={{ display: 'inline-block', fontSize: 13, padding: '10px 18px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>
+        <label style={{ display: 'inline-block', fontSize: 13, padding: '10px 18px', borderRadius: 8, border: '0.5px solid #9D8BE6', background: '#1C1C21', color: '#9D8BE6', fontWeight: 500, cursor: 'pointer' }}>
           {loading ? 'Processing…' : '↑ Upload OnTheClock CSV'}
           <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} disabled={loading} />
         </label>
@@ -120,12 +120,12 @@ export default function ClockVsArrivalPage() {
         {fileName && <span style={{ fontSize: 12, color: '#908E85' }}>{fileName}</span>}
       </div>
       <p style={{ fontSize: 12, color: '#63615A', margin: '8px 0 0' }}>Upload shows clock times immediately. Click <b>Sync Bouncie</b> to pull GPS arrival/departure for the CSV's week(s) and fill in the comparison.</p>
-      {err && <div style={{ fontSize: 13, color: '#E57C7C', background: '#361e1e', border: '0.5px solid #F7C1C1', borderRadius: 8, padding: '10px 12px', marginTop: 14 }}>{err}</div>}
+      {err && <div style={{ fontSize: 13, color: '#E57C7C', background: '#361e1e', border: '0.5px solid #4a2626', borderRadius: 8, padding: '10px 12px', marginTop: 14 }}>{err}</div>}
 
       {data && (<>
         <div style={{ display: 'flex', gap: 12, margin: '20px 0', flexWrap: 'wrap' }}>
           {[['Rows', data.summary.total, '#F0EEE8'], ['Flagged', data.summary.flagged, data.summary.flagged ? '#E57C7C' : '#908E85'], ['Paid-not-working (min)', data.summary.totalPaidNotWorkingMin, data.summary.totalPaidNotWorkingMin ? '#DBA14E' : '#908E85'], ['No match', data.summary.noMatch, '#908E85'], ['No GPS data', data.summary.noBouncie, '#908E85']].map(([label, val, color]: any) => (
-            <div key={label} style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '12px 16px', background: '#fff', minWidth: 110 }}>
+            <div key={label} style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '12px 16px', background: '#1C1C21', minWidth: 110 }}>
               <div style={{ fontSize: 22, fontWeight: 700, color }}>{val}</div>
               <div style={{ fontSize: 11, color: '#908E85' }}>{label}</div>
             </div>
@@ -134,7 +134,7 @@ export default function ClockVsArrivalPage() {
         <label style={{ fontSize: 13, color: '#F0EEE8', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, cursor: 'pointer' }}>
           <input type="checkbox" checked={onlyFlags} onChange={e => setOnlyFlags(e.target.checked)} /> Show flagged only
         </label>
-        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden', background: '#1C1C21' }}>
           <div style={{ maxHeight: 560, overflowY: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>

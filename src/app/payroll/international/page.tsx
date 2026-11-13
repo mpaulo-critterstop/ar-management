@@ -16,7 +16,7 @@ export default function InternationalPayrollPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
         {SECTIONS.map(s => (
           <a key={s.title} href={s.href} style={{ textDecoration: 'none' }}>
-            <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, padding: 18, background: '#fff', height: '100%' }}>
+            <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, padding: 18, background: '#1C1C21', height: '100%' }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: '#F0EEE8' }}>{s.title}</div>
               <div style={{ fontSize: 13, color: '#908E85', marginTop: 6, lineHeight: 1.5 }}>{s.desc}</div>
             </div>

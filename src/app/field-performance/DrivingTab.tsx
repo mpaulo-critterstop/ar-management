@@ -5,25 +5,25 @@ import { teamPill, scoreBadge, scoreBar, card, th, td, useSort, sortRows, Sortab
 interface Props { office: string; weekEnd: Date; leaderFilter?: string; period?: Period; }
 
 function speedBadge(mph: number | null) {
-  if (!mph) return <span style={{ color: '#b0aea6' }}>—</span>;
-  const color = mph > 90 ? '#791F1F' : mph > 80 ? '#854F0B' : '#27500A';
+  if (!mph) return <span style={{ color: '#63615A' }}>—</span>;
+  const color = mph > 90 ? '#E57C7C' : mph > 80 ? '#DBA14E' : '#43B892';
   return <span style={{ color, fontSize: 12, fontWeight: mph > 80 ? 500 : 400 }}>{mph.toFixed(1)} mph</span>;
 }
 
 function alertsBadge(per1k: number | null) {
-  if (per1k === null || per1k === undefined) return <span style={{ color: '#b0aea6' }}>—</span>;
-  const color = per1k > 30 ? '#791F1F' : per1k > 15 ? '#854F0B' : '#27500A';
+  if (per1k === null || per1k === undefined) return <span style={{ color: '#63615A' }}>—</span>;
+  const color = per1k > 30 ? '#E57C7C' : per1k > 15 ? '#DBA14E' : '#43B892';
   return <span style={{ color, fontSize: 12, fontWeight: per1k > 30 ? 500 : 400 }}>{per1k.toFixed(1)}</span>;
 }
 
 function idleBadge(ratio: number | null) {
-  if (ratio === null || ratio === undefined) return <span style={{ color: '#b0aea6' }}>—</span>;
+  if (ratio === null || ratio === undefined) return <span style={{ color: '#63615A' }}>—</span>;
   const pct = (ratio * 100).toFixed(1);
-  const color = ratio > 0.40 ? '#791F1F' : ratio > 0.30 ? '#854F0B' : '#27500A';
+  const color = ratio > 0.40 ? '#E57C7C' : ratio > 0.30 ? '#DBA14E' : '#43B892';
   return <span style={{ color, fontSize: 12 }}>{pct}%</span>;
 }
 
-const inputStyle: React.CSSProperties = { fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff' };
+const inputStyle: React.CSSProperties = { fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21' };
 
 export function DrivingTab({ office, weekEnd, leaderFilter = '', period }: Props) {
   const [weeks, setWeeks] = useState<any[]>([]);
@@ -120,7 +120,7 @@ export function DrivingTab({ office, weekEnd, leaderFilter = '', period }: Props
         )}
         <div style={{ ...card, padding: '12px 20px', minWidth: 140 }}>
           <div style={{ fontSize: 11, color: '#908E85', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Speed violations</div>
-          <div style={{ fontSize: 26, fontWeight: 500, color: speedViolations > 0 ? '#791F1F' : '#27500A' }}>{speedViolations}</div>
+          <div style={{ fontSize: 26, fontWeight: 500, color: speedViolations > 0 ? '#E57C7C' : '#43B892' }}>{speedViolations}</div>
         </div>
       </div>
 
@@ -154,9 +154,9 @@ export function DrivingTab({ office, weekEnd, leaderFilter = '', period }: Props
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>Loading...</td></tr>
+                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#63615A', padding: 32 }}>Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No driving data for this week yet.</td></tr>
+                <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#63615A', padding: 32 }}>No driving data for this week yet.</td></tr>
               ) : filtered.map(w => {
                 const speedPenalty = (w.maxSpeed ?? 0) > 90 ? 50 : (w.maxSpeed ?? 0) > 80 ? 8 : 0;
                 const idleBonus = Math.max(0.08 - Math.max((w.idleRatio ?? 0) - 0.35, 0) * 0.50, 0);
@@ -173,7 +173,7 @@ export function DrivingTab({ office, weekEnd, leaderFilter = '', period }: Props
                     <td style={td}>
                       {w.drivingOverride ? (
                         <div>
-                          <span style={{ fontSize: 11, color: '#791F1F', fontWeight: 500 }}>0% (override)</span>
+                          <span style={{ fontSize: 11, color: '#E57C7C', fontWeight: 500 }}>0% (override)</span>
                           <div style={{ fontSize: 10, color: '#908E85', marginTop: 2, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={w.drivingOverrideNote}>{w.drivingOverrideNote}</div>
                         </div>
                       ) : (
@@ -186,19 +186,19 @@ export function DrivingTab({ office, weekEnd, leaderFilter = '', period }: Props
                     <td style={td}>{speedBadge(w.maxSpeed)}</td>
                     <td style={td}>{alertsBadge(w.safetyAlertsPer1k)}</td>
                     <td style={td}>{idleBadge(w.idleRatio)}</td>
-                    <td style={{ ...td, fontSize: 12, color: speedPenalty > 0 ? '#791F1F' : '#b0aea6' }}>
+                    <td style={{ ...td, fontSize: 12, color: speedPenalty > 0 ? '#E57C7C' : '#63615A' }}>
                       {speedPenalty > 0 ? `-${speedPenalty}` : '0'}
                     </td>
-                    <td style={{ ...td, fontSize: 12, color: idleBonus > 0 ? '#27500A' : '#b0aea6' }}>
+                    <td style={{ ...td, fontSize: 12, color: idleBonus > 0 ? '#43B892' : '#63615A' }}>
                       {idleBonus > 0 ? `+${(idleBonus).toFixed(3)}` : '0'}
                     </td>
                     <td style={td}>
                       {w.drivingOverride ? (
-                        <button onClick={() => handleOverrideRemove(w)} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', cursor: 'pointer', color: '#908E85' }}>
+                        <button onClick={() => handleOverrideRemove(w)} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', cursor: 'pointer', color: '#908E85' }}>
                           Remove
                         </button>
                       ) : (
-                        <button onClick={() => { setOverrideModal(w); setOverrideNote(''); }} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', cursor: 'pointer', color: '#791F1F' }}>
+                        <button onClick={() => { setOverrideModal(w); setOverrideNote(''); }} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', cursor: 'pointer', color: '#E57C7C' }}>
                           Set 0%
                         </button>
                       )}
@@ -210,16 +210,16 @@ export function DrivingTab({ office, weekEnd, leaderFilter = '', period }: Props
           </table>
         </div>
       </div>
-      <div style={{ fontSize: 12, color: '#b0aea6', marginTop: 8 }}>{filtered.length} techs with driving data</div>
+      <div style={{ fontSize: 12, color: '#63615A', marginTop: 8 }}>{filtered.length} techs with driving data</div>
 
       {/* Override Modal */}
       {overrideModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 24, width: 420, maxWidth: '90vw' }}>
+          <div style={{ background: '#1C1C21', borderRadius: 16, padding: 24, width: 420, maxWidth: '90vw' }}>
             <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 4 }}>Override driving score</div>
             <div style={{ fontSize: 13, color: '#908E85', marginBottom: 16 }}>{overrideModal.technician?.name} — driving score will be set to 0%</div>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, color: '#908E85', display: 'block', marginBottom: 6 }}>Reason / note <span style={{ color: '#791F1F' }}>*</span></label>
+              <label style={{ fontSize: 12, color: '#908E85', display: 'block', marginBottom: 6 }}>Reason / note <span style={{ color: '#E57C7C' }}>*</span></label>
               <textarea
                 value={overrideNote}
                 onChange={e => setOverrideNote(e.target.value)}
@@ -229,8 +229,8 @@ export function DrivingTab({ office, weekEnd, leaderFilter = '', period }: Props
               />
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => { setOverrideModal(null); setOverrideNote(''); }} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleOverrideSave} disabled={overrideSaving || !overrideNote.trim()} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: 'none', background: !overrideNote.trim() ? '#2A2A30' : '#791F1F', color: '#fff', cursor: !overrideNote.trim() ? 'not-allowed' : 'pointer', fontWeight: 500 }}>
+              <button onClick={() => { setOverrideModal(null); setOverrideNote(''); }} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleOverrideSave} disabled={overrideSaving || !overrideNote.trim()} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: 'none', background: !overrideNote.trim() ? '#2A2A30' : '#E57C7C', color: '#1C1C21', cursor: !overrideNote.trim() ? 'not-allowed' : 'pointer', fontWeight: 500 }}>
                 {overrideSaving ? 'Saving...' : 'Set driving to 0%'}
               </button>
             </div>

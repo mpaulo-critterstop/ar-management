@@ -100,13 +100,13 @@ export function RosterTab({ office }: Props) {
     load();
   };
 
-  const inputStyle: React.CSSProperties = { width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #2A2A30', borderRadius: 8, background: '#fff', color: '#F0EEE8' };
+  const inputStyle: React.CSSProperties = { width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #2A2A30', borderRadius: 8, background: '#1C1C21', color: '#F0EEE8' };
   const labelStyle: React.CSSProperties = { fontSize: 11, color: '#908E85', marginBottom: 4, display: 'block' };
 
   if (showForm) {
     return (
       <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 12, padding: 32, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', minHeight: 540 }}>
-        <div style={{ background: '#fff', border: '0.5px solid #2A2A30', borderRadius: 12, width: '100%', maxWidth: 500, padding: 24 }}>
+        <div style={{ background: '#1C1C21', border: '0.5px solid #2A2A30', borderRadius: 12, width: '100%', maxWidth: 500, padding: 24 }}>
           <div style={{ fontSize: 15, fontWeight: 500, color: '#F0EEE8', marginBottom: 18 }}>
             {editing ? `Edit — ${editing.name}` : 'Add new technician'}
           </div>
@@ -152,7 +152,7 @@ export function RosterTab({ office }: Props) {
           <div style={{ marginTop: 12 }}><label style={labelStyle}>Notes</label><input style={inputStyle} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
             <button onClick={() => setShowForm(false)} style={{ padding: '7px 16px', fontSize: 13, borderRadius: 8, border: '1px solid #2A2A30', background: '#232329', cursor: 'pointer', color: '#908E85' }}>Cancel</button>
-            <button onClick={save} disabled={saving || !form.name || !form.techId} style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving ? '#b0aea6' : '#5B9BE0', color: '#fff', cursor: saving ? 'default' : 'pointer' }}>
+            <button onClick={save} disabled={saving || !form.name || !form.techId} style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving ? '#63615A' : '#5B9BE0', color: '#1C1C21', cursor: saving ? 'default' : 'pointer' }}>
               {saving ? 'Saving...' : editing ? 'Save changes' : 'Add technician'}
             </button>
           </div>
@@ -165,12 +165,12 @@ export function RosterTab({ office }: Props) {
     <div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
         <input type="text" placeholder="Search name or Tech ID..." value={search} onChange={e => setSearch(e.target.value)}
-          style={{ flex: 1, fontSize: 12, padding: '6px 9px', border: '1px solid #2A2A30', borderRadius: 8, background: '#fff', color: '#F0EEE8' }}
+          style={{ flex: 1, fontSize: 12, padding: '6px 9px', border: '1px solid #2A2A30', borderRadius: 8, background: '#1C1C21', color: '#F0EEE8' }}
         />
-        <select value={teamFilter} onChange={e => setTeamFilter(e.target.value)} style={{ fontSize: 12, padding: '6px 9px', border: '1px solid #2A2A30', borderRadius: 8, background: '#fff', color: '#F0EEE8' }}>
+        <select value={teamFilter} onChange={e => setTeamFilter(e.target.value)} style={{ fontSize: 12, padding: '6px 9px', border: '1px solid #2A2A30', borderRadius: 8, background: '#1C1C21', color: '#F0EEE8' }}>
           <option value="">All teams</option><option value="WP">WP</option><option value="PMP">PMP</option><option value="IP">IP</option>
         </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ fontSize: 12, padding: '6px 9px', border: '1px solid #2A2A30', borderRadius: 8, background: '#fff', color: '#F0EEE8' }}>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ fontSize: 12, padding: '6px 9px', border: '1px solid #2A2A30', borderRadius: 8, background: '#1C1C21', color: '#F0EEE8' }}>
           <option value="ACTIVE">Active only</option><option value="">All</option><option value="INACTIVE">Inactive</option>
         </select>
         <button onClick={openAdd} style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '1px solid #2A2A30', background: '#232329', cursor: 'pointer', color: '#F0EEE8', whiteSpace: 'nowrap' }}>
@@ -197,9 +197,9 @@ export function RosterTab({ office }: Props) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>Loading...</td></tr>
+                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#63615A', padding: 32 }}>Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No technicians found.</td></tr>
+                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: '#63615A', padding: 32 }}>No technicians found.</td></tr>
               ) : filtered.map(t => (
                 <tr key={t.id} style={{ opacity: t.status === 'INACTIVE' ? 0.5 : 1 }}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#232329'}
@@ -218,7 +218,7 @@ export function RosterTab({ office }: Props) {
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button onClick={() => openEdit(t)} title="Edit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#908E85', fontSize: 14, padding: 0 }}>✎</button>
                       {t.status === 'ACTIVE' && (
-                        <button onClick={() => deactivate(t)} title="Deactivate" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b0aea6', fontSize: 14, padding: 0 }}>×</button>
+                        <button onClick={() => deactivate(t)} title="Deactivate" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#63615A', fontSize: 14, padding: 0 }}>×</button>
                       )}
                     </div>
                   </td>
@@ -228,7 +228,7 @@ export function RosterTab({ office }: Props) {
           </table>
         </div>
       </div>
-      <div style={{ fontSize: 12, color: '#b0aea6', marginTop: 8 }}>{filtered.length} technician{filtered.length !== 1 ? 's' : ''}</div>
+      <div style={{ fontSize: 12, color: '#63615A', marginTop: 8 }}>{filtered.length} technician{filtered.length !== 1 ? 's' : ''}</div>
     </div>
   );
 }

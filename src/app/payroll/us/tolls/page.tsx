@@ -159,21 +159,21 @@ export default function TollsPage() {
 
       <div style={{ display: 'flex', gap: 4, background: '#232329', borderRadius: 8, padding: 3, width: 'fit-content', marginBottom: 20 }}>
         {(['calc', 'history', 'registry'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ fontSize: 12, padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', background: tab === t ? '#fff' : 'transparent', color: tab === t ? '#F0EEE8' : '#908E85', fontWeight: tab === t ? 600 : 400 }}>{t === 'calc' ? 'Calculate' : t === 'history' ? `History (${periods.length})` : `Plate Registry (${plates.length})`}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ fontSize: 12, padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', background: tab === t ? '#1C1C21' : 'transparent', color: tab === t ? '#F0EEE8' : '#908E85', fontWeight: tab === t ? 600 : 400 }}>{t === 'calc' ? 'Calculate' : t === 'history' ? `History (${periods.length})` : `Plate Registry (${plates.length})`}</button>
         ))}
       </div>
 
       {tab === 'calc' && (<>
-        <label style={{ display: 'inline-block', fontSize: 13, padding: '10px 18px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>
+        <label style={{ display: 'inline-block', fontSize: 13, padding: '10px 18px', borderRadius: 8, border: '0.5px solid #9D8BE6', background: '#1C1C21', color: '#9D8BE6', fontWeight: 500, cursor: 'pointer' }}>
           ⤒ Upload toll file (.xlsx or .csv)
           <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFile} style={{ display: 'none' }} />
         </label>
         {fileName && <span style={{ fontSize: 12, color: '#908E85', marginLeft: 12 }}>{fileName}</span>}
         {!result && savedMsg && savedMsg.startsWith('✓') && (
-          <div style={{ fontSize: 13, color: '#43B892', background: '#143229', border: '0.5px solid #9FE1CB', borderRadius: 8, padding: '10px 14px', marginTop: 14 }}>{savedMsg}</div>
+          <div style={{ fontSize: 13, color: '#43B892', background: '#143229', border: '0.5px solid #2e5a4c', borderRadius: 8, padding: '10px 14px', marginTop: 14 }}>{savedMsg}</div>
         )}
         {computing && <div style={{ fontSize: 13, color: '#908E85', marginTop: 12 }}>Processing…</div>}
-        {err && <div style={{ fontSize: 13, color: '#E57C7C', background: '#361e1e', border: '0.5px solid #F7C1C1', borderRadius: 8, padding: '10px 14px', marginTop: 14 }}>{err}</div>}
+        {err && <div style={{ fontSize: 13, color: '#E57C7C', background: '#361e1e', border: '0.5px solid #4a2626', borderRadius: 8, padding: '10px 14px', marginTop: 14 }}>{err}</div>}
 
         {result && (<>
           <div style={{ display: 'flex', gap: 12, margin: '18px 0', flexWrap: 'wrap' }}>
@@ -183,14 +183,14 @@ export default function TollsPage() {
               { label: 'Unmatched', value: result.unmatched, warn: result.unmatched > 0 },
               { label: 'Period', value: result.periodStart ? `${result.periodStart} → ${result.periodEnd}` : '—' },
             ].map(s => (
-              <div key={s.label} style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '10px 16px', minWidth: 110, background: '#fff' }}>
+              <div key={s.label} style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '10px 16px', minWidth: 110, background: '#1C1C21' }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: (s as any).warn ? '#E57C7C' : '#F0EEE8' }}>{s.value}</div>
                 <div style={{ fontSize: 11, color: '#908E85' }}>{s.label}</div>
               </div>
             ))}
           </div>
 
-          <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#fff', marginBottom: 20 }}>
+          <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#1C1C21', marginBottom: 20 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr><th style={thL}>Technician</th><th style={th}># Tolls</th><th style={th}>Toll Total</th></tr></thead>
               <tbody>
@@ -201,20 +201,20 @@ export default function TollsPage() {
             </table>
           </div>
 
-          <div style={{ border: '0.5px solid #534AB7', borderRadius: 12, padding: 16, background: '#F7F6FD', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ border: '0.5px solid #9D8BE6', borderRadius: 12, padding: 16, background: '#241f36', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#F0EEE8' }}>Save to payroll week:</div>
             <label style={{ fontSize: 12, color: '#908E85' }}>Pay date (Mon after period)
               <CCDatePicker value={payDate} onChange={(v: string) => { setPayDate(v); setSavedMsg(''); }} />
             </label>
             {payDate && <span style={{ fontSize: 12, color: '#908E85' }}>Period: {(() => { const pe = new Date(payDate + 'T12:00:00Z'); pe.setUTCDate(pe.getUTCDate() - 1); const ps = new Date(pe); ps.setUTCDate(pe.getUTCDate() - 6); return `${ps.toISOString().slice(5, 10)} – ${pe.toISOString().slice(5, 10)}`; })()}</span>}
-            <button onClick={saveWeek} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#534AB7', color: '#fff', fontWeight: 500, cursor: 'pointer' }}>Save week</button>
+            <button onClick={saveWeek} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#9D8BE6', color: '#fff', fontWeight: 500, cursor: 'pointer' }}>Save week</button>
             {savedMsg && <span style={{ fontSize: 12, color: savedMsg.startsWith('✓') ? '#43B892' : '#908E85' }}>{savedMsg}</span>}
           </div>
 
           {result.unmatchedList?.length > 0 && (
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#E57C7C', marginBottom: 8 }}>⚠ Unmatched plates — add these to the registry</div>
-              <div style={{ border: '0.5px solid #F7C1C1', borderRadius: 12, overflow: 'auto', background: '#fff' }}>
+              <div style={{ border: '0.5px solid #4a2626', borderRadius: 12, overflow: 'auto', background: '#1C1C21' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead><tr><th style={thL}>Plate</th><th style={th}># Tolls</th><th style={th}>Amount</th></tr></thead>
                   <tbody>{result.unmatchedList.map((u: any) => (<tr key={u.plate}><td style={tdL}>{u.plate}</td><td style={td}>{u.count}</td><td style={td}>{money(u.amount)}</td></tr>))}</tbody>
@@ -227,7 +227,7 @@ export default function TollsPage() {
 
       {tab === 'history' && (<>
         <div style={{ marginBottom: 16 }}>
-          <select value={histSel} onChange={e => setHistSel(e.target.value)} style={{ fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', minWidth: 260 }}>
+          <select value={histSel} onChange={e => setHistSel(e.target.value)} style={{ fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', minWidth: 260 }}>
             <option value="">Select a saved pay week…</option>
             {periods.map(p => <option key={p.payDate} value={p.payDate}>{p.label}</option>)}
           </select>
@@ -238,10 +238,10 @@ export default function TollsPage() {
           const pt = (p.perTech as any[]) || [];
           return (<>
             <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-              <div style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '10px 16px', background: '#fff' }}><div style={{ fontSize: 18, fontWeight: 700 }}>{money(p.totalAmount)}</div><div style={{ fontSize: 11, color: '#908E85' }}>Total tolls</div></div>
-              <div style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '10px 16px', background: '#fff' }}><div style={{ fontSize: 18, fontWeight: 700 }}>{pt.length}</div><div style={{ fontSize: 11, color: '#908E85' }}>Techs</div></div>
+              <div style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '10px 16px', background: '#1C1C21' }}><div style={{ fontSize: 18, fontWeight: 700 }}>{money(p.totalAmount)}</div><div style={{ fontSize: 11, color: '#908E85' }}>Total tolls</div></div>
+              <div style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '10px 16px', background: '#1C1C21' }}><div style={{ fontSize: 18, fontWeight: 700 }}>{pt.length}</div><div style={{ fontSize: 11, color: '#908E85' }}>Techs</div></div>
             </div>
-            <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#fff' }}>
+            <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#1C1C21' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr><th style={thL}>Technician</th><th style={th}># Tolls</th><th style={th}>Toll Deduction</th></tr></thead>
                 <tbody>{pt.map((t: any) => (<tr key={t.tech}><td style={tdL}>{t.tech}</td><td style={td}>{t.count}</td><td style={{ ...td, fontWeight: 600 }}>{money(t.amount)}</td></tr>))}</tbody>
@@ -252,13 +252,13 @@ export default function TollsPage() {
       </>)}
 
       {tab === 'registry' && (<>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', position: 'sticky', top: 0, background: '#fff', zIndex: 3, padding: '8px 0' }}>
-          <button onClick={() => setEditing({ active: true })} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #534AB7', background: '#fff', color: '#534AB7', fontWeight: 500, cursor: 'pointer' }}>+ Add plate / vehicle</button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', position: 'sticky', top: 0, background: '#1C1C21', zIndex: 3, padding: '8px 0' }}>
+          <button onClick={() => setEditing({ active: true })} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #9D8BE6', background: '#1C1C21', color: '#9D8BE6', fontWeight: 500, cursor: 'pointer' }}>+ Add plate / vehicle</button>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search plate or tech…" style={{ fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '0.5px solid #2A2A30', flex: 1, minWidth: 180 }} />
         </div>
 
         {editing && (
-          <div style={{ border: '0.5px solid #534AB7', borderRadius: 12, padding: 16, background: '#F7F6FD', marginBottom: 16 }}>
+          <div style={{ border: '0.5px solid #9D8BE6', borderRadius: 12, padding: 16, background: '#241f36', marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>{editing.id ? 'Edit' : 'Add'} plate</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
               <label style={{ fontSize: 12, color: '#908E85' }}>License plate *<input value={editing.plateRaw || ''} onChange={e => setEditing({ ...editing, plateRaw: e.target.value })} placeholder="TX - RRX4740" style={{ display: 'block', width: '100%', fontSize: 13, padding: '8px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', marginTop: 4 }} /></label>
@@ -270,20 +270,20 @@ export default function TollsPage() {
               <label style={{ fontSize: 12, color: '#908E85', display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={editing.active !== false} onChange={e => setEditing({ ...editing, active: e.target.checked })} /> Active (inactive plates are ignored in toll matching)</label>
             </div>
             <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
-              <button onClick={savePlate} disabled={saving} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#534AB7', color: '#fff', fontWeight: 500, cursor: saving ? 'wait' : 'pointer' }}>{saving ? 'Saving…' : 'Save'}</button>
-              <button onClick={() => setEditing(null)} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', color: '#908E85', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={savePlate} disabled={saving} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#9D8BE6', color: '#fff', fontWeight: 500, cursor: saving ? 'wait' : 'pointer' }}>{saving ? 'Saving…' : 'Save'}</button>
+              <button onClick={() => setEditing(null)} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#908E85', cursor: 'pointer' }}>Cancel</button>
             </div>
           </div>
         )}
 
-        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#fff', maxHeight: '60vh' }}>
+        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', background: '#1C1C21', maxHeight: '60vh' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr>
-              <th style={{ ...thL, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}>Plate</th>
-              <th style={{ ...thL, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}>Technician</th>
-              <th style={{ ...thL, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}>Vehicle</th>
-              <th style={{ ...thL, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}>Toll Tag</th>
-              <th style={{ ...th, position: 'sticky', top: 0, background: '#fff', zIndex: 2 }}></th>
+              <th style={{ ...thL, position: 'sticky', top: 0, background: '#1C1C21', zIndex: 2 }}>Plate</th>
+              <th style={{ ...thL, position: 'sticky', top: 0, background: '#1C1C21', zIndex: 2 }}>Technician</th>
+              <th style={{ ...thL, position: 'sticky', top: 0, background: '#1C1C21', zIndex: 2 }}>Vehicle</th>
+              <th style={{ ...thL, position: 'sticky', top: 0, background: '#1C1C21', zIndex: 2 }}>Toll Tag</th>
+              <th style={{ ...th, position: 'sticky', top: 0, background: '#1C1C21', zIndex: 2 }}></th>
             </tr></thead>
             <tbody>
               {plates.filter(p => !search || (p.plateRaw + ' ' + p.tech).toLowerCase().includes(search.toLowerCase())).map(p => (
@@ -293,8 +293,8 @@ export default function TollsPage() {
                   <td style={tdL}>{p.vehicle || '—'}</td>
                   <td style={tdL}>{p.tollTag || '—'}</td>
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                    <button onClick={() => setEditing({ ...p })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', color: '#534AB7', cursor: 'pointer', marginRight: 6 }}>Edit</button>
-                    <button onClick={() => deletePlate(p.id, p.plateRaw)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', color: '#E57C7C', cursor: 'pointer' }}>Delete</button>
+                    <button onClick={() => setEditing({ ...p })} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#9D8BE6', cursor: 'pointer', marginRight: 6 }}>Edit</button>
+                    <button onClick={() => deletePlate(p.id, p.plateRaw)} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#1C1C21', color: '#E57C7C', cursor: 'pointer' }}>Delete</button>
                   </td>
                 </tr>
               ))}
