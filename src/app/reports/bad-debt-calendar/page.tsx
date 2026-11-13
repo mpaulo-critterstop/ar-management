@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 
 const money = (n: number) => '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const monthLabel = (m: string) => { const [y, mo] = m.split('-'); return new Date(+y, +mo - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); };
@@ -16,8 +17,8 @@ export default function BadDebtCalendarPage() {
       .then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
   }, []);
 
-  const th: React.CSSProperties = { textAlign: 'center', padding: '9px 12px', fontSize: 11, fontWeight: 600, color: '#888780', borderBottom: '0.5px solid #E8E7E3', whiteSpace: 'nowrap', background: '#fff', position: 'sticky', top: 0 };
-  const td: React.CSSProperties = { textAlign: 'center', padding: '9px 12px', fontSize: 13, borderBottom: '0.5px solid #F1EFE8', whiteSpace: 'nowrap' };
+  const th: React.CSSProperties = { textAlign: 'center', padding: '9px 12px', fontSize: 11, fontWeight: 600, color: '#908E85', borderBottom: '0.5px solid #2A2A30', whiteSpace: 'nowrap', background: '#fff', position: 'sticky', top: 0 };
+  const td: React.CSSProperties = { textAlign: 'center', padding: '9px 12px', fontSize: 13, borderBottom: '0.5px solid #232329', whiteSpace: 'nowrap' };
   const thR = { ...th, textAlign: 'right' as const };
   const tdR = { ...td, textAlign: 'right' as const };
 
@@ -25,38 +26,38 @@ export default function BadDebtCalendarPage() {
   const nowMonth = now.toISOString().slice(0, 7);
 
   return (
-    <div style={{ maxWidth: 1050, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
-      <a href="/reports" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← Reports</a>
+    <div style={{ maxWidth: 1050, margin: '0 auto', padding: '30px 34px 70px' }}>
+      <a href="/reports" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Reports</a>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>🗓️ Bad-Debt Accrual Calendar</h1>
-        <a href="/api/cron/bad-debt-calendar?token=critterstop2026&format=xlsx" style={{ marginTop: 10, fontSize: 13, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#128a3f', color: '#fff', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>⬇ Download Excel</a>
+        <div style={{ marginTop: 6 }}><CCPageHeader icon="🗓️" title="Bad-Debt Accrual Calendar" /></div>
+        <a href="/api/cron/bad-debt-calendar?token=critterstop2026&format=xlsx" style={{ marginTop: 10, fontSize: 13, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#43B892', color: '#fff', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>⬇ Download Excel</a>
       </div>
-      <p style={{ fontSize: 13, color: '#888780', margin: '0 0 16px', lineHeight: 1.6 }}>
+      <p style={{ fontSize: 13, color: '#908E85', margin: '0 0 16px', lineHeight: 1.6 }}>
         When each unpaid overdue invoice <b>would have</b> become bad debt under our collections rules (due date → entry → 15-day countdown → ARM/SCC → post-action window), bucketed by month. This is a projection for the scorecard and the bookkeeper conversation — <b>it does not touch FieldRoutes</b>.
       </p>
 
-      {loading && <div style={{ fontSize: 14, color: '#888780', padding: 20 }}>Computing accrual schedule…</div>}
+      {loading && <div style={{ fontSize: 14, color: '#908E85', padding: 20 }}>Computing accrual schedule…</div>}
 
       {data && !loading && (<>
         {/* Summary */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
           <div style={{ border: '0.5px solid #F7C1C1', borderRadius: 10, padding: '12px 16px', background: '#FDF6F6', minWidth: 180 }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#b91c1c' }}>{money(data.alreadyShouldHaveAccrued)}</div>
-            <div style={{ fontSize: 11, color: '#888780' }}>Should have already accrued (to date)</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#E57C7C' }}>{money(data.alreadyShouldHaveAccrued)}</div>
+            <div style={{ fontSize: 11, color: '#908E85' }}>Should have already accrued (to date)</div>
           </div>
-          <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 10, padding: '12px 16px', background: '#fff', minWidth: 180 }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#2C2C2A' }}>{money(data.grandTotalOverdue)}</div>
-            <div style={{ fontSize: 11, color: '#888780' }}>Total projected bad debt (all overdue)</div>
+          <div style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '12px 16px', background: '#fff', minWidth: 180 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#F0EEE8' }}>{money(data.grandTotalOverdue)}</div>
+            <div style={{ fontSize: 11, color: '#908E85' }}>Total projected bad debt (all overdue)</div>
           </div>
-          <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 10, padding: '12px 16px', background: '#fff', minWidth: 120 }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#2C2C2A' }}>{(data.calendar || []).length}</div>
-            <div style={{ fontSize: 11, color: '#888780' }}>Months spanned</div>
+          <div style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '12px 16px', background: '#fff', minWidth: 120 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#F0EEE8' }}>{(data.calendar || []).length}</div>
+            <div style={{ fontSize: 11, color: '#908E85' }}>Months spanned</div>
           </div>
         </div>
 
         {/* The calendar */}
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Monthly accrual schedule</div>
-        <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden', background: '#fff', marginBottom: 24 }}>
+        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden', background: '#fff', marginBottom: 24 }}>
           <div style={{ maxHeight: 560, overflowY: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
@@ -70,20 +71,20 @@ export default function BadDebtCalendarPage() {
                   const invs = (data.rows || []).filter((r: any) => r.badDebtMonth === m.month);
                   return (
                     <>
-                      <tr key={m.month} onClick={() => setOpenMonth(open ? null : m.month)} style={{ cursor: 'pointer', background: open ? '#FBFBF9' : (past ? '#FDFaFa' : undefined) }}>
-                        <td style={{ ...td, textAlign: 'left', fontWeight: 600, color: past ? '#b91c1c' : '#2C2C2A' }}>{monthLabel(m.month)}{past && <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 6 }}>● past</span>}</td>
+                      <tr key={m.month} onClick={() => setOpenMonth(open ? null : m.month)} style={{ cursor: 'pointer', background: open ? '#232329' : (past ? '#FDFaFa' : undefined) }}>
+                        <td style={{ ...td, textAlign: 'left', fontWeight: 600, color: past ? '#E57C7C' : '#F0EEE8' }}>{monthLabel(m.month)}{past && <span style={{ fontSize: 10, color: '#E57C7C', marginLeft: 6 }}>● past</span>}</td>
                         <td style={td}>{m.count}</td>
                         <td style={tdR}>{money(m.collections)}</td>
                         <td style={tdR}>{money(m.scc)}</td>
                         <td style={{ ...tdR, fontWeight: 700 }}>{money(m.total)}</td>
-                        <td style={td}><span style={{ fontSize: 11, color: '#185FA5' }}>{open ? '▲ hide' : '▼ view'}</span></td>
+                        <td style={td}><span style={{ fontSize: 11, color: '#5B9BE0' }}>{open ? '▲ hide' : '▼ view'}</span></td>
                       </tr>
                       {open && (
-                        <tr><td colSpan={6} style={{ padding: 0, background: '#FBFBF9' }}>
+                        <tr><td colSpan={6} style={{ padding: 0, background: '#232329' }}>
                           <div style={{ maxHeight: 300, overflowY: 'auto', padding: '4px 0' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                               <thead><tr>
-                                <th style={{ ...th, fontSize: 10, background: '#FBFBF9', textAlign: 'left', paddingLeft: 24 }}>Invoice</th><th style={{ ...th, fontSize: 10, background: '#FBFBF9', textAlign: 'left' }}>Customer</th><th style={{ ...th, fontSize: 10, background: '#FBFBF9' }}>Office</th><th style={{ ...th, fontSize: 10, background: '#FBFBF9' }}>Track</th><th style={{ ...thR, fontSize: 10, background: '#FBFBF9' }}>Amount</th><th style={{ ...th, fontSize: 10, background: '#FBFBF9' }}>Due</th><th style={{ ...th, fontSize: 10, background: '#FBFBF9' }}>Would-be bad debt</th>
+                                <th style={{ ...th, fontSize: 10, background: '#232329', textAlign: 'left', paddingLeft: 24 }}>Invoice</th><th style={{ ...th, fontSize: 10, background: '#232329', textAlign: 'left' }}>Customer</th><th style={{ ...th, fontSize: 10, background: '#232329' }}>Office</th><th style={{ ...th, fontSize: 10, background: '#232329' }}>Track</th><th style={{ ...thR, fontSize: 10, background: '#232329' }}>Amount</th><th style={{ ...th, fontSize: 10, background: '#232329' }}>Due</th><th style={{ ...th, fontSize: 10, background: '#232329' }}>Would-be bad debt</th>
                               </tr></thead>
                               <tbody>
                                 {invs.map((r: any) => (
@@ -91,7 +92,7 @@ export default function BadDebtCalendarPage() {
                                     <td style={{ ...td, fontSize: 12, textAlign: 'left', paddingLeft: 24 }}>{r.invoice}</td>
                                     <td style={{ ...td, fontSize: 12, textAlign: 'left' }}>{r.customer || '—'}</td>
                                     <td style={{ ...td, fontSize: 12 }}>{r.office}</td>
-                                    <td style={{ ...td, fontSize: 12 }}><span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 999, background: r.track === 'SCC' ? '#FCEBEB' : '#FBF3E5', color: r.track === 'SCC' ? '#b91c1c' : '#BA7517' }}>{r.track}</span></td>
+                                    <td style={{ ...td, fontSize: 12 }}><span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 999, background: r.track === 'SCC' ? '#361e1e' : '#352a16', color: r.track === 'SCC' ? '#E57C7C' : '#DBA14E' }}>{r.track}</span></td>
                                     <td style={{ ...tdR, fontSize: 12 }}>{money(r.amount)}</td>
                                     <td style={{ ...td, fontSize: 12 }}>{fmtDate(r.due)}</td>
                                     <td style={{ ...td, fontSize: 12 }}>{fmtDate(r.wouldBadDebtAt)}</td>
@@ -105,13 +106,13 @@ export default function BadDebtCalendarPage() {
                     </>
                   );
                 })}
-                {!(data.calendar || []).length && <tr><td colSpan={6} style={{ ...td, color: '#888780', padding: 20 }}>No overdue invoices to project.</td></tr>}
+                {!(data.calendar || []).length && <tr><td colSpan={6} style={{ ...td, color: '#908E85', padding: 20 }}>No overdue invoices to project.</td></tr>}
               </tbody>
             </table>
           </div>
         </div>
 
-        <p style={{ fontSize: 11, color: '#B4B2A9', lineHeight: 1.6 }}>
+        <p style={{ fontSize: 11, color: '#63615A', lineHeight: 1.6 }}>
           Projection uses the approved rules on the fastest path (no customer-engagement extensions). "Past" months (red) are periods where the bad debt should already have been recognized. Confirm with the bookkeeper before recording anything in FieldRoutes — this view is for the scorecard baseline and the backdating discussion only.
         </p>
       </>)}

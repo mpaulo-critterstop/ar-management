@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
+import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 
 const money = (n: number) => '$' + (n ?? 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
 const money2 = (n: number) => '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,22 +58,22 @@ export default function ExclusionRevenueReport() {
   };
 
   const t = data?.totals;
-  const th: React.CSSProperties = { textAlign: 'center', padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#888780', borderBottom: '0.5px solid #E8E7E3', whiteSpace: 'nowrap', background: '#fff', position: 'sticky', top: 0 };
-  const td: React.CSSProperties = { textAlign: 'center', padding: '8px 10px', fontSize: 13, borderBottom: '0.5px solid #F1EFE8', whiteSpace: 'nowrap' };
+  const th: React.CSSProperties = { textAlign: 'center', padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#908E85', borderBottom: '0.5px solid #2A2A30', whiteSpace: 'nowrap', background: '#fff', position: 'sticky', top: 0 };
+  const td: React.CSSProperties = { textAlign: 'center', padding: '8px 10px', fontSize: 13, borderBottom: '0.5px solid #232329', whiteSpace: 'nowrap' };
   const tdL = { ...td, textAlign: 'left' as const };
   const tile = (label: string, value: string, color: string, bg: string, note?: string) => (
-    <div style={{ border: `0.5px solid ${bg}`, borderRadius: 10, padding: '12px 16px', background: bg === '#E8E7E3' ? '#fff' : bg + '20', minWidth: 150, flex: '1 1 150px' }}>
+    <div style={{ border: `0.5px solid ${bg}`, borderRadius: 10, padding: '12px 16px', background: bg === '#2A2A30' ? '#fff' : bg + '20', minWidth: 150, flex: '1 1 150px' }}>
       <div style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
-      <div style={{ fontSize: 11, color: '#888780', marginTop: 2 }}>{label}</div>
+      <div style={{ fontSize: 11, color: '#908E85', marginTop: 2 }}>{label}</div>
       {note && <div style={{ fontSize: 10, color: color, marginTop: 2 }}>{note}</div>}
     </div>
   );
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
-      <a href="/reports" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← Reports</a>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>🪜 Exclusion Productivity</h1>
-      <p style={{ fontSize: 13, color: '#888780', margin: '0 0 16px', lineHeight: 1.6 }}>
+    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '30px 34px 70px' }}>
+      <a href="/reports" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Reports</a>
+      <div style={{ marginTop: 6 }}><CCPageHeader icon="🪜" title="Exclusion Productivity" /></div>
+      <p style={{ fontSize: 13, color: '#908E85', margin: '0 0 16px', lineHeight: 1.6 }}>
         Revenue generated per scheduled tech-hour vs. the standard (<b>$225/hr 1-story, $175/hr 2-story</b>). Exclusion revenue = base service charge only (trapping, fogging, insulation excluded). Based on scheduled durations.
       </p>
 
@@ -84,40 +85,40 @@ export default function ExclusionRevenueReport() {
           <select value={date || opts.months[0].key} onChange={e => setDate(e.target.value)} style={{ fontSize: 13, padding: '6px 10px', borderRadius: 7, border: '0.5px solid #D9D9D9' }}>
             {opts.months.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
           </select>
-          <button onClick={refresh} disabled={refreshing} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 7, border: 'none', background: refreshing ? '#F1EFE8' : '#1F3864', color: refreshing ? '#888' : '#fff', cursor: refreshing ? 'default' : 'pointer' }}>{refreshing ? '⏳ Computing…' : '↻ Refresh this period'}</button>
-          {refreshing && <span style={{ fontSize: 11, color: '#185FA5', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{status}</span>}
-          <a href={`/api/cron/exclusion-revenue?token=critterstop2026&csv=1&view=${tab === 'jobs' ? 'jobs' : tab === 'pm' ? 'pm' : 'fp'}${qs()}`} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 7, background: '#128a3f', color: '#fff', textDecoration: 'none', marginLeft: 'auto' }}>⬇ CSV (this tab)</a>
+          <button onClick={refresh} disabled={refreshing} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 7, border: 'none', background: refreshing ? '#232329' : '#1F3864', color: refreshing ? '#888' : '#fff', cursor: refreshing ? 'default' : 'pointer' }}>{refreshing ? '⏳ Computing…' : '↻ Refresh this period'}</button>
+          {refreshing && <span style={{ fontSize: 11, color: '#5B9BE0', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{status}</span>}
+          <a href={`/api/cron/exclusion-revenue?token=critterstop2026&csv=1&view=${tab === 'jobs' ? 'jobs' : tab === 'pm' ? 'pm' : 'fp'}${qs()}`} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 7, background: '#43B892', color: '#fff', textDecoration: 'none', marginLeft: 'auto' }}>⬇ CSV (this tab)</a>
       </div>
 
-      {loading && <div style={{ fontSize: 14, color: '#888780', padding: 20 }}>Loading…</div>}
+      {loading && <div style={{ fontSize: 14, color: '#908E85', padding: 20 }}>Loading…</div>}
 
       {!loading && !t && (
-        <div style={{ fontSize: 14, color: '#888780', padding: 20, background: '#FBFBF9', borderRadius: 10 }}>
+        <div style={{ fontSize: 14, color: '#908E85', padding: 20, background: '#232329', borderRadius: 10 }}>
           This period hasn't been computed yet. Click <b>↻ Refresh this period</b> above to run it (takes ~1–2 min).
         </div>
       )}
 
       {t && (<>
-        <div style={{ fontSize: 12, color: '#B4B2A9', marginBottom: 10 }}>
+        <div style={{ fontSize: 12, color: '#63615A', marginBottom: 10 }}>
           {data.label || `${data.from} → ${data.to}`} · {data.offices?.join(', ')} · {t.exclusionJobs} jobs ({t.jobsTagged} story-tagged) · computed {data.computedAt ? new Date(data.computedAt).toLocaleString() : '—'}
         </div>
 
         {/* Summary tiles */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-          {tile('Exclusion revenue', money(t.totalExclusionRevenue), '#2C2C2A', '#E8E7E3')}
-          {tile('1-story $/tech-hr', money(t.oneStoryBlendedRate), t.oneStoryBlendedRate > 225 ? '#b45309' : '#1D6E56', '#E8E7E3', `std $225 · ${t.oneStoryJobs} jobs`)}
-          {tile('2-story $/tech-hr', money(t.twoStoryBlendedRate), t.twoStoryBlendedRate > 175 ? '#b91c1c' : '#1D6E56', '#E8E7E3', `std $175 · ${t.twoStoryJobs} jobs`)}
-          {tile('Scheduling shortfall', `${t.varianceHours > 0 ? '+' : ''}${Math.round(t.varianceHours).toLocaleString()} hrs`, t.varianceHours > 0 ? '#b91c1c' : '#1D6E56', '#E8E7E3', t.varianceHours > 0 ? 'under-allotted' : 'over-allotted')}
+          {tile('Exclusion revenue', money(t.totalExclusionRevenue), '#F0EEE8', '#2A2A30')}
+          {tile('1-story $/tech-hr', money(t.oneStoryBlendedRate), t.oneStoryBlendedRate > 225 ? '#DBA14E' : '#1D6E56', '#2A2A30', `std $225 · ${t.oneStoryJobs} jobs`)}
+          {tile('2-story $/tech-hr', money(t.twoStoryBlendedRate), t.twoStoryBlendedRate > 175 ? '#E57C7C' : '#1D6E56', '#2A2A30', `std $175 · ${t.twoStoryJobs} jobs`)}
+          {tile('Scheduling shortfall', `${t.varianceHours > 0 ? '+' : ''}${Math.round(t.varianceHours).toLocaleString()} hrs`, t.varianceHours > 0 ? '#E57C7C' : '#1D6E56', '#2A2A30', t.varianceHours > 0 ? 'under-allotted' : 'over-allotted')}
         </div>
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
           {([['pm', 'PM Scheduling'], ['fp', 'By Field Professional'], ['jobs', 'Job Detail']] as const).map(([k, lbl]) => (
-            <button key={k} onClick={() => setTab(k)} style={{ fontSize: 13, padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: tab === k ? 600 : 400, background: tab === k ? '#1F3864' : '#F1EFE8', color: tab === k ? '#fff' : '#555' }}>{lbl}</button>
+            <button key={k} onClick={() => setTab(k)} style={{ fontSize: 13, padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: tab === k ? 600 : 400, background: tab === k ? '#1F3864' : '#232329', color: tab === k ? '#fff' : '#555' }}>{lbl}</button>
           ))}
         </div>
 
-        <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
           <div style={{ maxHeight: 560, overflowY: 'auto', overflowX: 'auto' }}>
             {tab === 'pm' ? (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -126,17 +127,17 @@ export default function ExclusionRevenueReport() {
                 </tr></thead>
                 <tbody>
                   {(data.byPM || []).map((r: any, i: number) => (
-                    <tr key={i} style={{ background: i % 2 ? '#FBFBF9' : undefined }}>
+                    <tr key={i} style={{ background: i % 2 ? '#232329' : undefined }}>
                       <td style={tdL}>{r.pm}</td>
                       <td style={td}>{r.jobs}</td>
                       <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(r.exclusionRevenue)}</td>
                       <td style={td}>{r.schedTechHours}</td>
                       <td style={td}>{r.expectedTechHours ?? '—'}</td>
-                      <td style={{ ...td, fontWeight: 600, color: r.varianceHours > 0.5 ? '#b91c1c' : (r.varianceHours < -0.5 ? '#b45309' : '#888780') }} title="Expected − Scheduled tech-hours. + = scheduled less than revenue justifies; − = scheduled more.">{r.varianceHours != null ? `${r.varianceHours > 0 ? '+' : ''}${r.varianceHours}` : '—'}</td>
+                      <td style={{ ...td, fontWeight: 600, color: r.varianceHours > 0.5 ? '#E57C7C' : (r.varianceHours < -0.5 ? '#DBA14E' : '#908E85') }} title="Expected − Scheduled tech-hours. + = scheduled less than revenue justifies; − = scheduled more.">{r.varianceHours != null ? `${r.varianceHours > 0 ? '+' : ''}${r.varianceHours}` : '—'}</td>
                       <td style={{ ...td, fontWeight: 600 }}>{money(r.avgRevPerSchedTechHour)}</td>
                       <td style={td}>{r.oneStoryJobs ? money(r.oneStoryRate) : '—'}</td>
                       <td style={td}>{r.twoStoryJobs ? money(r.twoStoryRate) : '—'}</td>
-                      <td style={{ ...td, fontWeight: 600, color: r.differentiation == null ? '#888780' : (r.differentiation > 5 ? '#1D6E56' : '#b91c1c') }} title="1-story should run a higher $/hr than 2-story (less time). Positive = PM gives 2-story more time (good). ~0 or negative = not differentiating.">{r.differentiation == null ? '—' : `${r.differentiation > 0 ? '+' : ''}$${r.differentiation}`}</td>
+                      <td style={{ ...td, fontWeight: 600, color: r.differentiation == null ? '#908E85' : (r.differentiation > 5 ? '#1D6E56' : '#E57C7C') }} title="1-story should run a higher $/hr than 2-story (less time). Positive = PM gives 2-story more time (good). ~0 or negative = not differentiating.">{r.differentiation == null ? '—' : `${r.differentiation > 0 ? '+' : ''}$${r.differentiation}`}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -148,16 +149,16 @@ export default function ExclusionRevenueReport() {
                 </tr></thead>
                 <tbody>
                   {(data.rows || []).map((r: any, i: number) => (
-                    <tr key={i} style={{ background: i % 2 ? '#FBFBF9' : undefined }}>
+                    <tr key={i} style={{ background: i % 2 ? '#232329' : undefined }}>
                       <td style={tdL}>{r.fieldProfessional}</td>
                       <td style={td}>{r.jobs}</td>
                       <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(r.exclusionRevenue)}</td>
                       <td style={td}>{r.scheduledHours}</td>
                       <td style={td}>{r.expectedHours ?? '—'}</td>
-                      <td style={{ ...td, fontWeight: 600, color: r.varianceHours > 0.5 ? '#b91c1c' : (r.varianceHours < -0.5 ? '#b45309' : '#888780') }} title="Expected − Scheduled tech-hours for this FP's share of jobs.">{r.varianceHours != null ? `${r.varianceHours > 0 ? '+' : ''}${r.varianceHours}` : '—'}</td>
-                      <td style={{ ...td, fontWeight: 600, color: r.revenuePerSchedTechHour > 225 ? '#b45309' : '#2C2C2A' }}>{money(r.revenuePerSchedTechHour)}</td>
-                      <td style={{ ...td, textAlign: 'right', color: '#888780' }}>{money(r.trappingRevenue)}</td>
-                      <td style={{ ...td, textAlign: 'right', color: '#888780' }}>{money(r.foggingRevenue)}</td>
+                      <td style={{ ...td, fontWeight: 600, color: r.varianceHours > 0.5 ? '#E57C7C' : (r.varianceHours < -0.5 ? '#DBA14E' : '#908E85') }} title="Expected − Scheduled tech-hours for this FP's share of jobs.">{r.varianceHours != null ? `${r.varianceHours > 0 ? '+' : ''}${r.varianceHours}` : '—'}</td>
+                      <td style={{ ...td, fontWeight: 600, color: r.revenuePerSchedTechHour > 225 ? '#DBA14E' : '#F0EEE8' }}>{money(r.revenuePerSchedTechHour)}</td>
+                      <td style={{ ...td, textAlign: 'right', color: '#908E85' }}>{money(r.trappingRevenue)}</td>
+                      <td style={{ ...td, textAlign: 'right', color: '#908E85' }}>{money(r.foggingRevenue)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -169,16 +170,16 @@ export default function ExclusionRevenueReport() {
                 </tr></thead>
                 <tbody>
                   {(data.perJob || []).slice().sort((a: any, b: any) => (b.varianceHours ?? -999) - (a.varianceHours ?? -999)).map((j: any, i: number) => (
-                    <tr key={i} style={{ background: i % 2 ? '#FBFBF9' : undefined }}>
+                    <tr key={i} style={{ background: i % 2 ? '#232329' : undefined }}>
                       <td style={tdL}>{j.customer || j.customerID}</td>
                       <td style={{ ...tdL, color: '#555' }}>{j.pm || '—'}</td>
                       <td style={td}>{j.stories || '—'}</td>
                       <td style={td}>{j.rate ? money(j.rate) : '—'}</td>
                       <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(j.exclusionRevenue)}</td>
-                      <td style={{ ...td, fontSize: 11, color: '#888780', maxWidth: 160, whiteSpace: 'normal' }} title={(j.crew || []).join(', ')}>{j.crewSize || 1}{j.crew && j.crew.length ? ` (${j.crew.slice(0,2).join(', ')}${j.crew.length>2?'…':''})` : ''}</td>
+                      <td style={{ ...td, fontSize: 11, color: '#908E85', maxWidth: 160, whiteSpace: 'normal' }} title={(j.crew || []).join(', ')}>{j.crewSize || 1}{j.crew && j.crew.length ? ` (${j.crew.slice(0,2).join(', ')}${j.crew.length>2?'…':''})` : ''}</td>
                       <td style={td}>{j.schedTechHours ?? j.schedHours}</td>
                       <td style={td}>{j.expectedTechHours ?? '—'}</td>
-                      <td style={{ ...td, fontWeight: 600, color: j.varianceHours > 0.5 ? '#b91c1c' : (j.varianceHours < -0.5 ? '#b45309' : '#888780') }}>{j.varianceHours != null ? `${j.varianceHours > 0 ? '+' : ''}${j.varianceHours}` : '—'}</td>
+                      <td style={{ ...td, fontWeight: 600, color: j.varianceHours > 0.5 ? '#E57C7C' : (j.varianceHours < -0.5 ? '#DBA14E' : '#908E85') }}>{j.varianceHours != null ? `${j.varianceHours > 0 ? '+' : ''}${j.varianceHours}` : '—'}</td>
                       <td style={{ ...td, color: '#555' }}>{money(j.revenuePerSchedTechHour)}</td>
                     </tr>
                   ))}
@@ -188,8 +189,8 @@ export default function ExclusionRevenueReport() {
           </div>
         </div>
 
-        <p style={{ fontSize: 11, color: '#B4B2A9', lineHeight: 1.6, marginTop: 10 }}>
-          Variance = expected tech-hours (revenue ÷ standard rate) − scheduled tech-hours. <b style={{ color: '#b91c1c' }}>+</b> = under-allotted (revenue justifies more time than scheduled); <b style={{ color: '#b45309' }}>−</b> = over-allotted. Actual on-site time not used (scheduled durations only). Roof-difficulty tier not yet applied.
+        <p style={{ fontSize: 11, color: '#63615A', lineHeight: 1.6, marginTop: 10 }}>
+          Variance = expected tech-hours (revenue ÷ standard rate) − scheduled tech-hours. <b style={{ color: '#E57C7C' }}>+</b> = under-allotted (revenue justifies more time than scheduled); <b style={{ color: '#DBA14E' }}>−</b> = over-allotted. Actual on-site time not used (scheduled durations only). Roof-difficulty tier not yet applied.
         </p>
       </>)}
     </div>

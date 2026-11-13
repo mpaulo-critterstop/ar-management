@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 
 type Row = { office: string; customer: string; customerID: string; firstDay: string; lastDay: string;
   days: number; techDays: number; uniqueTechs: number; insulationRevenue: number; revenuePerTech: number };
@@ -67,37 +68,36 @@ export default function InsulationRevenueReport() {
 
   const rows: Row[] = data?.rows || [];
   const totals = data?.totals || { jobs: 0, totalRevenue: 0, totalTechDays: 0 };
-  const th: React.CSSProperties = { textAlign: 'right', padding: '8px 12px', fontSize: 11, fontWeight: 600, color: '#888780', borderBottom: '0.5px solid #E8E7E3', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: '#fff' };
+  const th: React.CSSProperties = { textAlign: 'right', padding: '8px 12px', fontSize: 11, fontWeight: 600, color: '#908E85', borderBottom: '0.5px solid #2A2A30', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: '#fff' };
   const thL: React.CSSProperties = { ...th, textAlign: 'left' };
-  const td: React.CSSProperties = { textAlign: 'right', padding: '7px 12px', fontSize: 13, color: '#2C2C2A', borderBottom: '0.5px solid #F1EFE8', whiteSpace: 'nowrap' };
+  const td: React.CSSProperties = { textAlign: 'right', padding: '7px 12px', fontSize: 13, color: '#F0EEE8', borderBottom: '0.5px solid #232329', whiteSpace: 'nowrap' };
   const tdL: React.CSSProperties = { ...td, textAlign: 'left' };
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 20px', fontFamily: 'ui-sans-serif, system-ui' }}>
-      <a href="/reports" style={{ fontSize: 13, color: '#888780', textDecoration: 'none' }}>← Reports</a>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2C2C2A', margin: '8px 0 4px' }}>Insulation Revenue per Tech</h1>
-      <p style={{ fontSize: 13, color: '#888780', margin: '0 0 20px' }}>FAR + Insulation Top-Off revenue per job ÷ total tech-days (crew summed across all work days). Direct Labor columns are for manual entry.</p>
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '30px 34px 70px' }}>
+      <a href="/reports" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Reports</a>
+      <div style={{ marginTop: 6 }}><CCPageHeader icon="🧱" title="Insulation Revenue per Tech" /></div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 4, background: '#f1efe8', borderRadius: 8, padding: 3 }}>
+        <div style={{ display: 'flex', gap: 4, background: '#232329', borderRadius: 8, padding: 3 }}>
           {['DFW', 'ATX', 'OKC', 'CStat'].map(o => (
-            <button key={o} onClick={() => setOffice(o)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: office === o ? '#fff' : 'transparent', color: office === o ? '#2C2C2A' : '#888780', fontWeight: office === o ? 600 : 400 }}>{o}</button>
+            <button key={o} onClick={() => setOffice(o)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: office === o ? '#fff' : 'transparent', color: office === o ? '#F0EEE8' : '#908E85', fontWeight: office === o ? 600 : 400 }}>{o}</button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 4, background: '#f1efe8', borderRadius: 8, padding: 3 }}>
+        <div style={{ display: 'flex', gap: 4, background: '#232329', borderRadius: 8, padding: 3 }}>
           {(['week', 'month'] as const).map(p => (
-            <button key={p} onClick={() => setPeriod(p)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: period === p ? '#fff' : 'transparent', color: period === p ? '#2C2C2A' : '#888780', fontWeight: period === p ? 600 : 400 }}>{p === 'week' ? 'Weekly' : 'Monthly'}</button>
+            <button key={p} onClick={() => setPeriod(p)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: period === p ? '#fff' : 'transparent', color: period === p ? '#F0EEE8' : '#908E85', fontWeight: period === p ? 600 : 400 }}>{p === 'week' ? 'Weekly' : 'Monthly'}</button>
           ))}
         </div>
-        <select value={sel} onChange={e => setSel(e.target.value)} style={{ fontSize: 12, padding: '7px 12px', borderRadius: 6, border: '0.5px solid #E8E7E3', background: '#fff', color: '#2C2C2A' }}>
+        <select value={sel} onChange={e => setSel(e.target.value)} style={{ fontSize: 12, padding: '7px 12px', borderRadius: 6, border: '0.5px solid #2A2A30', background: '#fff', color: '#F0EEE8' }}>
           {options.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
         </select>
-        <button onClick={refresh} disabled={refreshing} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '0.5px solid #0052cc', background: '#fff', color: '#0052cc', fontWeight: 500, cursor: refreshing ? 'wait' : 'pointer' }}>{refreshing ? 'Refreshing… (up to ~5 min)' : '↻ Refresh from FR'}</button>
-        <a href={`/api/cron/insulation-revenue?token=critterstop2026&period=${period}&date=${sel}&office=${office}&csv=1`} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '0.5px solid #128a3f', background: '#fff', color: '#128a3f', fontWeight: 500, textDecoration: 'none' }}>⤓ CSV</a>
+        <button onClick={refresh} disabled={refreshing} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '0.5px solid #5B9BE0', background: '#fff', color: '#5B9BE0', fontWeight: 500, cursor: refreshing ? 'wait' : 'pointer' }}>{refreshing ? 'Refreshing… (up to ~5 min)' : '↻ Refresh from FR'}</button>
+        <a href={`/api/cron/insulation-revenue?token=critterstop2026&period=${period}&date=${sel}&office=${office}&csv=1`} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '0.5px solid #43B892', background: '#fff', color: '#43B892', fontWeight: 500, textDecoration: 'none' }}>⤓ CSV</a>
       </div>
 
       {data && !data.cached && !loading && (
-        <div style={{ fontSize: 13, color: '#B45309', background: '#FBF3E5', border: '0.5px solid #F0D9A8', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: '#B45309', background: '#352a16', border: '0.5px solid #F0D9A8', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
           This period hasn’t been computed yet. Click “Refresh from FR” to pull it (takes a few minutes).
         </div>
       )}
@@ -110,22 +110,22 @@ export default function InsulationRevenueReport() {
           { label: 'Tech-days', value: totals.totalTechDays },
           { label: 'Blended rev / tech-day', value: totals.totalTechDays ? money(totals.totalRevenue / totals.totalTechDays) : '—' },
         ].map(s => (
-          <div key={s.label} style={{ border: '0.5px solid #E8E7E3', borderRadius: 10, padding: '10px 16px', minWidth: 120, background: '#fff' }}>
-            <div style={{ fontSize: 19, fontWeight: 700, color: '#2C2C2A' }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: '#888780' }}>{s.label}</div>
+          <div key={s.label} style={{ border: '0.5px solid #2A2A30', borderRadius: 10, padding: '10px 16px', minWidth: 120, background: '#fff' }}>
+            <div style={{ fontSize: 19, fontWeight: 700, color: '#F0EEE8' }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: '#908E85' }}>{s.label}</div>
           </div>
         ))}
       </div>
 
-      {loading ? <div style={{ color: '#888780', fontSize: 14 }}>Loading…</div> : (
-        <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'auto', maxHeight: '65vh', background: '#fff' }}>
+      {loading ? <div style={{ color: '#908E85', fontSize: 14 }}>Loading…</div> : (
+        <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'auto', maxHeight: '65vh', background: '#fff' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr>
               <th style={thL}>Customer</th><th style={thL}>Office</th>
               <th style={th}>Days</th><th style={th}>Tech-Days</th><th style={th}>Techs</th>
               <th style={th}>Insulation Rev</th><th style={th}>Rev / Tech</th>
-              <th style={{ ...th, borderLeft: '0.5px solid #E8E7E3', color: '#B4B2A9' }}>Direct Labor $</th>
-              <th style={{ ...th, color: '#B4B2A9' }}>Direct Labor %</th>
+              <th style={{ ...th, borderLeft: '0.5px solid #2A2A30', color: '#63615A' }}>Direct Labor $</th>
+              <th style={{ ...th, color: '#63615A' }}>Direct Labor %</th>
             </tr></thead>
             <tbody>
               {rows.map(r => (
@@ -136,12 +136,12 @@ export default function InsulationRevenueReport() {
                   <td style={td}>{r.techDays}</td>
                   <td style={td}>{r.uniqueTechs}</td>
                   <td style={td}>{money(r.insulationRevenue)}</td>
-                  <td style={{ ...td, fontWeight: 600, color: '#0052cc' }}>{money(r.revenuePerTech)}</td>
-                  <td style={{ ...td, borderLeft: '0.5px solid #E8E7E3', color: '#B4B2A9' }}>—</td>
-                  <td style={{ ...td, color: '#B4B2A9' }}>—</td>
+                  <td style={{ ...td, fontWeight: 600, color: '#5B9BE0' }}>{money(r.revenuePerTech)}</td>
+                  <td style={{ ...td, borderLeft: '0.5px solid #2A2A30', color: '#63615A' }}>—</td>
+                  <td style={{ ...td, color: '#63615A' }}>—</td>
                 </tr>
               ))}
-              {!rows.length && <tr><td colSpan={9} style={{ ...tdL, color: '#888780', padding: 20 }}>No insulation jobs for this period.</td></tr>}
+              {!rows.length && <tr><td colSpan={9} style={{ ...tdL, color: '#908E85', padding: 20 }}>No insulation jobs for this period.</td></tr>}
             </tbody>
           </table>
         </div>
