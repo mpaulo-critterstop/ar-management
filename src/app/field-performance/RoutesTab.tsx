@@ -29,8 +29,8 @@ interface TechRoutes {
   weekProduction: number | null;
 }
 
-const td: React.CSSProperties = { padding: '8px 12px', borderBottom: '0.5px solid #F1EFE8', fontSize: 12, color: '#2C2C2A', whiteSpace: 'nowrap' };
-const tdSub: React.CSSProperties = { padding: '6px 12px', borderBottom: '0.5px solid #F1EFE8', fontSize: 11, color: '#5F5E5A', whiteSpace: 'nowrap' };
+const td: React.CSSProperties = { padding: '8px 12px', borderBottom: '0.5px solid #232329', fontSize: 12, color: '#F0EEE8', whiteSpace: 'nowrap' };
+const tdSub: React.CSSProperties = { padding: '6px 12px', borderBottom: '0.5px solid #232329', fontSize: 11, color: '#5F5E5A', whiteSpace: 'nowrap' };
 
 const money = (n: number) => '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const pct = (v: number | null) => v === null || v === undefined ? '—' : (v * 100).toFixed(0) + '%';
@@ -78,11 +78,11 @@ export function RoutesTab({ weekEnd, office, leaderFilter = '' }: Props) {
     revEff: r => r.revEff ?? -1,
   });
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#888780' }}>Loading routes…</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#908E85' }}>Loading routes…</div>;
 
   if (data.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: 'center', color: '#888780', fontSize: 13 }}>
+      <div style={{ padding: 40, textAlign: 'center', color: '#908E85', fontSize: 13 }}>
         No route data for this week. Routes are populated from the FieldRoutes route export — if this week hasn't been imported yet, it'll be empty.
       </div>
     );
@@ -93,15 +93,15 @@ export function RoutesTab({ weekEnd, office, leaderFilter = '' }: Props) {
   const totalRoutes = data.reduce((s, t) => s + t.routeCount, 0);
 
   return (
-    <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden' }}>
-      <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #E8E7E3', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#2C2C2A' }}>PC Routes · {data.length} techs · {totalRoutes} routes · {money(totalProd)} production</div>
-        <div style={{ fontSize: 11, color: '#888780' }}>Tap a tech for per-route detail</div>
+    <div style={{ background: '#fff', border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #2A2A30', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#F0EEE8' }}>PC Routes · {data.length} techs · {totalRoutes} routes · {money(totalProd)} production</div>
+        <div style={{ fontSize: 11, color: '#908E85' }}>Tap a tech for per-route detail</div>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: '#F8F7F4' }}>
+            <tr style={{ background: '#232329' }}>
               <SortableTh sortKey="name" sort={sort}>Technician</SortableTh>
               <SortableTh sortKey="team" sort={sort}>Team</SortableTh>
               <SortableTh sortKey="routeCount" sort={sort} align="right">Routes</SortableTh>
@@ -115,9 +115,9 @@ export function RoutesTab({ weekEnd, office, leaderFilter = '' }: Props) {
               const isOpen = expanded === t.techId;
               return (
                 <>
-                  <tr key={t.techId} onClick={() => setExpanded(isOpen ? null : t.techId)} style={{ cursor: 'pointer', background: isOpen ? '#F1EFE8' : '#fff' }}>
+                  <tr key={t.techId} onClick={() => setExpanded(isOpen ? null : t.techId)} style={{ cursor: 'pointer', background: isOpen ? '#232329' : '#fff' }}>
                     <td style={{ ...td, fontWeight: 500 }}>
-                      <span style={{ color: '#888780', marginRight: 6, fontSize: 10 }}>{isOpen ? '▼' : '▶'}</span>
+                      <span style={{ color: '#908E85', marginRight: 6, fontSize: 10 }}>{isOpen ? '▼' : '▶'}</span>
                       {t.name}
                     </td>
                     <td style={td}>{t.team}</td>
@@ -128,7 +128,7 @@ export function RoutesTab({ weekEnd, office, leaderFilter = '' }: Props) {
                   </tr>
                   {isOpen && (
                     <tr key={t.techId + '-detail'}>
-                      <td colSpan={6} style={{ padding: 0, background: '#FAFAF8' }}>
+                      <td colSpan={6} style={{ padding: 0, background: '#232329' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                           <thead>
                             <tr>

@@ -27,9 +27,9 @@ interface TcRecord {
 
 const td: React.CSSProperties = {
   padding: '8px 8px',
-  borderBottom: '0.5px solid #F1EFE8',
+  borderBottom: '0.5px solid #232329',
   fontSize: 12,
-  color: '#2C2C2A',
+  color: '#F0EEE8',
   whiteSpace: 'nowrap',
 };
 
@@ -37,18 +37,18 @@ const thBase: React.CSSProperties = {
   padding: '7px 8px',
   fontSize: 11,
   fontWeight: 600,
-  color: '#6B6A64',
+  color: '#C9C7BF',
   textAlign: 'left',
   whiteSpace: 'nowrap',
-  background: '#FAFAF8',
-  borderBottom: '0.5px solid #E8E7E3',
+  background: '#232329',
+  borderBottom: '0.5px solid #2A2A30',
   letterSpacing: '0.02em',
 };
 
 const thFilter: React.CSSProperties = {
   padding: '4px 6px',
-  background: '#FAFAF8',
-  borderBottom: '0.5px solid #E8E7E3',
+  background: '#232329',
+  borderBottom: '0.5px solid #2A2A30',
 };
 
 // Text/number substring filter input
@@ -58,7 +58,7 @@ function FilterText({ k, v, set, ph }: { k: string; v: Record<string, string>; s
       value={v[k] ?? ''}
       onChange={e => set(k, e.target.value)}
       placeholder={ph || 'filter'}
-      style={{ width: '100%', minWidth: 44, boxSizing: 'border-box', padding: '3px 6px', fontSize: 11, border: '0.5px solid #E0DED7', borderRadius: 5, background: '#fff', color: '#2C2C2A' }}
+      style={{ width: '100%', minWidth: 44, boxSizing: 'border-box', padding: '3px 6px', fontSize: 11, border: '0.5px solid #2A2A30', borderRadius: 5, background: '#fff', color: '#F0EEE8' }}
     />
   );
 }
@@ -69,7 +69,7 @@ function FilterBool({ k, v, set }: { k: string; v: Record<string, string>; set: 
     <select
       value={v[k] ?? 'All'}
       onChange={e => set(k, e.target.value)}
-      style={{ width: '100%', minWidth: 52, boxSizing: 'border-box', padding: '3px 4px', fontSize: 11, border: '0.5px solid #E0DED7', borderRadius: 5, background: '#fff', color: '#2C2C2A', cursor: 'pointer' }}
+      style={{ width: '100%', minWidth: 52, boxSizing: 'border-box', padding: '3px 4px', fontSize: 11, border: '0.5px solid #2A2A30', borderRadius: 5, background: '#fff', color: '#F0EEE8', cursor: 'pointer' }}
     >
       <option>All</option>
       <option>Yes</option>
@@ -81,7 +81,7 @@ function FilterBool({ k, v, set }: { k: string; v: Record<string, string>; set: 
 
 
 function BoolBadge({ value, nullLabel = '—' }: { value: boolean | null; nullLabel?: string }) {
-  if (value === null || value === undefined) return <span style={{ color: '#B4B2A9' }}>{nullLabel}</span>;
+  if (value === null || value === undefined) return <span style={{ color: '#63615A' }}>{nullLabel}</span>;
   return (
     <span style={{
       display: 'inline-block',
@@ -202,41 +202,41 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
           { label: '1 Wk C/O', value: wk1Count },
           { label: '60 Day CBs', value: cb60Count, color: cb60Count > 0 ? '#791F1F' : '#27500A' },
         ].map(tile => (
-          <div key={tile.label} style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 10, padding: '12px 16px', minWidth: 120 }}>
-            <div style={{ fontSize: 20, fontWeight: 500, color: tile.color || '#2C2C2A' }}>{tile.value}</div>
-            <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 2 }}>{tile.label}</div>
+          <div key={tile.label} style={{ background: '#fff', border: '0.5px solid #2A2A30', borderRadius: 10, padding: '12px 16px', minWidth: 120 }}>
+            <div style={{ fontSize: 20, fontWeight: 500, color: tile.color || '#F0EEE8' }}>{tile.value}</div>
+            <div style={{ fontSize: 11, color: '#63615A', marginTop: 2 }}>{tile.label}</div>
           </div>
         ))}
       </div>
 
       {/* Filter summary + clear */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'center' }}>
-        <span style={{ fontSize: 12, color: '#6B6A64' }}>{filtered.length} of {records.length} records</span>
+        <span style={{ fontSize: 12, color: '#C9C7BF' }}>{filtered.length} of {records.length} records</span>
         {Object.values(colFilters).some(v => v && v !== 'All') && (
           <button
             onClick={() => setColFilters({})}
-            style={{ fontSize: 11, padding: '4px 10px', border: '0.5px solid #E0DED7', borderRadius: 6, background: '#fff', color: '#6B6A64', cursor: 'pointer' }}
+            style={{ fontSize: 11, padding: '4px 10px', border: '0.5px solid #2A2A30', borderRadius: 6, background: '#fff', color: '#C9C7BF', cursor: 'pointer' }}
           >
             Clear filters
           </button>
         )}
-        <span style={{ fontSize: 11, color: '#B4B2A9' }}>Filter each column below</span>
+        <span style={{ fontSize: 11, color: '#63615A' }}>Filter each column below</span>
         <button
           onClick={openFreq}
-          style={{ marginLeft: 'auto', fontSize: 12, padding: '6px 12px', border: '0.5px solid #D3D1C7', borderRadius: 8, background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
+          style={{ marginLeft: 'auto', fontSize: 12, padding: '6px 12px', border: '0.5px solid #2A2A30', borderRadius: 8, background: '#fff', color: '#F0EEE8', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
         >
           📈 TC Frequency
         </button>
       </div>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: '#B4B2A9', fontSize: 13 }}>Loading...</div>
+        <div style={{ padding: 40, textAlign: 'center', color: '#63615A', fontSize: 13 }}>Loading...</div>
       ) : filtered.length === 0 ? (
-        <div style={{ padding: 40, textAlign: 'center', color: '#B4B2A9', fontSize: 13 }}>
+        <div style={{ padding: 40, textAlign: 'center', color: '#63615A', fontSize: 13 }}>
           No TC accountability data for this week yet. Run FR Sync to populate.
         </div>
       ) : (
-        <div style={{ overflowX: 'auto', borderRadius: 10, border: '0.5px solid #E8E7E3' }}>
+        <div style={{ overflowX: 'auto', borderRadius: 10, border: '0.5px solid #2A2A30' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
             <thead>
               {/* Column labels */}
@@ -270,7 +270,7 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
               {filtered.map(r => {
                 const isPending = r.apptStatus === 'pending';
                 const rowBg = isPending ? '#FFF8F0' : '#fff';
-                const rowHover = isPending ? '#FFF0DC' : '#FAFAF8';
+                const rowHover = isPending ? '#FFF0DC' : '#232329';
                 return (
                 <tr key={r.id} style={{ background: rowBg }}
                   onMouseEnter={e => (e.currentTarget.style.background = rowHover)}
@@ -310,53 +310,53 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
         >
           <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 1100, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid #E8E7E3' }}>
-              <div style={{ fontWeight: 600, fontSize: 15, color: '#2C2C2A' }}>
-                TC Frequency <span style={{ fontSize: 12, fontWeight: 400, color: '#888780', marginLeft: 6 }}>— avg. days between visits {office !== 'All' && office !== 'ALL' ? `· ${office}` : ''}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid #2A2A30' }}>
+              <div style={{ fontWeight: 600, fontSize: 15, color: '#F0EEE8' }}>
+                TC Frequency <span style={{ fontSize: 12, fontWeight: 400, color: '#908E85', marginLeft: 6 }}>— avg. days between visits {office !== 'All' && office !== 'ALL' ? `· ${office}` : ''}</span>
               </div>
-              <button onClick={() => setShowFreq(false)} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888780', lineHeight: 1 }}>×</button>
+              <button onClick={() => setShowFreq(false)} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#908E85', lineHeight: 1 }}>×</button>
             </div>
             <div style={{ overflow: 'auto', padding: 20 }}>
               {freqLoading ? (
-                <div style={{ padding: 60, textAlign: 'center', color: '#B4B2A9' }}>Loading…</div>
+                <div style={{ padding: 60, textAlign: 'center', color: '#63615A' }}>Loading…</div>
               ) : !freqData || !freqData.monthly?.length ? (
-                <div style={{ padding: 60, textAlign: 'center', color: '#B4B2A9' }}>No TC Frequency data.</div>
+                <div style={{ padding: 60, textAlign: 'center', color: '#63615A' }}>No TC Frequency data.</div>
               ) : (
                 <>
                   {freqData.current && (
                     <div style={{ marginBottom: 20, display: 'flex', gap: 24, alignItems: 'baseline' }}>
                       <div>
-                        <span style={{ fontSize: 28, fontWeight: 600, color: '#2C2C2A' }}>{freqData.current.value?.toFixed(1) ?? '—'}</span>
-                        <span style={{ fontSize: 13, color: '#888780', marginLeft: 6 }}>days ({freqData.current.month})</span>
+                        <span style={{ fontSize: 28, fontWeight: 600, color: '#F0EEE8' }}>{freqData.current.value?.toFixed(1) ?? '—'}</span>
+                        <span style={{ fontSize: 13, color: '#908E85', marginLeft: 6 }}>days ({freqData.current.month})</span>
                       </div>
-                      <div style={{ fontSize: 12, color: '#888780' }}>Standard: {freqData.standard} days</div>
+                      <div style={{ fontSize: 12, color: '#908E85' }}>Standard: {freqData.standard} days</div>
                     </div>
                   )}
 
                   {/* Continuous monthly */}
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#2C2C2A', marginBottom: 8 }}>Monthly trend</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#F0EEE8', marginBottom: 8 }}>Monthly trend</div>
                   <div style={{ width: '100%', height: 280, marginBottom: 28 }}>
                     <ResponsiveContainer>
                       <LineChart data={freqData.monthly} margin={{ top: 8, right: 20, bottom: 8, left: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#F1EFE8" />
-                        <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#888780' }} interval="preserveStartEnd" minTickGap={24} />
-                        <YAxis tick={{ fontSize: 10, fill: '#888780' }} width={36} />
-                        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '0.5px solid #E8E7E3' }} formatter={(v: any) => [`${v} days`, 'TC Freq']} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#232329" />
+                        <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#908E85' }} interval="preserveStartEnd" minTickGap={24} />
+                        <YAxis tick={{ fontSize: 10, fill: '#908E85' }} width={36} />
+                        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '0.5px solid #2A2A30' }} formatter={(v: any) => [`${v} days`, 'TC Freq']} />
                         <ReferenceLine y={freqData.standard} stroke="#C99A2E" strokeDasharray="4 4" label={{ value: `Std ${freqData.standard}`, fontSize: 10, fill: '#C99A2E', position: 'right' }} />
-                        <Line type="monotone" dataKey="value" stroke="#0052cc" strokeWidth={2} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="value" stroke="#5B9BE0" strokeWidth={2} dot={false} connectNulls />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
 
                   {/* Year-over-year */}
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#2C2C2A', marginBottom: 8 }}>Year-over-year</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#F0EEE8', marginBottom: 8 }}>Year-over-year</div>
                   <div style={{ width: '100%', height: 300 }}>
                     <ResponsiveContainer>
                       <LineChart data={freqData.yoy.matrix} margin={{ top: 8, right: 20, bottom: 8, left: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#F1EFE8" />
-                        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#888780' }} />
-                        <YAxis tick={{ fontSize: 10, fill: '#888780' }} width={36} />
-                        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '0.5px solid #E8E7E3' }} formatter={(v: any) => [`${v} days`]} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#232329" />
+                        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#908E85' }} />
+                        <YAxis tick={{ fontSize: 10, fill: '#908E85' }} width={36} />
+                        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '0.5px solid #2A2A30' }} formatter={(v: any) => [`${v} days`]} />
                         <Legend wrapperStyle={{ fontSize: 12 }} />
                         <ReferenceLine y={freqData.standard} stroke="#C99A2E" strokeDasharray="4 4" />
                         {freqData.yoy.years.map((y: number, i: number) => (
@@ -365,7 +365,7 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
-                  <div style={{ fontSize: 11, color: '#B4B2A9', marginTop: 12 }}>
+                  <div style={{ fontSize: 11, color: '#63615A', marginTop: 12 }}>
                     Note: the most recent month(s) may read low until future visits are booked. Lower = more frequent visits.
                   </div>
                 </>
@@ -378,4 +378,4 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
   );
 }
 
-const YOY_COLORS = ['#B4B2A9', '#8AB4D6', '#5A8FBD', '#0052cc', '#C99A2E'];
+const YOY_COLORS = ['#63615A', '#8AB4D6', '#5A8FBD', '#5B9BE0', '#C99A2E'];

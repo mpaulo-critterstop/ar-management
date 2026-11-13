@@ -2,28 +2,28 @@ import { useState, useEffect } from 'react';
 import React from 'react';
 
 // ─── DESIGN TOKENS (matches Hub AR/Dispatch warm neutral palette) ─────────────
-export const ACCENT   = '#0052cc';
+export const ACCENT   = '#5B9BE0';
 export const BG_PAGE  = '#F0F2F5';
-export const BG_CARD  = '#ffffff';
-export const BG_ALT   = '#F8F7F4';
-export const BG_TILE  = '#F1EFE8';
-export const BORDER   = '#E8E7E3';
-export const BORDER_MED = '#D3D1C7';
-export const TEXT_PRIMARY = '#2C2C2A';
-export const TEXT_SECONDARY = '#888780';
+export const BG_CARD  = '#1C1C21';
+export const BG_ALT   = '#232329';
+export const BG_TILE  = '#232329';
+export const BORDER   = '#2A2A30';
+export const BORDER_MED = '#2A2A30';
+export const TEXT_PRIMARY = '#F0EEE8';
+export const TEXT_SECONDARY = '#908E85';
 export const TEXT_MUTED = '#b0aea6';
 
 // Team colors
 export const TEAM_COLORS = {
-  WP:  { bg: '#E6F0FB', text: '#0C447C', border: '#B8D4F5' },
-  PMP: { bg: '#E1F5EE', text: '#085041', border: '#9ADEC8' },
+  WP:  { bg: '#15263a', text: '#0C447C', border: '#B8D4F5' },
+  PMP: { bg: '#143229', text: '#085041', border: '#9ADEC8' },
   IP:  { bg: '#F5EBF9', text: '#5B1E7A', border: '#D4AAEC' },
 };
 
 // Score thresholds
-export const SCORE_GREEN = { bg: '#EAFBF0', text: '#0A5C2A', bar: '#22C55E' };
-export const SCORE_AMBER = { bg: '#FEF6E4', text: '#7A4500', bar: '#F59E0B' };
-export const SCORE_RED   = { bg: '#FEF0F0', text: '#7A1A1A', bar: '#EF4444' };
+export const SCORE_GREEN = { bg: '#143229', text: '#0A5C2A', bar: '#22C55E' };
+export const SCORE_AMBER = { bg: '#FEF6E4', text: '#7A4500', bar: '#DBA14E' };
+export const SCORE_RED   = { bg: '#361e1e', text: '#7A1A1A', bar: '#E57C7C' };
 
 export function scoreColors(score: number | null) {
   if (score === null || score === undefined) return { bg: BG_ALT, text: TEXT_MUTED, bar: BORDER };
@@ -84,7 +84,7 @@ export function statusPill(status: string) {
   const active = status === 'ACTIVE';
   return (
     <span style={{
-      background: active ? '#EAFBF0' : '#FEF0F0',
+      background: active ? '#143229' : '#361e1e',
       color: active ? '#0A5C2A' : '#7A1A1A',
       border: `0.5px solid ${active ? '#9ADEC8' : '#F5A0A0'}`,
       fontSize: 10, fontWeight: 600,

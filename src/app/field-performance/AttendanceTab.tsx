@@ -25,7 +25,7 @@ function fmtDate(dt: string) {
 function lateBadge(mins: number | null) {
   if (mins === null || mins === undefined) return <span style={{ color: '#b0aea6' }}>—</span>;
   if (mins <= 0) return <span style={{ color: '#27500A', fontSize: 12 }}>{Math.abs(mins).toFixed(0)}m early</span>;
-  if (mins <= 10) return <span style={{ color: '#888780', fontSize: 12 }}>{mins.toFixed(0)}m late</span>;
+  if (mins <= 10) return <span style={{ color: '#908E85', fontSize: 12 }}>{mins.toFixed(0)}m late</span>;
   if (mins <= 20) return <span style={{ color: '#854F0B', fontSize: 12 }}>{mins.toFixed(0)}m late</span>;
   return <span style={{ color: '#791F1F', fontWeight: 500, fontSize: 12 }}>{mins.toFixed(0)}m late</span>;
 }
@@ -174,8 +174,8 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
   }
 
   const inputStyle: React.CSSProperties = {
-    fontSize: 12, padding: '6px 9px', border: '1px solid #E8E7E3',
-    borderRadius: 8, background: '#fff', color: '#2C2C2A'
+    fontSize: 12, padding: '6px 9px', border: '1px solid #2A2A30',
+    borderRadius: 8, background: '#fff', color: '#F0EEE8'
   };
 
   return (
@@ -188,9 +188,9 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
           { label: 'On time / early', value: `${onTime}/${worked.length}` },
           { label: 'Late (>10 min)', value: worked.filter(r => (r.minutesLate ?? 0) > 10).length },
         ].map(k => (
-          <div key={k.label} style={{ background: '#F8F7F4', borderRadius: 8, padding: '10px 14px' }}>
-            <div style={{ fontSize: 11, color: '#888780', marginBottom: 3 }}>{k.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 500, color: (k as any).color || '#2C2C2A' }}>{k.value}</div>
+          <div key={k.label} style={{ background: '#232329', borderRadius: 8, padding: '10px 14px' }}>
+            <div style={{ fontSize: 11, color: '#908E85', marginBottom: 3 }}>{k.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 500, color: (k as any).color || '#F0EEE8' }}>{k.value}</div>
           </div>
         ))}
       </div>
@@ -208,7 +208,7 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
         </select>
         {canEdit && (
           <button onClick={() => setAdding(true)}
-            style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', cursor: 'pointer' }}>
+            style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: 'none', background: '#5B9BE0', color: '#fff', cursor: 'pointer' }}>
             + Add day
           </button>
         )}
@@ -240,10 +240,10 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
                 <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No attendance data for this week yet.</td></tr>
               ) : filtered.map(r => (
                 <tr key={r.id}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#232329'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                 >
-                  <td style={{ ...td, fontSize: 11, color: '#888780' }}>{r.techId}</td>
+                  <td style={{ ...td, fontSize: 11, color: '#908E85' }}>{r.techId}</td>
                   <td style={{ ...td, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.technician?.name}</td>
                   <td style={td}>{teamPill(r.team)}</td>
                   <td style={{ ...td, fontSize: 12 }}>{r.office}</td>
@@ -257,7 +257,7 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
                   {canEdit && (
                     <td style={td}>
                       <button onClick={() => openEdit(r)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: r.manualOverride ? '#0052cc' : '#888780', fontSize: 14, padding: 0 }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: r.manualOverride ? '#5B9BE0' : '#908E85', fontSize: 14, padding: 0 }}
                         title={r.manualOverride ? 'Manually overridden' : 'Edit'}>
                         {r.manualOverride ? '✎*' : '✎'}
                       </button>
@@ -274,12 +274,12 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
       {/* Add Day Modal */}
       {adding && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, padding: 24, width: 340 }}>
+          <div style={{ background: '#fff', border: '0.5px solid #2A2A30', borderRadius: 12, padding: 24, width: 340 }}>
             <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>Add Attendance Day</div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Technician</label>
+              <label style={{ fontSize: 11, color: '#908E85', display: 'block', marginBottom: 4 }}>Technician</label>
               <select value={addForm.techId} onChange={e => setAddForm(f => ({ ...f, techId: e.target.value }))}
-                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }}>
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #2A2A30', borderRadius: 8 }}>
                 <option value="">Select technician...</option>
                 {techs.sort((a, b) => a.name.localeCompare(b.name)).map((t: any) => (
                   <option key={t.techId} value={t.techId}>{t.name} ({t.techId})</option>
@@ -287,13 +287,13 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
               </select>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Date</label>
+              <label style={{ fontSize: 11, color: '#908E85', display: 'block', marginBottom: 4 }}>Date</label>
               <CCDatePicker value={addForm.date} onChange={(v: string) => setAddForm(f => ({ ...f, date: v }))} />
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Scheduled start time</label>
+              <label style={{ fontSize: 11, color: '#908E85', display: 'block', marginBottom: 4 }}>Scheduled start time</label>
               <select value={addForm.routeStartTime} onChange={e => setAddForm(f => ({ ...f, routeStartTime: e.target.value }))}
-                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }}>
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #2A2A30', borderRadius: 8 }}>
                 <option value="6:00 AM">6:00 AM</option>
                 <option value="7:00 AM">7:00 AM</option>
                 <option value="8:00 AM">8:00 AM</option>
@@ -301,33 +301,33 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
               </select>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Scheduled hours</label>
+              <label style={{ fontSize: 11, color: '#908E85', display: 'block', marginBottom: 4 }}>Scheduled hours</label>
               <select value={addForm.scheduledHrs} onChange={e => setAddForm(f => ({ ...f, scheduledHrs: Number(e.target.value) }))}
-                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }}>
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #2A2A30', borderRadius: 8 }}>
                 <option value={8}>8 hrs</option>
                 <option value={10}>10 hrs</option>
               </select>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Actual start time</label>
+              <label style={{ fontSize: 11, color: '#908E85', display: 'block', marginBottom: 4 }}>Actual start time</label>
               <input type="time" value={addForm.startTime} onChange={e => setAddForm(f => ({ ...f, startTime: e.target.value }))}
-                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }} />
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #2A2A30', borderRadius: 8 }} />
             </div>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Actual finish time</label>
+              <label style={{ fontSize: 11, color: '#908E85', display: 'block', marginBottom: 4 }}>Actual finish time</label>
               <input type="time" value={addForm.finishTime} onChange={e => setAddForm(f => ({ ...f, finishTime: e.target.value }))}
-                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }} />
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #2A2A30', borderRadius: 8 }} />
             </div>
             <div style={{ fontSize: 11, color: '#b0aea6', marginBottom: 16 }}>
               This record will be marked as manually overridden and protected from future syncs.
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setAdding(false)}
-                style={{ padding: '7px 16px', fontSize: 13, borderRadius: 8, border: '1px solid #E8E7E3', background: '#F8F7F4', cursor: 'pointer', color: '#888780' }}>
+                style={{ padding: '7px 16px', fontSize: 13, borderRadius: 8, border: '1px solid #2A2A30', background: '#232329', cursor: 'pointer', color: '#908E85' }}>
                 Cancel
               </button>
               <button onClick={saveAdd} disabled={saving || !addForm.techId || !addForm.date}
-                style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving || !addForm.techId || !addForm.date ? '#b0aea6' : '#0052cc', color: '#fff', cursor: saving || !addForm.techId || !addForm.date ? 'default' : 'pointer' }}>
+                style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving || !addForm.techId || !addForm.date ? '#b0aea6' : '#5B9BE0', color: '#fff', cursor: saving || !addForm.techId || !addForm.date ? 'default' : 'pointer' }}>
                 {saving ? 'Saving...' : 'Add record'}
               </button>
             </div>
@@ -338,16 +338,16 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
       {/* Edit Modal */}
       {editing && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, padding: 24, width: 340 }}>
+          <div style={{ background: '#fff', border: '0.5px solid #2A2A30', borderRadius: 12, padding: 24, width: 340 }}>
             <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>Edit Attendance</div>
-            <div style={{ fontSize: 12, color: '#888780', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: '#908E85', marginBottom: 16 }}>
               {editing.technician?.name} — {fmtDate(editing.date)}
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Scheduled start time</label>
+              <label style={{ fontSize: 11, color: '#908E85', display: 'block', marginBottom: 4 }}>Scheduled start time</label>
               <select value={editForm.routeStartTime}
                 onChange={e => setEditForm(f => ({ ...f, routeStartTime: e.target.value }))}
-                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }}>
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #2A2A30', borderRadius: 8 }}>
                 <option value="6:00 AM">6:00 AM</option>
                 <option value="7:00 AM">7:00 AM</option>
                 <option value="8:00 AM">8:00 AM</option>
@@ -355,39 +355,39 @@ export function AttendanceTab({ office, weekEnd, leaderFilter = '', period }: Pr
               </select>
             </div>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Scheduled hours</label>
+              <label style={{ fontSize: 11, color: '#908E85', display: 'block', marginBottom: 4 }}>Scheduled hours</label>
               <select value={editForm.scheduledHrs} onChange={e => setEditForm(f => ({ ...f, scheduledHrs: Number(e.target.value) }))}
-                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }}>
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #2A2A30', borderRadius: 8 }}>
                 <option value={8}>8 hrs</option>
                 <option value={10}>10 hrs</option>
               </select>
             </div>
             <div style={{ fontSize: 11, color: '#b0aea6', marginBottom: 16 }}>
               Actual arrival: {fmtTime(editing.startTime)} — changing scheduled start will recalculate minutes late and reliability score.
-              {editing.manualOverride && <span style={{ color: '#0052cc', marginLeft: 6 }}>⚡ Manually overridden — will not be overwritten by syncs.</span>}
+              {editing.manualOverride && <span style={{ color: '#5B9BE0', marginLeft: 6 }}>⚡ Manually overridden — will not be overwritten by syncs.</span>}
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Actual start time <span style={{ color: '#b0aea6' }}>(override)</span></label>
+              <label style={{ fontSize: 11, color: '#908E85', display: 'block', marginBottom: 4 }}>Actual start time <span style={{ color: '#b0aea6' }}>(override)</span></label>
               <input type="time" value={editForm.startTime}
                 onChange={e => setEditForm(f => ({ ...f, startTime: e.target.value }))}
-                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }} />
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #2A2A30', borderRadius: 8 }} />
             </div>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 11, color: '#888780', display: 'block', marginBottom: 4 }}>Actual finish time <span style={{ color: '#b0aea6' }}>(override)</span></label>
+              <label style={{ fontSize: 11, color: '#908E85', display: 'block', marginBottom: 4 }}>Actual finish time <span style={{ color: '#b0aea6' }}>(override)</span></label>
               <input type="time" value={editForm.finishTime}
                 onChange={e => setEditForm(f => ({ ...f, finishTime: e.target.value }))}
-                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #E8E7E3', borderRadius: 8 }} />
+                style={{ width: '100%', fontSize: 13, padding: '7px 10px', border: '1px solid #2A2A30', borderRadius: 8 }} />
             </div>
             <div style={{ fontSize: 11, color: '#b0aea6', marginBottom: 16 }}>
               Setting start/finish time will mark this record as manually overridden and protect it from future syncs.
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setEditing(null)}
-                style={{ padding: '7px 16px', fontSize: 13, borderRadius: 8, border: '1px solid #E8E7E3', background: '#F8F7F4', cursor: 'pointer', color: '#888780' }}>
+                style={{ padding: '7px 16px', fontSize: 13, borderRadius: 8, border: '1px solid #2A2A30', background: '#232329', cursor: 'pointer', color: '#908E85' }}>
                 Cancel
               </button>
               <button onClick={saveEdit} disabled={saving}
-                style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving ? '#b0aea6' : '#0052cc', color: '#fff', cursor: saving ? 'default' : 'pointer' }}>
+                style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: saving ? '#b0aea6' : '#5B9BE0', color: '#fff', cursor: saving ? 'default' : 'pointer' }}>
                 {saving ? 'Saving...' : 'Save changes'}
               </button>
             </div>

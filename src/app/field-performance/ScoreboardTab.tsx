@@ -56,17 +56,17 @@ export function ScoreboardTab({ office, weekEnd, leaderFilter = '', period }: Pr
         {kpiTile(
           summary.avgCloseOutPct ? (summary.avgCloseOutPct * 100).toFixed(0) + '%' : '—',
           'Avg close-out', 'Target 85%',
-          summary.avgCloseOutPct >= 0.85 ? '#22C55E' : '#F59E0B'
+          summary.avgCloseOutPct >= 0.85 ? '#22C55E' : '#DBA14E'
         )}
         {kpiTile(
           summary.avgCallbackRate ? (summary.avgCallbackRate * 100).toFixed(0) + '%' : '—',
           'Avg callback', 'Target ≤15%',
-          (summary.avgCallbackRate ?? 0) > 0.15 ? '#EF4444' : '#22C55E'
+          (summary.avgCallbackRate ?? 0) > 0.15 ? '#E57C7C' : '#22C55E'
         )}
         {kpiTile(
           summary.avgReliability ? (summary.avgReliability * 100).toFixed(0) + '%' : '—',
           'Avg reliability', 'Target 90%',
-          (summary.avgReliability ?? 0) >= 0.90 ? '#22C55E' : '#F59E0B'
+          (summary.avgReliability ?? 0) >= 0.90 ? '#22C55E' : '#DBA14E'
         )}
         {kpiTile(
           <>{summary.aboveTarget}<span style={{ fontSize: 14, fontWeight: 400, color: TEXT_MUTED }}>/{summary.activeTechs}</span></>,
@@ -78,7 +78,7 @@ export function ScoreboardTab({ office, weekEnd, leaderFilter = '', period }: Pr
       {/* Excel Scoreboard — Effort Meter averages + TC Frequency + Route Value + Capacity */}
       {effortMeters && (() => {
         const em = (v: number | null) => v != null ? (v * 100).toFixed(1) + '%' : '—';
-        const emColor = (v: number | null) => v == null ? BG_TILE : v >= (standards?.effortMeter ?? 0.9) ? '#22C55E' : '#F59E0B';
+        const emColor = (v: number | null) => v == null ? BG_TILE : v >= (standards?.effortMeter ?? 0.9) ? '#22C55E' : '#DBA14E';
         const emTiles: Array<[string, number | null]> = [
           ['WP Avg. Effort Meter', effortMeters.WP],
           ['IP Avg. Effort Meter', effortMeters.IP],
@@ -95,7 +95,7 @@ export function ScoreboardTab({ office, weekEnd, leaderFilter = '', period }: Pr
             {kpiTile(
               tcFrequency != null ? tcFrequency.toFixed(1) : '—',
               'TC Frequency', data.tcFrequencyIsFallback ? 'Recent (no wk data)' : `Std ${standards?.tcFrequency ?? 10} days`,
-              tcFrequency != null && tcFrequency <= (standards?.tcFrequency ?? 10) ? '#22C55E' : '#F59E0B'
+              tcFrequency != null && tcFrequency <= (standards?.tcFrequency ?? 10) ? '#22C55E' : '#DBA14E'
             )}
             {emTiles.map(([label, v]) => (
               <div key={label}>{kpiTile(em(v), label, 'Target ≥90%', emColor(v))}</div>
@@ -186,7 +186,7 @@ export function ScoreboardTab({ office, weekEnd, leaderFilter = '', period }: Pr
                 <tr><td colSpan={9} style={{ ...td, textAlign: 'center', color: TEXT_MUTED, padding: 32 }}>No scores recorded for this week yet.</td></tr>
               ) : sortedPerformers.map((t: any, i: number) => (
                 <tr key={t.techId}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#232329'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                 >
                   <td style={{ ...td, color: TEXT_MUTED, fontSize: 11, fontWeight: 600 }}>{i + 1}</td>

@@ -1,5 +1,5 @@
 'use client';
-import BackButton from '@/components/BackButton';
+import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -77,14 +77,14 @@ export default function FieldPerformancePage() {
   const canView = ['Admin', 'Manager'].includes(role);
 
   if (status === 'loading') return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#64748b' }}>
-      <div style={{ padding: '16px 20px 0' }}><BackButton /></div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#908E85' }}>
+      
       Loading...
     </div>
   );
 
   if (!canView) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#64748b' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#908E85' }}>
       You don't have access to Field Professional Effort Meter.
     </div>
   );
@@ -106,41 +106,28 @@ export default function FieldPerformancePage() {
   const officeParam = office === 'All' ? 'ALL' : office;
 
   const navStyle = (active: boolean): React.CSSProperties => ({
-    padding: '7px 14px',
-    borderRadius: 9,
-    fontSize: 13,
-    fontWeight: 500,
-    color: active ? '#2C2C2A' : '#888780',
-    background: active ? '#ffffff' : 'transparent',
-    border: active ? '0.5px solid #D3D1C7' : '0.5px solid transparent',
-    boxShadow: active ? '0 1px 3px rgba(44,44,42,0.08)' : 'none',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap' as const,
-    transition: 'all 0.15s',
+    padding: '7px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 600,
+    color: active ? '#5B9BE0' : '#908E85',
+    background: active ? '#15263a' : '#1C1C21',
+    border: `1px solid ${active ? '#5B9BE0' : '#2A2A30'}`,
+    cursor: 'pointer', whiteSpace: 'nowrap' as const, transition: 'all 0.15s',
   });
 
   const offBtnStyle = (active: boolean): React.CSSProperties => ({
-    padding: '5px 11px',
-    borderRadius: 8,
-    fontSize: 12,
-    fontWeight: 500,
-    color: active ? '#2C2C2A' : '#888780',
-    background: active ? '#ffffff' : 'transparent',
-    border: active ? '0.5px solid #D3D1C7' : '0.5px solid transparent',
-    cursor: 'pointer',
-    transition: 'all 0.15s',
+    padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+    color: active ? '#5B9BE0' : '#908E85',
+    background: active ? '#15263a' : '#1C1C21',
+    border: `1px solid ${active ? '#5B9BE0' : '#2A2A30'}`,
+    cursor: 'pointer', transition: 'all 0.15s',
   });
 
   return (
-    <div style={{ padding: '24px 24px 48px', maxWidth: 1800, margin: '0 auto' }}>
-      {/* Title */}
-      <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#2C2C2A', margin: 0 }}>Field Professional Effort Meter</h1>
-      </div>
+    <div style={{ padding: '30px 34px 70px', maxWidth: 1800, margin: '0 auto' }}>
+      <CCPageHeader icon="⚡" title="Field Effort Meter" subtitle="Field professional scoreboard, attendance, driving and accountability" />
       {/* Controls row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
         {/* Tab nav */}
-        <div style={{ display: 'inline-flex', gap: 2, padding: 4, borderRadius: 12, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
+        <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
           {(['scoreboard', 'individuals', 'teams', 'roster', 'attendance', 'tc-accountability', 'driving', 'mom', 'adjustments'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} style={navStyle(activeTab === tab)}>
               {tab === 'mom' ? 'MoM' : tab === 'adjustments' ? 'Adjustments' : tab === 'tc-accountability' ? 'TC Accountability' : tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -150,7 +137,7 @@ export default function FieldPerformancePage() {
 
         {/* Office + week */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 10, background: '#F1EFE8', border: '0.5px solid #E8E7E3' }}>
+          <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 10, background: '#232329', border: '0.5px solid #2A2A30' }}>
             {OFFICES.map(o => (
               <button key={o} onClick={() => setOffice(o)} style={offBtnStyle(office === o)}>{o}</button>
             ))}
@@ -158,7 +145,7 @@ export default function FieldPerformancePage() {
           {activeTab !== 'roster' && activeTab !== 'mom' && activeTab !== 'adjustments' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               {/* Week / Month mode toggle */}
-              <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 9, background: '#F1EFE8', border: '0.5px solid #E8E7E3', marginRight: 4 }}>
+              <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 9, background: '#232329', border: '0.5px solid #2A2A30', marginRight: 4 }}>
                 <button onClick={() => setPeriodMode('week')} style={offBtnStyle(periodMode === 'week')}>Week</button>
                 <button onClick={() => setPeriodMode('month')} style={offBtnStyle(periodMode === 'month')}>Month</button>
               </div>
@@ -166,25 +153,25 @@ export default function FieldPerformancePage() {
                 <>
                   <button
                     onClick={() => setWeekIdx(i => Math.min(i + 1, WEEKS.length - 1))}
-                    style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888780' }}
+                    style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #2A2A30', background: '#fff', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#908E85' }}
                   >‹</button>
-                  <span style={{ fontSize: 12, color: '#888780', minWidth: 90, textAlign: 'center', fontWeight: 500 }}>Wk of {fmtWeek(selectedWeek)}</span>
+                  <span style={{ fontSize: 12, color: '#908E85', minWidth: 90, textAlign: 'center', fontWeight: 500 }}>Wk of {fmtWeek(selectedWeek)}</span>
                   <button
                     onClick={() => setWeekIdx(i => Math.max(i - 1, 0))}
                     disabled={weekIdx === 0}
-                    style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #D3D1C7', background: weekIdx === 0 ? '#F1EFE8' : '#fff', cursor: weekIdx === 0 ? 'default' : 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888780', opacity: weekIdx === 0 ? 0.4 : 1 }}
+                    style={{ width: 28, height: 28, borderRadius: 7, border: '0.5px solid #2A2A30', background: weekIdx === 0 ? '#232329' : '#fff', cursor: weekIdx === 0 ? 'default' : 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#908E85', opacity: weekIdx === 0 ? 0.4 : 1 }}
                   >›</button>
                 </>
               ) : (
                 <>
                   <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
-                    style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#444441', cursor: 'pointer' }}>
+                    style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', color: '#444441', cursor: 'pointer' }}>
                     {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
                       <option key={m} value={i + 1}>{m}</option>
                     ))}
                   </select>
                   <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
-                    style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#444441', cursor: 'pointer' }}>
+                    style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', color: '#444441', cursor: 'pointer' }}>
                     {[2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </>
@@ -196,7 +183,7 @@ export default function FieldPerformancePage() {
             <select
               value={leaderFilter}
               onChange={e => setLeaderFilter(e.target.value)}
-              style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: leaderFilter ? '#EAF1FC' : '#fff', color: '#444441', cursor: 'pointer' }}
+              style={{ fontSize: 12, padding: '6px 9px', borderRadius: 8, border: '0.5px solid #2A2A30', background: leaderFilter ? '#15263a' : '#fff', color: '#444441', cursor: 'pointer' }}
               title="Filter by team leader"
             >
               <option value="">All team leaders</option>

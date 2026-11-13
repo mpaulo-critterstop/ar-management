@@ -75,7 +75,7 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
                 <tr><td colSpan={11} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 24 }}>No data for this week yet.</td></tr>
               ) : sortedCrew.map((c: any) => (
                 <tr key={c.leader}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#232329'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                 >
                   <td style={{ ...td, fontWeight: 500 }}>{c.leader}</td>
@@ -116,7 +116,7 @@ export function TeamsTab({ office, weekEnd, period }: Props) {
                 <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 24 }}>No data for this week yet.</td></tr>
               ) : sortedSite.map((s: any) => (
                 <tr key={s.leader}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F7F4'}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#232329'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                 >
                   <td style={{ ...td, fontWeight: 500 }}>{s.leader}</td>

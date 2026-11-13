@@ -73,16 +73,16 @@ export function MoMTab({ office }: Props) {
 
   // Color a cell relative to the metric's standard and direction (lower-is-better flips it).
   function scoreCell(val: number | null, key?: string | number) {
-    if (val === null || val === undefined) return <td key={key} style={{ ...td, textAlign: 'center', color: '#e2e8f0', fontSize: 11 }}>—</td>;
+    if (val === null || val === undefined) return <td key={key} style={{ ...td, textAlign: 'center', color: '#2A2A30', fontSize: 11 }}>—</td>;
     const meetsStd = higher ? val >= standard : val <= standard;
     const near = higher ? val >= standard * 0.85 : val <= standard * 1.30;
-    const bg = meetsStd ? '#EAF3DE' : near ? '#FAEEDA' : '#FCEBEB';
+    const bg = meetsStd ? '#143229' : near ? '#FAEEDA' : '#361e1e';
     const color = meetsStd ? '#27500A' : near ? '#633806' : '#791F1F';
     return <td key={key} style={{ ...td, textAlign: 'center', background: bg, color, fontSize: 11, fontWeight: 500, padding: '6px 4px' }}>{(val * 100).toFixed(1) + '%'}</td>;
   }
 
   const inputStyle: React.CSSProperties = {
-    fontSize: 12, padding: '6px 9px', border: '1px solid #e2e8f0',
+    fontSize: 12, padding: '6px 9px', border: '1px solid #2A2A30',
     borderRadius: 8, background: '#fff', color: '#0f172a'
   };
 
@@ -125,9 +125,9 @@ export function MoMTab({ office }: Props) {
           <button key={v} onClick={() => setView(v)}
             style={{
               fontSize: 13, padding: '7px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 500,
-              border: view === v ? '1px solid #0052cc' : '0.5px solid #D3D1C7',
-              background: view === v ? '#0052cc' : '#fff',
-              color: view === v ? '#fff' : '#2C2C2A',
+              border: view === v ? '1px solid #5B9BE0' : '0.5px solid #2A2A30',
+              background: view === v ? '#5B9BE0' : '#fff',
+              color: view === v ? '#fff' : '#F0EEE8',
             }}>
             {v === 'scores' ? 'MoM Scores' : 'Bonuses'}
           </button>
@@ -148,9 +148,9 @@ export function MoMTab({ office }: Props) {
           <button key={m.key} onClick={() => setMetric(m.key)}
             style={{
               fontSize: 12, padding: '6px 11px', borderRadius: 8, cursor: 'pointer',
-              border: metric === m.key ? '1px solid #0052cc' : '0.5px solid #D3D1C7',
-              background: metric === m.key ? '#EAF1FC' : '#fff',
-              color: metric === m.key ? '#0052cc' : '#64748b',
+              border: metric === m.key ? '1px solid #5B9BE0' : '0.5px solid #2A2A30',
+              background: metric === m.key ? '#15263a' : '#fff',
+              color: metric === m.key ? '#5B9BE0' : '#908E85',
               fontWeight: metric === m.key ? 600 : 400,
             }}>
             {m.label}
@@ -169,7 +169,7 @@ export function MoMTab({ office }: Props) {
           <option value="IP">IP</option>
         </select>
         {leaders.length > 0 && (
-          <select value={leaderFilter} onChange={e => setLeaderFilter(e.target.value)} style={{ ...inputStyle, background: leaderFilter ? '#EAF1FC' : '#fff' }}>
+          <select value={leaderFilter} onChange={e => setLeaderFilter(e.target.value)} style={{ ...inputStyle, background: leaderFilter ? '#15263a' : '#fff' }}>
             <option value="">All team leaders</option>
             {leaders.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
@@ -186,16 +186,16 @@ export function MoMTab({ office }: Props) {
       </div>
 
       {/* ── Crew Leader summary table ── */}
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#334155', margin: '4px 0 8px' }}>Summary by Crew Leader</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#C9C7BF', margin: '4px 0 8px' }}>Summary by Crew Leader</div>
       <div style={card}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ ...th, width: 180, position: 'sticky', left: 0, background: '#f8fafc', zIndex: 1 }}>Crew Leader</th>
+                <th style={{ ...th, width: 180, position: 'sticky', left: 0, background: '#232329', zIndex: 1 }}>Crew Leader</th>
                 <th style={{ ...th, width: 55 }}>Techs</th>
                 <th style={{ ...th, width: 55 }}>Office</th>
-                <th style={{ ...th, width: 65, background: '#f0f7ff', color: '#0052cc' }}>YTD</th>
+                <th style={{ ...th, width: 65, background: '#15263a', color: '#5B9BE0' }}>YTD</th>
                 {MONTHS.map(m => <th key={m} style={{ ...th, width: 52, textAlign: 'center' }}>{m}</th>)}
               </tr>
             </thead>
@@ -206,9 +206,9 @@ export function MoMTab({ office }: Props) {
                 <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 32 }}>No data available.</td></tr>
               ) : (
                 <>
-                  <tr style={{ background: '#F8F7F4' }}>
-                    <td style={{ ...td, position: 'sticky', left: 0, background: '#F8F7F4', zIndex: 1, fontWeight: 600, fontSize: 12 }}>
-                      Total Team <span style={{ color: '#888780', fontWeight: 400 }}>· Std {(standard * 100).toFixed(0)}%</span>
+                  <tr style={{ background: '#232329' }}>
+                    <td style={{ ...td, position: 'sticky', left: 0, background: '#232329', zIndex: 1, fontWeight: 600, fontSize: 12 }}>
+                      Total Team <span style={{ color: '#908E85', fontWeight: 400 }}>· Std {(standard * 100).toFixed(0)}%</span>
                     </td>
                     <td style={td}></td>
                     <td style={td}></td>
@@ -217,11 +217,11 @@ export function MoMTab({ office }: Props) {
                   </tr>
                   {leaderRollup.map(row => (
                     <tr key={row.leader}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f8fafc'}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#232329'}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                     >
                       <td style={{ ...td, fontWeight: 500, position: 'sticky', left: 0, background: 'inherit', zIndex: 1 }}>{row.leader}</td>
-                      <td style={{ ...td, fontSize: 12, color: '#64748b' }}>{row.memberCount}</td>
+                      <td style={{ ...td, fontSize: 12, color: '#908E85' }}>{row.memberCount}</td>
                       <td style={{ ...td, fontSize: 12 }}>{row.office}</td>
                       {scoreCell(row.ytd, 'ytd')}
                       {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => scoreCell(row.monthly?.[m], m))}
@@ -235,17 +235,17 @@ export function MoMTab({ office }: Props) {
       </div>
 
       {/* ── Individual technician table ── */}
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#334155', margin: '18px 0 8px' }}>By Technician</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#C9C7BF', margin: '18px 0 8px' }}>By Technician</div>
       <div style={card}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
                 <tr>
-                  <th style={{ ...th, width: 55, position: 'sticky', left: 0, background: '#f8fafc', zIndex: 1 }}>Tech ID</th>
-                  <th style={{ ...th, width: 150, position: 'sticky', left: 55, background: '#f8fafc', zIndex: 1 }}>Name</th>
+                  <th style={{ ...th, width: 55, position: 'sticky', left: 0, background: '#232329', zIndex: 1 }}>Tech ID</th>
+                  <th style={{ ...th, width: 150, position: 'sticky', left: 55, background: '#232329', zIndex: 1 }}>Name</th>
                   <th style={{ ...th, width: 46 }}>Team</th>
                   <th style={{ ...th, width: 55 }}>Office</th>
-                  <th style={{ ...th, width: 65, background: '#f0f7ff', color: '#0052cc' }}>YTD</th>
+                  <th style={{ ...th, width: 65, background: '#15263a', color: '#5B9BE0' }}>YTD</th>
                   {MONTHS.map(m => <th key={m} style={{ ...th, width: 52, textAlign: 'center' }}>{m}</th>)}
                 </tr>
             </thead>
@@ -257,10 +257,10 @@ export function MoMTab({ office }: Props) {
               ) : (
                 <>
                   {/* Standard + Team-average summary row */}
-                  <tr style={{ background: '#F8F7F4' }}>
-                    <td style={{ ...td, position: 'sticky', left: 0, background: '#F8F7F4', zIndex: 1, fontSize: 11, color: '#888780' }}>—</td>
-                    <td style={{ ...td, position: 'sticky', left: 55, background: '#F8F7F4', zIndex: 1, fontWeight: 600, fontSize: 12 }}>
-                      Total Team <span style={{ color: '#888780', fontWeight: 400 }}>· Std {(standard * 100).toFixed(0)}%</span>
+                  <tr style={{ background: '#232329' }}>
+                    <td style={{ ...td, position: 'sticky', left: 0, background: '#232329', zIndex: 1, fontSize: 11, color: '#908E85' }}>—</td>
+                    <td style={{ ...td, position: 'sticky', left: 55, background: '#232329', zIndex: 1, fontWeight: 600, fontSize: 12 }}>
+                      Total Team <span style={{ color: '#908E85', fontWeight: 400 }}>· Std {(standard * 100).toFixed(0)}%</span>
                     </td>
                     <td style={td}></td>
                     <td style={td}></td>
@@ -271,10 +271,10 @@ export function MoMTab({ office }: Props) {
                     const md = mData(t);
                     return (
                       <tr key={t.techId}
-                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f8fafc'}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#232329'}
                         onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                       >
-                        <td style={{ ...td, fontSize: 11, color: '#64748b', position: 'sticky', left: 0, background: 'inherit', zIndex: 1 }}>{t.techId}</td>
+                        <td style={{ ...td, fontSize: 11, color: '#908E85', position: 'sticky', left: 0, background: 'inherit', zIndex: 1 }}>{t.techId}</td>
                         <td style={{ ...td, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'sticky', left: 55, background: 'inherit', zIndex: 1 }}>{t.name}</td>
                         <td style={td}>{teamPill(t.team)}</td>
                         <td style={{ ...td, fontSize: 12 }}>{t.office}</td>
@@ -314,7 +314,7 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
 
   const grid = (title: string, rows: any[], leaderCol: string) => (
     <div style={{ ...card, marginBottom: 16, overflowX: 'auto' }}>
-      <div style={{ fontWeight: 600, fontSize: 14, color: '#2C2C2A', padding: '12px 16px', borderBottom: '0.5px solid #E8E7E3' }}>{title}</div>
+      <div style={{ fontWeight: 600, fontSize: 14, color: '#F0EEE8', padding: '12px 16px', borderBottom: '0.5px solid #2A2A30' }}>{title}</div>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
         <thead>
           <tr>
@@ -327,7 +327,7 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: '#B4B2A9', padding: 20 }}>No bonuses recorded.</td></tr>
+            <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: '#63615A', padding: 20 }}>No bonuses recorded.</td></tr>
           ) : rows.map((r: any) => (
             <tr key={r.techId}>
               <td style={{ ...td, fontWeight: 500 }}>{r.techId}</td>
@@ -335,7 +335,7 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
               <td style={td}>{r.office || '—'}</td>
               <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{money(r.ytd)}</td>
               {months.map((mk: string, i: number) => (
-                <td key={i} style={{ ...td, textAlign: 'right', color: r.amounts?.[mk] ? '#2C2C2A' : '#D3D1C7' }}>
+                <td key={i} style={{ ...td, textAlign: 'right', color: r.amounts?.[mk] ? '#F0EEE8' : '#2A2A30' }}>
                   {r.amounts?.[mk] ? money(r.amounts[mk]) : '—'}
                 </td>
               ))}
@@ -350,15 +350,15 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'center' }}>
         <select value={year} onChange={e => setYear(parseInt(e.target.value))}
-          style={{ fontSize: 13, padding: '6px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7' }}>
+          style={{ fontSize: 13, padding: '6px 10px', borderRadius: 8, border: '0.5px solid #2A2A30' }}>
           {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
         </select>
         <button onClick={onAdd}
-          style={{ marginLeft: 'auto', fontSize: 13, padding: '7px 14px', borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', fontWeight: 500, cursor: 'pointer' }}>
+          style={{ marginLeft: 'auto', fontSize: 13, padding: '7px 14px', borderRadius: 8, border: 'none', background: '#5B9BE0', color: '#fff', fontWeight: 500, cursor: 'pointer' }}>
           + Add Bonus
         </button>
         <button onClick={() => setShowLunch(true)}
-          style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', color: '#2C2C2A', fontWeight: 500, cursor: 'pointer' }}>
+          style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', color: '#F0EEE8', fontWeight: 500, cursor: 'pointer' }}>
           🍔 Lunch on Critter Stop
         </button>
       </div>
@@ -367,18 +367,18 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
       {summary && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
           <div style={{ background: '#F7F6F3', borderRadius: 8, padding: 14 }}>
-            <div style={{ fontSize: 12, color: '#6B6A64' }}>Total bonuses YTD</div>
+            <div style={{ fontSize: 12, color: '#C9C7BF' }}>Total bonuses YTD</div>
             <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4 }}>{money(summary.totalYtd)}</div>
           </div>
           <div style={{ background: '#E6F1FB', borderRadius: 8, padding: 14 }}>
-            <div style={{ fontSize: 12, color: '#185FA5' }}>Christmas accrued (owed) · from Aug</div>
-            <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4, color: '#185FA5' }}>{money(summary.christmasAccrued)}</div>
+            <div style={{ fontSize: 12, color: '#5B9BE0' }}>Christmas accrued (owed) · from Aug</div>
+            <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4, color: '#5B9BE0' }}>{money(summary.christmasAccrued)}</div>
           </div>
         </div>
       )}
 
       {bonusLoading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: '#B4B2A9' }}>Loading…</div>
+        <div style={{ padding: 40, textAlign: 'center', color: '#63615A' }}>Loading…</div>
       ) : (
         <>
           {grid('Crew Leaders', bonusData?.team || [], 'Crew Leader')}
@@ -388,7 +388,7 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
 
       {/* Performance Incentive criteria reference */}
       <div style={{ ...card, marginBottom: 16, padding: '14px 18px', fontSize: 12.5, color: '#4B4A45', lineHeight: 1.7 }}>
-        <div style={{ fontWeight: 600, fontSize: 14, color: '#2C2C2A', marginBottom: 8 }}>What it takes to hit bonuses</div>
+        <div style={{ fontWeight: 600, fontSize: 14, color: '#F0EEE8', marginBottom: 8 }}>What it takes to hit bonuses</div>
         <div style={{ fontWeight: 600, marginTop: 6 }}>Field Professionals</div>
         <div>Gatekeeper: worked &gt;12 days in the month.</div>
         <div>TEM 93.0–97.9 → <b>$200</b> ($100 paid now + $100 accrued to Christmas).</div>
@@ -437,39 +437,39 @@ function AddBonusModal({ year, onClose, onSaved }: { year: number; onClose: () =
       <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 440, padding: 24 }}>
         <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 16 }}>Add Bonus</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <label style={{ fontSize: 12, color: '#6B6A64' }}>Tech ID
+          <label style={{ fontSize: 12, color: '#C9C7BF' }}>Tech ID
             <input value={techId} onChange={e => setTechId(e.target.value)} placeholder="e.g. W-005"
-              style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', fontSize: 13 }} />
+              style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', fontSize: 13 }} />
           </label>
-          <label style={{ fontSize: 12, color: '#6B6A64' }}>Type
+          <label style={{ fontSize: 12, color: '#C9C7BF' }}>Type
             <select value={kind} onChange={e => setKind(e.target.value as any)}
-              style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', fontSize: 13 }}>
+              style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', fontSize: 13 }}>
               <option value="field_professional">Field Professional</option>
               <option value="team">Team (Crew Leader)</option>
             </select>
           </label>
           <div style={{ display: 'flex', gap: 10 }}>
-            <label style={{ fontSize: 12, color: '#6B6A64', flex: 1 }}>Month
+            <label style={{ fontSize: 12, color: '#C9C7BF', flex: 1 }}>Month
               <select value={monthIdx} onChange={e => setMonthIdx(parseInt(e.target.value))}
-                style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', fontSize: 13 }}>
+                style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', fontSize: 13 }}>
                 {BONUS_MONTHS.map((m, i) => <option key={i} value={i}>{m} {year}</option>)}
               </select>
             </label>
-            <label style={{ fontSize: 12, color: '#6B6A64', flex: 1 }}>Amount ($)
+            <label style={{ fontSize: 12, color: '#C9C7BF', flex: 1 }}>Amount ($)
               <input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="0"
-                style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', fontSize: 13 }} />
+                style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', fontSize: 13 }} />
             </label>
           </div>
-          <label style={{ fontSize: 12, color: '#6B6A64' }}>Note (optional)
+          <label style={{ fontSize: 12, color: '#C9C7BF' }}>Note (optional)
             <input value={note} onChange={e => setNote(e.target.value)}
-              style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', fontSize: 13 }} />
+              style={{ width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #2A2A30', fontSize: 13 }} />
           </label>
           {error && <div style={{ color: '#B91C1C', fontSize: 12 }}>{error}</div>}
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={onClose} style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#fff', cursor: 'pointer' }}>Cancel</button>
           <button onClick={save} disabled={saving}
-            style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#0052cc', color: '#fff', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+            style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#5B9BE0', color: '#fff', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Saving…' : 'Save Bonus'}
           </button>
         </div>
@@ -481,10 +481,10 @@ function AddBonusModal({ year, onClose, onSaved }: { year: number; onClose: () =
 function LunchDrawer({ lunch, onClose }: { lunch: any; onClose: () => void }) {
   const [tab, setTab] = useState<'weekly' | 'monthly'>('weekly');
   const row = (label: string, team: string, score: number, kind: string, key: number) => (
-    <tr key={key} style={{ borderTop: '0.5px solid #F1EFE8' }}>
-      <td style={{ padding: '9px 16px', color: '#888780', fontSize: 12 }}>{label}</td>
-      <td style={{ padding: '9px 16px', fontSize: 12, color: '#6B6A64' }}>{kind}</td>
-      <td style={{ padding: '9px 16px', textAlign: 'right', fontSize: 12 }}>{team}'s team <span style={{ color: '#B4B2A9' }}>{(score * 100).toFixed(1)}</span></td>
+    <tr key={key} style={{ borderTop: '0.5px solid #232329' }}>
+      <td style={{ padding: '9px 16px', color: '#908E85', fontSize: 12 }}>{label}</td>
+      <td style={{ padding: '9px 16px', fontSize: 12, color: '#C9C7BF' }}>{kind}</td>
+      <td style={{ padding: '9px 16px', textAlign: 'right', fontSize: 12 }}>{team}'s team <span style={{ color: '#63615A' }}>{(score * 100).toFixed(1)}</span></td>
     </tr>
   );
   const weekly = lunch?.weeklyTem || [];
@@ -498,16 +498,16 @@ function LunchDrawer({ lunch, onClose }: { lunch: any; onClose: () => void }) {
     <div onClick={e => { if (e.target === e.currentTarget) onClose(); }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 620, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid #E8E7E3' }}>
-          <div style={{ fontWeight: 600, fontSize: 15 }}>🍔 Lunch on Critter Stop <span style={{ fontWeight: 400, fontSize: 12, color: '#888780' }}>· up to $14 solo / $18 with another member</span></div>
-          <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888780' }}>×</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid #2A2A30' }}>
+          <div style={{ fontWeight: 600, fontSize: 15 }}>🍔 Lunch on Critter Stop <span style={{ fontWeight: 400, fontSize: 12, color: '#908E85' }}>· up to $14 solo / $18 with another member</span></div>
+          <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#908E85' }}>×</button>
         </div>
         <div style={{ display: 'flex', gap: 6, padding: '12px 20px 0' }}>
           {(['weekly', 'monthly'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               style={{ fontSize: 13, padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 500,
-                border: tab === t ? '1px solid #0052cc' : '0.5px solid #D3D1C7',
-                background: tab === t ? '#0052cc' : '#fff', color: tab === t ? '#fff' : '#2C2C2A' }}>
+                border: tab === t ? '1px solid #5B9BE0' : '0.5px solid #2A2A30',
+                background: tab === t ? '#5B9BE0' : '#fff', color: tab === t ? '#fff' : '#F0EEE8' }}>
               {t === 'weekly' ? 'Weekly (Highest TEM)' : 'Monthly (Driving + Reliability)'}
             </button>
           ))}
@@ -517,11 +517,11 @@ function LunchDrawer({ lunch, onClose }: { lunch: any; onClose: () => void }) {
             <tbody>
               {tab === 'weekly' ? (
                 weekly.length === 0
-                  ? <tr><td style={{ padding: 24, textAlign: 'center', color: '#B4B2A9', fontSize: 13 }}>No winners recorded yet — recognition starts week ending 8/7.</td></tr>
+                  ? <tr><td style={{ padding: 24, textAlign: 'center', color: '#63615A', fontSize: 13 }}>No winners recorded yet — recognition starts week ending 8/7.</td></tr>
                   : weekly.map((w: any, i: number) => row(w.label, w.team, w.score, "Highest team TEM", i))
               ) : (
                 monthly.length === 0
-                  ? <tr><td style={{ padding: 24, textAlign: 'center', color: '#B4B2A9', fontSize: 13 }}>No winners recorded yet — recognition starts week ending 8/7.</td></tr>
+                  ? <tr><td style={{ padding: 24, textAlign: 'center', color: '#63615A', fontSize: 13 }}>No winners recorded yet — recognition starts week ending 8/7.</td></tr>
                   : monthly.map((w: any, i: number) => row(w.label, w.team, w.score, w.kind, i))
               )}
             </tbody>

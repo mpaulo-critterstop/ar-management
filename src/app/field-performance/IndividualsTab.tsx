@@ -55,7 +55,7 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
     cb60120:    w => w.callbacks60_120,
   });
 
-  const inputStyle: React.CSSProperties = { fontSize: 12, padding: '6px 9px', border: '1px solid #E8E7E3', borderRadius: 8, background: '#fff', color: '#2C2C2A' };
+  const inputStyle: React.CSSProperties = { fontSize: 12, padding: '6px 9px', border: '1px solid #2A2A30', borderRadius: 8, background: '#fff', color: '#F0EEE8' };
 
   return (
     <div style={{ display: 'flex', gap: 10 }}>
@@ -76,13 +76,13 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
           </select>
           <button
             onClick={() => setShowWpDrawer(true)}
-            style={{ fontSize: 12, padding: '6px 12px', border: '0.5px solid #D3D1C7', borderRadius: 8, background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
+            style={{ fontSize: 12, padding: '6px 12px', border: '0.5px solid #2A2A30', borderRadius: 8, background: '#fff', color: '#F0EEE8', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
           >
             WP Details
           </button>
           <button
             onClick={() => setShowRoutesDrawer(true)}
-            style={{ fontSize: 12, padding: '6px 12px', border: '0.5px solid #D3D1C7', borderRadius: 8, background: '#fff', color: '#2C2C2A', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
+            style={{ fontSize: 12, padding: '6px 12px', border: '0.5px solid #2A2A30', borderRadius: 8, background: '#fff', color: '#F0EEE8', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
           >
             PC Routes
           </button>
@@ -116,12 +116,12 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
                 ) : filtered.map((w, i) => (
                   <tr key={w.id}
                     onClick={() => setSelected(selected?.id === w.id ? null : w)}
-                    style={{ cursor: 'pointer', background: selected?.id === w.id ? '#f0f7ff' : '' }}
-                    onMouseEnter={e => { if (selected?.id !== w.id) (e.currentTarget as HTMLElement).style.background = '#F8F7F4'; }}
+                    style={{ cursor: 'pointer', background: selected?.id === w.id ? '#15263a' : '' }}
+                    onMouseEnter={e => { if (selected?.id !== w.id) (e.currentTarget as HTMLElement).style.background = '#232329'; }}
                     onMouseLeave={e => { if (selected?.id !== w.id) (e.currentTarget as HTMLElement).style.background = ''; }}
                   >
                     <td style={{ ...td, color: '#b0aea6', fontSize: 11 }}>{i + 1}</td>
-                    <td style={{ ...td, fontSize: 11, color: '#888780' }}>{w.techId}</td>
+                    <td style={{ ...td, fontSize: 11, color: '#908E85' }}>{w.techId}</td>
                     <td style={{ ...td, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.technician?.name ?? '—'}</td>
                     <td style={td}>{teamPill(w.team)}</td>
                     <td style={{ ...td, fontSize: 12 }}>{w.office}</td>
@@ -149,22 +149,22 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
       {/* Detail drawer */}
       {selected && (
         <div style={{ width: 220, flexShrink: 0 }}>
-          <div style={{ background: '#fff', border: '0.5px solid #E8E7E3', borderRadius: 12, padding: 16 }}>
+          <div style={{ background: '#fff', border: '0.5px solid #2A2A30', borderRadius: 12, padding: 16 }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#E6F0FB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 500, color: '#0C447C', flexShrink: 0 }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#15263a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 500, color: '#0C447C', flexShrink: 0 }}>
                 {initials(selected.technician?.name ?? '?')}
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: '#2C2C2A', lineHeight: 1.3 }}>{selected.technician?.name}</div>
-                <div style={{ fontSize: 11, color: '#888780' }}>{selected.techId} · {teamPill(selected.team)}</div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: '#F0EEE8', lineHeight: 1.3 }}>{selected.technician?.name}</div>
+                <div style={{ fontSize: 11, color: '#908E85' }}>{selected.techId} · {teamPill(selected.team)}</div>
               </div>
             </div>
 
             <button onClick={() => setSelected(null)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#b0aea6', fontSize: 16 }}>✕</button>
 
-            <div style={{ fontSize: 11, fontWeight: 500, color: '#888780', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>This week</div>
-            <div style={{ fontSize: 30, fontWeight: 500, marginBottom: 12, color: '#2C2C2A' }}>
+            <div style={{ fontSize: 11, fontWeight: 500, color: '#908E85', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>This week</div>
+            <div style={{ fontSize: 30, fontWeight: 500, marginBottom: 12, color: '#F0EEE8' }}>
               {selected.totalScore ? (selected.totalScore * 100).toFixed(1) + '%' : '—'}
             </div>
 
@@ -185,9 +185,9 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
               { label: 'Manual adj.', val: selected.manualAdj !== null && selected.manualAdj !== 0 ? (selected.manualAdj > 0 ? '+' : '') + selected.manualAdj?.toFixed(2) : '—' },
               { label: 'Office', val: selected.office },
             ].map(row => (
-              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '0.5px solid #F1EFE8' }}>
-                <span style={{ fontSize: 12, color: '#888780' }}>{row.label}</span>
-                <span style={{ fontSize: 12, fontWeight: 500, color: '#2C2C2A' }}>{row.val}</span>
+              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '0.5px solid #232329' }}>
+                <span style={{ fontSize: 12, color: '#908E85' }}>{row.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 500, color: '#F0EEE8' }}>{row.val}</span>
               </div>
             ))}
           </div>
@@ -201,9 +201,9 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
         >
           <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 1000, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid #E8E7E3' }}>
-              <div style={{ fontWeight: 600, fontSize: 15, color: '#2C2C2A' }}>WP Details <span style={{ fontSize: 12, fontWeight: 400, color: '#888780', marginLeft: 6 }}>— wildlife raw inputs</span></div>
-              <button onClick={() => setShowWpDrawer(false)} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888780', lineHeight: 1 }}>×</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid #2A2A30' }}>
+              <div style={{ fontWeight: 600, fontSize: 15, color: '#F0EEE8' }}>WP Details <span style={{ fontSize: 12, fontWeight: 400, color: '#908E85', marginLeft: 6 }}>— wildlife raw inputs</span></div>
+              <button onClick={() => setShowWpDrawer(false)} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#908E85', lineHeight: 1 }}>×</button>
             </div>
             <div style={{ overflow: 'auto', padding: '4px 0' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -223,7 +223,7 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
                     <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#b0aea6', padding: 32 }}>No WP techs for this week yet.</td></tr>
                   ) : filtered.filter(w => w.team === 'WP').map(w => (
                     <tr key={w.id}>
-                      <td style={{ ...td, fontSize: 11, color: '#888780', whiteSpace: 'nowrap' }}>{w.techId}</td>
+                      <td style={{ ...td, fontSize: 11, color: '#908E85', whiteSpace: 'nowrap' }}>{w.techId}</td>
                       <td style={{ ...td, fontWeight: 500 }}>{w.technician?.name ?? '—'}</td>
                       <td style={{ ...td, fontSize: 12 }}>{w.coPlusWk1_15_45 ?? '—'}</td>
                       <td style={{ ...td, fontSize: 12 }}>{w.coJobs_15_45 ?? '—'}</td>
@@ -246,9 +246,9 @@ export function IndividualsTab({ office, weekEnd, leaderFilter = '', period }: P
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
         >
           <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 1400, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid #E8E7E3' }}>
-              <div style={{ fontWeight: 600, fontSize: 15, color: '#2C2C2A' }}>PC Routes</div>
-              <button onClick={() => setShowRoutesDrawer(false)} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888780', lineHeight: 1 }}>×</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid #2A2A30' }}>
+              <div style={{ fontWeight: 600, fontSize: 15, color: '#F0EEE8' }}>PC Routes</div>
+              <button onClick={() => setShowRoutesDrawer(false)} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#908E85', lineHeight: 1 }}>×</button>
             </div>
             <div style={{ overflow: 'auto', padding: 20 }}>
               <RoutesTab weekEnd={weekEnd} office={office} leaderFilter={leaderFilter} />
