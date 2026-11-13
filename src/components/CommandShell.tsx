@@ -27,9 +27,9 @@ const NAV: NavGroup[] = [
     { key: 'exclusion-scheduling', label: 'Exclusion Scheduling', icon: '🚪', href: '/exclusion-scheduling', module: 'exclusion-scheduling' },
     { key: 'lsa-leads', label: 'LSA Leads', icon: '📣', href: '/lsa-leads', module: 'lsa-leads' },
     { key: 'helcim', label: 'Stax Payments', icon: '💳', href: '/stax', module: 'helcim' },
-    { key: 'field-performance', label: 'Field Effort Meter', icon: '⚡', href: '/field-performance', module: 'field-performance' },
   ]},
   { title: 'Management', icon: '💼', items: [
+    { key: 'field-performance', label: 'Field Effort Meter', icon: '⚡', href: '/field-performance', module: 'field-performance' },
     { key: 'payroll', label: 'Payroll', icon: '🧾', href: '/payroll', module: 'payroll' },
   ]},
   { title: 'Reports', icon: '📈', items: [
