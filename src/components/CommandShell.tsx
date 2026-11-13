@@ -67,7 +67,7 @@ export default function CommandShell({ children, title }: { children: React.Reac
     <div style={S.app}>
       <aside style={S.sidebar}>
         <div style={S.brand}>
-          <div style={S.mark}>🐾</div>
+          <div style={S.mark}><img src="/icon-mark.png" alt="Critter Stop" style={{ width: 30, height: 30, objectFit: 'contain', display: 'block' }} /></div>
           <div><div style={S.brandT}>Critter Stop</div><div style={S.brandS}>THE HUB</div></div>
         </div>
         <div style={S.searchWrap}>
@@ -111,7 +111,7 @@ const S: Record<string, React.CSSProperties> = {
   app: { display: 'flex', minHeight: '100vh', background: DARK.bg, color: DARK.ink, fontFamily: 'inherit', position: 'fixed', inset: 0, zIndex: 20, overflow: 'hidden' },
   sidebar: { width: 236, flex: '0 0 236px', background: DARK.panel, borderRight: `1px solid ${DARK.line}`, display: 'flex', flexDirection: 'column', height: '100vh', position: 'sticky', top: 0 },
   brand: { padding: '17px 18px', borderBottom: `1px solid ${DARK.line}`, display: 'flex', alignItems: 'center', gap: 10 },
-  mark: { width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#5B9BE0,#3FAE8C)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flex: '0 0 auto' },
+  mark: { width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' },
   brandT: { fontSize: 13, fontWeight: 700, letterSpacing: '.02em' },
   brandS: { fontSize: 10, fontWeight: 500, color: DARK.muted, letterSpacing: '.08em' },
   searchWrap: { margin: '12px 14px' },
