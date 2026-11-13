@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { DataTable as CCDataTable, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
 import { scoreBadge, scoreBar, scoreColors, teamPill, kpiTile, card, cardHead, th, td,
   TEAM_COLORS, BG_TILE, BORDER, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED, ACCENT,
   useSort, sortRows, SortableTh , periodParams, type Period } from './helpers';
@@ -166,48 +167,20 @@ export function ScoreboardTab({ office, weekEnd, leaderFilter = '', period }: Pr
       {/* Top performers */}
       <div style={card}>
         <div style={cardHead}>Top performers this week</div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <thead>
-              <tr>
-                <th style={{ ...th, width: 32 }}>#</th>
-                <SortableTh sortKey="name" sort={sort} style={{ width: 150 }}>Name</SortableTh>
-                <SortableTh sortKey="team" sort={sort} style={{ width: 52 }}>Team</SortableTh>
-                <SortableTh sortKey="office" sort={sort} style={{ width: 55 }}>Office</SortableTh>
-                <SortableTh sortKey="score" sort={sort} style={{ width: 110 }}>Total Effort</SortableTh>
-                <SortableTh sortKey="co" sort={sort} style={{ width: 60 }}>CO%</SortableTh>
-                <SortableTh sortKey="cb" sort={sort} style={{ width: 65 }}>CB rate</SortableTh>
-                <SortableTh sortKey="driving" sort={sort} style={{ width: 65 }}>Driving</SortableTh>
-                <SortableTh sortKey="reliability" sort={sort} style={{ width: 72 }}>Reliability</SortableTh>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedPerformers.length === 0 ? (
-                <tr><td colSpan={9} style={{ ...td, textAlign: 'center', color: TEXT_MUTED, padding: 32 }}>No scores recorded for this week yet.</td></tr>
-              ) : sortedPerformers.map((t: any, i: number) => (
-                <tr key={t.techId}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#232329'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
-                >
-                  <td style={{ ...td, color: TEXT_MUTED, fontSize: 11, fontWeight: 600 }}>{i + 1}</td>
-                  <td style={{ ...td, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</td>
-                  <td style={td}>{teamPill(t.team)}</td>
-                  <td style={{ ...td, fontSize: 12 }}>{t.office}</td>
-                  <td style={td}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {scoreBar(t.score)}
-                      {scoreBadge(t.score)}
-                    </div>
-                  </td>
-                  <td style={{ ...td, fontSize: 12 }}>{t.closeOutPct !== null ? (t.closeOutPct * 100).toFixed(0) + '%' : '—'}</td>
-                  <td style={{ ...td, fontSize: 12 }}>{t.callbackRate !== null ? (t.callbackRate * 100).toFixed(0) + '%' : '—'}</td>
-                  <td style={{ ...td, fontSize: 12 }}>{t.drivingScore !== null ? (t.drivingScore * 100).toFixed(0) + '%' : '—'}</td>
-                  <td style={{ ...td, fontSize: 12 }}>{t.reliabilityScore !== null ? (t.reliabilityScore * 100).toFixed(0) + '%' : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <CCDataTable
+          rowKey={(t: any) => t.techId}
+          empty="No scores recorded for this week yet."
+          cols={[
+            { key: 'name', label: <span onClick={() => sort.set('name')} style={{ cursor: 'pointer' }}>Technician{sort.key==='name'?(sort.dir==='asc'?' ▲':' ▼'):''}</span> as any, render: (t: any) => <CCCustomerCell name={t.name} sub={t.office} /> },
+            { key: 'team', label: <span onClick={() => sort.set('team')} style={{ cursor: 'pointer' }}>Team{sort.key==='team'?(sort.dir==='asc'?' ▲':' ▼'):''}</span> as any, render: (t: any) => teamPill(t.team) },
+            { key: 'score', label: <span onClick={() => sort.set('score')} style={{ cursor: 'pointer' }}>Total Effort{sort.key==='score'?(sort.dir==='asc'?' ▲':' ▼'):''}</span> as any, render: (t: any) => <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{scoreBar(t.score)}{scoreBadge(t.score)}</div> },
+            { key: 'co', label: <span onClick={() => sort.set('co')} style={{ cursor: 'pointer' }}>CO%{sort.key==='co'?(sort.dir==='asc'?' ▲':' ▼'):''}</span> as any, align: 'right', render: (t: any) => <span style={{ fontSize: 12.5, color: '#C9C7BF', fontVariantNumeric: 'tabular-nums' }}>{t.closeOutPct !== null ? (t.closeOutPct * 100).toFixed(0) + '%' : '—'}</span> },
+            { key: 'cb', label: <span onClick={() => sort.set('cb')} style={{ cursor: 'pointer' }}>CB rate{sort.key==='cb'?(sort.dir==='asc'?' ▲':' ▼'):''}</span> as any, align: 'right', render: (t: any) => <span style={{ fontSize: 12.5, color: '#C9C7BF', fontVariantNumeric: 'tabular-nums' }}>{t.callbackRate !== null ? (t.callbackRate * 100).toFixed(0) + '%' : '—'}</span> },
+            { key: 'driving', label: <span onClick={() => sort.set('driving')} style={{ cursor: 'pointer' }}>Driving{sort.key==='driving'?(sort.dir==='asc'?' ▲':' ▼'):''}</span> as any, align: 'right', render: (t: any) => <span style={{ fontSize: 12.5, color: '#C9C7BF', fontVariantNumeric: 'tabular-nums' }}>{t.drivingScore !== null ? (t.drivingScore * 100).toFixed(0) + '%' : '—'}</span> },
+            { key: 'reliability', label: <span onClick={() => sort.set('reliability')} style={{ cursor: 'pointer' }}>Reliability{sort.key==='reliability'?(sort.dir==='asc'?' ▲':' ▼'):''}</span> as any, align: 'right', render: (t: any) => <span style={{ fontSize: 12.5, color: '#C9C7BF', fontVariantNumeric: 'tabular-nums' }}>{t.reliabilityScore !== null ? (t.reliabilityScore * 100).toFixed(0) + '%' : '—'}</span> },
+          ]}
+          rows={sortedPerformers}
+        />
       </div>
     </div>
   );
