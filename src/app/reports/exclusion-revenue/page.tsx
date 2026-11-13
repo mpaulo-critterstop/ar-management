@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 
 const money = (n: number) => '$' + (n ?? 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -71,7 +72,7 @@ export default function ExclusionRevenueReport() {
 
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto', padding: '30px 34px 70px' }}>
-      <a href="/reports" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Reports</a>
+      <Link href="/reports" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Reports</Link>
       <div style={{ marginTop: 6 }}><CCPageHeader icon="🪜" title="Exclusion Productivity" /></div>
       <p style={{ fontSize: 13, color: '#908E85', margin: '0 0 16px', lineHeight: 1.6 }}>
         Revenue generated per scheduled tech-hour vs. the standard (<b>$225/hr 1-story, $175/hr 2-story</b>). Exclusion revenue = base service charge only (trapping, fogging, insulation excluded). Based on scheduled durations.

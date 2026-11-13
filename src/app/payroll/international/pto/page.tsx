@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 import CCDatePicker from '@/components/cc/DatePicker';
 
@@ -47,7 +48,7 @@ export default function PtoTrackerPage() {
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '30px 34px 70px' }}>
-      <a href="/payroll/international" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ International Payroll</a>
+      <Link href="/payroll/international" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ International Payroll</Link>
       <div style={{ marginTop: 6 }}><CCPageHeader icon="🌴" title="PTO Tracker" /></div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 18 }}>

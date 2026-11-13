@@ -1,5 +1,6 @@
 'use client';
 import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
+import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 
 const TILES = [
@@ -52,7 +53,7 @@ export default function PayrollPage() {
             </div>
           );
           return t.status === 'available'
-            ? <a key={t.title} href={t.href} style={{ textDecoration: 'none' }}>{inner}</a>
+            ? <Link key={t.title} href={t.href} style={{ textDecoration: 'none' }}>{inner}</Link>
             : <div key={t.title}>{inner}</div>;
         })}
       </div>

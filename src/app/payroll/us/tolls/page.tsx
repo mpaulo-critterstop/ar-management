@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 import CCDatePicker from '@/components/cc/DatePicker';
 import * as XLSX from 'xlsx';
@@ -154,7 +155,7 @@ export default function TollsPage() {
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '30px 34px 70px' }}>
-      <a href="/payroll/us" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ US Payroll</a>
+      <Link href="/payroll/us" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ US Payroll</Link>
       <div style={{ marginTop: 6 }}><CCPageHeader icon="🛣️" title="Tolls" /></div>
 
       <div style={{ display: 'flex', gap: 4, background: '#232329', borderRadius: 8, padding: 3, width: 'fit-content', marginBottom: 20 }}>

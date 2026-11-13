@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 
 const money = (n: number) => '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -27,10 +28,10 @@ export default function BadDebtCalendarPage() {
 
   return (
     <div style={{ maxWidth: 1050, margin: '0 auto', padding: '30px 34px 70px' }}>
-      <a href="/reports" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Reports</a>
+      <Link href="/reports" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Reports</Link>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ marginTop: 6 }}><CCPageHeader icon="🗓️" title="Bad-Debt Accrual Calendar" /></div>
-        <a href="/api/cron/bad-debt-calendar?token=critterstop2026&format=xlsx" style={{ marginTop: 10, fontSize: 13, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#43B892', color: '#fff', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>⬇ Download Excel</a>
+        <Link href="/api/cron/bad-debt-calendar?token=critterstop2026&format=xlsx" style={{ marginTop: 10, fontSize: 13, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#43B892', color: '#fff', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>⬇ Download Excel</Link>
       </div>
       <p style={{ fontSize: 13, color: '#908E85', margin: '0 0 16px', lineHeight: 1.6 }}>
         When each unpaid overdue invoice <b>would have</b> become bad debt under our collections rules (due date → entry → 15-day countdown → ARM/SCC → post-action window), bucketed by month. This is a projection for the scorecard and the bookkeeper conversation — <b>it does not touch FieldRoutes</b>.

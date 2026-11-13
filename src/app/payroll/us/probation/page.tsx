@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 import CCDatePicker from '@/components/cc/DatePicker';
 
@@ -43,7 +44,7 @@ export default function ProbationTrackerPage() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '30px 34px 70px' }}>
-      <a href="/payroll/us" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ US Payroll</a>
+      <Link href="/payroll/us" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ US Payroll</Link>
       <div style={{ marginTop: 6 }}><CCPageHeader icon="🎓" title="Probation Tracker" /></div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', position: 'sticky', top: 0, background: '#1C1C21', zIndex: 3, padding: '8px 0' }}>

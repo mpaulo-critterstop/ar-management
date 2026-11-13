@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 
 type Row = { office: string; customer: string; customerID: string; firstDay: string; lastDay: string;
@@ -75,7 +76,7 @@ export default function InsulationRevenueReport() {
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '30px 34px 70px' }}>
-      <a href="/reports" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Reports</a>
+      <Link href="/reports" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Reports</Link>
       <div style={{ marginTop: 6 }}><CCPageHeader icon="🧱" title="Insulation Revenue per Tech" /></div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>

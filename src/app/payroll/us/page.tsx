@@ -1,5 +1,6 @@
 'use client';
 export const dynamic = 'force-dynamic';
+import Link from 'next/link';
 
 const SECTIONS = [
   { title: 'Tolls', desc: 'Upload the toll transaction CSV; tolls are matched to each tech per pay period.', href: '/payroll/us/tolls', status: 'available' as const },
@@ -14,7 +15,7 @@ const SECTIONS = [
 export default function USPayrollPage() {
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '30px 34px 70px' }}>
-      <a href="/payroll" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Payroll</a>
+      <Link href="/payroll" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Payroll</Link>
       <h1 style={{ fontSize: 24, fontWeight: 700, color: '#F0EEE8', margin: '8px 0 4px' }}>🇺🇸 US Payroll</h1>
       <p style={{ fontSize: 14, color: '#908E85', margin: '0 0 24px' }}>Pay periods, tolls, and team tracking.</p>
 
@@ -30,7 +31,7 @@ export default function USPayrollPage() {
             </div>
           );
           return s.status === 'available'
-            ? <a key={s.title} href={s.href} style={{ textDecoration: 'none' }}>{inner}</a>
+            ? <Link key={s.title} href={s.href} style={{ textDecoration: 'none' }}>{inner}</Link>
             : <div key={s.title}>{inner}</div>;
         })}
       </div>

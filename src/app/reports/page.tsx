@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 import { canAccessModule, type ModuleKey } from '@/lib/access';
@@ -61,7 +62,7 @@ export default function ReportsPage() {
             </div>
           );
           return r.href
-            ? <a key={r.title} href={r.href} style={{ textDecoration: 'none' }}>{inner}</a>
+            ? <Link key={r.title} href={r.href} style={{ textDecoration: 'none' }}>{inner}</Link>
             : <div key={r.title}>{inner}</div>;
         })}
       </div>

@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 
 const d1 = (n: any) => n == null ? '—' : `${n} day${n === 1 ? '' : 's'}`;
@@ -42,7 +43,7 @@ export default function ArBenchmarkPage() {
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '30px 34px 70px' }}>
-      <a href="/reports" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Reports</a>
+      <Link href="/reports" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ Reports</Link>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <div style={{ marginTop: 6 }}><CCPageHeader icon="📊" title="AR Benchmark" /></div><div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <select value={selWeek} onChange={e => pickWeek(e.target.value)} style={{ fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '0.5px solid #2A2A30', background: '#1C1C21', minWidth: 230 }}>

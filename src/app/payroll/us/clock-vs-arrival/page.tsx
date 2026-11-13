@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useState } from 'react';
+import Link from 'next/link';
 import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 
 const fmtTime = (iso: string | null) => iso ? new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }) : '—';
@@ -104,7 +105,7 @@ export default function ClockVsArrivalPage() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '30px 34px 70px' }}>
-      <a href="/payroll/us" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ US Payroll</a>
+      <Link href="/payroll/us" style={{ fontSize: 13, color: '#908E85', textDecoration: 'none' }}>↩ US Payroll</Link>
       <div style={{ marginTop: 6 }}><CCPageHeader icon="⏰" title="Clock-In vs. Arrival" /></div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
