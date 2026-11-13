@@ -89,7 +89,7 @@ function BoolBadge({ value, nullLabel = '—' }: { value: boolean | null; nullLa
       borderRadius: 6,
       fontSize: 11,
       fontWeight: 500,
-      background: value ? '#E6F4EE' : '#FDF2F2',
+      background: value ? '#143229' : '#361e1e',
       color: value ? '#27500A' : '#791F1F',
     }}>
       {value ? 'Yes' : 'No'}
@@ -279,7 +279,7 @@ export function TcAccountabilityTab({ weekEnd, office, leaderFilter = '', period
                   <td style={td}>{fmtDate(r.date)}</td>
                   <td style={{ ...td, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {r.customerName}
-                    {isPending && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: '#D97706', background: '#FEF3C7', borderRadius: 4, padding: '1px 5px' }}>PENDING</span>}
+                    {isPending && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: '#D97706', background: '#352a16', borderRadius: 4, padding: '1px 5px' }}>PENDING</span>}
                   </td>
                   <td style={{ ...td, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.jobTitle}</td>
                   <td style={td}>{r.techId}</td>

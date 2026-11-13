@@ -3,7 +3,7 @@ import React from 'react';
 
 // ─── DESIGN TOKENS (matches Hub AR/Dispatch warm neutral palette) ─────────────
 export const ACCENT   = '#5B9BE0';
-export const BG_PAGE  = '#F0F2F5';
+export const BG_PAGE  = '#232329';
 export const BG_CARD  = '#1C1C21';
 export const BG_ALT   = '#232329';
 export const BG_TILE  = '#232329';
@@ -17,7 +17,7 @@ export const TEXT_MUTED = '#b0aea6';
 export const TEAM_COLORS = {
   WP:  { bg: '#15263a', text: '#0C447C', border: '#B8D4F5' },
   PMP: { bg: '#143229', text: '#085041', border: '#9ADEC8' },
-  IP:  { bg: '#F5EBF9', text: '#5B1E7A', border: '#D4AAEC' },
+  IP:  { bg: '#241f36', text: '#5B1E7A', border: '#D4AAEC' },
 };
 
 // Score thresholds
@@ -86,7 +86,7 @@ export function statusPill(status: string) {
     <span style={{
       background: active ? '#143229' : '#361e1e',
       color: active ? '#0A5C2A' : '#7A1A1A',
-      border: `0.5px solid ${active ? '#9ADEC8' : '#F5A0A0'}`,
+      border: `0.5px solid ${active ? '#9ADEC8' : '#E57C7C'}`,
       fontSize: 10, fontWeight: 600,
       padding: '2px 7px', borderRadius: 99,
     }}>
@@ -133,7 +133,7 @@ export const th: React.CSSProperties = {
 
 export const td: React.CSSProperties = {
   padding: '8px 12px',
-  borderBottom: `0.5px solid #F3F2EF`,
+  borderBottom: `0.5px solid #232329`,
   fontSize: 13,
   color: TEXT_PRIMARY,
   verticalAlign: 'middle',

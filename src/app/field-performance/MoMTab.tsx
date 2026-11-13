@@ -76,7 +76,7 @@ export function MoMTab({ office }: Props) {
     if (val === null || val === undefined) return <td key={key} style={{ ...td, textAlign: 'center', color: '#2A2A30', fontSize: 11 }}>—</td>;
     const meetsStd = higher ? val >= standard : val <= standard;
     const near = higher ? val >= standard * 0.85 : val <= standard * 1.30;
-    const bg = meetsStd ? '#143229' : near ? '#FAEEDA' : '#361e1e';
+    const bg = meetsStd ? '#143229' : near ? '#352a16' : '#361e1e';
     const color = meetsStd ? '#27500A' : near ? '#633806' : '#791F1F';
     return <td key={key} style={{ ...td, textAlign: 'center', background: bg, color, fontSize: 11, fontWeight: 500, padding: '6px 4px' }}>{(val * 100).toFixed(1) + '%'}</td>;
   }
@@ -366,11 +366,11 @@ function BonusesView({ bonusData, bonusLoading, year, setYear, onAdd, showAddBon
       {/* Summary cards */}
       {summary && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
-          <div style={{ background: '#F7F6F3', borderRadius: 8, padding: 14 }}>
+          <div style={{ background: '#232329', borderRadius: 8, padding: 14 }}>
             <div style={{ fontSize: 12, color: '#C9C7BF' }}>Total bonuses YTD</div>
             <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4 }}>{money(summary.totalYtd)}</div>
           </div>
-          <div style={{ background: '#E6F1FB', borderRadius: 8, padding: 14 }}>
+          <div style={{ background: '#15263a', borderRadius: 8, padding: 14 }}>
             <div style={{ fontSize: 12, color: '#5B9BE0' }}>Christmas accrued (owed) · from Aug</div>
             <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4, color: '#5B9BE0' }}>{money(summary.christmasAccrued)}</div>
           </div>
