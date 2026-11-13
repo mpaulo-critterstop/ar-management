@@ -112,7 +112,7 @@ export default function ArBenchmarkPage() {
                       <td style={{ ...td, fontWeight: 700 }}>{money(b.chisam.total)}</td>
                     </tr>
                     {actualAR != null && (
-                      <tr style={{ background: '#FBF9F5' }}>
+                      <tr style={{ background: '#232329' }}>
                         <td style={{ ...tdL, fontWeight: 600 }}>Actual AR (now)</td>
                         <td style={{ ...td, fontWeight: 600 }} colSpan={2}>{money(actualAR)}</td>
                       </tr>
@@ -134,7 +134,7 @@ export default function ArBenchmarkPage() {
           );
         })()}
 
-        <div style={{ fontSize: 12, color: '#908E85', lineHeight: 1.6, background: '#FBF9F5', border: '0.5px solid #EDEAE2', borderRadius: 10, padding: '12px 14px' }}>
+        <div style={{ fontSize: 12, color: '#908E85', lineHeight: 1.6, background: '#232329', border: '0.5px solid #2A2A30', borderRadius: 10, padding: '12px 14px' }}>
           <b>Reading this:</b> Each line's payment timing uses its own trailing window — matched to the revenue window in the benchmark formula (Pest 4wk, Wildlife 8wk, Insulation 13wk). Average is what the benchmark uses; median shows the typical customer (less skewed by slow payers). The invoice count shows how much data each figure is based on — Insulation has the fewest, so treat it as directional. Note: shorter windows can slightly understate timing, since very recent slow-payers haven't fully resolved yet.
         </div>
       </>)}

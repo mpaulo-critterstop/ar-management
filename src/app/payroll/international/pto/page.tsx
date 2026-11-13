@@ -159,7 +159,7 @@ export default function PtoTrackerPage() {
             {leaves.map((l: any) => (
               <tr key={l.id}>
                 <td style={td}>{l.name}</td>
-                <td style={td}><span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: l.leaveType === 'Holiday' ? '#EEEDFE' : '#143229', color: l.leaveType === 'Holiday' ? '#534AB7' : '#0F6E56' }}>{l.leaveType}</span></td>
+                <td style={td}><span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: l.leaveType === 'Holiday' ? '#241f36' : '#143229', color: l.leaveType === 'Holiday' ? '#534AB7' : '#0F6E56' }}>{l.leaveType}</span></td>
                 <td style={td}>{fmtDate(l.startDate)}</td>
                 <td style={td}>{fmtDate(l.endDate)}</td>
                 <td style={{ ...td, textAlign: 'right' }}>{l.businessDays}</td>

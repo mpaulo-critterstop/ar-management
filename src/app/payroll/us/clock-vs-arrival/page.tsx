@@ -145,7 +145,7 @@ export default function ClockVsArrivalPage() {
               </tr></thead>
               <tbody>
                 {rows.map((r: any, i: number) => (
-                  <tr key={i} style={{ background: r.status === 'FLAG' ? '#FDF6F6' : undefined }}>
+                  <tr key={i} style={{ background: r.status === 'FLAG' ? '#361e1e' : undefined }}>
                     <td style={tdL}>{r.employeeName}{r.techName && r.techName !== r.employeeName ? <span style={{ color: '#63615A', fontSize: 11 }}> → {r.techName}</span> : null}</td>
                     <td style={td}>{fmtDate(r.date)}</td>
                     <td style={td}>{fmtTime(r.clockIn)}</td>

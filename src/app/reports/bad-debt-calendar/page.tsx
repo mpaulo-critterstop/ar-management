@@ -41,7 +41,7 @@ export default function BadDebtCalendarPage() {
       {data && !loading && (<>
         {/* Summary */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-          <div style={{ border: '0.5px solid #F7C1C1', borderRadius: 10, padding: '12px 16px', background: '#FDF6F6', minWidth: 180 }}>
+          <div style={{ border: '0.5px solid #F7C1C1', borderRadius: 10, padding: '12px 16px', background: '#361e1e', minWidth: 180 }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: '#E57C7C' }}>{money(data.alreadyShouldHaveAccrued)}</div>
             <div style={{ fontSize: 11, color: '#908E85' }}>Should have already accrued (to date)</div>
           </div>
@@ -71,7 +71,7 @@ export default function BadDebtCalendarPage() {
                   const invs = (data.rows || []).filter((r: any) => r.badDebtMonth === m.month);
                   return (
                     <>
-                      <tr key={m.month} onClick={() => setOpenMonth(open ? null : m.month)} style={{ cursor: 'pointer', background: open ? '#232329' : (past ? '#FDFaFa' : undefined) }}>
+                      <tr key={m.month} onClick={() => setOpenMonth(open ? null : m.month)} style={{ cursor: 'pointer', background: open ? '#232329' : (past ? '#232329' : undefined) }}>
                         <td style={{ ...td, textAlign: 'left', fontWeight: 600, color: past ? '#E57C7C' : '#F0EEE8' }}>{monthLabel(m.month)}{past && <span style={{ fontSize: 10, color: '#E57C7C', marginLeft: 6 }}>● past</span>}</td>
                         <td style={td}>{m.count}</td>
                         <td style={tdR}>{money(m.collections)}</td>
