@@ -92,7 +92,7 @@ export function ScoreboardTab({ office, weekEnd, leaderFilter = '', period }: Pr
           ['DFW PMP Effort Meter', effortMeters.DFW_PMP],
         ];
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8, marginBottom: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 8, marginBottom: 12 }}>
             {kpiTile(
               tcFrequency != null ? tcFrequency.toFixed(1) : '—',
               'TC Frequency', data.tcFrequencyIsFallback ? 'Recent (no wk data)' : `Std ${standards?.tcFrequency ?? 10} days`,

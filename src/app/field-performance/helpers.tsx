@@ -16,8 +16,8 @@ export const TEXT_MUTED = '#63615A';
 // Team colors
 export const TEAM_COLORS = {
   WP:  { bg: '#15263a', text: '#5B9BE0', border: '#2e4a6e' },
-  PMP: { bg: '#143229', text: '#085041', border: '#2e5a4c' },
-  IP:  { bg: '#241f36', text: '#5B1E7A', border: '#3a3357' },
+  PMP: { bg: '#143229', text: '#43B892', border: '#2e5a4c' },
+  IP:  { bg: '#241f36', text: '#9D8BE6', border: '#3a3357' },
 };
 
 // Score thresholds
