@@ -3,11 +3,12 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 
 const SECTIONS = [
+  { title: 'Employees', desc: 'Unified employee directory — roster, roles, probation, pay & raises in one place.', href: '/payroll/employees', status: 'available' as const },
   { title: 'Tolls', desc: 'Upload the toll transaction CSV; tolls are matched to each tech per pay period.', href: '/payroll/us/tolls', status: 'available' as const },
   { title: 'Main Payroll Tracker', desc: 'Weekly pay periods with a week dropdown, including historical data.', href: '/payroll/us/tracker', status: 'coming-soon' as const },
   { title: 'Team Tracker', desc: 'Team assignments and structure.', href: '/payroll/us/team', status: 'coming-soon' as const },
-  { title: 'Employee and Raise Tracker', desc: 'Employee pay, positions, and raise history.', href: '/payroll/us/raises', status: 'available' as const },
-  { title: 'Probation Tracker', desc: 'New hires, probation status, and OnPay tracking.', href: '/payroll/us/probation', status: 'available' as const },
+  { title: 'Raise Tracker', desc: 'Pay, positions, and raise history (opens inside Employees).', href: '/payroll/employees', status: 'available' as const },
+  { title: 'Probation Tracker', desc: 'New hires, probation status, and OnPay (opens inside Employees).', href: '/payroll/employees', status: 'available' as const },
   { title: 'Clock-In vs. Arrival', desc: 'Upload the OnTheClock CSV; compares clock-in/out vs. actual Bouncie arrival at first stop. Flags gaps over 10 min.', href: '/payroll/us/clock-vs-arrival', status: 'available' as const },
   { title: 'Reviews', desc: 'Google reviews (temporary — planned for removal).', href: '/payroll/us/reviews', status: 'coming-soon' as const },
 ];

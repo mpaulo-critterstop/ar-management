@@ -1253,3 +1253,46 @@ model LsaLead {
   @@index([creationDateTime])
   @@map("lsa_leads")
 }
+
+// Unified employee record — single source of truth merging Roster+Key, Probation Tracker, and Raise Tracker.
+// Payroll runs hourly: salaried employees' effective hourly = annualSalary / 52 / 40 (computed in app).
+model Employee {
+  id                  String    @id @default(cuid())
+  techId              String?   // role-prefixed ID (W-063, P-029, I-035) or null
+  fullName            String
+  email               String?
+  // role & placement (from Roster/Key)
+  roleCode            String?   // WP, PMP, IP, E, PM, M, C, D, AR, MKT, DE
+  office              String?   // DFW, ATX, OKC, CStat
+  department          String?   // grouping (Technician, CSR/Admin, Management, Marketing, ...)
+  region              String    @default("US") // US | International
+  // employment
+  hireDate            DateTime?
+  termDate            DateTime?
+  status              String    @default("Active") // Active | Inactive | Terminated
+  active              Boolean   @default(true)
+  // probation (absorbed from ProbationTracker)
+  probationEndDate    DateTime?
+  probationStatus     String?   // 'In probation' | 'Done - added' | null (not applicable)
+  addedToOnPay        Boolean   @default(false)
+  addedToOnPayDate    DateTime?
+  // pay & raises (absorbed from RaiseTracker/IntlRaiseTracker)
+  payType             String    @default("Hourly") // Hourly | Salary
+  hourlyRate          Float?    // entered directly for hourly employees
+  annualSalary        Float?    // for salaried; effective hourly = annualSalary/52/40
+  pto                 String?
+  bonusHistory        String?
+  mostRecentRaiseDate DateTime?
+  raiseAmount         String?   // free-text "$X to $Y"
+  previousRaiseDate   DateTime?
+  previousRaiseAmount String?
+  // meta
+  notes               String?
+  // provenance (which legacy rows this was merged from — for the migration audit)
+  srcProbationId      String?
+  srcRaiseId          String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@map("employees")
+}
