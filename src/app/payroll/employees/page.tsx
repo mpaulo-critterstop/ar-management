@@ -12,7 +12,15 @@ const ROLE_CODES = ['WP', 'PMP', 'IP', 'E', 'PM', 'M', 'C', 'D', 'AR', 'MKT', 'D
 const ROLE_LABEL: Record<string, string> = { WP: 'Wildlife Professional', PMP: 'Pest Management Professional', IP: 'Insulation', E: 'Executive', PM: 'Project Manager', M: 'Management', C: 'CSR', D: 'Dispatcher', AR: 'AR', MKT: 'Marketing', DE: 'Data Entry' };
 const roleTone = (r: string): any => (['WP'].includes(r) ? 'blue' : ['PMP'].includes(r) ? 'green' : ['IP'].includes(r) ? 'violet' : ['PM'].includes(r) ? 'amber' : 'neutral');
 const money = (n: number | null | undefined) => n == null ? '—' : '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtD = (d: any) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+// Dates are stored as UTC midnight; format from the Y-M-D parts directly so they don't shift a day in CST.
+const fmtD = (d: any) => {
+  if (!d) return '—';
+  const s = String(d).split('T')[0]; // YYYY-MM-DD
+  const [y, m, day] = s.split('-').map(Number);
+  if (!y || !m || !day) return '—';
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${MON[m - 1]} ${day}, ${y}`;
+};
 
 export default function EmployeesPage() {
   const [data, setData] = useState<any>({ employees: [], kpis: {} });
