@@ -58,7 +58,7 @@ export default function EmployeesPage() {
     const q = search.trim().toLowerCase();
     return regionEmps.filter(e => {
       if (office !== 'All' && e.office !== office) return false;
-      if (roleF !== 'All' && e.roleCode !== roleF) return false;
+      if (roleF !== 'All') { const r = region === 'International' ? e.position : e.roleCode; if (r !== roleF) return false; }
       if (statusF === 'Active' && !e.active) return false;
       if (statusF === 'Inactive' && e.active) return false;
       if (statusF === 'In probation' && e.probationStatus !== 'In probation') return false;
@@ -114,7 +114,12 @@ export default function EmployeesPage() {
           {region === 'US' && <div style={{ display: 'inline-flex', gap: 6 }}>
             {OFFICES.map(o => { const on = office === o; return <button key={o} onClick={() => setOffice(o)} style={{ padding: '7px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on ? cc.blue : cc.line}`, background: on ? cc.bluebg : cc.panel, color: on ? cc.blue : cc.muted }}>{o}</button>; })}
           </div>}
-          <CCSelect value={roleF} onChange={e => setRoleF(e.target.value)} style={{ width: 'auto' }}><option value="All">All roles</option>{ROLE_CODES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]} ({r})</option>)}</CCSelect>
+          <CCSelect value={roleF} onChange={e => setRoleF(e.target.value)} style={{ width: 'auto' }}>
+            <option value="All">All roles</option>
+            {region === 'International'
+              ? INTL_ROLES.map(r => <option key={r} value={r}>{r}</option>)
+              : ROLE_CODES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]} ({r})</option>)}
+          </CCSelect>
           <CCSelect value={statusF} onChange={e => setStatusF(e.target.value)} style={{ width: 'auto' }}><option value="All">All statuses</option><option>Active</option><option>In probation</option><option>Inactive</option></CCSelect>
           <CCSearchBox value={search} onChange={setSearch} placeholder="Search name, Tech ID, email…" />
         </CCToolbar>
