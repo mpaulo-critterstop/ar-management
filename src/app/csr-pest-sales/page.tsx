@@ -1,7 +1,7 @@
 'use client';
 import CCDatePicker from '@/components/cc/DatePicker';
 import { PageHeader as CCPageHeader, SearchBox as CCSearchBox, DataTable as CCDataTable, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
-import { StatusPill as CCStatusPill } from '@/components/cc/Primitives';
+import { StatusPill as CCStatusPill, Btn as CCBtn } from '@/components/cc/Primitives';
 import { useEffect, useState } from 'react';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -62,6 +62,26 @@ export default function CsrPestSalesPage() {
   const rollup = data?.rollup || [];
   const offices: string[] = data?.offices || [];
 
+  // Export the currently-filtered sales (honors office, year/month, search, status, and the sale/initial date ranges) to CSV.
+  function exportCsv() {
+    const headers = ['Customer', 'CSR', 'Category', 'Service', 'Contract Value', 'Sale Date', 'Initial Service Date', 'Status', 'Office'];
+    const esc = (v: any) => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const rows = sales.map((s: any) => [
+      s.customerName || '', s.sellerName || '', s.category || '',
+      s.category === 'Rodent Bundle' ? (s.chargeChildService ? `Bundle - ${s.chargeChildService}` : 'Bundle') : (s.serviceName || ''),
+      s.contractValue ?? '', s.saleDate ? String(s.saleDate).split('T')[0] : '',
+      s.initialCompletedAt ? String(s.initialCompletedAt).split('T')[0] : '',
+      s.initialDone ? 'Serviced' : 'Pending', s.office || office,
+    ].map(esc).join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const range = (saleFrom && saleTo) ? `_${saleFrom}_to_${saleTo}` : `_${selYear}${selMonth != null ? '-' + String(selMonth + 1).padStart(2, '0') : ''}`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `csr-pest-sales${range}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const th: React.CSSProperties = { textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 500, color: '#908E85', borderBottom: '0.5px solid #2A2A30', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap' };
   const thR = { ...th, textAlign: 'right' as const };
   const td: React.CSSProperties = { padding: '9px 12px', fontSize: 13, color: '#F0EEE8', borderBottom: '0.5px solid #232329' };
@@ -69,7 +89,8 @@ export default function CsrPestSalesPage() {
 
   return (
     <div style={{ padding: '30px 34px 70px', maxWidth: 1400, margin: '0 auto' }}>
-      <CCPageHeader icon="🎧" title="CSR Pest Sales" subtitle="Pest, rodent bundle, and termite sales made by CSRs" />
+      <CCPageHeader icon="🎧" title="CSR Pest Sales" subtitle="Pest, rodent bundle, and termite sales made by CSRs"
+        actions={<CCBtn variant="secondary" onClick={exportCsv} disabled={!sales.length}>⇪ Export CSV</CCBtn>} />
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 24, marginTop: 20, borderBottom: '0.5px solid #2A2A30' }}>
