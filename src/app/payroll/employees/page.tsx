@@ -93,13 +93,13 @@ export default function EmployeesPage() {
       {view === 'directory' && <>
         <CCKpiStrip items={region === 'International' ? [
           { icon: '🟢', label: 'Active employees', value: loading ? '…' : (kpis.activeTotal ?? 0), tone: 'blue', delta: 'international team' },
-          { icon: '📈', label: 'Raise due (90d+)', value: loading ? '…' : (kpis.raiseDue ?? 0), tone: 'red', delta: 'review pay → open', deltaTone: 'red' },
+          { icon: '📈', label: 'Raise due (90d+)', value: loading ? '…' : (kpis.raiseDue ?? 0), tone: 'red', delta: 'review pay', deltaTone: 'red' },
         ] : [
           { icon: '🟢', label: 'Active employees', value: loading ? '…' : (kpis.activeTotal ?? 0), tone: 'blue', delta: 'across offices' },
-          { icon: '⏳', label: 'In probation', value: loading ? '…' : (kpis.inProbation ?? 0), tone: 'amber', delta: `${kpis.notInOnPay ?? 0} not in OnPay → open`, deltaTone: 'amber' },
+          { icon: '⏳', label: 'In probation', value: loading ? '…' : (kpis.inProbation ?? 0), tone: 'amber', delta: `${kpis.notInOnPay ?? 0} not in OnPay`, deltaTone: 'amber' },
           { icon: '🔧', label: 'Field techs', value: loading ? '…' : (kpis.fieldTechs ?? 0), tone: 'green', delta: 'WP · PMP · IP' },
           { icon: '🧑‍💼', label: 'Office / admin', value: loading ? '…' : (kpis.officeAdmin ?? 0), tone: 'violet', delta: 'PM · M · C · D · AR …' },
-          { icon: '📈', label: 'Raise due (90d+)', value: loading ? '…' : (kpis.raiseDue ?? 0), tone: 'red', delta: 'review pay → open', deltaTone: 'red' },
+          { icon: '📈', label: 'Raise due (90d+)', value: loading ? '…' : (kpis.raiseDue ?? 0), tone: 'red', delta: 'review pay', deltaTone: 'red' },
         ]} />
         {/* drill-in buttons (Probation is US-only) */}
         <div style={{ display: 'flex', gap: 10, marginTop: -16, marginBottom: 14 }}>
