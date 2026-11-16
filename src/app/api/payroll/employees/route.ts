@@ -63,5 +63,6 @@ export async function POST(req: NextRequest) {
   if (b.action === 'deactivate') { await prisma.employee.update({ where: { id: b.id }, data: { active: false, status: 'Inactive', termDate: b.termDate ? new Date(b.termDate) : new Date() } }); return NextResponse.json({ ok: true }); }
   if (b.action === 'reactivate') { await prisma.employee.update({ where: { id: b.id }, data: { active: true, status: 'Active', termDate: null } }); return NextResponse.json({ ok: true }); }
   if (b.action === 'markOnPay') { await prisma.employee.update({ where: { id: b.id }, data: { addedToOnPay: true, addedToOnPayDate: new Date(), probationStatus: 'Done - added' } }); return NextResponse.json({ ok: true }); }
+  if (b.action === 'relabelTerminated') { const r = await prisma.employee.updateMany({ where: { status: 'Terminated' }, data: { status: 'Inactive' } }); return NextResponse.json({ ok: true, updated: r.count }); }
   return NextResponse.json({ error: 'unknown action' }, { status: 400 });
 }

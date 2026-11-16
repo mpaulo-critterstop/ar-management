@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
     };
     if (isTerminated) {
       base.active = false;
-      base.status = 'Terminated';
+      base.status = 'Inactive';
       base.termDate = d(r.endDate) || undefined;
       base.endDateInferred = !!r.endDateInferred;
     }
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
       updated++;
       if (actions.length < 20) actions.push({ op: 'update', name: r.name, region: r.region, office: r.office, terminated: isTerminated, end: r.endDate, inferred: !!r.endDateInferred });
     } else {
-      if (!dry) await prisma.employee.create({ data: { fullName: r.name, payType, status: isTerminated ? 'Terminated' : 'Active', active: !isTerminated, ...base } });
+      if (!dry) await prisma.employee.create({ data: { fullName: r.name, payType, status: isTerminated ? 'Inactive' : 'Active', active: !isTerminated, ...base } });
       created++;
       if (actions.length < 20) actions.push({ op: 'create', name: r.name, region: r.region, terminated: isTerminated });
     }
