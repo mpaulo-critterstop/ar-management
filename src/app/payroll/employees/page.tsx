@@ -86,13 +86,8 @@ export default function EmployeesPage() {
 
   return (
     <div style={{ maxWidth: 1240, margin: '0 auto', padding: '30px 34px 70px' }}>
-      <CCPageHeader icon="👥" title="Employees" subtitle={`${region === 'US' ? 'US' : 'International'} team — roster, role, probation, pay & raises in one place`}
-        actions={<div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <div style={{ display: 'inline-flex', gap: 5 }}>
-            {(['US', 'International'] as const).map(r => { const on = region === r; return <button key={r} onClick={() => { setRegion(r); setView('directory'); setOffice('All'); }} style={{ padding: '7px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on ? cc.blue : cc.line}`, background: on ? cc.bluebg : cc.panel, color: on ? cc.blue : cc.muted }}>{r === 'US' ? '🇺🇸 US' : '🌏 International'}</button>; })}
-          </div>
-          <CCBtn variant="primary" onClick={() => setEditing({ _new: true, payType: region === 'International' ? 'Salary' : 'Hourly', region, status: 'Active', active: true })}>＋ Add employee</CCBtn>
-        </div>} />
+      <CCPageHeader icon="👥" title={region === 'International' ? 'International Employees' : 'Employees'} subtitle={`${region === 'US' ? 'US' : 'International'} team — roster, role, probation, pay & raises in one place`}
+        actions={<CCBtn variant="primary" onClick={() => setEditing({ _new: true, payType: region === 'International' ? 'Salary' : 'Hourly', region, status: 'Active', active: true })}>＋ Add employee</CCBtn>} />
 
       {view === 'directory' && <>
         <CCKpiStrip items={[
