@@ -91,16 +91,19 @@ export default function EmployeesPage() {
         actions={<CCBtn variant="primary" onClick={() => setEditing({ _new: true, payType: region === 'International' ? 'Salary' : 'Hourly', currency: region === 'International' ? 'PHP' : 'USD', region, status: 'Active', active: true })}>＋ Add employee</CCBtn>} />
 
       {view === 'directory' && <>
-        <CCKpiStrip items={[
+        <CCKpiStrip items={region === 'International' ? [
+          { icon: '🟢', label: 'Active employees', value: loading ? '…' : (kpis.activeTotal ?? 0), tone: 'blue', delta: 'international team' },
+          { icon: '📈', label: 'Raise due (90d+)', value: loading ? '…' : (kpis.raiseDue ?? 0), tone: 'red', delta: 'review pay → open', deltaTone: 'red' },
+        ] : [
           { icon: '🟢', label: 'Active employees', value: loading ? '…' : (kpis.activeTotal ?? 0), tone: 'blue', delta: 'across offices' },
           { icon: '⏳', label: 'In probation', value: loading ? '…' : (kpis.inProbation ?? 0), tone: 'amber', delta: `${kpis.notInOnPay ?? 0} not in OnPay → open`, deltaTone: 'amber' },
           { icon: '🔧', label: 'Field techs', value: loading ? '…' : (kpis.fieldTechs ?? 0), tone: 'green', delta: 'WP · PMP · IP' },
           { icon: '🧑‍💼', label: 'Office / admin', value: loading ? '…' : (kpis.officeAdmin ?? 0), tone: 'violet', delta: 'PM · M · C · D · AR …' },
           { icon: '📈', label: 'Raise due (90d+)', value: loading ? '…' : (kpis.raiseDue ?? 0), tone: 'red', delta: 'review pay → open', deltaTone: 'red' },
         ]} />
-        {/* make the two drill-in tiles clickable (overlay buttons since KpiStrip isn't clickable) */}
+        {/* drill-in buttons (Probation is US-only) */}
         <div style={{ display: 'flex', gap: 10, marginTop: -16, marginBottom: 14 }}>
-          <CCBtn variant="secondary" style={{ fontSize: 12 }} onClick={() => setView('probation')}>⏳ Open Probation Tracker</CCBtn>
+          {region === 'US' && <CCBtn variant="secondary" style={{ fontSize: 12 }} onClick={() => setView('probation')}>⏳ Open Probation Tracker</CCBtn>}
           <CCBtn variant="secondary" style={{ fontSize: 12 }} onClick={() => setView('raise')}>📈 Open Raise Tracker</CCBtn>
         </div>
 
