@@ -37,7 +37,7 @@ export default function EmployeesPage() {
     if (r === 'International' || r === 'US') setRegion(r);
   }, []);
   const [roleF, setRoleF] = useState('All');
-  const [statusF, setStatusF] = useState('All');
+  const [statusF, setStatusF] = useState('Active');
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<any>(null); // the employee in the drawer
   const [saving, setSaving] = useState(false);
