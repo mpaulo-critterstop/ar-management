@@ -175,6 +175,7 @@ export default function EmployeesPage() {
 function EmployeeDrawer({ emp, onClose, onSaved, saving, setSaving }: any) {
   const [f, setF] = useState<any>({ ...emp });
   const set = (k: string, v: any) => setF((p: any) => ({ ...p, [k]: v }));
+  const intl = (f.region || 'US') === 'International';
   const eh = f.payType === 'Salary' ? (f.annualSalary ? Number(f.annualSalary) / 52 / 40 : null) : (f.hourlyRate != null && f.hourlyRate !== '' ? Number(f.hourlyRate) : null);
 
   async function save() {
@@ -191,6 +192,37 @@ function EmployeeDrawer({ emp, onClose, onSaved, saving, setSaving }: any) {
           <button onClick={onClose} style={{ fontSize: 20, border: 'none', background: 'none', color: cc.muted, cursor: 'pointer' }}>×</button>
         </div>
 
+        {intl ? <>
+          {/* Simplified International layout */}
+          <Sec title="Details">
+            <CCLabel style={{ marginTop: 0 }}>Full name</CCLabel><CCField value={f.fullName || ''} onChange={e => set('fullName', e.target.value)} />
+            <CCLabel>Email</CCLabel><CCField value={f.email || ''} onChange={e => set('email', e.target.value)} />
+            <CCLabel>Role</CCLabel><CCField value={f.position || f.roleCode || ''} onChange={e => set('position', e.target.value)} placeholder="CSR / Support / Developer…" />
+            <CCLabel>Region</CCLabel>
+            <CCSelect value={f.region || 'International'} onChange={e => set('region', e.target.value)}><option>US</option><option>International</option></CCSelect>
+          </Sec>
+          <Sec title="Employment">
+            <CCLabel style={{ marginTop: 0 }}>Hire date</CCLabel><div style={{ marginTop: 4 }}><CCDatePicker value={f.hireDate ? String(f.hireDate).split('T')[0] : ''} onChange={(v: string) => set('hireDate', v)} /></div>
+            <CCLabel>Status</CCLabel>
+            <CCSelect value={f.status || 'Active'} onChange={e => set('status', e.target.value)}><option>Active</option><option>Inactive</option></CCSelect>
+            <CCLabel>Term date {f.endDateInferred && <span style={{ color: cc.amber, fontWeight: 600 }}>⚠ inferred — verify</span>}</CCLabel>
+            <div style={{ marginTop: 4 }}><CCDatePicker value={f.termDate ? String(f.termDate).split('T')[0] : ''} onChange={(v: string) => { set('termDate', v); set('endDateInferred', false); }} /></div>
+          </Sec>
+          <Sec title="Pay & raises">
+            <CCLabel style={{ marginTop: 0 }}>Pay type</CCLabel>
+            <CCSelect value={f.payType || 'Salary'} onChange={e => set('payType', e.target.value)}><option>Hourly</option><option>Salary</option></CCSelect>
+            {f.payType === 'Salary'
+              ? <><CCLabel>Annual salary</CCLabel><CCField type="number" value={f.annualSalary ?? ''} onChange={e => set('annualSalary', e.target.value)} placeholder="60000" /></>
+              : <><CCLabel>Hourly rate</CCLabel><CCField type="number" step="0.01" value={f.hourlyRate ?? ''} onChange={e => set('hourlyRate', e.target.value)} placeholder="18.00" /></>}
+            <div style={{ marginTop: 10, padding: '10px 12px', background: cc.greenbg, borderRadius: 8, fontSize: 13, color: cc.green, fontWeight: 600 }}>
+              Effective hourly (payroll): {eh != null ? money(eh) + ' / hr' : '—'}
+              {f.payType === 'Salary' && <span style={{ color: cc.faint, fontWeight: 400, fontSize: 11 }}> &nbsp;(annual ÷ 52 ÷ 40)</span>}
+            </div>
+            <CCLabel>Last raise date</CCLabel><div style={{ marginTop: 4 }}><CCDatePicker value={f.mostRecentRaiseDate ? String(f.mostRecentRaiseDate).split('T')[0] : ''} onChange={(v: string) => set('mostRecentRaiseDate', v)} /></div>
+            <CCLabel>Last change</CCLabel><CCField value={f.raiseAmount || ''} onChange={e => set('raiseAmount', e.target.value)} placeholder="$18.00 → $20.00" />
+            <CCLabel>PTO</CCLabel><CCField value={f.pto || ''} onChange={e => set('pto', e.target.value)} />
+          </Sec>
+        </> : <>
         <Sec title="Identity">
           <CCLabel style={{ marginTop: 0 }}>Full name</CCLabel><CCField value={f.fullName || ''} onChange={e => set('fullName', e.target.value)} />
           <CCLabel>Tech ID</CCLabel><CCField value={f.techId || ''} onChange={e => set('techId', e.target.value)} placeholder="W-063 / P-029 / I-035" />
@@ -210,7 +242,7 @@ function EmployeeDrawer({ emp, onClose, onSaved, saving, setSaving }: any) {
         <Sec title="Employment">
           <CCLabel style={{ marginTop: 0 }}>Hire date</CCLabel><div style={{ marginTop: 4 }}><CCDatePicker value={f.hireDate ? String(f.hireDate).split('T')[0] : ''} onChange={(v: string) => set('hireDate', v)} /></div>
           <CCLabel>Status</CCLabel>
-          <CCSelect value={f.status || 'Active'} onChange={e => set('status', e.target.value)}><option>Active</option><option>Inactive</option><option>Terminated</option></CCSelect>
+          <CCSelect value={f.status || 'Active'} onChange={e => set('status', e.target.value)}><option>Active</option><option>Inactive</option></CCSelect>
           <CCLabel>Term date {f.endDateInferred && <span style={{ color: cc.amber, fontWeight: 600 }}>⚠ inferred — please verify</span>}</CCLabel>
           <div style={{ marginTop: 4 }}><CCDatePicker value={f.termDate ? String(f.termDate).split('T')[0] : ''} onChange={(v: string) => { set('termDate', v); set('endDateInferred', false); }} /></div>
           {f.endDateInferred && <div style={{ fontSize: 11, color: cc.faint, marginTop: 4 }}>This date was inferred from the last payroll week they appeared. Confirm or correct it — saving clears the flag.</div>}
@@ -243,6 +275,7 @@ function EmployeeDrawer({ emp, onClose, onSaved, saving, setSaving }: any) {
         <Sec title="Notes / history">
           <textarea value={f.notes || ''} onChange={e => set('notes', e.target.value)} rows={3} style={{ width: '100%', background: cc.panel2, border: `1px solid ${cc.line2}`, borderRadius: 8, padding: '10px 12px', color: cc.ink, fontSize: 13, fontFamily: 'inherit', resize: 'vertical' }} />
         </Sec>
+        </>}
 
         <div style={{ display: 'flex', gap: 8, marginTop: 22 }}>
           <CCBtn variant="primary" onClick={save} disabled={saving || !f.fullName} style={{ flex: 1, justifyContent: 'center' }}>{saving ? 'Saving…' : 'Save changes'}</CCBtn>
