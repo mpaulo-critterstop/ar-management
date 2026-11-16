@@ -10,6 +10,7 @@ import { cc } from '@/components/cc/tokens';
 
 const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
 const ROLE_CODES = ['WP', 'PMP', 'IP', 'E', 'PM', 'M', 'C', 'D', 'AR', 'MKT', 'DE'];
+const INTL_ROLES = ['Call Center Manager', 'Executive Assistant', 'CSR', 'Dispatch', 'AR', 'Senior CSR', 'Marketing', 'Marketing Director', 'Operations Manager', 'Data Entry'];
 const ROLE_LABEL: Record<string, string> = { WP: 'Wildlife Professional', PMP: 'Pest Management Professional', IP: 'Insulation', E: 'Executive', PM: 'Project Manager', M: 'Management', C: 'CSR', D: 'Dispatcher', AR: 'AR', MKT: 'Marketing', DE: 'Data Entry' };
 const roleTone = (r: string): any => (['WP'].includes(r) ? 'blue' : ['PMP'].includes(r) ? 'green' : ['IP'].includes(r) ? 'violet' : ['PM'].includes(r) ? 'amber' : 'neutral');
 const curSym = (c?: string | null) => c === 'PHP' ? '₱' : '$';
@@ -203,7 +204,7 @@ function EmployeeDrawer({ emp, onClose, onSaved, saving, setSaving }: any) {
           <Sec title="Details">
             <CCLabel style={{ marginTop: 0 }}>Full name</CCLabel><CCField value={f.fullName || ''} onChange={e => set('fullName', e.target.value)} />
             <CCLabel>Email</CCLabel><CCField value={f.email || ''} onChange={e => set('email', e.target.value)} />
-            <CCLabel>Role</CCLabel><CCField value={f.position || f.roleCode || ''} onChange={e => set('position', e.target.value)} placeholder="CSR / Support / Developer…" />
+            <CCLabel>Role</CCLabel><CCSelect value={f.position || ''} onChange={e => set('position', e.target.value)}><option value="">—</option>{INTL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}{f.position && !INTL_ROLES.includes(f.position) && <option value={f.position}>{f.position}</option>}</CCSelect>
             <CCLabel>Region</CCLabel>
             <CCSelect value={f.region || 'International'} onChange={e => set('region', e.target.value)}><option>US</option><option>International</option></CCSelect>
           </Sec>
