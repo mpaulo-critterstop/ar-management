@@ -51,6 +51,7 @@ export default function EmployeesPage() {
       if (statusF === 'Active' && !e.active) return false;
       if (statusF === 'Inactive' && e.active) return false;
       if (statusF === 'In probation' && e.probationStatus !== 'In probation') return false;
+      if (statusF === 'Terminated' && e.status !== 'Terminated') return false;
       if (q && !(`${e.fullName} ${e.techId || ''} ${e.email || ''}`.toLowerCase().includes(q))) return false;
       return true;
     });
@@ -105,7 +106,7 @@ export default function EmployeesPage() {
             {OFFICES.map(o => { const on = office === o; return <button key={o} onClick={() => setOffice(o)} style={{ padding: '7px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on ? cc.blue : cc.line}`, background: on ? cc.bluebg : cc.panel, color: on ? cc.blue : cc.muted }}>{o}</button>; })}
           </div>}
           <CCSelect value={roleF} onChange={e => setRoleF(e.target.value)} style={{ width: 'auto' }}><option value="All">All roles</option>{ROLE_CODES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]} ({r})</option>)}</CCSelect>
-          <CCSelect value={statusF} onChange={e => setStatusF(e.target.value)} style={{ width: 'auto' }}><option value="All">All statuses</option><option>Active</option><option>In probation</option><option>Inactive</option></CCSelect>
+          <CCSelect value={statusF} onChange={e => setStatusF(e.target.value)} style={{ width: 'auto' }}><option value="All">All statuses</option><option>Active</option><option>In probation</option><option>Inactive</option><option>Terminated</option></CCSelect>
           <CCSearchBox value={search} onChange={setSearch} placeholder="Search name, Tech ID, email…" />
         </CCToolbar>
 
@@ -118,7 +119,7 @@ export default function EmployeesPage() {
             { key: 'role', label: 'Role', render: (e: any) => e.roleCode ? <CCStatusPill tone={roleTone(e.roleCode)}>{e.roleCode}</CCStatusPill> : '—' },
             { key: 'office', label: 'Office', render: (e: any) => e.office ? <CCStatusPill tone="blue">{e.office}</CCStatusPill> : '—' },
             { key: 'hire', label: 'Hire date', render: (e: any) => <span style={{ color: cc.muted, fontSize: 12.5 }}>{fmtD(e.hireDate)}</span> },
-            { key: 'status', label: 'Status', render: (e: any) => e.active ? (e.probationStatus === 'In probation' ? <CCStatusPill tone="amber">In probation</CCStatusPill> : <CCStatusPill tone="green">Active</CCStatusPill>) : <CCStatusPill tone="neutral">Inactive</CCStatusPill> },
+            { key: 'status', label: 'Status', render: (e: any) => e.active ? (e.probationStatus === 'In probation' ? <CCStatusPill tone="amber">In probation</CCStatusPill> : <CCStatusPill tone="green">Active</CCStatusPill>) : <div style={{display:'flex',alignItems:'center',gap:6}}><CCStatusPill tone="red">Terminated</CCStatusPill>{e.endDateInferred && <span title="End date inferred — verify" style={{color:cc.amber,fontSize:12}}>⚠</span>}</div> },
             { key: 'pt', label: 'Pay type', render: (e: any) => <CCStatusPill tone={e.payType === 'Salary' ? 'violet' : 'neutral'}>{e.payType}</CCStatusPill> },
             { key: 'rate', label: 'Rate (hr)', align: 'right', render: rateCell },
           ]}
@@ -208,7 +209,9 @@ function EmployeeDrawer({ emp, onClose, onSaved, saving, setSaving }: any) {
           <CCLabel style={{ marginTop: 0 }}>Hire date</CCLabel><div style={{ marginTop: 4 }}><CCDatePicker value={f.hireDate ? String(f.hireDate).split('T')[0] : ''} onChange={(v: string) => set('hireDate', v)} /></div>
           <CCLabel>Status</CCLabel>
           <CCSelect value={f.status || 'Active'} onChange={e => set('status', e.target.value)}><option>Active</option><option>Inactive</option><option>Terminated</option></CCSelect>
-          <CCLabel>Term date</CCLabel><div style={{ marginTop: 4 }}><CCDatePicker value={f.termDate ? String(f.termDate).split('T')[0] : ''} onChange={(v: string) => set('termDate', v)} /></div>
+          <CCLabel>Term date {f.endDateInferred && <span style={{ color: cc.amber, fontWeight: 600 }}>⚠ inferred — please verify</span>}</CCLabel>
+          <div style={{ marginTop: 4 }}><CCDatePicker value={f.termDate ? String(f.termDate).split('T')[0] : ''} onChange={(v: string) => { set('termDate', v); set('endDateInferred', false); }} /></div>
+          {f.endDateInferred && <div style={{ fontSize: 11, color: cc.faint, marginTop: 4 }}>This date was inferred from the last payroll week they appeared. Confirm or correct it — saving clears the flag.</div>}
         </Sec>
 
         <Sec title="Probation">

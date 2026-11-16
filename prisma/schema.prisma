@@ -1269,6 +1269,9 @@ model Employee {
   // employment
   hireDate            DateTime?
   termDate            DateTime?
+  endDateInferred     Boolean   @default(false) // inferred from last payroll week — flag for review
+  team                String?   // WP/PMP/IP (role/team short code from payroll)
+  position            String?   // free-text position/title from raise tracker
   status              String    @default("Active") // Active | Inactive | Terminated
   active              Boolean   @default(true)
   // probation (absorbed from ProbationTracker)
