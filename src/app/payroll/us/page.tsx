@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 
 const SECTIONS = [
-  { title: 'Employees', desc: 'Unified employee directory — roster, roles, probation, pay & raises in one place.', href: '/payroll/employees', status: 'available' as const },
+  { title: 'Employees', desc: 'Unified employee directory — roster, roles, probation, pay & raises in one place.', href: '/payroll/employees?region=US', status: 'available' as const },
   { title: 'Tolls', desc: 'Upload the toll transaction CSV; tolls are matched to each tech per pay period.', href: '/payroll/us/tolls', status: 'available' as const },
   { title: 'Main Payroll Tracker', desc: 'Weekly pay periods with a week dropdown, including historical data.', href: '/payroll/us/tracker', status: 'coming-soon' as const },
   { title: 'Team Tracker', desc: 'Team assignments and structure.', href: '/payroll/us/team', status: 'coming-soon' as const },

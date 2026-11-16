@@ -18,7 +18,13 @@ export default function EmployeesPage() {
   const [data, setData] = useState<any>({ employees: [], kpis: {} });
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'directory' | 'probation' | 'raise'>('directory');
+  const [region, setRegion] = useState<'US' | 'International'>('US');
   const [office, setOffice] = useState('All');
+  // default region from ?region= (so the US tile opens US, an International tile opens International)
+  useEffect(() => {
+    const r = new URLSearchParams(window.location.search).get('region');
+    if (r === 'International' || r === 'US') setRegion(r);
+  }, []);
   const [roleF, setRoleF] = useState('All');
   const [statusF, setStatusF] = useState('All');
   const [search, setSearch] = useState('');
@@ -34,11 +40,12 @@ export default function EmployeesPage() {
   useEffect(() => { load(); }, []);
 
   const emps: any[] = data.employees || [];
-  const kpis = data.kpis || {};
+
+  const regionEmps = useMemo(() => emps.filter(e => (e.region || 'US') === region), [emps, region]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return emps.filter(e => {
+    return regionEmps.filter(e => {
       if (office !== 'All' && e.office !== office) return false;
       if (roleF !== 'All' && e.roleCode !== roleF) return false;
       if (statusF === 'Active' && !e.active) return false;
@@ -47,10 +54,21 @@ export default function EmployeesPage() {
       if (q && !(`${e.fullName} ${e.techId || ''} ${e.email || ''}`.toLowerCase().includes(q))) return false;
       return true;
     });
-  }, [emps, office, roleF, statusF, search]);
+  }, [regionEmps, office, roleF, statusF, search]);
 
-  const probationList = emps.filter(e => e.active && e.probationStatus === 'In probation');
-  const raiseList = emps.filter(e => e.active && e.payType != null).slice().sort((a, b) => (b.daysSinceRaise || 0) - (a.daysSinceRaise || 0));
+  const probationList = regionEmps.filter(e => e.active && e.probationStatus === 'In probation');
+  const raiseList = regionEmps.filter(e => e.active && e.payType != null).slice().sort((a, b) => (b.daysSinceRaise || 0) - (a.daysSinceRaise || 0));
+
+  // region-scoped KPIs (computed client-side so they match the active region)
+  const activeR = regionEmps.filter(e => e.active);
+  const kpis = {
+    activeTotal: activeR.length,
+    inProbation: activeR.filter(e => e.probationStatus === 'In probation').length,
+    notInOnPay: activeR.filter(e => e.probationStatus === 'In probation' && !e.addedToOnPay).length,
+    fieldTechs: activeR.filter(e => ['WP', 'PMP', 'IP'].includes(e.roleCode || '')).length,
+    officeAdmin: activeR.filter(e => ['PM', 'M', 'C', 'D', 'AR', 'MKT', 'DE', 'E'].includes(e.roleCode || '')).length,
+    raiseDue: activeR.filter(e => e.daysSinceRaise != null && e.daysSinceRaise >= 90).length,
+  };
 
   const rateCell = (e: any) => {
     const eh = e.effHourly;
@@ -60,8 +78,13 @@ export default function EmployeesPage() {
 
   return (
     <div style={{ maxWidth: 1240, margin: '0 auto', padding: '30px 34px 70px' }}>
-      <CCPageHeader icon="👥" title="Employees" subtitle="One record per person — roster, role, probation, pay & raises in one place"
-        actions={<CCBtn variant="primary" onClick={() => setEditing({ _new: true, payType: 'Hourly', region: 'US', status: 'Active', active: true })}>＋ Add employee</CCBtn>} />
+      <CCPageHeader icon="👥" title="Employees" subtitle={`${region === 'US' ? 'US' : 'International'} team — roster, role, probation, pay & raises in one place`}
+        actions={<div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ display: 'inline-flex', gap: 5 }}>
+            {(['US', 'International'] as const).map(r => { const on = region === r; return <button key={r} onClick={() => { setRegion(r); setView('directory'); setOffice('All'); }} style={{ padding: '7px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on ? cc.blue : cc.line}`, background: on ? cc.bluebg : cc.panel, color: on ? cc.blue : cc.muted }}>{r === 'US' ? '🇺🇸 US' : '🌏 International'}</button>; })}
+          </div>
+          <CCBtn variant="primary" onClick={() => setEditing({ _new: true, payType: region === 'International' ? 'Salary' : 'Hourly', region, status: 'Active', active: true })}>＋ Add employee</CCBtn>
+        </div>} />
 
       {view === 'directory' && <>
         <CCKpiStrip items={[
@@ -78,9 +101,9 @@ export default function EmployeesPage() {
         </div>
 
         <CCToolbar>
-          <div style={{ display: 'inline-flex', gap: 6 }}>
+          {region === 'US' && <div style={{ display: 'inline-flex', gap: 6 }}>
             {OFFICES.map(o => { const on = office === o; return <button key={o} onClick={() => setOffice(o)} style={{ padding: '7px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on ? cc.blue : cc.line}`, background: on ? cc.bluebg : cc.panel, color: on ? cc.blue : cc.muted }}>{o}</button>; })}
-          </div>
+          </div>}
           <CCSelect value={roleF} onChange={e => setRoleF(e.target.value)} style={{ width: 'auto' }}><option value="All">All roles</option>{ROLE_CODES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]} ({r})</option>)}</CCSelect>
           <CCSelect value={statusF} onChange={e => setStatusF(e.target.value)} style={{ width: 'auto' }}><option value="All">All statuses</option><option>Active</option><option>In probation</option><option>Inactive</option></CCSelect>
           <CCSearchBox value={search} onChange={setSearch} placeholder="Search name, Tech ID, email…" />

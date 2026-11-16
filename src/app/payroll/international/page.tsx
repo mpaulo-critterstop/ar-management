@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 
 const SECTIONS = [
-  { title: 'Employee and Raise Tracker', desc: 'International employee pay, positions, and raise history.', href: '/payroll/international/raises', status: 'available' as const },
+  { title: 'Employees', desc: 'International employee directory — roster, roles, probation, pay & raises.', href: '/payroll/employees?region=International', status: 'available' as const },
   { title: 'PTO Tracker', desc: 'PTO and holiday allotments, used, and remaining.', href: '/payroll/international/pto', status: 'available' as const },
 ];
 
