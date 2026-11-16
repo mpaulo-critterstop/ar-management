@@ -116,9 +116,9 @@ export default function EmployeesPage() {
           rowKey={(e: any) => e.id}
           empty={loading ? 'Loading…' : 'No employees match.'}
           cols={[
-            { key: 'emp', label: 'Employee', render: (e: any) => <div onClick={() => setEditing(e)} style={{ cursor: 'pointer' }}><CCCustomerCell name={e.fullName} sub={e.roleCode ? ROLE_LABEL[e.roleCode] : (e.department || undefined)} /></div> },
+            { key: 'emp', label: 'Employee', render: (e: any) => <div onClick={() => setEditing(e)} style={{ cursor: 'pointer' }}><CCCustomerCell name={e.fullName} sub={region === 'International' ? (e.position || undefined) : (e.roleCode ? ROLE_LABEL[e.roleCode] : (e.department || undefined))} /></div> },
             ...(region === 'US' ? [{ key: 'techId', label: 'Tech ID', render: (e: any) => <span style={{ fontVariantNumeric: 'tabular-nums', color: cc.muted }}>{e.techId || '—'}</span> }] : []),
-            { key: 'role', label: 'Role', render: (e: any) => e.roleCode ? <CCStatusPill tone={roleTone(e.roleCode)}>{e.roleCode}</CCStatusPill> : '—' },
+            { key: 'role', label: 'Role', render: (e: any) => region === 'International' ? <span style={{ color: cc.ink2, fontSize: 12.5 }}>{e.position || '—'}</span> : (e.roleCode ? <CCStatusPill tone={roleTone(e.roleCode)}>{e.roleCode}</CCStatusPill> : '—') },
             ...(region === 'US' ? [{ key: 'office', label: 'Office', render: (e: any) => e.office ? <CCStatusPill tone="blue">{e.office}</CCStatusPill> : '—' }] : []),
             { key: 'hire', label: 'Hire date', render: (e: any) => <span style={{ color: cc.muted, fontSize: 12.5 }}>{fmtD(e.hireDate)}</span> },
             { key: 'status', label: 'Status', render: (e: any) => e.active ? (e.probationStatus === 'In probation' ? <CCStatusPill tone="amber">In probation</CCStatusPill> : <CCStatusPill tone="green">Active</CCStatusPill>) : <div style={{display:'flex',alignItems:'center',gap:6}}><CCStatusPill tone="neutral">Inactive</CCStatusPill>{e.endDateInferred && <span title="End date inferred — verify" style={{color:cc.amber,fontSize:12}}>⚠</span>}</div> },
