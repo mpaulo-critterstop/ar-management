@@ -44,7 +44,7 @@ function toData(b: any) {
     probationStatus: b.probationStatus || null,
     addedToOnPay: !!b.addedToOnPay,
     addedToOnPayDate: b.addedToOnPayDate ? new Date(b.addedToOnPayDate) : null,
-    payType: b.payType || 'Hourly',
+    payType: b.payType || 'Hourly', currency: b.currency || 'USD',
     hourlyRate: b.hourlyRate != null && b.hourlyRate !== '' ? Number(b.hourlyRate) : null,
     annualSalary: b.annualSalary != null && b.annualSalary !== '' ? Number(b.annualSalary) : null,
     pto: b.pto || null, bonusHistory: b.bonusHistory || null,

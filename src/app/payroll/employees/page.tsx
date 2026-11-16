@@ -11,7 +11,8 @@ const OFFICES = ['All', 'DFW', 'ATX', 'OKC', 'CStat'];
 const ROLE_CODES = ['WP', 'PMP', 'IP', 'E', 'PM', 'M', 'C', 'D', 'AR', 'MKT', 'DE'];
 const ROLE_LABEL: Record<string, string> = { WP: 'Wildlife Professional', PMP: 'Pest Management Professional', IP: 'Insulation', E: 'Executive', PM: 'Project Manager', M: 'Management', C: 'CSR', D: 'Dispatcher', AR: 'AR', MKT: 'Marketing', DE: 'Data Entry' };
 const roleTone = (r: string): any => (['WP'].includes(r) ? 'blue' : ['PMP'].includes(r) ? 'green' : ['IP'].includes(r) ? 'violet' : ['PM'].includes(r) ? 'amber' : 'neutral');
-const money = (n: number | null | undefined) => n == null ? '—' : '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const curSym = (c?: string | null) => c === 'PHP' ? '₱' : '$';
+const money = (n: number | null | undefined, cur?: string | null) => n == null ? '—' : curSym(cur) + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // Dates are stored as UTC midnight; format from the Y-M-D parts directly so they don't shift a day in CST.
 const fmtD = (d: any) => {
   if (!d) return '—';
@@ -80,14 +81,14 @@ export default function EmployeesPage() {
 
   const rateCell = (e: any) => {
     const eh = e.effHourly;
-    return <div><div style={{ fontWeight: 700, color: cc.ink, fontVariantNumeric: 'tabular-nums' }}>{eh != null ? money(eh) + '/hr' : '—'}</div>
-      {e.payType === 'Salary' && e.annualSalary ? <div style={{ fontSize: 11, color: cc.faint }}>{money(e.annualSalary)}/yr</div> : null}</div>;
+    return <div><div style={{ fontWeight: 700, color: cc.ink, fontVariantNumeric: 'tabular-nums' }}>{eh != null ? money(eh, e.currency) + '/hr' : '—'}</div>
+      {e.payType === 'Salary' && e.annualSalary ? <div style={{ fontSize: 11, color: cc.faint }}>{money(e.annualSalary, e.currency)}/yr</div> : null}</div>;
   };
 
   return (
     <div style={{ maxWidth: 1240, margin: '0 auto', padding: '30px 34px 70px' }}>
       <CCPageHeader icon="👥" title={region === 'International' ? 'International Employees' : 'Employees'} subtitle={`${region === 'US' ? 'US' : 'International'} team — roster, role, probation, pay & raises in one place`}
-        actions={<CCBtn variant="primary" onClick={() => setEditing({ _new: true, payType: region === 'International' ? 'Salary' : 'Hourly', region, status: 'Active', active: true })}>＋ Add employee</CCBtn>} />
+        actions={<CCBtn variant="primary" onClick={() => setEditing({ _new: true, payType: region === 'International' ? 'Salary' : 'Hourly', currency: region === 'International' ? 'PHP' : 'USD', region, status: 'Active', active: true })}>＋ Add employee</CCBtn>} />
 
       {view === 'directory' && <>
         <CCKpiStrip items={[
@@ -209,13 +210,15 @@ function EmployeeDrawer({ emp, onClose, onSaved, saving, setSaving }: any) {
             <div style={{ marginTop: 4 }}><CCDatePicker value={f.termDate ? String(f.termDate).split('T')[0] : ''} onChange={(v: string) => { set('termDate', v); set('endDateInferred', false); }} /></div>
           </Sec>
           <Sec title="Pay & raises">
-            <CCLabel style={{ marginTop: 0 }}>Pay type</CCLabel>
+            <CCLabel style={{ marginTop: 0 }}>Currency</CCLabel>
+            <CCSelect value={f.currency || 'PHP'} onChange={e => set('currency', e.target.value)}><option value="PHP">₱ PHP</option><option value="USD">$ USD</option></CCSelect>
+            <CCLabel>Pay type</CCLabel>
             <CCSelect value={f.payType || 'Salary'} onChange={e => set('payType', e.target.value)}><option>Hourly</option><option>Salary</option></CCSelect>
             {f.payType === 'Salary'
               ? <><CCLabel>Annual salary</CCLabel><CCField type="number" value={f.annualSalary ?? ''} onChange={e => set('annualSalary', e.target.value)} placeholder="60000" /></>
               : <><CCLabel>Hourly rate</CCLabel><CCField type="number" step="0.01" value={f.hourlyRate ?? ''} onChange={e => set('hourlyRate', e.target.value)} placeholder="18.00" /></>}
             <div style={{ marginTop: 10, padding: '10px 12px', background: cc.greenbg, borderRadius: 8, fontSize: 13, color: cc.green, fontWeight: 600 }}>
-              Effective hourly (payroll): {eh != null ? money(eh) + ' / hr' : '—'}
+              Effective hourly (payroll): {eh != null ? money(eh, f.currency) + ' / hr' : '—'}
               {f.payType === 'Salary' && <span style={{ color: cc.faint, fontWeight: 400, fontSize: 11 }}> &nbsp;(annual ÷ 52 ÷ 40)</span>}
             </div>
             <CCLabel>Last raise date</CCLabel><div style={{ marginTop: 4 }}><CCDatePicker value={f.mostRecentRaiseDate ? String(f.mostRecentRaiseDate).split('T')[0] : ''} onChange={(v: string) => set('mostRecentRaiseDate', v)} /></div>
@@ -258,13 +261,15 @@ function EmployeeDrawer({ emp, onClose, onSaved, saving, setSaving }: any) {
         </Sec>
 
         <Sec title="Pay & raises">
-          <CCLabel style={{ marginTop: 0 }}>Pay type</CCLabel>
+          <CCLabel style={{ marginTop: 0 }}>Currency</CCLabel>
+          <CCSelect value={f.currency || 'USD'} onChange={e => set('currency', e.target.value)}><option value="USD">$ USD</option><option value="PHP">₱ PHP</option></CCSelect>
+          <CCLabel>Pay type</CCLabel>
           <CCSelect value={f.payType || 'Hourly'} onChange={e => set('payType', e.target.value)}><option>Hourly</option><option>Salary</option></CCSelect>
           {f.payType === 'Salary'
             ? <><CCLabel>Annual salary</CCLabel><CCField type="number" value={f.annualSalary ?? ''} onChange={e => set('annualSalary', e.target.value)} placeholder="75000" /></>
             : <><CCLabel>Hourly rate</CCLabel><CCField type="number" step="0.01" value={f.hourlyRate ?? ''} onChange={e => set('hourlyRate', e.target.value)} placeholder="18.00" /></>}
           <div style={{ marginTop: 10, padding: '10px 12px', background: cc.greenbg, borderRadius: 8, fontSize: 13, color: cc.green, fontWeight: 600 }}>
-            Effective hourly (payroll): {eh != null ? money(eh) + ' / hr' : '—'}
+            Effective hourly (payroll): {eh != null ? money(eh, f.currency) + ' / hr' : '—'}
             {f.payType === 'Salary' && <span style={{ color: cc.faint, fontWeight: 400, fontSize: 11 }}> &nbsp;(annual ÷ 52 ÷ 40)</span>}
           </div>
           <CCLabel>Last raise date</CCLabel><div style={{ marginTop: 4 }}><CCDatePicker value={f.mostRecentRaiseDate ? String(f.mostRecentRaiseDate).split('T')[0] : ''} onChange={(v: string) => set('mostRecentRaiseDate', v)} /></div>
