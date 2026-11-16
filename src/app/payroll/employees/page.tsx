@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
 import { PageHeader as CCPageHeader, KpiStrip as CCKpiStrip, DataTable as CCDataTable, Toolbar as CCToolbar, SearchBox as CCSearchBox, CustomerCell as CCCustomerCell } from '@/components/cc/Layout';
 import { Btn as CCBtn, StatusPill as CCStatusPill } from '@/components/cc/Primitives';
 import { Modal as CCModal, Label as CCLabel, Field as CCField, Select as CCSelect } from '@/components/cc/Modal';
@@ -87,6 +88,7 @@ export default function EmployeesPage() {
 
   return (
     <div style={{ maxWidth: 1240, margin: '0 auto', padding: '30px 34px 70px' }}>
+      <Link href={region === 'International' ? '/payroll/international' : '/payroll/us'} style={{ fontSize: 13, color: cc.muted, textDecoration: 'none', display: 'inline-block', marginBottom: 6 }}>↩ {region === 'International' ? 'International' : 'US'} Payroll</Link>
       <CCPageHeader icon="👥" title={region === 'International' ? 'International Employees' : 'Employees'} subtitle={`${region === 'US' ? 'US' : 'International'} team — roster, role, probation, pay & raises in one place`}
         actions={<CCBtn variant="primary" onClick={() => setEditing({ _new: true, payType: region === 'International' ? 'Salary' : 'Hourly', currency: region === 'International' ? 'PHP' : 'USD', region, status: 'Active', active: true })}>＋ Add employee</CCBtn>} />
 
