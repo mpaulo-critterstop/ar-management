@@ -27,6 +27,7 @@ export default function StaxPaymentsPage() {
   const [links, setLinks] = useState<any[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [refundModal, setRefundModal] = useState<any>(null);
+  const [retrying, setRetrying] = useState<string | null>(null);
   const [refunding, setRefunding] = useState(false);
   const [refundAmt, setRefundAmt] = useState('');
   const [linkSearch, setLinkSearch] = useState('');
@@ -68,6 +69,24 @@ export default function StaxPaymentsPage() {
 
   const loadLinks = () => fetch('/api/stax/payment-link').then(r => r.json()).then(d => setLinks(d.links || [])).catch(() => {});
   const loadReport = () => fetch('/api/stax/status').then(r => r.json()).then(setReport).catch(() => {});
+
+  async function retryPayment(r: any) {
+    // If the invoice is already known, retry silently; otherwise let the user optionally supply one.
+    let invoiceOverride: string | null = null;
+    if (!r.frInvoiceNumber) {
+      const entered = window.prompt('No invoice detected for this payment. Enter the FR invoice # to link it to (or leave blank to let the system auto-detect):', '');
+      if (entered === null) return; // cancelled
+      invoiceOverride = entered.trim() || null;
+    }
+    setRetrying(r.staxTransactionId);
+    try {
+      const res = await fetch('/api/stax/retry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ staxTransactionId: r.staxTransactionId, invoiceOverride }) });
+      const j = await res.json().catch(() => ({}));
+      if (j.ok) { alert(`Retry succeeded — payment recorded${j.row?.office ? ' in ' + j.row.office : ''}.`); loadReport(); }
+      else alert('Retry did not record the payment: ' + (j.row?.failReason || j.result?.reason || j.error || 'unknown') + '\n\nYou can try again with the correct invoice #, or use the Virtual Terminal / link flow.');
+    } catch (e) { alert('Retry failed: ' + String(e)); }
+    finally { setRetrying(null); }
+  }
 
   async function linkOnsite(staxTransactionId: string, suggested: string) {
     const invoiceNumber = window.prompt('Enter the FieldRoutes invoice # to link this payment to:', suggested || '');
@@ -321,6 +340,8 @@ export default function StaxPaymentsPage() {
           { key: 'when', label: 'When', render: (r: any) => <span style={{ color: '#908E85', fontSize: 12.5 }}>{fmt(r.processedAt || r.createdAt)}</span> },
         ];
         if (withReason) cols.push({ key: 'reason', label: 'Reason', render: (r: any) => <span style={{ whiteSpace: 'normal', color: '#E57C7C' }}>{r.failReason || '—'}</span> });
+        // Retry for flagged/failed rows (not declined — those are card declines the customer must re-pay)
+        if (reportStatus === 'flagged' || reportStatus === 'failed') cols.push({ key: 'retry', label: '', align: 'right', render: (r: any) => <CCBtn variant="secondary" style={{ padding: '5px 12px', fontSize: 12 }} disabled={retrying === r.staxTransactionId} onClick={() => retryPayment(r)}>{retrying === r.staxTransactionId ? 'Retrying…' : '↻ Retry'}</CCBtn> });
         if (withRefund) cols.push({ key: 'refund', label: '', align: 'right', render: (r: any) => <CCBtn variant="danger" style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => setRefundModal({ txnId: r.staxTransactionId, invoice: r.frInvoiceNumber, amount: r.amount })}>Refund</CCBtn> });
         return (<>
           <CCFilterChips chips={chips} active={reportStatus} onChange={(k) => setReportStatus(k as any)} />
