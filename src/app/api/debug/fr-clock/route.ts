@@ -52,6 +52,19 @@ export async function GET(req: NextRequest) {
       officeOut.locationCount = Array.isArray(locs) ? locs.length : 0;
       officeOut.locations = Array.isArray(locs) ? locs.slice(0, 40).map((l: any) => ({ time: l.time, lat: l.latitude, lng: l.longitude })) : locs;
 
+      // Match GPS to clock in/out by nearest timestamp
+      if (Array.isArray(locs) && locs.length && Array.isArray(tc) && tc.length) {
+        const parse = (s: string) => new Date(s.replace(' ', 'T') + 'Z').getTime();
+        const nearest = (target: string) => {
+          const t = parse(target);
+          let best: any = null, bestDiff = Infinity;
+          for (const l of locs) { const d = Math.abs(parse(l.time) - t); if (d < bestDiff) { bestDiff = d; best = l; } }
+          return best ? { time: best.time, lat: best.latitude, lng: best.longitude, diffSeconds: Math.round(bestDiff / 1000) } : null;
+        };
+        officeOut.clockInLocation = nearest(tc[0].timeIn);
+        officeOut.clockOutLocation = nearest(tc[0].timeOut);
+      }
+
       out.offices[office] = officeOut;
     } catch (e) {
       out.offices[office] = { error: String(e) };
