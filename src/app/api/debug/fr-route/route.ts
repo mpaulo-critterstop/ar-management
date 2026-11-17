@@ -90,7 +90,13 @@ export async function GET(req: NextRequest) {
       // GPS trail for the day (per-employee filtered)
       const locUrl = `${FR_BASE}/employeeLocation/search?employeeID=${encodeURIComponent(JSON.stringify({ operator: '=', value: empId }))}&time=${encodeURIComponent(JSON.stringify({ operator: 'BETWEEN', value: [start, end] }))}&includeData=1&${auth}`;
       const locR = await fetch(locUrl); const locJ = await locR.json().catch(() => null);
-      let locs = (locJ?.employeeLocation || []).filter((l: any) => String(l.employeeID) === empId);
+      let locs = locJ?.employeeLocations || locJ?.employeeLocation || [];
+      if ((!locs || !locs.length) && (locJ?.employeeLocationIDs || []).length) {
+        const lids = locJ.employeeLocationIDs.slice(0, 500).join(',');
+        const lg = await fetch(`${FR_BASE}/employeeLocation/get?employeeLocationIDs=${lids}&${auth}`);
+        locs = (await lg.json().catch(() => null))?.employeeLocations || [];
+      }
+      locs = locs.filter((l: any) => String(l.employeeID) === empId);
       locs.sort((a: any, b: any) => String(a.time).localeCompare(String(b.time)));
       officeOut.gpsCount = locs.length;
       officeOut.locRawCount = locJ?.count; officeOut.locKeys = locJ ? Object.keys(locJ) : null; officeOut.locIgnored = locJ?.ignoredParams;
