@@ -160,7 +160,7 @@ export default function IntlPayrollTrackerPage() {
                   return <tr key={en.id}>
                     <td style={{ ...tdL, fontWeight: 600, color: cc.ink }}>{en.name}</td>
                     <td style={{ ...td, color: cc.muted }}>{money(en.rate, en.currency)}</td>
-                    <td style={td}>{num(en, 'regularHours', 54)}{en.payType === 'Salary' && <span style={{ fontSize: 10, color: cc.faint, marginLeft: 4 }}>days</span>}</td>
+                    <td style={td}>{num(en, 'regularHours', 54)}</td>
                     <td style={td}>{num(en, 'otHours', 48, 'ot')}</td>
                     <td style={td}>{num(en, 'otherEarnings', 68)}</td>
                     <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 5, background: en.currency === 'PHP' ? cc.violetbg : cc.panel2, color: en.currency === 'PHP' ? cc.violet : cc.muted }}>{en.currency}</span></td>
