@@ -57,10 +57,14 @@ export async function GET(req: NextRequest) {
       officeOut.timeClock = Array.isArray(tc) ? tc.map((t: any) => ({ in: t.timeIn, out: t.timeOut, category: t.clockCategoryID, paid: t.paid })) : tc;
 
       // 4) GPS locations for the day
-      const locSearch = await fetch(`${FR_BASE}/employeeLocation/search?employeeIDs=${empIds.join(',')}&time=${encodeURIComponent(JSON.stringify({ operator: 'BETWEEN', value: [start, end] }))}&includeData=1&${auth}`);
+      const empIdFilter = encodeURIComponent(JSON.stringify({ operator: '=', value: empIds[0] }));
+      const locUrl = `${FR_BASE}/employeeLocation/search?employeeID=${empIdFilter}&time=${encodeURIComponent(JSON.stringify({ operator: 'BETWEEN', value: [start, end] }))}&includeData=1&${auth}`;
+      const locSearch = await fetch(locUrl);
       const locJson = await locSearch.json().catch(() => null);
+      officeOut.locUrl = locUrl.replace(cfg.key,'KEY').replace(cfg.token,'TOK');
       officeOut.locationRaw = locJson?.error ? locJson : undefined;
-      const locs = locJson?.employeeLocation || locJson?.employeeLocations || [];
+      let locs = locJson?.employeeLocation || locJson?.employeeLocations || [];
+      if (Array.isArray(locs)) locs = locs.filter((l:any)=>String(l.employeeID)===String(empIds[0]));
       // DIAGNOSTIC: distinct employeeIDs in the returned location set + raw response keys
       if (Array.isArray(locs) && locs.length) {
         const ids = new Set(locs.map((l: any) => l.employeeID));
