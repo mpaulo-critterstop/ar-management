@@ -1,0 +1,89 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { FR_OFFICES } from '@/lib/helcimBridge';
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
+const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
+
+// Probe a tech's route for a day: appointments (address + check-in + GPS), clock-in, and first-site arrival.
+// ?token=critterstop2026 &empId=10459 &date=2026-11-16
+export async function GET(req: NextRequest) {
+  const sp = req.nextUrl.searchParams;
+  if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const empId = sp.get('empId') || '10459';
+  const date = sp.get('date') || '2026-11-16';
+  const start = `${date} 00:00:00`, end = `${date} 23:59:59`;
+
+  const out: any = { empId, date, offices: {} };
+
+  for (const [office, cfg] of Object.entries(FR_OFFICES)) {
+    if (!cfg.key || !cfg.token) continue;
+    const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+    try {
+      // confirm employee is in this office
+      const empGet = await fetch(`${FR_BASE}/employee/get?employeeIDs=${empId}&${auth}`);
+      const empJson = await empGet.json().catch(() => null);
+      if (!empJson?.employees?.length) continue;
+      const emp = empJson.employees[0];
+
+      const officeOut: any = { employee: `${emp.fname} ${emp.lname}`, employeeID: emp.employeeID };
+
+      // 1) Appointments assigned to this employee on this date.
+      // appointment/search filters: assignedTech / servicedBy + date/start. Try spawnTime (scheduled) for the day.
+      const apptSearch = await fetch(`${FR_BASE}/appointment/search?employeeIDs=${empId}&date=${encodeURIComponent(JSON.stringify({ operator: 'BETWEEN', value: [date, date] }))}&includeData=1&${auth}`);
+      const apptJson = await apptSearch.json().catch(() => null);
+      let appts = apptJson?.appointments || [];
+      // some FR instances return under a different key or need appointment/get on the IDs
+      if (!Array.isArray(appts) || !appts.length) {
+        const ids = apptJson?.appointmentIDs || [];
+        if (ids.length) {
+          const g = await fetch(`${FR_BASE}/appointment/get?appointmentIDs=${ids.slice(0, 50).join(',')}&${auth}`);
+          const gj = await g.json().catch(() => null);
+          appts = gj?.appointments || [];
+        }
+      }
+      officeOut.apptCount = Array.isArray(appts) ? appts.length : 0;
+      officeOut.apptRaw = (!Array.isArray(appts) || !appts.length) ? apptJson : undefined;
+
+      // For each appointment, pull customer address via customer/get
+      const rows: any[] = [];
+      for (const a of (Array.isArray(appts) ? appts : []).slice(0, 15)) {
+        let address = null;
+        if (a.customerID) {
+          const c = await fetch(`${FR_BASE}/customer/get?customerIDs=${a.customerID}&${auth}`);
+          const cj = await c.json().catch(() => null);
+          const cust = cj?.customers?.[0];
+          if (cust) address = [cust.address, cust.city, cust.state, cust.zip].filter(Boolean).join(', ');
+        }
+        rows.push({
+          appointmentID: a.appointmentID, customerID: a.customerID, address,
+          scheduled: a.start || a.spawnTime || a.date,
+          checkIn: a.checkIn, checkOut: a.checkOut, timeIn: a.timeIn, timeOut: a.timeOut,
+          latIn: a.latIn, longIn: a.longIn, dateCompleted: a.dateCompleted,
+        });
+      }
+      // sort by actual arrival (checkIn/timeIn) then scheduled
+      rows.sort((x, y) => String(x.checkIn || x.timeIn || x.scheduled || '').localeCompare(String(y.checkIn || y.timeIn || y.scheduled || '')));
+      officeOut.appointments = rows;
+
+      // 2) Clock-in for the day
+      const tc = await fetch(`${FR_BASE}/timeClock/search?employeeIDs=${empId}&timeIn=${encodeURIComponent(JSON.stringify({ operator: 'BETWEEN', value: [start, end] }))}&includeData=1&${auth}`);
+      const tcJson = await tc.json().catch(() => null);
+      const clock = (tcJson?.timeClock || [])[0];
+      officeOut.clockIn = clock?.timeIn || null;
+      officeOut.clockOut = clock?.timeOut || null;
+
+      // 3) First site arrival = first appointment with a checkIn/timeIn
+      const firstArrival = rows.find(r => r.checkIn || r.timeIn);
+      officeOut.firstSiteArrival = firstArrival ? {
+        address: firstArrival.address, arrivalTime: firstArrival.checkIn || firstArrival.timeIn,
+        lat: firstArrival.latIn, lng: firstArrival.longIn,
+      } : null;
+
+      out.offices[office] = officeOut;
+    } catch (e) {
+      out.offices[office] = { error: String(e) };
+    }
+  }
+  return NextResponse.json(out);
+}
