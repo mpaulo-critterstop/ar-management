@@ -63,9 +63,10 @@ export async function GET(req: NextRequest) {
       const computedFinal = regTotal + otTotal - en.tolls - en.otherDeductions + en.otherEarnings + en.commissions + en.bonus;
       const finalTotal = en.finalTotalOverride != null ? en.finalTotalOverride : computedFinal;
       const meta = empMeta[en.employeeId] || { currency: 'USD', payrollSchedule: null };
-      // USD Total: PHP amounts convert via usdRate (local ÷ rate); USD amounts pass through.
-      const localTotal = regTotal + otTotal;
-      const usdTotal = en.usdTotalOverride != null ? en.usdTotalOverride : (meta.currency === 'PHP' ? (usdRate ? localTotal / usdRate : null) : localTotal);
+      // USD Total: wages (regular+OT, LOCAL currency) convert via usdRate for PHP; incentives are USD, added as-is.
+      const wagesLocal = regTotal + otTotal;
+      const wagesUsd = meta.currency === 'PHP' ? (usdRate ? wagesLocal / usdRate : null) : wagesLocal;
+      const usdTotal = en.usdTotalOverride != null ? en.usdTotalOverride : (wagesUsd == null ? null : wagesUsd + (en.otherEarnings || 0));
       return { ...en, regTotal, otTotal, finalTotal, currency: meta.currency, payrollSchedule: meta.payrollSchedule, usdTotal };
     });
 

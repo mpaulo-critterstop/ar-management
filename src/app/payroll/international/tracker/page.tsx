@@ -59,13 +59,16 @@ export default function IntlPayrollTrackerPage() {
 
   const calc = (en: any) => {
     const r = Number(en.rate) || 0, reg = Number(en.regularHours) || 0, ot = Number(en.otHours) || 0;
-    const incentives = Number(en.otherEarnings) || 0;
+    const incentives = Number(en.otherEarnings) || 0; // Incentives are always in USD
     const regTotal = r * reg;
     const otTotal = en.otTotalOverride != null ? Number(en.otTotalOverride) : r * 1.5 * ot;
-    const localTotal = regTotal + otTotal + incentives;
-    // Use the stored USD for untouched backfilled rows; once incentives are added, recompute from the rate.
-    const useOverride = en.usdTotalOverride != null && !incentives;
-    const usdTotal = useOverride ? Number(en.usdTotalOverride) : (en.currency === 'PHP' ? (rate ? localTotal / rate : null) : localTotal);
+    // USD Total: wages (regular+OT in LOCAL currency) convert via rate for PHP, pass through for USD;
+    // incentives are USD and added as-is. Backfilled rows use the stored override when nothing's changed.
+    const wagesLocal = regTotal + otTotal;
+    const wagesUsd = en.currency === 'PHP' ? (rate ? wagesLocal / rate : null) : wagesLocal;
+    let usdTotal: number | null;
+    if (en.usdTotalOverride != null) usdTotal = Number(en.usdTotalOverride); // stored, already correct (incl. historical incentives)
+    else usdTotal = wagesUsd == null ? null : wagesUsd + incentives;
     return { regTotal, otTotal, incentives, usdTotal };
   };
 
