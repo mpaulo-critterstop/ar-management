@@ -74,6 +74,10 @@ export async function GET(req: NextRequest) {
         // show the last 8 valid points of the day (around clock-out)
         officeOut.lastPointsOfDay = good.slice(-8).map((l: any) => ({ time: l.time, lat: l.latitude, lng: l.longitude }));
         officeOut.droppedStrayPoints = locs.length - good.length;
+        if (good.length) {
+          const times = good.map((l:any)=>l.time).sort();
+          officeOut.gpsTimeRange = { first: times[0], last: times[times.length-1], validCount: good.length };
+        }
       }
 
       out.offices[office] = officeOut;
