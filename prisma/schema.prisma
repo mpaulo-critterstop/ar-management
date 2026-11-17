@@ -1282,6 +1282,7 @@ model Employee {
   // pay & raises (absorbed from RaiseTracker/IntlRaiseTracker)
   payType             String    @default("Hourly") // Hourly | Salary
   currency            String    @default("USD") // USD | PHP
+  clockUser           String?   // OnPay Clock User (emp_num for CSV export)
   hourlyRate          Float?    // entered directly for hourly employees
   annualSalary        Float?    // for salaried; effective hourly = annualSalary/52/40
   pto                 String?
@@ -1299,4 +1300,42 @@ model Employee {
   updatedAt           DateTime  @updatedAt
 
   @@map("employees")
+}
+
+// A pay-period week in the Main Payroll Tracker.
+model PayrollWeek {
+  id           String         @id @default(cuid())
+  weekDate     DateTime       @unique // the pay-period date (e.g., 2026-11-16)
+  region       String         @default("US")
+  status       String         @default("draft") // draft | finalized
+  checklist    String?        // JSON of checklist item states
+  finalizedAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  entries      PayrollEntry[]
+  @@map("payroll_weeks")
+}
+
+// One employee's line in a payroll week.
+model PayrollEntry {
+  id              String      @id @default(cuid())
+  weekId          String
+  week            PayrollWeek @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  employeeId      String
+  // snapshot of identity at the time (so historical weeks stay stable even if employee changes)
+  name            String
+  roleCode        String?
+  rate            Float       @default(0) // effective hourly at time of entry
+  regularHours    Float       @default(0)
+  otHours         Float       @default(0)
+  tolls           Float       @default(0) // deduction (positive number, subtracted)
+  otherDeductions Float       @default(0)
+  otherEarnings   Float       @default(0)
+  commissions     Float       @default(0)
+  bonus           Float       @default(0)
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  @@unique([weekId, employeeId])
+  @@map("payroll_entries")
 }
