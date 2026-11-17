@@ -47,9 +47,10 @@ export async function GET(req: NextRequest) {
           employeeId: empId || `unmatched:${norm(e.name)}`, name: e.name,
           roleCode: null, rate: e.rate || 0,
           regularHours: e.hours || 0, otHours: 0,
-          otTotalOverride: e.otAmount || 0,      // sheet's OT $ as-is
+          otTotalOverride: 0,                     // historical OT column actually held incentives (USD) -> moved to Incentives
+          otherEarnings: e.otAmount || 0,         // Incentives (USD): the sheet's "OT $" column
           finalTotalOverride: e.total || 0,       // local-currency total as-is
-          usdTotalOverride: e.usdTotal || 0,      // USD total as-is
+          usdTotalOverride: e.usdTotal || 0,      // USD total as-is (unchanged; still matches)
           backfilled: true,
         };
       });
