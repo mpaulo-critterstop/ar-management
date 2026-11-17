@@ -22,8 +22,21 @@ function recentWeeks(): string[] {
 const fmtWeek = (s: string) => { const [y, m, d] = s.split('-').map(Number); const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return `${MON[m - 1]} ${d}, ${y}`; };
 
 export default function PayrollTrackerPage() {
-  const weekOptions = recentWeeks();
-  const [week, setWeek] = useState(weekOptions[0]);
+  const [dbWeeks, setDbWeeks] = useState<{ date: string; status: string }[]>([]);
+  // merge: recent weeks (so you can start a new/upcoming one) + all weeks that exist in the DB (history), newest first
+  const weekOptions = (() => {
+    const map = new Map<string, string>();
+    for (const w of recentWeeks()) map.set(w, 'new');
+    for (const w of dbWeeks) map.set(w.date, w.status);
+    return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([date, status]) => ({ date, status }));
+  })();
+  const [week, setWeek] = useState(recentWeeks()[0]);
+
+  useEffect(() => {
+    fetch('/api/payroll/tracker?list=1&region=US').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.weeks) setDbWeeks(d.weeks.map((w: any) => ({ date: new Date(w.weekDate).toISOString().split('T')[0], status: w.status })));
+    }).catch(() => {});
+  }, []);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -96,7 +109,7 @@ export default function PayrollTrackerPage() {
       <CCPageHeader icon="🧮" title="Main Payroll Tracker" subtitle="Enter hours, OT, earnings & deductions per employee — OnPay hours pass through; Final Total is the target to match"
         actions={<div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <select value={week} onChange={e => setWeek(e.target.value)} style={{ fontSize: 13, padding: '9px 13px', borderRadius: 10, border: `1px solid ${cc.line2}`, background: cc.panel2, color: cc.ink }}>
-            {weekOptions.map((w, i) => <option key={w} value={w}>Week of {fmtWeek(w)}{i === 0 ? ' (current)' : ''}</option>)}
+            {weekOptions.map((w, i) => <option key={w.date} value={w.date}>Week of {fmtWeek(w.date)}{i === 0 ? ' (current)' : w.status === 'finalized' ? ' ✓' : ''}</option>)}
           </select>
           <CCBtn variant="secondary" onClick={() => exportOnpay(filtered, calc)}>⇪ Export</CCBtn>
           {finalized
