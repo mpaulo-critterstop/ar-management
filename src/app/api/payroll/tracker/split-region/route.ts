@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   let moved = 0, intlWeeksCreated = 0, weeksTouched = 0;
   const sample: any[] = [];
 
+  try {
   for (const w of usWeeks) {
     const toMove = w.entries.filter(e => intlIds.has(e.employeeId));
     if (!toMove.length) continue;
@@ -47,5 +48,8 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  } catch (e) {
+    return NextResponse.json({ error: String(e), movedSoFar: moved, weeksTouched }, { status: 500 });
+  }
   return NextResponse.json({ dry, usWeeksScanned: usWeeks.length, weeksTouched, entriesMoved: moved, intlWeeksCreated, sample });
 }
