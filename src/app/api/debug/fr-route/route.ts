@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
       officeOut.gpsCount = locs.length;
       officeOut.locRawCount = locJ?.count; officeOut.locKeys = locJ ? Object.keys(locJ) : null; officeOut.locIgnored = locJ?.ignoredParams;
       // first ~15 GPS points of the day (to see the office arrival)
-      officeOut.earlyGps = locs.slice(0, 15).map((l: any) => ({ time: l.time, lat: l.latitude, lng: l.longitude }));
+      officeOut.allGps = locs.map((l: any) => ({ time: l.time, lat: l.latitude, lng: l.longitude }));
 
       // 3) First site arrival = first appointment with a checkIn/timeIn
       const firstArrival = rows.find(r => r.checkIn || r.timeIn);
