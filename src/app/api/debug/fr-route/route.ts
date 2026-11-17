@@ -93,6 +93,7 @@ export async function GET(req: NextRequest) {
       let locs = (locJ?.employeeLocation || []).filter((l: any) => String(l.employeeID) === empId);
       locs.sort((a: any, b: any) => String(a.time).localeCompare(String(b.time)));
       officeOut.gpsCount = locs.length;
+      officeOut.locRawCount = locJ?.count; officeOut.locKeys = locJ ? Object.keys(locJ) : null; officeOut.locIgnored = locJ?.ignoredParams;
       // first ~15 GPS points of the day (to see the office arrival)
       officeOut.earlyGps = locs.slice(0, 15).map((l: any) => ({ time: l.time, lat: l.latitude, lng: l.longitude }));
 
