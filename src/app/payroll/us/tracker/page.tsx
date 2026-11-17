@@ -14,8 +14,10 @@ const roleFg = (r: string): string => (['WP'].includes(r) ? cc.blue : ['PMP'].in
 function recentWeeks(): string[] {
   const out: string[] = [];
   const d = new Date();
-  // snap to the most recent Sunday
-  d.setDate(d.getDate() - d.getDay());
+  // snap to the most recent Monday (pay periods are Monday-anchored, matching the sheet dates: Nov 16, Nov 9, …)
+  const dow = d.getDay(); // 0=Sun..6=Sat
+  const backToMonday = (dow + 6) % 7; // days since Monday
+  d.setDate(d.getDate() - backToMonday);
   for (let i = 0; i < 16; i++) { out.push(d.toISOString().split('T')[0]); d.setDate(d.getDate() - 7); }
   return out;
 }
