@@ -1338,6 +1338,7 @@ model PayrollEntry {
   bonus           Float       @default(0)
   otTotalOverride   Float?
   finalTotalOverride Float?
+  usdTotalOverride   Float?    // International: stored USD total as-is from the sheet
   backfilled        Boolean   @default(false)
   notes           String?
   createdAt       DateTime    @default(now())

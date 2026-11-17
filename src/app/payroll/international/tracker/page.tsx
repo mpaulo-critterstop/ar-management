@@ -62,7 +62,7 @@ export default function IntlPayrollTrackerPage() {
     const regTotal = en.otTotalOverride != null && en.backfilled ? r * reg : r * reg;
     const otTotal = en.otTotalOverride != null ? Number(en.otTotalOverride) : r * 1.5 * ot;
     const localTotal = regTotal + otTotal;
-    const usdTotal = en.currency === 'PHP' ? (rate ? localTotal / rate : null) : localTotal;
+    const usdTotal = en.usdTotalOverride != null ? Number(en.usdTotalOverride) : (en.currency === 'PHP' ? (rate ? localTotal / rate : null) : localTotal);
     return { regTotal, otTotal, usdTotal };
   };
 

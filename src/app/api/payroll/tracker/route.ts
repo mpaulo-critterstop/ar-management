@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
       const meta = empMeta[en.employeeId] || { currency: 'USD', payrollSchedule: null };
       // USD Total: PHP amounts convert via usdRate (local ÷ rate); USD amounts pass through.
       const localTotal = regTotal + otTotal;
-      const usdTotal = meta.currency === 'PHP' ? (usdRate ? localTotal / usdRate : null) : localTotal;
+      const usdTotal = en.usdTotalOverride != null ? en.usdTotalOverride : (meta.currency === 'PHP' ? (usdRate ? localTotal / usdRate : null) : localTotal);
       return { ...en, regTotal, otTotal, finalTotal, currency: meta.currency, payrollSchedule: meta.payrollSchedule, usdTotal };
     });
 
