@@ -50,8 +50,9 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(en => {
       const regTotal = en.rate * en.regularHours;
-      const otTotal = en.rate * 1.5 * en.otHours;
-      const finalTotal = regTotal + otTotal - en.tolls - en.otherDeductions + en.otherEarnings + en.commissions + en.bonus;
+      const otTotal = en.otTotalOverride != null ? en.otTotalOverride : en.rate * 1.5 * en.otHours;
+      const computedFinal = regTotal + otTotal - en.tolls - en.otherDeductions + en.otherEarnings + en.commissions + en.bonus;
+      const finalTotal = en.finalTotalOverride != null ? en.finalTotalOverride : computedFinal;
       return { ...en, regTotal, otTotal, finalTotal };
     });
 

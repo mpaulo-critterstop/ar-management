@@ -1333,6 +1333,9 @@ model PayrollEntry {
   otherEarnings   Float       @default(0)
   commissions     Float       @default(0)
   bonus           Float       @default(0)
+  otTotalOverride   Float?
+  finalTotalOverride Float?
+  backfilled        Boolean   @default(false)
   notes           String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt

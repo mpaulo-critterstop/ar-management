@@ -45,8 +45,10 @@ export default function PayrollTrackerPage() {
   const merged = entries.map(en => ({ ...en, ...(edits[en.id] || {}) }));
   const calc = (en: any) => {
     const rate = Number(en.rate) || 0, reg = Number(en.regularHours) || 0, ot = Number(en.otHours) || 0;
-    const regTotal = rate * reg, otTotal = rate * 1.5 * ot;
-    const finalTotal = regTotal + otTotal - (Number(en.tolls) || 0) - (Number(en.otherDeductions) || 0) + (Number(en.otherEarnings) || 0) + (Number(en.commissions) || 0) + (Number(en.bonus) || 0);
+    const regTotal = rate * reg;
+    const otTotal = en.otTotalOverride != null ? Number(en.otTotalOverride) : rate * 1.5 * ot;
+    const computedFinal = regTotal + otTotal - (Number(en.tolls) || 0) - (Number(en.otherDeductions) || 0) + (Number(en.otherEarnings) || 0) + (Number(en.commissions) || 0) + (Number(en.bonus) || 0);
+    const finalTotal = en.finalTotalOverride != null ? Number(en.finalTotalOverride) : computedFinal;
     return { regTotal, otTotal, finalTotal };
   };
 
