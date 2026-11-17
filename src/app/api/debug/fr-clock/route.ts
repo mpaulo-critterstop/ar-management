@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const name = (sp.get('name') || 'Tyler Rose').trim();
+  const empId = sp.get('empId');
   const date = sp.get('date') || '2026-11-03';
   const [fn, ...rest] = name.split(' ');
   const ln = rest.join(' ');
@@ -20,11 +21,22 @@ export async function GET(req: NextRequest) {
     if (!cfg.key || !cfg.token) { out.offices[office] = { error: 'no creds' }; continue; }
     const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
     try {
-      // 1) find the employee by name
-      const empSearch = await fetch(`${FR_BASE}/employee/search?officeIDs=${cfg.officeId}&fname=${encodeURIComponent(fn)}&lname=${encodeURIComponent(ln)}&${auth}`);
-      const empJson = await empSearch.json().catch(() => null);
-      const empIds: any[] = empJson?.employeeIDs || empJson?.employeeIDsNoDataExported || [];
+      // 1) find the employee (by ID if given, else by name)
+      let empIds: any[] = [];
+      if (empId) {
+        empIds = [empId];
+      } else {
+        const empSearch = await fetch(`${FR_BASE}/employee/search?officeIDs=${cfg.officeId}&fname=${encodeURIComponent(fn)}&lname=${encodeURIComponent(ln)}&${auth}`);
+        const empJson = await empSearch.json().catch(() => null);
+        empIds = empJson?.employeeIDs || empJson?.employeeIDsNoDataExported || [];
+      }
       if (!empIds.length) { out.offices[office] = { found: false }; continue; }
+      // verify the employee belongs to this office (when searching by ID across offices)
+      if (empId) {
+        const chk = await fetch(`${FR_BASE}/employee/get?employeeIDs=${empId}&${auth}`);
+        const cj = await chk.json().catch(() => null);
+        if (!cj?.employees?.length) { out.offices[office] = { found: false, note: 'id not in this office' }; continue; }
+      }
 
       // 2) get full employee record(s)
       const empGet = await fetch(`${FR_BASE}/employee/get?employeeIDs=${empIds.join(',')}&${auth}`);
