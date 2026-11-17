@@ -28,22 +28,34 @@ export async function GET(req: NextRequest) {
 
       const officeOut: any = { employee: `${emp.fname} ${emp.lname}`, employeeID: emp.employeeID };
 
-      // 1) Appointments assigned to this employee on this date.
-      // appointment/search filters: assignedTech / servicedBy + date/start. Try spawnTime (scheduled) for the day.
-      const apptSearch = await fetch(`${FR_BASE}/appointment/search?employeeIDs=${empId}&date=${encodeURIComponent(JSON.stringify({ operator: 'BETWEEN', value: [date, date] }))}&includeData=1&${auth}`);
-      const apptJson = await apptSearch.json().catch(() => null);
-      let appts = apptJson?.appointments || [];
-      // some FR instances return under a different key or need appointment/get on the IDs
-      if (!Array.isArray(appts) || !appts.length) {
-        const ids = apptJson?.appointmentIDs || [];
+      // 1) Appointments for this employee on this date. Try several filter strategies (FR field names vary).
+      const dayBetween = encodeURIComponent(JSON.stringify({ operator: 'BETWEEN', value: [`${date} 00:00:00`, `${date} 23:59:59`] }));
+      const strategies = [
+        `spawnTime=${dayBetween}&servicedBy=${empId}`,
+        `dateCompleted=${dayBetween}&servicedBy=${empId}`,
+        `spawnTime=${dayBetween}&assignedEmployee=${empId}`,
+        `date=${encodeURIComponent(JSON.stringify({ operator: '=', value: date }))}&servicedBy=${empId}`,
+        `spawnTime=${dayBetween}`,  // no employee filter — then filter client-side
+      ];
+      let appts: any[] = []; let usedStrategy = null; const tried: any[] = [];
+      for (const strat of strategies) {
+        const r = await fetch(`${FR_BASE}/appointment/search?${strat}&includeData=1&${auth}`);
+        const j = await r.json().catch(() => null);
+        const ids = j?.appointmentIDs || [];
+        tried.push({ strat: strat.split('&includeData')[0], count: j?.count ?? 0, ignored: j?.ignoredParams });
         if (ids.length) {
-          const g = await fetch(`${FR_BASE}/appointment/get?appointmentIDs=${ids.slice(0, 50).join(',')}&${auth}`);
-          const gj = await g.json().catch(() => null);
-          appts = gj?.appointments || [];
+          let got = j?.appointments || [];
+          if (!got.length) { const g = await fetch(`${FR_BASE}/appointment/get?appointmentIDs=${ids.slice(0,50).join(',')}&${auth}`); got = (await g.json().catch(()=>null))?.appointments || []; }
+          // if we used the no-employee-filter strategy, keep only this employee's
+          if (strat.startsWith('spawnTime=' + dayBetween) && !strat.includes('empId') && !strat.includes('servicedBy') && !strat.includes('assignedEmployee')) {
+            got = got.filter((a: any) => String(a.servicedBy) === empId || String(a.assignedTech) === empId || String(a.employeeID) === empId);
+          }
+          if (got.length) { appts = got; usedStrategy = strat.split('&includeData')[0]; break; }
         }
       }
-      officeOut.apptCount = Array.isArray(appts) ? appts.length : 0;
-      officeOut.apptRaw = (!Array.isArray(appts) || !appts.length) ? apptJson : undefined;
+      officeOut.apptCount = appts.length;
+      officeOut.usedStrategy = usedStrategy;
+      officeOut.triedStrategies = tried;
 
       // For each appointment, pull customer address via customer/get
       const rows: any[] = [];
