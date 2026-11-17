@@ -59,11 +59,14 @@ export default function IntlPayrollTrackerPage() {
 
   const calc = (en: any) => {
     const r = Number(en.rate) || 0, reg = Number(en.regularHours) || 0, ot = Number(en.otHours) || 0;
-    const regTotal = en.otTotalOverride != null && en.backfilled ? r * reg : r * reg;
+    const incentives = Number(en.otherEarnings) || 0;
+    const regTotal = r * reg;
     const otTotal = en.otTotalOverride != null ? Number(en.otTotalOverride) : r * 1.5 * ot;
-    const localTotal = regTotal + otTotal;
-    const usdTotal = en.usdTotalOverride != null ? Number(en.usdTotalOverride) : (en.currency === 'PHP' ? (rate ? localTotal / rate : null) : localTotal);
-    return { regTotal, otTotal, usdTotal };
+    const localTotal = regTotal + otTotal + incentives;
+    // Use the stored USD for untouched backfilled rows; once incentives are added, recompute from the rate.
+    const useOverride = en.usdTotalOverride != null && !incentives;
+    const usdTotal = useOverride ? Number(en.usdTotalOverride) : (en.currency === 'PHP' ? (rate ? localTotal / rate : null) : localTotal);
+    return { regTotal, otTotal, incentives, usdTotal };
   };
 
   const filtered = merged.filter(en => !search.trim() || en.name.toLowerCase().includes(search.trim().toLowerCase()));
@@ -140,13 +143,13 @@ export default function IntlPayrollTrackerPage() {
       <div style={{ background: cc.panel, border: `1px solid ${cc.line}`, borderRadius: 14, overflow: 'auto', maxHeight: '64vh' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 1200 }}>
           <thead><tr>
-            <th style={thL}>Name</th><th style={th}>Rate</th><th style={th}>Hours</th><th style={th}>OT Hours</th>
+            <th style={thL}>Name</th><th style={th}>Rate</th><th style={th}>Hours</th><th style={th}>OT Hours</th><th style={th}>Incentives</th>
             <th style={th}>Currency</th><th style={th}>Reg Total</th><th style={th}>OT Total</th><th style={th}>USD Total</th>
             <th style={thL}>Frequency &amp; Platform</th>
           </tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={9} style={{ ...td, textAlign: 'center', color: cc.faint, padding: 30 }}>Loading…</td></tr>
-              : filtered.length === 0 ? <tr><td colSpan={9} style={{ ...td, textAlign: 'center', color: cc.faint, padding: 30 }}>No employees.</td></tr>
+            {loading ? <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: cc.faint, padding: 30 }}>Loading…</td></tr>
+              : filtered.length === 0 ? <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: cc.faint, padding: 30 }}>No employees.</td></tr>
                 : filtered.map(en => {
                   const c = calc(en);
                   return <tr key={en.id}>
@@ -154,6 +157,7 @@ export default function IntlPayrollTrackerPage() {
                     <td style={{ ...td, color: cc.muted }}>{money(en.rate, en.currency)}</td>
                     <td style={td}>{num(en, 'regularHours', 54)}</td>
                     <td style={td}>{num(en, 'otHours', 48, 'ot')}</td>
+                    <td style={td}>{num(en, 'otherEarnings', 68)}</td>
                     <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 5, background: en.currency === 'PHP' ? cc.violetbg : cc.panel2, color: en.currency === 'PHP' ? cc.violet : cc.muted }}>{en.currency}</span></td>
                     <td style={{ ...td, color: cc.ink2 }}>{money(c.regTotal, en.currency)}</td>
                     <td style={{ ...td, color: cc.amber }}>{c.otTotal ? money(c.otTotal, en.currency) : '—'}</td>
@@ -167,7 +171,7 @@ export default function IntlPayrollTrackerPage() {
             <td style={{ ...td, borderTop: `2px solid ${cc.line2}`, background: cc.panel2 }}></td>
             <td style={{ ...td, borderTop: `2px solid ${cc.line2}`, background: cc.panel2, fontWeight: 700, color: cc.ink }}>{T.reg}</td>
             <td style={{ ...td, borderTop: `2px solid ${cc.line2}`, background: cc.panel2, fontWeight: 700, color: cc.amber }}>{T.ot}</td>
-            <td colSpan={3} style={{ ...td, borderTop: `2px solid ${cc.line2}`, background: cc.panel2 }}></td>
+            <td colSpan={4} style={{ ...td, borderTop: `2px solid ${cc.line2}`, background: cc.panel2 }}></td>
             <td style={{ ...td, borderTop: `2px solid ${cc.line2}`, background: cc.panel2, fontWeight: 700, color: cc.green }}>${T.usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td style={{ ...tdL, borderTop: `2px solid ${cc.line2}`, background: cc.panel2 }}></td>
           </tr></tfoot>}
@@ -178,9 +182,9 @@ export default function IntlPayrollTrackerPage() {
 }
 
 function exportCsv(rows: any[], calc: (en: any) => any) {
-  const headers = ['Name', 'Rate', 'Hours', 'OT Hours', 'Currency', 'Reg Total', 'OT Total', 'USD Total', 'Frequency & Platform'];
+  const headers = ['Name', 'Rate', 'Hours', 'OT Hours', 'Incentives', 'Currency', 'Reg Total', 'OT Total', 'USD Total', 'Frequency & Platform'];
   const esc = (v: any) => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-  const lines = rows.map(en => { const c = calc(en); return [en.name, en.rate, en.regularHours || 0, en.otHours || 0, en.currency, c.regTotal.toFixed(2), c.otTotal.toFixed(2), c.usdTotal != null ? c.usdTotal.toFixed(2) : '', en.payrollSchedule || ''].map(esc).join(','); });
+  const lines = rows.map(en => { const c = calc(en); return [en.name, en.rate, en.regularHours || 0, en.otHours || 0, en.otherEarnings || 0, en.currency, c.regTotal.toFixed(2), c.otTotal.toFixed(2), c.usdTotal != null ? c.usdTotal.toFixed(2) : '', en.payrollSchedule || ''].map(esc).join(','); });
   const csv = [headers.join(','), ...lines].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'intl-payroll-tracker.csv'; a.click(); URL.revokeObjectURL(url);
