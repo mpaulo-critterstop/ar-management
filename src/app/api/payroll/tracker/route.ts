@@ -45,6 +45,15 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // For International, pull per-employee currency + payroll schedule to show on the row.
+  let empMeta: Record<string, { currency: string; payrollSchedule: string | null }> = {};
+  if (region === 'International') {
+    const ids = week.entries.map(e => e.employeeId);
+    const emps = await prisma.employee.findMany({ where: { id: { in: ids } }, select: { id: true, currency: true, payrollSchedule: true } });
+    empMeta = Object.fromEntries(emps.map(e => [e.id, { currency: e.currency || 'PHP', payrollSchedule: e.payrollSchedule || null }]));
+  }
+  const usdRate = week.usdRate ?? null;
+
   const entries = week.entries
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -53,11 +62,15 @@ export async function GET(req: NextRequest) {
       const otTotal = en.otTotalOverride != null ? en.otTotalOverride : en.rate * 1.5 * en.otHours;
       const computedFinal = regTotal + otTotal - en.tolls - en.otherDeductions + en.otherEarnings + en.commissions + en.bonus;
       const finalTotal = en.finalTotalOverride != null ? en.finalTotalOverride : computedFinal;
-      return { ...en, regTotal, otTotal, finalTotal };
+      const meta = empMeta[en.employeeId] || { currency: 'USD', payrollSchedule: null };
+      // USD Total: PHP amounts convert via usdRate (local ÷ rate); USD amounts pass through.
+      const localTotal = regTotal + otTotal;
+      const usdTotal = meta.currency === 'PHP' ? (usdRate ? localTotal / usdRate : null) : localTotal;
+      return { ...en, regTotal, otTotal, finalTotal, currency: meta.currency, payrollSchedule: meta.payrollSchedule, usdTotal };
     });
 
   return NextResponse.json({
-    week: { id: week.id, weekDate: week.weekDate, status: week.status, checklist: week.checklist ? JSON.parse(week.checklist) : {} },
+    week: { id: week.id, weekDate: week.weekDate, status: week.status, usdRate, checklist: week.checklist ? JSON.parse(week.checklist) : {} },
     entries,
     checklistItems: DEFAULT_CHECKLIST,
   });
@@ -71,6 +84,11 @@ export async function POST(req: NextRequest) {
     const data: any = {};
     for (const f of fields) if (b[f] !== undefined) data[f] = f === 'notes' ? (b[f] || null) : (Number(b[f]) || 0);
     await prisma.payrollEntry.update({ where: { id: b.entryId }, data });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (b.action === 'saveRate') {
+    await prisma.payrollWeek.update({ where: { id: b.weekId }, data: { usdRate: b.usdRate != null && b.usdRate !== '' ? Number(b.usdRate) : null } });
     return NextResponse.json({ ok: true });
   }
 

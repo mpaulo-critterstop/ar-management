@@ -39,7 +39,7 @@ function toData(b: any) {
     hireDate: b.hireDate ? new Date(b.hireDate) : null,
     termDate: b.termDate ? new Date(b.termDate) : null,
     status: b.status || 'Active', active: b.active !== false,
-    endDateInferred: !!b.endDateInferred, team: b.team || null, position: b.position || null,
+    endDateInferred: !!b.endDateInferred, team: b.team || null, position: b.position || null, payrollSchedule: b.payrollSchedule || null,
     probationEndDate: b.probationEndDate ? new Date(b.probationEndDate) : null,
     probationStatus: b.probationStatus || null,
     addedToOnPay: !!b.addedToOnPay,

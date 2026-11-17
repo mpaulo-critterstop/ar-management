@@ -1283,6 +1283,7 @@ model Employee {
   payType             String    @default("Hourly") // Hourly | Salary
   currency            String    @default("USD") // USD | PHP
   clockUser           String?   // OnPay Clock User (emp_num for CSV export)
+  payrollSchedule     String?   // International: Frequency & Platform (free text, e.g. "Bi-weekly · Wise")
   hourlyRate          Float?    // entered directly for hourly employees
   annualSalary        Float?    // for salaried; effective hourly = annualSalary/52/40
   pto                 String?
@@ -1309,6 +1310,7 @@ model PayrollWeek {
   region       String         @default("US")
   status       String         @default("draft") // draft | finalized
   checklist    String?        // JSON of checklist item states
+  usdRate      Float?         // International: manual PHP->USD exchange rate for this week
   finalizedAt  DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt

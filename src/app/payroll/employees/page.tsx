@@ -235,6 +235,7 @@ function EmployeeDrawer({ emp, onClose, onSaved, saving, setSaving }: any) {
             <CCLabel>Last raise date</CCLabel><div style={{ marginTop: 4 }}><CCDatePicker value={f.mostRecentRaiseDate ? String(f.mostRecentRaiseDate).split('T')[0] : ''} onChange={(v: string) => set('mostRecentRaiseDate', v)} /></div>
             <CCLabel>Last change</CCLabel><CCField value={f.raiseAmount || ''} onChange={e => set('raiseAmount', e.target.value)} placeholder="$18.00 → $20.00" />
             <CCLabel>PTO</CCLabel><CCField value={f.pto || ''} onChange={e => set('pto', e.target.value)} />
+            <CCLabel>Payroll frequency &amp; platform</CCLabel><CCField value={f.payrollSchedule || ''} onChange={e => set('payrollSchedule', e.target.value)} placeholder="Bi-weekly · Wise" />
           </Sec>
         </> : <>
         <Sec title="Identity">

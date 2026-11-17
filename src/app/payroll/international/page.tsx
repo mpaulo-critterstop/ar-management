@@ -4,6 +4,7 @@ import Link from 'next/link';
 
 const SECTIONS = [
   { title: 'Employees', desc: 'International employee directory — roster, roles, probation, pay & raises.', href: '/payroll/employees?region=International', status: 'available' as const },
+  { title: 'Main Payroll Tracker', desc: 'Weekly hours, OT, and USD-converted totals per international employee.', href: '/payroll/international/tracker', status: 'available' as const },
   { title: 'PTO Tracker', desc: 'PTO and holiday allotments, used, and remaining.', href: '/payroll/international/pto', status: 'available' as const },
 ];
 
