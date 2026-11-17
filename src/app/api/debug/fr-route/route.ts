@@ -30,12 +30,12 @@ export async function GET(req: NextRequest) {
 
       // 1) Appointments for this employee on this date. Try several filter strategies (FR field names vary).
       const dayBetween = encodeURIComponent(JSON.stringify({ operator: 'BETWEEN', value: [`${date} 00:00:00`, `${date} 23:59:59`] }));
+      const dEq = encodeURIComponent(JSON.stringify({ operator: '=', value: date }));
       const strategies = [
-        `spawnTime=${dayBetween}&servicedBy=${empId}`,
+        `date=${dEq}&servicedBy=${empId}`,
+        `date=${dayBetween}&servicedBy=${empId}`,
+        `appointmentDate=${dEq}&servicedBy=${empId}`,
         `dateCompleted=${dayBetween}&servicedBy=${empId}`,
-        `spawnTime=${dayBetween}&assignedEmployee=${empId}`,
-        `date=${encodeURIComponent(JSON.stringify({ operator: '=', value: date }))}&servicedBy=${empId}`,
-        `spawnTime=${dayBetween}`,  // no employee filter — then filter client-side
       ];
       let appts: any[] = []; let usedStrategy = null; const tried: any[] = [];
       for (const strat of strategies) {
@@ -56,6 +56,8 @@ export async function GET(req: NextRequest) {
       officeOut.apptCount = appts.length;
       officeOut.usedStrategy = usedStrategy;
       officeOut.triedStrategies = tried;
+      if (appts.length) officeOut.sampleApptKeys = Object.keys(appts[0]); 
+      if (appts.length) officeOut.sampleAppt = { appointmentID: appts[0].appointmentID, date: appts[0].date, start: appts[0].start, servicedBy: appts[0].servicedBy, checkIn: appts[0].checkIn, customerID: appts[0].customerID };
 
       // For each appointment, pull customer address via customer/get
       const rows: any[] = [];
