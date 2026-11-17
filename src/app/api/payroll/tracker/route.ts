@@ -7,6 +7,12 @@ const effHourly = (e: any): number => {
   if (e.payType === 'Salary') return e.annualSalary != null ? e.annualSalary / 52 / 40 : 0;
   return e.hourlyRate ?? 0;
 };
+// Rate to seed into a payroll entry. US + hourly intl: effective hourly. Salaried intl are paid by DAYS,
+// so their tracker "rate" is their WEEKLY salary (annual/52); the tracker computes (rate/5)×days.
+const trackerRate = (e: any): number => {
+  if (e.region === 'International' && e.payType === 'Salary') return e.annualSalary != null ? e.annualSalary / 52 : 0;
+  return effHourly(e);
+};
 const DEFAULT_CHECKLIST = [
   'Add new hires to OnPay', 'Remove fired / resigned', 'Check hours in FieldRoutes',
   'Weekend jobs ($50/job)', 'Check for PTO', 'Pull tolls & deductions', 'Check commissions', 'Check OnTheClock hours',
@@ -37,7 +43,7 @@ export async function GET(req: NextRequest) {
         entries: {
           create: emps.map(e => ({
             employeeId: e.id, name: e.fullName, roleCode: e.region === 'International' ? (e.position || null) : (e.roleCode || null),
-            rate: effHourly(e), regularHours: 0, otHours: 0, tolls: 0, otherDeductions: 0, otherEarnings: 0, commissions: 0, bonus: 0,
+            rate: trackerRate(e), regularHours: 0, otHours: 0, tolls: 0, otherDeductions: 0, otherEarnings: 0, commissions: 0, bonus: 0,
           })),
         },
       },
@@ -118,7 +124,7 @@ export async function POST(req: NextRequest) {
     const emps = await prisma.employee.findMany({ where: { region: week.region, active: true } });
     const missing = emps.filter(e => !have.has(e.id));
     for (const e of missing) {
-      await prisma.payrollEntry.create({ data: { weekId: week.id, employeeId: e.id, name: e.fullName, roleCode: e.region === 'International' ? (e.position || null) : (e.roleCode || null), rate: effHourly(e) } });
+      await prisma.payrollEntry.create({ data: { weekId: week.id, employeeId: e.id, name: e.fullName, roleCode: e.region === 'International' ? (e.position || null) : (e.roleCode || null), rate: trackerRate(e) } });
     }
     return NextResponse.json({ ok: true, added: missing.length });
   }
