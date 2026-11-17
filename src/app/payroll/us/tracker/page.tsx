@@ -26,15 +26,22 @@ export default function PayrollTrackerPage() {
   // merge: recent weeks (so you can start a new/upcoming one) + all weeks that exist in the DB (history), newest first
   const weekOptions = (() => {
     const map = new Map<string, string>();
-    for (const w of recentWeeks()) map.set(w, 'new');
-    for (const w of dbWeeks) map.set(w.date, w.status);
+    for (const w of dbWeeks) map.set(w.date, w.status); // DB history is the source of truth
+    // add only the 2 most-recent recentWeeks() that aren't already in the DB (to start a new upcoming week)
+    for (const w of recentWeeks().slice(0, 2)) if (!map.has(w)) map.set(w, 'new');
     return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([date, status]) => ({ date, status }));
   })();
   const [week, setWeek] = useState(recentWeeks()[0]);
 
+  const [didInit, setDidInit] = useState(false);
   useEffect(() => {
     fetch('/api/payroll/tracker?list=1&region=US').then(r => r.ok ? r.json() : null).then(d => {
-      if (d?.weeks) setDbWeeks(d.weeks.map((w: any) => ({ date: new Date(w.weekDate).toISOString().split('T')[0], status: w.status })));
+      if (d?.weeks?.length) {
+        const list = d.weeks.map((w: any) => ({ date: new Date(w.weekDate).toISOString().split('T')[0], status: w.status }));
+        setDbWeeks(list);
+        // open on the most recent week that actually has data (newest finalized/backfilled), else newest
+        if (!didInit) { const newest = list.map((w: any) => w.date).sort().reverse()[0]; if (newest) setWeek(newest); setDidInit(true); }
+      }
     }).catch(() => {});
   }, []);
   const [data, setData] = useState<any>(null);

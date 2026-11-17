@@ -101,5 +101,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, added: missing.length });
   }
 
+  // Delete draft weeks that have no entered data (junk auto-created empties), except the current real draft.
+  if (b.action === 'deleteEmptyWeeks') {
+    const drafts = await prisma.payrollWeek.findMany({ where: { status: 'draft' }, include: { entries: true } });
+    let deleted = 0; const kept: string[] = [];
+    for (const w of drafts) {
+      const hasData = w.entries.some(e => e.regularHours || e.otHours || e.tolls || e.otherDeductions || e.otherEarnings || e.commissions || e.bonus || e.otTotalOverride || e.finalTotalOverride);
+      if (!hasData) { await prisma.payrollWeek.delete({ where: { id: w.id } }); deleted++; }
+      else kept.push(w.weekDate.toISOString().split('T')[0]);
+    }
+    return NextResponse.json({ ok: true, deleted, keptWithData: kept });
+  }
   return NextResponse.json({ error: 'unknown action' }, { status: 400 });
 }
