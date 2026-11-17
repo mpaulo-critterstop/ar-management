@@ -87,6 +87,15 @@ export async function GET(req: NextRequest) {
       officeOut.clockIn = clock?.timeIn || null;
       officeOut.clockOut = clock?.timeOut || null;
 
+      // GPS trail for the day (per-employee filtered)
+      const locUrl = `${FR_BASE}/employeeLocation/search?employeeID=${encodeURIComponent(JSON.stringify({ operator: '=', value: empId }))}&time=${encodeURIComponent(JSON.stringify({ operator: 'BETWEEN', value: [start, end] }))}&includeData=1&${auth}`;
+      const locR = await fetch(locUrl); const locJ = await locR.json().catch(() => null);
+      let locs = (locJ?.employeeLocation || []).filter((l: any) => String(l.employeeID) === empId);
+      locs.sort((a: any, b: any) => String(a.time).localeCompare(String(b.time)));
+      officeOut.gpsCount = locs.length;
+      // first ~15 GPS points of the day (to see the office arrival)
+      officeOut.earlyGps = locs.slice(0, 15).map((l: any) => ({ time: l.time, lat: l.latitude, lng: l.longitude }));
+
       // 3) First site arrival = first appointment with a checkIn/timeIn
       const firstArrival = rows.find(r => r.checkIn || r.timeIn);
       officeOut.firstSiteArrival = firstArrival ? {
