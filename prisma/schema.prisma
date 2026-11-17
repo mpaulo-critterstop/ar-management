@@ -1305,7 +1305,7 @@ model Employee {
 // A pay-period week in the Main Payroll Tracker.
 model PayrollWeek {
   id           String         @id @default(cuid())
-  weekDate     DateTime       @unique // the pay-period date (e.g., 2026-11-16)
+  weekDate     DateTime       // the pay-period date (e.g., 2026-11-16)
   region       String         @default("US")
   status       String         @default("draft") // draft | finalized
   checklist    String?        // JSON of checklist item states
@@ -1313,6 +1313,7 @@ model PayrollWeek {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   entries      PayrollEntry[]
+  @@unique([weekDate, region])
   @@map("payroll_weeks")
 }
 

@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   if (!weekStr) return NextResponse.json({ error: 'week required' }, { status: 400 });
   const weekDate = new Date(weekStr + 'T00:00:00.000Z');
 
-  let week = await prisma.payrollWeek.findUnique({ where: { weekDate }, include: { entries: true } });
+  let week = await prisma.payrollWeek.findFirst({ where: { weekDate, region }, include: { entries: true } });
 
   // Auto-create the week + seed entries from active employees of the region if it doesn't exist.
   if (!week) {
