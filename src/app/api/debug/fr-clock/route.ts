@@ -61,6 +61,15 @@ export async function GET(req: NextRequest) {
       const locJson = await locSearch.json().catch(() => null);
       officeOut.locationRaw = locJson?.error ? locJson : undefined;
       const locs = locJson?.employeeLocation || locJson?.employeeLocations || [];
+      // DIAGNOSTIC: distinct employeeIDs in the returned location set + raw response keys
+      if (Array.isArray(locs) && locs.length) {
+        const ids = new Set(locs.map((l: any) => l.employeeID));
+        officeOut.locDistinctEmployeeIDs = [...ids].slice(0, 10);
+        officeOut.locSampleRaw = locs[0];
+      } else {
+        officeOut.locJsonKeys = locJson ? Object.keys(locJson) : null;
+        officeOut.locJsonSample = locJson;
+      }
       officeOut.locationCount = Array.isArray(locs) ? locs.length : 0;
       officeOut.locations = Array.isArray(locs) ? locs.slice(0, 40).map((l: any) => ({ time: l.time, lat: l.latitude, lng: l.longitude })) : locs;
 
