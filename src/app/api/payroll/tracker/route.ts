@@ -46,11 +46,11 @@ export async function GET(req: NextRequest) {
   }
 
   // For International, pull per-employee currency + payroll schedule to show on the row.
-  let empMeta: Record<string, { currency: string; payrollSchedule: string | null }> = {};
+  let empMeta: Record<string, { currency: string; payrollSchedule: string | null; payType: string }> = {};
   if (region === 'International') {
     const ids = week.entries.map(e => e.employeeId);
-    const emps = await prisma.employee.findMany({ where: { id: { in: ids } }, select: { id: true, currency: true, payrollSchedule: true } });
-    empMeta = Object.fromEntries(emps.map(e => [e.id, { currency: e.currency || 'PHP', payrollSchedule: e.payrollSchedule || null }]));
+    const emps = await prisma.employee.findMany({ where: { id: { in: ids } }, select: { id: true, currency: true, payrollSchedule: true, payType: true } });
+    empMeta = Object.fromEntries(emps.map(e => [e.id, { currency: e.currency || 'PHP', payrollSchedule: e.payrollSchedule || null, payType: e.payType || 'Hourly' }]));
   }
   const usdRate = week.usdRate ?? null;
 
@@ -62,12 +62,15 @@ export async function GET(req: NextRequest) {
       const otTotal = en.otTotalOverride != null ? en.otTotalOverride : en.rate * 1.5 * en.otHours;
       const computedFinal = regTotal + otTotal - en.tolls - en.otherDeductions + en.otherEarnings + en.commissions + en.bonus;
       const finalTotal = en.finalTotalOverride != null ? en.finalTotalOverride : computedFinal;
-      const meta = empMeta[en.employeeId] || { currency: 'USD', payrollSchedule: null };
+      const meta = empMeta[en.employeeId] || { currency: 'USD', payrollSchedule: null, payType: 'Hourly' };
+      // Salaried international employees (e.g. Anni): paid by DAYS worked. "Hours" column holds days; daily rate = weekly salary / 5.
+      const isSalary = meta.payType === 'Salary';
+      const regTotalEff = isSalary ? (en.rate / 5) * en.regularHours : regTotal;
       // USD Total: wages (regular+OT, LOCAL currency) convert via usdRate for PHP; incentives are USD, added as-is.
-      const wagesLocal = regTotal + otTotal;
+      const wagesLocal = regTotalEff + otTotal;
       const wagesUsd = meta.currency === 'PHP' ? (usdRate ? wagesLocal / usdRate : null) : wagesLocal;
       const usdTotal = en.usdTotalOverride != null ? en.usdTotalOverride : (wagesUsd == null ? null : wagesUsd + (en.otherEarnings || 0));
-      return { ...en, regTotal, otTotal, finalTotal, currency: meta.currency, payrollSchedule: meta.payrollSchedule, usdTotal };
+      return { ...en, regTotal: regTotalEff, otTotal, finalTotal, currency: meta.currency, payrollSchedule: meta.payrollSchedule, payType: meta.payType, usdTotal };
     });
 
   return NextResponse.json({

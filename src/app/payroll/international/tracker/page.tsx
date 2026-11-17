@@ -60,7 +60,9 @@ export default function IntlPayrollTrackerPage() {
   const calc = (en: any) => {
     const r = Number(en.rate) || 0, reg = Number(en.regularHours) || 0, ot = Number(en.otHours) || 0;
     const incentives = Number(en.otherEarnings) || 0; // Incentives are always in USD
-    const regTotal = r * reg;
+    // Salaried intl (e.g. Anni): paid by DAYS. "Hours" column = days; daily rate = weekly salary / 5.
+    const isSalary = en.payType === 'Salary';
+    const regTotal = isSalary ? (r / 5) * reg : r * reg;
     const otTotal = en.otTotalOverride != null ? Number(en.otTotalOverride) : r * 1.5 * ot;
     // USD Total: wages (regular+OT in LOCAL currency) convert via rate for PHP, pass through for USD;
     // incentives are USD and added as-is. Backfilled rows use the stored override when nothing's changed.
@@ -158,7 +160,7 @@ export default function IntlPayrollTrackerPage() {
                   return <tr key={en.id}>
                     <td style={{ ...tdL, fontWeight: 600, color: cc.ink }}>{en.name}</td>
                     <td style={{ ...td, color: cc.muted }}>{money(en.rate, en.currency)}</td>
-                    <td style={td}>{num(en, 'regularHours', 54)}</td>
+                    <td style={td}>{num(en, 'regularHours', 54)}{en.payType === 'Salary' && <span style={{ fontSize: 10, color: cc.faint, marginLeft: 4 }}>days</span>}</td>
                     <td style={td}>{num(en, 'otHours', 48, 'ot')}</td>
                     <td style={td}>{num(en, 'otherEarnings', 68)}</td>
                     <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 5, background: en.currency === 'PHP' ? cc.violetbg : cc.panel2, color: en.currency === 'PHP' ? cc.violet : cc.muted }}>{en.currency}</span></td>
