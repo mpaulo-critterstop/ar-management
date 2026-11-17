@@ -61,8 +61,19 @@ export async function GET(req: NextRequest) {
           for (const l of locs) { const d = Math.abs(parse(l.time) - t); if (d < bestDiff) { bestDiff = d; best = l; } }
           return best ? { time: best.time, lat: best.latitude, lng: best.longitude, diffSeconds: Math.round(bestDiff / 1000) } : null;
         };
-        officeOut.clockInLocation = nearest(tc[0].timeIn);
-        officeOut.clockOutLocation = nearest(tc[0].timeOut);
+        // Texas-ish bounds filter to drop stray GPS points
+        const inTX = (l: any) => { const la = parseFloat(l.latitude), ln = parseFloat(l.longitude); return la > 25 && la < 37 && ln > -107 && ln < -93; };
+        const good = locs.filter(inTX);
+        const nearestIn = (arr: any[], target: string) => {
+          const t = parse(target); let best: any = null, bestDiff = Infinity;
+          for (const l of arr) { const d = Math.abs(parse(l.time) - t); if (d < bestDiff) { bestDiff = d; best = l; } }
+          return best ? { time: best.time, lat: best.latitude, lng: best.longitude, diffSeconds: Math.round(bestDiff / 1000) } : null;
+        };
+        officeOut.clockInLocation = nearestIn(good, tc[0].timeIn);
+        officeOut.clockOutLocation = nearestIn(good, tc[0].timeOut);
+        // show the last 8 valid points of the day (around clock-out)
+        officeOut.lastPointsOfDay = good.slice(-8).map((l: any) => ({ time: l.time, lat: l.latitude, lng: l.longitude }));
+        officeOut.droppedStrayPoints = locs.length - good.length;
       }
 
       out.offices[office] = officeOut;
