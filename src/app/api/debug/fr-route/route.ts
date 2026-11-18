@@ -103,6 +103,20 @@ export async function GET(req: NextRequest) {
       // first ~15 GPS points of the day (to see the office arrival)
       officeOut.allGps = locs.map((l: any) => ({ time: l.time, lat: l.latitude, lng: l.longitude }));
 
+      // Check if clock punches have GPS at the exact punch time
+      const allClocks = (tcJson?.timeClock || []).map((t: any) => ({ in: t.timeIn, out: t.timeOut }));
+      const parse = (s: string) => new Date(String(s).replace(' ', 'T') + 'Z').getTime();
+      const gpsAt = (target: string) => {
+        if (!target) return null;
+        const t = parse(target); let best: any = null, bestDiff = Infinity;
+        for (const l of locs) { const dd = Math.abs(parse(l.time) - t); if (dd < bestDiff) { bestDiff = dd; best = l; } }
+        return best ? { gpsTime: best.time, lat: best.latitude, lng: best.longitude, diffSeconds: Math.round(bestDiff / 1000) } : null;
+      };
+      officeOut.clockPunchGps = allClocks.map((c: any) => ({
+        clockIn: c.in, gpsAtClockIn: gpsAt(c.in),
+        clockOut: c.out, gpsAtClockOut: gpsAt(c.out),
+      }));
+
       // 3) First site arrival = first appointment with a checkIn/timeIn
       const firstArrival = rows.find(r => r.checkIn || r.timeIn);
       officeOut.firstSiteArrival = firstArrival ? {
