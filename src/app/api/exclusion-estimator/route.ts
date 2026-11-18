@@ -134,6 +134,22 @@ export async function GET(req: NextRequest) {
   const KEY = process.env.SMARTERLAUNCH_API_KEY;
   if (!KEY) return NextResponse.json({ error: 'SMARTERLAUNCH_API_KEY not set in env — add it to enable auto-pull from proposals.' }, { status: 400 });
 
+  // Debug path: &raw=1&proposal_uuid=<uuid> fetches ONE proposal directly and dumps selected groups (incl guarantee).
+  if (sp.get('raw') === '1' && sp.get('proposal_uuid')) {
+    const slB = 'https://api.smarterlaunch.com/api/v1';
+    const hh = { 'X-API-Key': KEY, 'Accept': 'application/json' };
+    const det0 = await fetch(`${slB}/proposals/${sp.get('proposal_uuid')}`, { headers: hh }).then(r => r.json()).catch(() => null);
+    const d0 = det0?.data || {};
+    const pv0 = d0.latest_version?.proposal_values || {};
+    const pgv0 = pv0.pricingGroupValues || {};
+    const nbu0: Record<string, string> = {};
+    (function walk(o: any) { if (o && typeof o === 'object') { if (o.uuid && o.name && typeof o.uuid === 'string' && o.uuid.length === 36 && !(o.uuid in nbu0)) nbu0[o.uuid] = o.name; for (const v of Object.values(o)) walk(v); } })(d0);
+    const sel0 = (v: any) => v === true || (typeof v === 'number' && v > 0) || (typeof v === 'string' && v.trim() !== '' && v.trim() !== '0');
+    const all0: Record<string, any> = {}; const g0: Record<string, any> = {};
+    for (const [uuid, qty] of Object.entries(pgv0)) { const nm = nbu0[uuid]; if (nm && sel0(qty)) { all0[nm] = qty; if (/guarantee|warranty|year|lifetime/i.test(nm)) g0[nm] = qty; } }
+    return NextResponse.json({ proposal: d0.proposal_template_title, title: d0.title, detailKeys: Object.keys(d0), hasLatestVersion: !!d0.latest_version, allSelectedGroups: all0, guaranteeRelatedGroups: g0, tags: (d0.tags || []).map((t: any) => t.name) });
+  }
+
   // Pull the customer's accepted Permanent Rodent Solution proposal, read quantities + tags.
   const slBase = 'https://api.smarterlaunch.com/api/v1';
   const h = { 'X-API-Key': KEY, 'Accept': 'application/json' };
@@ -166,6 +182,16 @@ export async function GET(req: NextRequest) {
   const isSelected = (v: any) => v === true || (typeof v === 'number' && v > 0) || (typeof v === 'string' && v.trim() !== '' && v.trim() !== '0');
   const features: Record<string, any> = {};
   for (const [uuid, qty] of Object.entries(pgv)) { const nm = nameByUuid[uuid]; if (nm && isSelected(qty)) features[nm] = qty; }
+
+  // Debug: &raw=1 exposes ALL selected pricing groups (including the guarantee group, which the estimator
+  // normally skips) — used for the exclusion->subscription-creation work.
+  if (sp.get('raw') === '1') {
+    const allSelected: Record<string, any> = {};
+    for (const [uuid, qty] of Object.entries(pgv)) { const nm = nameByUuid[uuid]; if (nm && isSelected(qty)) allSelected[nm] = qty; }
+    const guaranteeGroups: Record<string, any> = {};
+    for (const [nm, qty] of Object.entries(allSelected)) if (/guarantee|warranty|year|lifetime/i.test(nm)) guaranteeGroups[nm] = qty;
+    return NextResponse.json({ customer: d.customer?.name || `${d.customer?.first_name || ''} ${d.customer?.last_name || ''}`.trim(), proposal: d.proposal_template_title, allSelectedGroups: allSelected, guaranteeRelatedGroups: guaranteeGroups, tags });
+  }
 
   // Does the proposal include Trapping? (a Trapping section with a selected pricing group)
   // Detect trapping from the SELECTED values. The Trapping pricing-group UUIDs are stable across proposals
