@@ -46,7 +46,13 @@ export async function GET(req:NextRequest){
       if(accepted){
         const det=await (await fetch(`${SL_BASE}/proposals/${accepted.uuid}`,{headers:h})).json().catch(()=>null);
         const d=det?.data||{};
-        out.proposalDetail={uuid:accepted.uuid,title:d.proposal_template_title,tags:(d.tags||[]).map((t:any)=>t.name)};
+        const pv=d.latest_version?.proposal_values||{}; const pgv=pv.pricingGroupValues||{};
+        const nameByUuid:Record<string,string>={};
+        (function walk(o:any){if(o&&typeof o==='object'){if(o.uuid&&o.name&&typeof o.uuid==='string'&&o.uuid.length===36&&!(o.uuid in nameByUuid))nameByUuid[o.uuid]=o.name;for(const v of Object.values(o))walk(v);}})(d);
+        const isSel=(v:any)=>v===true||(typeof v==='number'&&v>0)||(typeof v==='string'&&v.trim()!==''&&v.trim()!=='0');
+        const selected:any={}; const guaranteeGroups:any={};
+        for(const [uuid,qty] of Object.entries(pgv)){const nm=nameByUuid[uuid]||uuid; if(isSel(qty))selected[nm]=qty; if(String(nm).toLowerCase().includes('guarantee')||String(nm).toLowerCase().includes('warranty')||String(nm).toLowerCase().includes('year'))guaranteeGroups[nm]=qty;}
+        out.proposalDetail={uuid:accepted.uuid,title:d.proposal_template_title,tags:(d.tags||[]).map((t:any)=>t.name),selectedGroups:selected,guaranteeRelatedGroups:guaranteeGroups};
       }
     }
   } else {
