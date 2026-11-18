@@ -44,7 +44,11 @@ export async function GET(req:NextRequest){
       out.slProposals=(pr?.data||[]).map((p:any)=>({uuid:p.uuid,title:p.proposal_template_title,status:p.status?.status_code,accepted:p.accepted_at||p.date_accepted}));
       const accepted=(pr?.data||[]).find((p:any)=>p.status?.status_code==='PROPOSAL_ACCEPTED')||(pr?.data||[])[0];
       if(accepted){
-        const det=await (await fetch(`${SL_BASE}/proposals/${accepted.uuid}`,{headers:h})).json().catch(()=>null);
+        const detRes=await fetch(`${SL_BASE}/proposals/${accepted.uuid}`,{headers:h});
+        out.detailFetchStatus=detRes.status;
+        const detText=await detRes.text().catch(()=>'');
+        out.detailBodyPreview=detText.slice(0,300);
+        let det:any=null; try{det=JSON.parse(detText);}catch{}
         const d=det?.data||{};
         out.detailRawKeys=Object.keys(d);
         out.latestVersionKeys=d.latest_version?Object.keys(d.latest_version):null;
