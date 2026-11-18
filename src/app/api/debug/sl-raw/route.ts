@@ -8,24 +8,37 @@ export async function GET(req: NextRequest) {
   if (!KEY) return NextResponse.json({ error: 'no SL key' });
   const h = { 'X-API-Key': KEY, 'Accept': 'application/json' };
   const res = await fetch(`${SL_BASE}/proposals/${uuid}`, { headers: h });
-  const status = res.status;
   const json = await res.json().catch(() => null);
-  // Dump the structure so we see where guarantee/pricing data lives — WITHOUT guessing paths.
-  const d = json?.data || json || {};
-  const shape = (o: any, depth = 0): any => {
-    if (depth > 3 || o === null) return typeof o;
-    if (Array.isArray(o)) return o.length ? [shape(o[0], depth + 1)] : [];
-    if (typeof o === 'object') { const r: any = {}; for (const k of Object.keys(o).slice(0, 40)) r[k] = shape(o[k], depth + 1); return r; }
-    return typeof o;
-  };
-  // also find any key/value mentioning guarantee anywhere in the tree
-  const guaranteeHits: string[] = [];
-  (function walk(o: any, path: string) {
-    if (!o || typeof o !== 'object') { if (typeof o === 'string' && /guarantee|warranty|lifetime|year/i.test(o)) guaranteeHits.push(`${path} = ${o}`); return; }
+  const d = json?.data || {};
+
+  // 1) Template guarantee options (name by uuid) from service_plans[].service_plan_pricing_groups[]
+  const guaranteeOptions: Record<string, string> = {}; // uuid -> name
+  const plans = d.proposal_template_data?.service_plans || [];
+  for (const pl of plans) for (const g of (pl.service_plan_pricing_groups || [])) {
+    if (g.uuid && g.name && /guarantee|warranty/i.test(g.name)) guaranteeOptions[g.uuid] = g.name;
+  }
+
+  // 2) Selected values — scan proposal_values for any key matching a guarantee option uuid with a truthy value
+  const pv = d.latest_version?.proposal_values || {};
+  const sel = (v: any) => v === true || (typeof v === 'number' && v > 0) || (typeof v === 'string' && v.trim() !== '' && v.trim() !== '0' && v.trim().toLowerCase() !== 'false');
+  // collect ALL truthy-valued entries anywhere in proposal_values, keyed by uuid
+  const selectedUuids: Record<string, any> = {};
+  (function walk(o: any) {
+    if (!o || typeof o !== 'object') return;
     for (const [k, v] of Object.entries(o)) {
-      if (/guarantee|warranty/i.test(k)) guaranteeHits.push(`${path}.${k} (key)`);
-      walk(v, path ? `${path}.${k}` : k);
+      if (typeof k === 'string' && k.length === 36 && sel(v)) selectedUuids[k] = v;
+      walk(v);
     }
-  })(d, '');
-  return NextResponse.json({ status, topKeys: Object.keys(d), structure: shape(d), guaranteeHits: guaranteeHits.slice(0, 40) });
+  })(pv);
+
+  // 3) Which selected uuid is a guarantee option?
+  const selectedGuarantee = Object.keys(selectedUuids).filter(u => guaranteeOptions[u]).map(u => ({ uuid: u, name: guaranteeOptions[u], value: selectedUuids[u] }));
+
+  return NextResponse.json({
+    status: res.status,
+    guaranteeOptionsInTemplate: Object.values(guaranteeOptions),
+    SELECTED_GUARANTEE: selectedGuarantee,
+    proposalValuesKeys: Object.keys(pv),
+    selectedUuidCount: Object.keys(selectedUuids).length,
+  });
 }
