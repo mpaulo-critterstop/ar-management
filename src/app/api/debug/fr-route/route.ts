@@ -83,7 +83,14 @@ export async function GET(req: NextRequest) {
       // 2) Clock-in for the day
       const tc = await fetch(`${FR_BASE}/timeClock/search?employeeIDs=${empId}&timeIn=${encodeURIComponent(JSON.stringify({ operator: 'BETWEEN', value: [start, end] }))}&includeData=1&${auth}`);
       const tcJson = await tc.json().catch(() => null);
-      const clock = (tcJson?.timeClock || [])[0];
+      officeOut.tcDiag = { count: tcJson?.count, keys: tcJson ? Object.keys(tcJson) : null, ignored: tcJson?.ignoredParams };
+      let tcRecords = tcJson?.timeClock || tcJson?.timeClocks || [];
+      if ((!tcRecords || !tcRecords.length) && (tcJson?.timeClockIDs || []).length) {
+        const g = await fetch(`${FR_BASE}/timeClock/get?timeClockIDs=${tcJson.timeClockIDs.slice(0,50).join(',')}&${auth}`);
+        const gj = await g.json().catch(() => null);
+        tcRecords = gj?.timeClock || gj?.timeClocks || [];
+      }
+      const clock = tcRecords[0];
       officeOut.clockIn = clock?.timeIn || null;
       officeOut.tcRawCount = tcJson?.count; officeOut.tcKeys = tcJson ? Object.keys(tcJson) : null;
       officeOut.clockOut = clock?.timeOut || null;
@@ -105,7 +112,7 @@ export async function GET(req: NextRequest) {
       officeOut.allGps = locs.map((l: any) => ({ time: l.time, lat: l.latitude, lng: l.longitude }));
 
       // Check if clock punches have GPS at the exact punch time
-      const allClocks = (tcJson?.timeClock || []).map((t: any) => ({ in: t.timeIn, out: t.timeOut }));
+      const allClocks = tcRecords.map((t: any) => ({ in: t.timeIn, out: t.timeOut }));
       const parse = (s: string) => new Date(String(s).replace(' ', 'T') + 'Z').getTime();
       const gpsAt = (target: string) => {
         if (!target) return null;
