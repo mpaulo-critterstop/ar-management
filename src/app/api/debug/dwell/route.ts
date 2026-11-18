@@ -34,7 +34,7 @@ export async function GET(req:NextRequest){
   for(const a of appts){
     const alat=+a.latIn||null, alng=+a.longIn||null;
     if(alat==null||isNaN(alat)){results.push({appt:a.appointmentID,note:'no appt GPS to anchor'});continue;}
-    const near=locs.filter((l:any)=>miles(l.lat,l.lng,alat,alng)<=radius);
+    const near=locs.filter((l:any)=>miles(l.lat,l.lng,alat as number,alng as number)<=radius);
     let dwellMin=null, firstAt=null, lastAt=null, pts=near.length;
     if(near.length>=1){ firstAt=near[0].time; lastAt=near[near.length-1].time; dwellMin=+(((near[near.length-1].t-near[0].t)/60000)).toFixed(1); }
     results.push({
