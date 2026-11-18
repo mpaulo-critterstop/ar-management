@@ -46,6 +46,10 @@ export async function GET(req:NextRequest){
       if(accepted){
         const det=await (await fetch(`${SL_BASE}/proposals/${accepted.uuid}`,{headers:h})).json().catch(()=>null);
         const d=det?.data||{};
+        out.detailRawKeys=Object.keys(d);
+        out.latestVersionKeys=d.latest_version?Object.keys(d.latest_version):null;
+        out.hasProposalValues=!!d.latest_version?.proposal_values;
+        out.detTopKeys=det?Object.keys(det):null;
         const pv=d.latest_version?.proposal_values||{}; const pgv=pv.pricingGroupValues||{};
         const nameByUuid:Record<string,string>={};
         (function walk(o:any){if(o&&typeof o==='object'){if(o.uuid&&o.name&&typeof o.uuid==='string'&&o.uuid.length===36&&!(o.uuid in nameByUuid))nameByUuid[o.uuid]=o.name;for(const v of Object.values(o))walk(v);}})(d);
