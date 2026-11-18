@@ -85,6 +85,7 @@ export async function GET(req: NextRequest) {
       const tcJson = await tc.json().catch(() => null);
       const clock = (tcJson?.timeClock || [])[0];
       officeOut.clockIn = clock?.timeIn || null;
+      officeOut.tcRawCount = tcJson?.count; officeOut.tcKeys = tcJson ? Object.keys(tcJson) : null;
       officeOut.clockOut = clock?.timeOut || null;
 
       // GPS trail for the day (per-employee filtered)
