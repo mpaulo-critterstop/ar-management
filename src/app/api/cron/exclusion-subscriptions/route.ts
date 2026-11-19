@@ -43,7 +43,14 @@ export async function GET(req: NextRequest) {
     const aids = (asRes?.appointmentIDs || []).slice(0, 200);
     if (!aids.length) continue;
     const ag = await fetch(`${FR_BASE}/appointment/get?${auth}&appointmentIDs=${aids.join(',')}${aids.length === 1 ? ',' + aids[0] : ''}`).then(r => r.json()).catch(() => null);
-    const appts = (ag?.appointments || []).filter((a: any) => a.dateCompleted && a.dateCompleted !== '0000-00-00 00:00:00');
+    // FR often ignores the dateCompleted search filter, returning ALL completed exclusions — so filter the
+    // window client-side on dateCompleted.
+    const fromMs = new Date(`${from}T00:00:00Z`).getTime(), toMs = new Date(`${to}T23:59:59Z`).getTime();
+    const appts = (ag?.appointments || []).filter((a: any) => {
+      if (!a.dateCompleted || a.dateCompleted === '0000-00-00 00:00:00') return false;
+      const t = new Date(String(a.dateCompleted).replace(' ', 'T') + 'Z').getTime();
+      return t >= fromMs && t <= toMs;
+    });
 
     for (const a of appts) {
       const customerId = String(a.customerID);
