@@ -6,11 +6,12 @@ import { usePathname } from 'next/navigation';
 // repaints), showing the old white background + logo for a moment. So we hide the wash on dark routes.
 const DARK_ROUTES = ['/overview', '/stax', '/calls', '/accounts-receivable', '/ar/collections', '/leads',
   '/dispatch', '/pest-sales', '/pest-inspections', '/csr-pest-sales', '/csr', '/cancellations',
-  '/service-pool', '/exclusion-scheduling', '/lsa-leads', '/field-performance', '/payroll', '/reports'];
+  '/service-pool', '/exclusion-scheduling', '/lsa-leads', '/field-performance', '/payroll', '/reports', '/admin'];
 
 export default function LightOverlay() {
   const pathname = usePathname() || '';
-  const onDark = DARK_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'));
+  // Root '/' only redirects (to /overview, a dark route) — keep its base dark so no white/logo flash during the gap.
+  const onDark = pathname === '/' || DARK_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'));
   // On dark routes, paint a solid dark base so navigation gaps stay dark (no white/logo flash).
   if (onDark) return <div style={{ position: 'fixed', inset: 0, zIndex: 0, background: '#121216' }} />;
   return <div style={{ position: 'fixed', inset: 0, zIndex: 0, background: 'rgba(255,255,255,0.88)' }} />;
