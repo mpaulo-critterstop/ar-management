@@ -126,3 +126,28 @@ export async function pmNameToFrId(office: string, fullName: string): Promise<st
   const ids = s?.employeeIDs || [];
   return ids.length ? String(ids[0]) : null;
 }
+
+// Live-fetch the selected guarantee group names + PM from SmarterLaunch for a customer_uuid.
+// Fallback for when the stored estimate predates guarantee capture. Returns { guarantees, pm } or null.
+export async function fetchGuaranteeFromSL(customerUuid: string): Promise<{ guarantees: string[]; pm: string | null } | null> {
+  const KEY = process.env.SMARTERLAUNCH_API_KEY;
+  if (!KEY || !customerUuid) return null;
+  const SL = 'https://api.smarterlaunch.com/api/v1';
+  const h = { 'X-API-Key': KEY, 'Accept': 'application/json' };
+  try {
+    const pr = await fetch(`${SL}/proposals?customer_uuid=${customerUuid}`, { headers: h }).then(r => r.json()).catch(() => null);
+    const accepted = (pr?.data || []).find((p: any) => p.status?.status_code === 'PROPOSAL_ACCEPTED') || (pr?.data || [])[0];
+    if (!accepted) return null;
+    const det = await fetch(`${SL}/proposals/${accepted.uuid}`, { headers: h }).then(r => r.json()).catch(() => null);
+    const d = det?.data || {};
+    const gOpts: Record<string, string> = {};
+    for (const pl of (d.proposal_template_data?.service_plans || [])) for (const g of (pl.service_plan_pricing_groups || [])) if (g.uuid && g.name && /guarantee|warranty/i.test(g.name)) gOpts[g.uuid] = g.name;
+    const pv = d.latest_version?.proposal_values || {};
+    const sel = (v: any) => v === true || (typeof v === 'number' && v > 0) || (typeof v === 'string' && v.trim() !== '' && v.trim() !== '0' && v.trim().toLowerCase() !== 'false');
+    const selU: Record<string, any> = {};
+    (function walk(o: any) { if (!o || typeof o !== 'object') return; for (const [k, v] of Object.entries(o)) { if (typeof k === 'string' && k.length === 36 && sel(v)) selU[k] = v; walk(v); } })(pv);
+    const guarantees = Object.keys(selU).filter(u => gOpts[u]).map(u => gOpts[u]);
+    const pm = d.user ? [d.user.first_name, d.user.last_name].filter(Boolean).join(' ').trim() : null;
+    return { guarantees, pm };
+  } catch { return null; }
+}

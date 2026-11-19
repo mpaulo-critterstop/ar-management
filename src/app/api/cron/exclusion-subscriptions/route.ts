@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { FR_OFFICES } from '@/lib/helcimBridge';
 import {
   resolveGuarantee, createAnnualInspection, createTrapCheck, customerHasService, pmNameToFrId,
-  ANNUAL_INSPECTION_SERVICE, TRAP_CHECK_SERVICE,
+  ANNUAL_INSPECTION_SERVICE, TRAP_CHECK_SERVICE, fetchGuaranteeFromSL,
 } from '@/lib/annualInspection';
 
 export const dynamic = 'force-dynamic';
@@ -68,10 +68,15 @@ export async function GET(req: NextRequest) {
         actions.push({ office, customerId, exclusionDate, skipped: 'no estimate record (guarantee unknown)' });
         continue;
       }
-      const selected: string[] = est.estimate.selectedGroups?.filter((g: string) => /guarantee|warranty|lifetime/i.test(g)) || [];
+      let selected: string[] = est.estimate.selectedGroups?.filter((g: string) => /guarantee|warranty|lifetime/i.test(g)) || [];
+      let pmName: string | null = est.pm || null;
+      // Fallback: older stored estimates predate guarantee capture — pull live from SL via the customer uuid.
+      if (selected.length === 0 && est.customerUuid) {
+        const live = await fetchGuaranteeFromSL(est.customerUuid);
+        if (live) { selected = live.guarantees; if (!pmName) pmName = live.pm; }
+      }
       const resolved = resolveGuarantee(selected);
       const hasTrapping = est.estimate.hasTrapping === true;
-      const pmName: string | null = est.pm || null;
 
       // ----- Annual Inspection (533) -----
       let aiResult: any = null;
