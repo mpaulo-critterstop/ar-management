@@ -84,9 +84,12 @@ export async function GET(req: NextRequest) {
     // Legacy per-office frozen history: the imported kpi_history has NO office field (Excel had none), so when an
     // office is selected we reconstruct a frozen month/week by SUMMING the per-PM history rows for PMs in that
     // office and RECOMPUTING the derived metrics. Returns null if no office filter (caller uses the company row).
+    // When an office is selected: sum per-PM rows for that office. When NO office (All): sum ALL per-PM rows —
+    // this makes "All" the corrected sum of every PM (fixing the legacy Excel's incomplete company-sum formulas,
+    // e.g. months where a PM's cell was left out of the total). The Hub becomes the more-accurate source.
     const officeFrozenFromPmRows = (pmRowsForKey: any[]): any | null => {
-      if (!wantOffice) return null;
-      const rows = pmRowsForKey.filter(h => pmInOffice(h.scope));
+      const rows = wantOffice ? pmRowsForKey.filter(h => pmInOffice(h.scope)) : pmRowsForKey;
+      if (!rows.length) return null;
       const booked = rows.reduce((s, h) => s + (h.booked || 0), 0);
       const leads = rows.reduce((s, h) => s + (h.leads || 0), 0);
       const closed = rows.reduce((s, h) => s + (h.closed || 0), 0);
@@ -130,11 +133,13 @@ export async function GET(req: NextRequest) {
     const allHistAll = await prisma.kpiHistory.findMany({ where: { period: 'monthly' } }).catch(() => [] as any[]);
     const cumulativeFor = (scope: string) => {
       let booked = 0, leads = 0, closed = 0, cash = 0, cashSeen = false;
-      // History side. For company scope WITH an office filter, the company rows are office-blind — instead sum the
-      // per-PM history for PMs in that office (reconstructed per-office total). Otherwise use the matching scope rows.
-      const useOfficeReconstruct = scope === 'company' && !!wantOffice;
+      // History side. For company scope, sum ALL per-PM rows (the corrected total — fixes legacy company-sum
+      // formula gaps), filtered to the selected office when one is chosen. For a single PM scope, use its rows.
+      const companyScope = scope === 'company';
       for (const h of allHistAll) {
-        const matches = useOfficeReconstruct ? (h.scope !== 'company' && pmInOffice(h.scope)) : (h.scope === scope);
+        const matches = companyScope
+          ? (h.scope !== 'company' && (!wantOffice || pmInOffice(h.scope)))
+          : (h.scope === scope);
         if (!matches) continue;
         booked += h.booked; leads += h.leads; closed += h.closed;
         if (h.cashCollected != null) { cash += h.cashCollected; cashSeen = true; }
@@ -293,13 +298,13 @@ export async function GET(req: NextRequest) {
         if (!isFrozen) return m;
         const key = `${year}-${String(month + 1).padStart(2, '0')}`;
         const h = histMap.get(key);
-        if (!h) return m; // no stored history for this month → leave computed (likely zeros)
-        // When an office is selected, reconstruct this frozen month from per-PM rows for that office.
+        // Reconstruct from per-PM rows (sum of all PMs for All, or office-filtered). This is the corrected total.
         const recon = officeFrozenFromPmRows(pmHistByKey.get(key) || []);
+        if (!recon && !h) return m; // nothing stored for this month → leave computed (likely zeros)
         const src = recon || { booked: h.booked, leads: h.leads, closed: h.closed, closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead, cashCollected: h.cashCollected ?? null, bookedPestCV: h.bookedPestCV ?? null };
-        // YoY: only meaningful for the company-wide (All) view; for a single office, derive if possible else null.
+        // YoY from the reconstructed booked vs prior-year (only for the All view; single-office YoY left null).
         const priorBooked = priorYearBooked(year, month);
-        const yoy = wantOffice ? null : (h.yoy != null ? h.yoy : (priorBooked > 0 ? ((h.booked - priorBooked) / priorBooked) * 100 : null));
+        const yoy = wantOffice ? null : (priorBooked > 0 ? ((src.booked - priorBooked) / priorBooked) * 100 : (h?.yoy ?? null));
         return {
           label: m.label,
           booked: src.booked, cashCollected: src.cashCollected ?? null, totalLeads: src.leads, totalClosed: src.closed,
@@ -407,9 +412,8 @@ export async function GET(req: NextRequest) {
         // Frozen: weeks ending before June 1, 2026 (pre-2026 + Jan-May 2026) read from history; June+ live.
         if (end >= juneFirst2026) return w;
         const h = findHistWeek(start, end);
-        if (!h) return w;
-        // When an office is selected, reconstruct this frozen week from per-PM rows for that office.
         const recon = officeFrozenFromPmRows(findPmHistWeekRows(start, end));
+        if (!recon && !h) return w;
         const src = recon || { booked: h.booked, leads: h.leads, closed: h.closed, closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead };
         return { label: w.label, booked: src.booked, totalLeads: src.leads, totalClosed: src.closed,
                  closingPct: src.closingPct, avgSale: src.avgSale, bookedPerLead: src.bookedPerLead,
