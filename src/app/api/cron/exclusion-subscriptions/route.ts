@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   for (const [office, c] of Object.entries(FR_OFFICES)) {
     if (!c.key) continue;
     const auth = `authenticationKey=${c.key}&authenticationToken=${c.token}`;
-    const asRes = await fetch(`${FR_BASE}/appointment/search?${auth}&officeIDs=${c.officeId}&serviceID=${EXCL_SERVICE}&dateCompleted=${encodeURIComponent(JSON.stringify({ operator: 'BETWEEN', value: [`${from} 00:00:00`, `${to} 23:59:59`] }))}`).then(r => r.json()).catch(() => null);
+    const asRes = await fetch(`${FR_BASE}/appointment/search?${auth}&officeIDs=${c.officeId}&serviceIDs=${EXCL_SERVICE}&dateCompleted=${encodeURIComponent(JSON.stringify({ operator: 'BETWEEN', value: [`${from} 00:00:00`, `${to} 23:59:59`] }))}`).then(r => r.json()).catch(() => null);
     const aids = (asRes?.appointmentIDs || []).slice(0, 200);
     if (!aids.length) continue;
     const ag = await fetch(`${FR_BASE}/appointment/get?${auth}&appointmentIDs=${aids.join(',')}${aids.length === 1 ? ',' + aids[0] : ''}`).then(r => r.json()).catch(() => null);
@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
     // window client-side on dateCompleted.
     const fromMs = new Date(`${from}T00:00:00Z`).getTime(), toMs = new Date(`${to}T23:59:59Z`).getTime();
     const appts = (ag?.appointments || []).filter((a: any) => {
+      if (String(a.type) !== EXCL_SERVICE) return false; // the real service is the appointment's 'type' field
       if (!a.dateCompleted || a.dateCompleted === '0000-00-00 00:00:00') return false;
       const t = new Date(String(a.dateCompleted).replace(' ', 'T') + 'Z').getTime();
       return t >= fromMs && t <= toMs;
