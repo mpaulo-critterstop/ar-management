@@ -136,7 +136,7 @@ export default function UsersAdminPage() {
                 style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
                   border: form.permissions?.[p.key] ? '1px solid #43B892' : '0.5px solid #35353C',
                   background: form.permissions?.[p.key] ? '#EAF3DE' : '#1C1C21',
-                  color: form.permissions?.[p.key] ? '#27500A' : '#908E85', fontWeight: form.permissions?.[p.key] ? 600 : 400 }}>
+                  color: form.permissions?.[p.key] ? '#43B892' : '#908E85', fontWeight: form.permissions?.[p.key] ? 600 : 400 }}>
                 {p.label}
               </button>
             ))}
@@ -179,7 +179,7 @@ export default function UsersAdminPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>Loading...</td></tr>
+              <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: '#908E85' }}>Loading...</td></tr>
             ) : users.map(u => (
               <tr key={u.id} style={{ borderTop: '0.5px solid #F1EFE8' }}>
                 <td style={{ padding: '8px 12px', color: '#F0EEE8' }}>{u.name}</td>
