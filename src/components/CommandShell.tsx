@@ -8,7 +8,7 @@ import { canAccessModule } from '@/lib/access';
 // content area. Used to wrap redesigned pages so the nav is always one click away. Access-aware: only shows
 // modules the user can open. This is the foundation of the Hub UI redesign (dark command-center theme).
 
-type NavItem = { key: string; label: string; icon: string; href: string; module?: string };
+type NavItem = { key: string; label: string; icon: string; href: string; module?: string; adminOnly?: boolean };
 type NavGroup = { title: string; icon: string; items: NavItem[] };
 
 const NAV: NavGroup[] = [
@@ -35,6 +35,9 @@ const NAV: NavGroup[] = [
   { title: 'Reports', icon: '📈', items: [
     { key: 'reports', label: 'Reports', icon: '📈', href: '/reports', module: 'reports' },
   ]},
+  { title: 'Admin', icon: '⚙️', items: [
+    { key: 'users', label: 'Users', icon: '👤', href: '/admin/users', adminOnly: true },
+  ]},
 ];
 
 export default function CommandShell({ children, title }: { children: React.ReactNode; title?: string }) {
@@ -53,6 +56,7 @@ export default function CommandShell({ children, title }: { children: React.Reac
     return NAV.map(g => ({
       ...g,
       items: g.items.filter(it => {
+        if ((it as any).adminOnly && (user as any)?.role !== 'Admin') return false;
         if (it.module && !canAccessModule(user, it.module as any)) return false;
         if (ql && !it.label.toLowerCase().includes(ql)) return false;
         return true;

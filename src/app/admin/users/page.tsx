@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { PageHeader as CCPageHeader } from '@/components/cc/Layout';
 import { useSession } from 'next-auth/react';
 import { ALL_MODULES, MODULE_LABELS } from '@/lib/access';
 
@@ -80,20 +81,20 @@ export default function UsersAdminPage() {
   }
 
   if (!isAdmin) {
-    return <div style={{ padding: 40, color: '#888780' }}>Admin access only.</div>;
+    return <div style={{ padding: 40, color: '#908E85' }}>Admin access only.</div>;
   }
 
-  const input: React.CSSProperties = { fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '0.5px solid #D3D1C7', color: '#2C2C2A', width: '100%' };
-  const label: React.CSSProperties = { fontSize: 11, fontWeight: 500, color: '#888780', marginBottom: 4, display: 'block' };
+  const input: React.CSSProperties = { fontSize: 13, padding: '8px 11px', borderRadius: 8, border: '1px solid #35353C', color: '#F0EEE8', width: '100%', background: '#26262C' };
+  const label: React.CSSProperties = { fontSize: 11, fontWeight: 500, color: '#908E85', marginBottom: 4, display: 'block' };
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto', padding: 24 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 600, color: '#2C2C2A', marginBottom: 4 }}>User Access Management</h1>
-      <p style={{ fontSize: 13, color: '#888780', marginBottom: 20 }}>Create logins and control which modules and data each user can access.</p>
+    <div style={{ maxWidth: 1240, margin: '0 auto', padding: '30px 34px 70px' }}>
+      <CCPageHeader icon="👤" title="User Access Management" subtitle="Add users, set roles, and control module access" />
+      <p style={{ fontSize: 13, color: '#908E85', marginBottom: 20 }}>Create logins and control which modules and data each user can access.</p>
 
       {/* Form */}
-      <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, padding: 18, marginBottom: 24, background: '#fff' }}>
-        <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14, color: '#2C2C2A' }}>{editing ? 'Edit user' : 'New user'}</div>
+      <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, padding: 18, marginBottom: 24, background: '#1C1C21' }}>
+        <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14, color: '#F0EEE8' }}>{editing ? 'Edit user' : 'New user'}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div><label style={label}>Name</label><input style={input} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
           <div><label style={label}>Username</label><input style={input} value={form.username} disabled={editing} autoCapitalize="none" autoCorrect="off" placeholder="e.g. mpaulo" onChange={e => setForm({ ...form, username: e.target.value })} /></div>
@@ -118,9 +119,9 @@ export default function UsersAdminPage() {
             {ALL_MODULES.filter(m => m !== 'reports').map(m => (
               <button key={m} onClick={() => toggleModule(m)} type="button"
                 style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
-                  border: form.modules.includes(m) ? '1px solid #0052cc' : '0.5px solid #D3D1C7',
-                  background: form.modules.includes(m) ? '#EAF1FC' : '#fff',
-                  color: form.modules.includes(m) ? '#0052cc' : '#64748b', fontWeight: form.modules.includes(m) ? 600 : 400 }}>
+                  border: form.modules.includes(m) ? '1px solid #5B9BE0' : '0.5px solid #35353C',
+                  background: form.modules.includes(m) ? '#EAF1FC' : '#1C1C21',
+                  color: form.modules.includes(m) ? '#5B9BE0' : '#908E85', fontWeight: form.modules.includes(m) ? 600 : 400 }}>
                 {MODULE_LABELS[m] || m}
               </button>
             ))}
@@ -133,9 +134,9 @@ export default function UsersAdminPage() {
             {PERM_FLAGS.map(p => (
               <button key={p.key} onClick={() => togglePerm(p.key)} type="button"
                 style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
-                  border: form.permissions?.[p.key] ? '1px solid #1D9E75' : '0.5px solid #D3D1C7',
-                  background: form.permissions?.[p.key] ? '#EAF3DE' : '#fff',
-                  color: form.permissions?.[p.key] ? '#27500A' : '#64748b', fontWeight: form.permissions?.[p.key] ? 600 : 400 }}>
+                  border: form.permissions?.[p.key] ? '1px solid #43B892' : '0.5px solid #35353C',
+                  background: form.permissions?.[p.key] ? '#EAF3DE' : '#1C1C21',
+                  color: form.permissions?.[p.key] ? '#27500A' : '#908E85', fontWeight: form.permissions?.[p.key] ? 600 : 400 }}>
                 {p.label}
               </button>
             ))}
@@ -157,22 +158,22 @@ export default function UsersAdminPage() {
           </div>
         </div>
 
-        {msg && <div style={{ fontSize: 12, color: msg.includes('Error') || msg.includes('exists') ? '#A32D2D' : '#1D9E75', marginBottom: 10 }}>{msg}</div>}
+        {msg && <div style={{ fontSize: 12, color: msg.includes('Error') || msg.includes('exists') ? '#E57C7C' : '#43B892', marginBottom: 10 }}>{msg}</div>}
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={save} style={{ padding: '8px 18px', fontSize: 13, fontWeight: 600, borderRadius: 9, border: 'none', background: '#0052cc', color: '#fff', cursor: 'pointer' }}>
+          <button onClick={save} style={{ padding: '8px 18px', fontSize: 13, fontWeight: 600, borderRadius: 9, border: 'none', background: '#5B9BE0', color: '#fff', cursor: 'pointer' }}>
             {editing ? 'Save changes' : 'Create user'}
           </button>
-          {editing && <button onClick={resetForm} style={{ padding: '8px 18px', fontSize: 13, borderRadius: 9, border: '0.5px solid #D3D1C7', background: '#fff', color: '#64748b', cursor: 'pointer' }}>Cancel</button>}
+          {editing && <button onClick={resetForm} style={{ padding: '8px 18px', fontSize: 13, borderRadius: 9, border: '0.5px solid #35353C', background: '#1C1C21', color: '#908E85', cursor: 'pointer' }}>Cancel</button>}
         </div>
       </div>
 
       {/* List */}
-      <div style={{ border: '0.5px solid #E8E7E3', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+      <div style={{ border: '0.5px solid #2A2A30', borderRadius: 12, overflow: 'hidden', background: '#1C1C21' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ background: '#F8F7F4' }}>
+            <tr style={{ background: '#232329' }}>
               {['Name', 'Username', 'Role', 'Modules', 'Identity', ''].map(h => (
-                <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 500, color: '#888780' }}>{h}</th>
+                <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 500, color: '#908E85' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -181,14 +182,14 @@ export default function UsersAdminPage() {
               <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>Loading...</td></tr>
             ) : users.map(u => (
               <tr key={u.id} style={{ borderTop: '0.5px solid #F1EFE8' }}>
-                <td style={{ padding: '8px 12px', color: '#2C2C2A' }}>{u.name}</td>
-                <td style={{ padding: '8px 12px', color: '#64748b' }}>{u.username}</td>
-                <td style={{ padding: '8px 12px', color: '#64748b' }}>{u.role}</td>
-                <td style={{ padding: '8px 12px', color: '#64748b', fontSize: 11 }}>{(u.modules || []).join(', ') || <span style={{ color: '#B8B6AE' }}>role default</span>}</td>
-                <td style={{ padding: '8px 12px', color: '#64748b', fontSize: 11 }}>{u.pmName || u.techId || '—'}</td>
+                <td style={{ padding: '8px 12px', color: '#F0EEE8' }}>{u.name}</td>
+                <td style={{ padding: '8px 12px', color: '#908E85' }}>{u.username}</td>
+                <td style={{ padding: '8px 12px', color: '#908E85' }}>{u.role}</td>
+                <td style={{ padding: '8px 12px', color: '#908E85', fontSize: 11 }}>{(u.modules || []).join(', ') || <span style={{ color: '#B8B6AE' }}>role default</span>}</td>
+                <td style={{ padding: '8px 12px', color: '#908E85', fontSize: 11 }}>{u.pmName || u.techId || '—'}</td>
                 <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                  <button onClick={() => editUser(u)} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, border: '0.5px solid #D3D1C7', background: '#fff', cursor: 'pointer', color: '#0052cc', marginRight: 6 }}>Edit</button>
-                  <button onClick={() => del(u.id)} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, border: '0.5px solid #E4C4C4', background: '#fff', cursor: 'pointer', color: '#A32D2D' }}>Delete</button>
+                  <button onClick={() => editUser(u)} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, border: '0.5px solid #35353C', background: '#1C1C21', cursor: 'pointer', color: '#5B9BE0', marginRight: 6 }}>Edit</button>
+                  <button onClick={() => del(u.id)} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, border: '0.5px solid #E4C4C4', background: '#1C1C21', cursor: 'pointer', color: '#E57C7C' }}>Delete</button>
                 </td>
               </tr>
             ))}

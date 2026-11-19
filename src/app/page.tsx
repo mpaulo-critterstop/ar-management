@@ -29,6 +29,8 @@ export default function HomePage() {
       // Only technicians (role or linked techId) go to the personal mobile dashboard.
       // Other own-data users (e.g. a PM restricted to their own commission) stay on the normal home.
       if (u?.role === 'Technician' || u?.techId) { router.replace('/my-performance'); return; }
+      // Everyone else -> the new command-center Overview (the old 3-tile landing is retired).
+      router.replace('/overview'); return;
     }
   }, [status, router, session]);
 
