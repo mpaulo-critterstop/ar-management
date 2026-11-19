@@ -70,6 +70,14 @@ export async function GET(req: NextRequest) {
     const allPmRecords = await prisma.pM.findMany().catch(() => [] as any[]);
     const officeByPm = new Map<string, string>();
     for (const p of allPmRecords) officeByPm.set(p.name.toLowerCase(), p.office);
+    // Terminated PMs not in the PM table — map their historical per-PM rows to the right office so their
+    // pre-June numbers are included in per-office reconstruction (their numbers are already in the All total).
+    const TERMINATED_PM_OFFICE: Record<string, string> = {
+      'jacob fenton': 'ATX', 'roderick stanford': 'CStat', 'justin rogers': 'CStat',
+      'jonathan ferreira': 'DFW', 'chisam reiter': 'DFW', 'david liles': 'DFW',
+      "ryan o'connor": 'DFW', 'joey lowe': 'DFW', 'kenny barrett': 'DFW',
+    };
+    for (const [nm, off] of Object.entries(TERMINATED_PM_OFFICE)) if (!officeByPm.has(nm)) officeByPm.set(nm, off);
     const wantOffice = (officeFilter && officeFilter !== 'All') ? officeFilter.toLowerCase() : null;
     const pmInOffice = (pmName: string) => !wantOffice || (officeByPm.get((pmName || '').toLowerCase()) || '').toLowerCase() === wantOffice;
 
