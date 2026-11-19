@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
 
   const actions: any[] = [];
   const seen = new Set<string>();
+  let rawCount = 0, windowCount = 0;
 
   for (const [office, c] of Object.entries(FR_OFFICES)) {
     if (!c.key) continue;
@@ -52,6 +53,7 @@ export async function GET(req: NextRequest) {
       return t >= fromMs && t <= toMs;
     });
 
+    rawCount += (ag?.appointments || []).length; windowCount += appts.length;
     for (const a of appts) {
       const customerId = String(a.customerID);
       if (seen.has(customerId)) continue; // one per customer per run
@@ -62,7 +64,7 @@ export async function GET(req: NextRequest) {
 
       // Need the estimate record (has guarantee + PM + trapping). No record -> flag, skip (can't know guarantee).
       if (!est?.estimate) {
-        actions.push({ office, customerId, skipped: 'no estimate record (guarantee unknown)' });
+        actions.push({ office, customerId, exclusionDate, skipped: 'no estimate record (guarantee unknown)' });
         continue;
       }
       const selected: string[] = est.estimate.selectedGroups?.filter((g: string) => /guarantee|warranty|lifetime/i.test(g)) || [];
@@ -120,5 +122,5 @@ export async function GET(req: NextRequest) {
   const createdAI = actions.filter(a => a.annualInspection?.status?.startsWith('CREATED')).length;
   const createdTrap = actions.filter(a => a.trapCheck?.status?.startsWith('CREATED')).length;
   const wouldAI = actions.filter(a => a.annualInspection?.status?.startsWith('WOULD')).length;
-  return NextResponse.json({ dry, window: `${from} to ${to}`, completedExclusions: actions.length, createdAI, createdTrap, wouldCreateAI: wouldAI, actions });
+  return NextResponse.json({ dry, window: `${from} to ${to}`, rawApptsFromFR: rawCount, passedWindowFilter: windowCount, completedExclusions: actions.length, createdAI, createdTrap, wouldCreateAI: wouldAI, actions });
 }
