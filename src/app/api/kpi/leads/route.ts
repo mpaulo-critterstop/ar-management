@@ -66,6 +66,35 @@ export async function GET(req: NextRequest) {
     // Get all active PMs
     const pms = await prisma.pM.findMany({ where: { active: true }, orderBy: { name: 'asc' } });
 
+    // PM -> office map (ALL PMs, incl. inactive, so frozen history for terminated PMs still maps to an office).
+    const allPmRecords = await prisma.pM.findMany().catch(() => [] as any[]);
+    const officeByPm = new Map<string, string>();
+    for (const p of allPmRecords) officeByPm.set(p.name.toLowerCase(), p.office);
+    const wantOffice = (officeFilter && officeFilter !== 'All') ? officeFilter.toLowerCase() : null;
+    const pmInOffice = (pmName: string) => !wantOffice || (officeByPm.get((pmName || '').toLowerCase()) || '').toLowerCase() === wantOffice;
+
+    // Legacy per-office frozen history: the imported kpi_history has NO office field (Excel had none), so when an
+    // office is selected we reconstruct a frozen month/week by SUMMING the per-PM history rows for PMs in that
+    // office and RECOMPUTING the derived metrics. Returns null if no office filter (caller uses the company row).
+    const officeFrozenFromPmRows = (pmRowsForKey: any[]): any | null => {
+      if (!wantOffice) return null;
+      const rows = pmRowsForKey.filter(h => pmInOffice(h.scope));
+      const booked = rows.reduce((s, h) => s + (h.booked || 0), 0);
+      const leads = rows.reduce((s, h) => s + (h.leads || 0), 0);
+      const closed = rows.reduce((s, h) => s + (h.closed || 0), 0);
+      const cashVals = rows.filter(h => h.cashCollected != null);
+      const cashCollected = cashVals.length ? cashVals.reduce((s, h) => s + (h.cashCollected || 0), 0) : null;
+      const pestVals = rows.filter(h => h.bookedPestCV != null);
+      const bookedPestCV = pestVals.length ? pestVals.reduce((s, h) => s + (h.bookedPestCV || 0), 0) : null;
+      return {
+        booked, leads, closed,
+        closingPct: leads > 0 ? (closed / leads) * 100 : 0,
+        avgSale: closed > 0 ? booked / closed : 0,
+        bookedPerLead: leads > 0 ? booked / leads : 0,
+        cashCollected, bookedPestCV,
+      };
+    };
+
     const now = new Date();
 
     // ── All-time cumulative ("Total" column), shared by monthly + weekly.
@@ -93,8 +122,12 @@ export async function GET(req: NextRequest) {
     const allHistAll = await prisma.kpiHistory.findMany({ where: { period: 'monthly' } }).catch(() => [] as any[]);
     const cumulativeFor = (scope: string) => {
       let booked = 0, leads = 0, closed = 0, cash = 0, cashSeen = false;
+      // History side. For company scope WITH an office filter, the company rows are office-blind — instead sum the
+      // per-PM history for PMs in that office (reconstructed per-office total). Otherwise use the matching scope rows.
+      const useOfficeReconstruct = scope === 'company' && !!wantOffice;
       for (const h of allHistAll) {
-        if (h.scope !== scope) continue;
+        const matches = useOfficeReconstruct ? (h.scope !== 'company' && pmInOffice(h.scope)) : (h.scope === scope);
+        if (!matches) continue;
         booked += h.booked; leads += h.leads; closed += h.closed;
         if (h.cashCollected != null) { cash += h.cashCollected; cashSeen = true; }
       }
@@ -241,23 +274,30 @@ export async function GET(req: NextRequest) {
       // Overlay stored history for pre-2026 periods (locked numbers from the legacy tracker).
       const histMonths = await prisma.kpiHistory.findMany({ where: { period: 'monthly', scope: 'company' } }).catch(() => [] as any[]);
       const histMap = new Map(histMonths.map(h => [h.periodKey, h]));
+      // Per-PM monthly history grouped by periodKey (for per-office reconstruction when an office is selected).
+      const pmHistByKey = new Map<string, any[]>();
+      for (const h of pmHist) { if (!pmHistByKey.has(h.periodKey)) pmHistByKey.set(h.periodKey, []); pmHistByKey.get(h.periodKey)!.push(h); }
       const companyMonthlyFinal = companyMonthly.map((m, i) => {
         const { year, month } = months[i];
         // Frozen: pre-2026 AND Jan-May 2026 (month 0-4) read from kpi_history (Excel source of truth);
         // June 2026 onward (month >= 5) stays live-computed.
         const isFrozen = year < 2026 || (year === 2026 && month <= 4);
         if (!isFrozen) return m;
-        const h = histMap.get(`${year}-${String(month + 1).padStart(2, '0')}`);
+        const key = `${year}-${String(month + 1).padStart(2, '0')}`;
+        const h = histMap.get(key);
         if (!h) return m; // no stored history for this month → leave computed (likely zeros)
-        // Use the tracker's own YoY if present; else derive from prior-year stored booked.
+        // When an office is selected, reconstruct this frozen month from per-PM rows for that office.
+        const recon = officeFrozenFromPmRows(pmHistByKey.get(key) || []);
+        const src = recon || { booked: h.booked, leads: h.leads, closed: h.closed, closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead, cashCollected: h.cashCollected ?? null, bookedPestCV: h.bookedPestCV ?? null };
+        // YoY: only meaningful for the company-wide (All) view; for a single office, derive if possible else null.
         const priorBooked = priorYearBooked(year, month);
-        const yoy = h.yoy != null ? h.yoy : (priorBooked > 0 ? ((h.booked - priorBooked) / priorBooked) * 100 : null);
+        const yoy = wantOffice ? null : (h.yoy != null ? h.yoy : (priorBooked > 0 ? ((h.booked - priorBooked) / priorBooked) * 100 : null));
         return {
           label: m.label,
-          booked: h.booked, cashCollected: h.cashCollected ?? null, totalLeads: h.leads, totalClosed: h.closed,
-          closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead,
+          booked: src.booked, cashCollected: src.cashCollected ?? null, totalLeads: src.leads, totalClosed: src.closed,
+          closingPct: src.closingPct, avgSale: src.avgSale, bookedPerLead: src.bookedPerLead,
           yoyGrowth: yoy,
-          bookedPestCV: h.bookedPestCV ?? m.bookedPestCV ?? null,
+          bookedPestCV: src.bookedPestCV ?? m.bookedPestCV ?? null,
         };
       });
 
@@ -350,6 +390,9 @@ export async function GET(req: NextRequest) {
       const histWeeks = await prisma.kpiHistory.findMany({ where: { period: 'weekly', scope: 'company' } }).catch(() => [] as any[]);
       const histByDate = histWeeks.map(h => ({ d: new Date(h.periodKey + 'T12:00:00Z'), h }));
       const findHistWeek = (start: Date, end: Date) => histByDate.find(x => x.d >= start && x.d <= end)?.h;
+      // Per-PM weekly history by week-end date (for per-office reconstruction).
+      const pmHistWByDate = pmHistW.map(h => ({ d: new Date(h.periodKey + 'T12:00:00Z'), h }));
+      const findPmHistWeekRows = (start: Date, end: Date) => pmHistWByDate.filter(x => x.d >= start && x.d <= end).map(x => x.h);
       const juneFirst2026 = new Date(Date.UTC(2026, 5, 1));
       const companyWeeklyFinal = companyWeekly.map((w, i) => {
         const { start, end } = weeks[i];
@@ -357,8 +400,11 @@ export async function GET(req: NextRequest) {
         if (end >= juneFirst2026) return w;
         const h = findHistWeek(start, end);
         if (!h) return w;
-        return { label: w.label, booked: h.booked, totalLeads: h.leads, totalClosed: h.closed,
-                 closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead,
+        // When an office is selected, reconstruct this frozen week from per-PM rows for that office.
+        const recon = officeFrozenFromPmRows(findPmHistWeekRows(start, end));
+        const src = recon || { booked: h.booked, leads: h.leads, closed: h.closed, closingPct: h.closingPct, avgSale: h.avgSale, bookedPerLead: h.bookedPerLead };
+        return { label: w.label, booked: src.booked, totalLeads: src.leads, totalClosed: src.closed,
+                 closingPct: src.closingPct, avgSale: src.avgSale, bookedPerLead: src.bookedPerLead,
                  trailing4WeekBPL: (w as any).trailing4WeekBPL ?? 0 };
       });
 
