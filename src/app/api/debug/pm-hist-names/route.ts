@@ -3,26 +3,23 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  // all distinct per-PM scopes in kpiHistory (monthly + weekly) + their totals
+  // ALL distinct per-PM scopes across ALL history, with totals + date range
   const rows = await prisma.kpiHistory.findMany({ where: { scope: { not: 'company' } } });
-  const byScope: Record<string, { monthlyBooked: number; monthlyRows: number; weeklyBooked: number; weeklyRows: number }> = {};
+  const byScope: Record<string, any> = {};
   for (const h of rows) {
-    if (!byScope[h.scope]) byScope[h.scope] = { monthlyBooked: 0, monthlyRows: 0, weeklyBooked: 0, weeklyRows: 0 };
-    if (h.period === 'monthly') { byScope[h.scope].monthlyBooked += h.booked; byScope[h.scope].monthlyRows++; }
-    else { byScope[h.scope].weeklyBooked += h.booked; byScope[h.scope].weeklyRows++; }
+    if (!byScope[h.scope]) byScope[h.scope] = { monthlyBooked: 0, monthlyRows: 0, weeklyBooked: 0, weeklyRows: 0, keys: [] as string[] };
+    const s = byScope[h.scope];
+    if (h.period === 'monthly') { s.monthlyBooked += h.booked; s.monthlyRows++; }
+    else { s.weeklyBooked += h.booked; s.weeklyRows++; }
+    if (s.keys.length < 3) s.keys.push(`${h.period}:${h.periodKey}`);
   }
-  // which are in the current PM table (have office)?
-  const pms = await prisma.pM.findMany();
-  const pmNames = new Set(pms.map(p => p.name.toLowerCase()));
-  const officeByPm: Record<string, string> = {}; for (const p of pms) officeByPm[p.name.toLowerCase()] = p.office;
-  const targets = ['Roderick Stanford','Justin Rogers','Kenny Barrett',"Ryan O'Connor",'Joey Lowe','David Liles','Chisam Reiter','Jonathan Ferreira','Jacob Fenton'];
   const scopes = Object.keys(byScope).sort();
-  const result = scopes.map(s => ({ name: s, ...byScope[s], inPMTable: pmNames.has(s.toLowerCase()), currentOffice: officeByPm[s.toLowerCase()] || null }));
-  // match targets
-  const targetMatch = targets.map(t => {
-    const exact = scopes.find(s => s.toLowerCase() === t.toLowerCase());
-    const fuzzy = exact ? null : scopes.find(s => s.toLowerCase().includes(t.split(' ')[0].toLowerCase()) && s.toLowerCase().includes(t.split(' ').slice(-1)[0].toLowerCase()));
-    return { target: t, exactMatchInHistory: exact || null, possibleMatch: fuzzy || null };
+  // search for anything mentioning these first names / "Performance Tracker"
+  const terms = ['chisam','jonathan','david','justin','ryan','joey','kenny','roderick','jacob','ferreira','liles','rogers','connor','lowe','barrett','stanford','fenton','reiter','performance'];
+  const matches = scopes.filter(s => terms.some(t => s.toLowerCase().includes(t)));
+  return NextResponse.json({
+    totalDistinctScopes: scopes.length,
+    allScopes: scopes,
+    matchesForTerminatedPMs: matches.map(m => ({ name: m, ...byScope[m] })),
   });
-  return NextResponse.json({ allPerPmScopes: result, targetMatch });
 }
