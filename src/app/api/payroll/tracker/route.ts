@@ -30,7 +30,12 @@ export async function GET(req: NextRequest) {
 
   const weekStr = sp.get('week');
   if (!weekStr) return NextResponse.json({ error: 'week required' }, { status: 400 });
-  const weekDate = new Date(weekStr + 'T00:00:00.000Z');
+  // Pay periods are Monday-anchored. Snap any requested date back to its Monday so we never create stray
+  // off-day weeks (e.g. a Tuesday) from a mis-passed date.
+  const reqDate = new Date(weekStr + 'T00:00:00.000Z');
+  const dow = reqDate.getUTCDay(); // 0=Sun..6=Sat
+  const backToMonday = (dow + 6) % 7;
+  const weekDate = new Date(reqDate.getTime() - backToMonday * 86400000);
 
   let week = await prisma.payrollWeek.findFirst({ where: { weekDate, region }, include: { entries: true } });
 
