@@ -12,7 +12,8 @@ const money = (n: number | null | undefined, c?: string) => n == null ? '—' : 
 function recentWeeks(): string[] {
   const out: string[] = []; const d = new Date();
   const dow = d.getDay(); d.setDate(d.getDate() - ((dow + 6) % 7)); // Monday
-  for (let i = 0; i < 16; i++) { out.push(d.toISOString().split('T')[0]); d.setDate(d.getDate() - 7); }
+  const fmt = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+  for (let i = 0; i < 16; i++) { out.push(fmt(d)); d.setDate(d.getDate() - 7); }
   return out;
 }
 const fmtWeek = (s: string) => { const [y, m, d] = s.split('-').map(Number); const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return `${MON[m - 1]} ${d}, ${y}`; };

@@ -18,7 +18,9 @@ function recentWeeks(): string[] {
   const dow = d.getDay(); // 0=Sun..6=Sat
   const backToMonday = (dow + 6) % 7; // days since Monday
   d.setDate(d.getDate() - backToMonday);
-  for (let i = 0; i < 16; i++) { out.push(d.toISOString().split('T')[0]); d.setDate(d.getDate() - 7); }
+  // Build the date string from LOCAL Y-M-D (NOT toISOString, which shifts to UTC and can land on a Sun/Tue).
+  const fmt = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+  for (let i = 0; i < 16; i++) { out.push(fmt(d)); d.setDate(d.getDate() - 7); }
   return out;
 }
 const fmtWeek = (s: string) => { const [y, m, d] = s.split('-').map(Number); const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return `${MON[m - 1]} ${d}, ${y}`; };
