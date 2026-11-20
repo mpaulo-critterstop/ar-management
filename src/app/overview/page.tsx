@@ -47,9 +47,12 @@ export default function OverviewPage() {
   const openAR = kpi?.totalAR;
   const overdueAR = kpi?.overdueAR;
   const collRate = kpi?.collectionRate != null ? Math.round(kpi.collectionRate * 100) : null;
-  const dpTotal = dialpad?.stats?.total ?? dialpad?.total;
+  // Answer rate = answered / (answered + agent missed) — the true attempt basis, matching the DialPad module.
+  // Excludes abandoned / voicemail / missed-opportunity so the rate isn't understated.
   const dpAnswered = dialpad?.stats?.answered ?? dialpad?.answered;
-  const answerRate = (dpTotal && dpAnswered != null) ? Math.round((dpAnswered / dpTotal) * 100) : null;
+  const dpAgentMissed = dialpad?.stats?.agent_missed ?? dialpad?.agent_missed;
+  const dpDenom = (dpAnswered != null && dpAgentMissed != null) ? (dpAnswered + dpAgentMissed) : null;
+  const answerRate = (dpDenom && dpAnswered != null) ? Math.round((dpAnswered / dpDenom) * 100) : null;
 
   // Highlights = the wins (good numbers). Only show tiles the user can see + that have data.
   const highlights = [
