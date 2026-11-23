@@ -1232,6 +1232,29 @@ function PayPage({payments,invoices,custMap,showToast,loadAll,setModal}: any) {
   );
 }
 
+// Export the AR aging-by-customer table to CSV (sorted by customer, with aging buckets + total).
+// Amounts are raw numbers (not $-formatted) so the lender can sort/sum in Excel.
+function exportAgingCsv(rows: any[], buckets: string[], selectedBucket: string | null) {
+  const bucketLabel = (b: string) => b === "current" ? "Current" : b === "90+" ? "90+ days" : b + " days";
+  const esc = (v: any) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const headers = ["Customer", ...buckets.map(bucketLabel), "Total AR"];
+  // sort alphabetically by customer name for the lender report
+  const sorted = [...rows].sort((a, b) => (a.customer?.name || "").localeCompare(b.customer?.name || ""));
+  const lines = sorted.map(r => [r.customer?.name || "—", ...buckets.map(b => (r[b] || 0).toFixed(2)), (r.total || 0).toFixed(2)].map(esc).join(","));
+  // totals row
+  const totals = buckets.map(b => sorted.reduce((s, r) => s + (r[b] || 0), 0));
+  const grand = sorted.reduce((s, r) => s + (r.total || 0), 0);
+  lines.push(["TOTAL", ...totals.map(t => t.toFixed(2)), grand.toFixed(2)].map(esc).join(","));
+  const today = new Date().toISOString().split("T")[0];
+  const title = `Accounts Receivable Aging${selectedBucket ? ` - ${bucketLabel(selectedBucket)}` : ""} - as of ${today}`;
+  const csv = [esc(title), "", headers.join(","), ...lines].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `ar-aging-${today}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
 function AgePage({open,agingTotals,custMap}: any) {
   const [pageSize,setPageSize]=useState(100);
   const [currentPage,setCurrentPage]=useState(1);
@@ -1274,6 +1297,7 @@ function AgePage({open,agingTotals,custMap}: any) {
       />
       <CCToolbar>
         <div style={{fontSize:13,fontWeight:600,color:"#C9C7BF"}}>{selectedBucket ? `${tileLabel(selectedBucket)} customers` : "All customers"} <span style={{color:"#63615A",fontWeight:400}}>· {filtered.length}</span></div>
+        <button onClick={()=>exportAgingCsv(filtered, buckets, selectedBucket)} style={{marginLeft:"auto",padding:"6px 13px",fontSize:12.5,borderRadius:8,border:"1px solid #2A2A30",background:"#232329",color:"#F0EEE8",fontWeight:500,cursor:"pointer"}}>⇪ Export CSV</button>
       </CCToolbar>
       <CCDataTable
         rowKey={(_r:any,i:number)=>String(i)}
