@@ -1334,7 +1334,10 @@ function AgePage({open,agingTotals,custMap}: any) {
   const [currentPage,setCurrentPage]=useState(1);
   const [selectedBucket,setSelectedBucket]=useState<string|null>(null);
   const [viewMode,setViewMode]=useState<"customer"|"invoice">("customer");
+  const [sortKey,setSortKey]=useState<"dpd"|"balance">("dpd");
+  const [sortDir,setSortDir]=useState<"asc"|"desc">("desc");
   const bucketOf=(d:number)=>d<=0?"current":d<=30?"1-30":d<=60?"31-60":d<=90?"61-90":"90+";
+  const toggleSort=(k:"dpd"|"balance")=>{ if(sortKey===k){ setSortDir(d=>d==="asc"?"desc":"asc"); } else { setSortKey(k); setSortDir("desc"); } setCurrentPage(1); };
 
   const buckets=["current","1-30","31-60","61-90","90+"];
   const bC:any={current:"#43B892","1-30":"#43B892","31-60":"#DBA14E","61-90":"#DBA14E","90+":"#E57C7C"};
@@ -1355,11 +1358,13 @@ function AgePage({open,agingTotals,custMap}: any) {
   },[open,custMap]);
 
   // Invoice-level rows (one per open invoice) — the "true AR aging" view Chisam asked for.
-  const byInvoice = useMemo(()=>[...open]
-    .filter((i:any)=>!selectedBucket || bucketOf(i.daysOverdue)===selectedBucket)
-    .sort((a:any,b:any)=>(b.daysOverdue||0)-(a.daysOverdue||0))
-    .map((i:any)=>({...i, customer:custMap[i.customerId], bucket:bucketOf(i.daysOverdue)}))
-  ,[open,custMap,selectedBucket]);
+  const byInvoice = useMemo(()=>{
+    const val=(i:any)=> sortKey==="balance" ? (i.balance||0) : (i.daysOverdue||0);
+    return [...open]
+      .filter((i:any)=>!selectedBucket || bucketOf(i.daysOverdue)===selectedBucket)
+      .sort((a:any,b:any)=> sortDir==="asc" ? val(a)-val(b) : val(b)-val(a))
+      .map((i:any)=>({...i, customer:custMap[i.customerId], bucket:bucketOf(i.daysOverdue)}));
+  },[open,custMap,selectedBucket,sortKey,sortDir]);
 
   const filtered = selectedBucket
     ? byCust.filter((r:any) => r[selectedBucket] > 0)
@@ -1414,8 +1419,8 @@ function AgePage({open,agingTotals,custMap}: any) {
             { key:"inv", label:"Invoice #", render:(r:any)=><span style={{fontWeight:600,color:"#F0EEE8",fontVariantNumeric:"tabular-nums"}}>{r.id}</span> },
             { key:"date", label:"Date", render:(r:any)=><span style={{color:"#908E85",fontSize:12.5}}>{fmtDate(r.date)}</span> },
             { key:"due", label:"Due", render:(r:any)=><span style={{color:r.daysOverdue>0?"#E57C7C":"#908E85",fontSize:12.5}}>{r.due?fmtDate(r.due):"—"}</span> },
-            { key:"balance", label:"Balance", align:"right" as const, render:(r:any)=><span style={{fontWeight:700,color:"#F0EEE8",fontVariantNumeric:"tabular-nums"}}>{fmt(r.balance)}</span> },
-            { key:"dpd", label:"Days past due", align:"right" as const, render:(r:any)=><span style={{fontWeight:600,color:bC[r.bucket],fontVariantNumeric:"tabular-nums"}}>{r.due?(r.daysOverdue>0?`${r.daysOverdue} days`:"Current"):"—"}</span> },
+            { key:"balance", label:<span onClick={()=>toggleSort("balance")} style={{cursor:"pointer",userSelect:"none"}}>Balance{sortKey==="balance"?(sortDir==="asc"?" ↑":" ↓"):" ↕"}</span>, align:"right" as const, render:(r:any)=><span style={{fontWeight:700,color:"#F0EEE8",fontVariantNumeric:"tabular-nums"}}>{fmt(r.balance)}</span> },
+            { key:"dpd", label:<span onClick={()=>toggleSort("dpd")} style={{cursor:"pointer",userSelect:"none"}}>Days past due{sortKey==="dpd"?(sortDir==="asc"?" ↑":" ↓"):" ↕"}</span>, align:"right" as const, render:(r:any)=><span style={{fontWeight:600,color:bC[r.bucket],fontVariantNumeric:"tabular-nums"}}>{r.due?(r.daysOverdue>0?`${r.daysOverdue} days`:"Current"):"—"}</span> },
           ]}
           rows={displayed}
         />
