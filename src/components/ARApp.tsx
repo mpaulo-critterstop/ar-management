@@ -1041,7 +1041,7 @@ function DashPage({open,totalAR,totalOverdue,collected,agingTotals,payments,prev
 
   // AR vs benchmark (Chisam's formula): actual AR ÷ expected AR. <100% = AR below expected (good — collecting
   // faster than modeled); >100% = above expected (slower collections / AR building up). Company-wide figures.
-  const expectedAR = benchmark?.benchmark?.actual?.total ?? null; // actuals-based expected AR
+  const expectedAR = benchmark?.benchmark?.chisam?.total ?? null; // Chisam's theoretical benchmark (scorecard formula)
   const benchActualAR = benchmark?.actualAR ?? null;              // frozen live AR from the cron
   const vsBenchPct = (expectedAR && benchActualAR != null && expectedAR > 0) ? (benchActualAR / expectedAR) * 100 : null;
   const isCompanyWide = !officeFilter || officeFilter === 'All' || officeFilter === 'ALL';
