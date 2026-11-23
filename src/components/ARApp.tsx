@@ -180,6 +180,10 @@ export default function ARApp() {
   const [isAdmin,setIsAdmin]=useState(false);
   useEffect(()=>{ fetch('/api/ar/blitz?office=All').then(r=>r.json()).then(d=>setIsAdmin(!!d?.isAdmin)).catch(()=>{}); },[]);
 
+  // Expected AR benchmark (Chisam's formula, computed company-wide in the Reports cron — single source of truth).
+  const [benchmark,setBenchmark]=useState<any>(null);
+  useEffect(()=>{ fetch('/api/cron/ar-benchmark?token=critterstop2026').then(r=>r.json()).then(d=>setBenchmark(d?.data||null)).catch(()=>{}); },[]);
+
   const custMap = useMemo(()=>Object.fromEntries(customers.map((c:any)=>[c.id,c])),[customers]);
   const enriched = useMemo(()=>invoices.map((inv:any)=>({
     ...inv,
@@ -266,7 +270,7 @@ export default function ARApp() {
       <div style={{minHeight:"70vh"}}>
       {page==="dashboard" && (loading && !invoices.length
         ? <div style={{padding:60,textAlign:"center",fontSize:14,color:"#908E85"}}>Loading AR data…</div>
-        : <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected={collected} agingTotals={agingTotals} collectedDays={collectedDays} setCollectedDays={setCollectedDays} customDateFrom={customDateFrom} customDateTo={customDateTo} setCustomDateFrom={setCustomDateFrom} setCustomDateTo={setCustomDateTo} prevMonthAR={prevMonthAR} />)}
+        : <DashPage {...shared} totalAR={totalAR} totalOverdue={totalOverdue} collected={collected} agingTotals={agingTotals} collectedDays={collectedDays} setCollectedDays={setCollectedDays} customDateFrom={customDateFrom} customDateTo={customDateTo} setCustomDateFrom={setCustomDateFrom} setCustomDateTo={setCustomDateTo} prevMonthAR={prevMonthAR} benchmark={benchmark} officeFilter={officeFilter} />)}
       {page==="callsheet" && <CallSheetPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="blitz" && <BlitzPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="tracking" && isAdmin && <TrackingPage />}
@@ -1032,9 +1036,15 @@ function StagesPage({officeFilter, showToast}: any) {
   );
 }
 
-function DashPage({open,totalAR,totalOverdue,collected,agingTotals,payments,prevMonthAR,collectedDays,setCollectedDays,customDateFrom,customDateTo,setCustomDateFrom,setCustomDateTo}: any) {
-  const arVsBenchmark = prevMonthAR > 0 ? ((totalAR - prevMonthAR) / prevMonthAR) * 100 : 0;
+function DashPage({open,totalAR,totalOverdue,collected,agingTotals,payments,prevMonthAR,benchmark,officeFilter,collectedDays,setCollectedDays,customDateFrom,customDateTo,setCustomDateFrom,setCustomDateTo}: any) {
   const openInvoices = open.length;
+
+  // AR vs benchmark (Chisam's formula): actual AR ÷ expected AR. <100% = AR below expected (good — collecting
+  // faster than modeled); >100% = above expected (slower collections / AR building up). Company-wide figures.
+  const expectedAR = benchmark?.benchmark?.actual?.total ?? null; // actuals-based expected AR
+  const benchActualAR = benchmark?.actualAR ?? null;              // frozen live AR from the cron
+  const vsBenchPct = (expectedAR && benchActualAR != null && expectedAR > 0) ? (benchActualAR / expectedAR) * 100 : null;
+  const isCompanyWide = !officeFilter || officeFilter === 'All' || officeFilter === 'ALL';
 
   return (
     <div>
@@ -1043,7 +1053,9 @@ function DashPage({open,totalAR,totalOverdue,collected,agingTotals,payments,prev
         { icon:"💰", label:"Total AR", value:fmt(totalAR), tone:"blue", delta:`${openInvoices} open invoices` },
         { icon:"⏰", label:"Total past due", value:fmt(totalOverdue), tone:"red", delta: totalAR>0 ? `${Math.round((totalOverdue/totalAR)*100)}% of AR` : "" , deltaTone:"red" },
         { icon:"📄", label:"Open invoices", value:openInvoices, tone:"violet" },
-        { icon:"📊", label:"AR vs last month", value:`${arVsBenchmark>=0?"+":""}${arVsBenchmark.toFixed(1)}%`, tone: arVsBenchmark>0?"red":"green", delta: arVsBenchmark>0?"above benchmark":"below benchmark", deltaTone: arVsBenchmark>0?"red":"green" },
+        vsBenchPct != null
+          ? { icon:"📊", label:"AR vs benchmark", value:`${Math.round(vsBenchPct)}%`, tone: vsBenchPct>100?"red":"green", delta: (isCompanyWide?"":"company-wide · ")+(vsBenchPct>100?"above expected AR":"at/below expected AR"), deltaTone: vsBenchPct>100?"red":"green" }
+          : { icon:"📊", label:"AR vs benchmark", value:"—", tone:"violet", delta:"computing weekly" },
       ]} />
 
       {/* Aging breakdown */}
@@ -1060,8 +1072,9 @@ function DashPage({open,totalAR,totalOverdue,collected,agingTotals,payments,prev
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:13}}>
         <CCCard style={{padding:"16px 17px",position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:"#9D8BE6",borderRadius:3}}/>
-          <div style={{fontSize:12,color:"#908E85",fontWeight:500}}>AR benchmark (previous month)</div>
-          <div style={{fontSize:24,fontWeight:700,marginTop:8,color:"#F0EEE8"}}>{fmt(prevMonthAR)}</div>
+          <div style={{fontSize:12,color:"#908E85",fontWeight:500}}>Expected AR (benchmark){isCompanyWide?"":" · company-wide"}</div>
+          <div style={{fontSize:24,fontWeight:700,marginTop:8,color:"#F0EEE8"}}>{expectedAR!=null?fmt(expectedAR):"—"}</div>
+          <div style={{fontSize:11,color:"#63615A",marginTop:3}}>{benchActualAR!=null&&expectedAR!=null?`Actual ${fmt(benchActualAR)} · ${vsBenchPct!=null?Math.round(vsBenchPct):"—"}% of benchmark`:"Chisam's formula · computed weekly"}</div>
         </CCCard>
         <CCCard style={{padding:"16px 17px",position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:"#43B892",borderRadius:3}}/>
