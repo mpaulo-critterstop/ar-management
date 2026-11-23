@@ -1191,7 +1191,14 @@ function InvPage({enriched,setModal,showToast,loadAll,isAdmin}: any) {
           { key:"due", label:"Due date", render:(inv:any)=><span style={{color:inv.daysOverdue>0?"#E57C7C":"#908E85",fontSize:12.5}}>{inv.due?.split("T")[0]||"—"}</span> },
           { key:"amount", label:"Amount", align:"right", render:(inv:any)=><span style={{color:"#C9C7BF",fontVariantNumeric:"tabular-nums"}}>{fmt(Number(inv.amount))}</span> },
           { key:"balance", label:"Balance", align:"right", render:(inv:any)=><span style={{fontWeight:700,color:inv.balance>0?"#F0EEE8":"#63615A",fontVariantNumeric:"tabular-nums"}}>{fmt(inv.balance)}</span> },
-          { key:"status", label:"Status", render:(inv:any)=><CCStatusPill tone={stTone[inv.status]||"neutral"}>{statusLabels[inv.status]||inv.status}</CCStatusPill> },
+          { key:"status", label:"Status", render:(inv:any)=>{
+            const d=inv.daysOverdue||0;
+            const ageColor=d<=0?"#63615A":d<=30?"#43B892":d<=60?"#DBA14E":d<=90?"#DBA14E":"#E57C7C";
+            return <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <CCStatusPill tone={stTone[inv.status]||"neutral"}>{statusLabels[inv.status]||inv.status}</CCStatusPill>
+              {inv.status!=="PAID"&&inv.due&&<span style={{fontSize:11.5,fontWeight:600,color:ageColor,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{d>0?`${d}d past due`:"current"}</span>}
+            </div>;
+          } },
           { key:"act", label:"", align:"right", render:(inv:any)=>(
             <div style={{display:"flex",gap:6,justifyContent:"flex-end",alignItems:"center"}}>
               {inv.balance>0&&<CCBtn variant="secondary" style={{padding:"5px 11px",fontSize:12}} onClick={()=>setModal({type:"closeOut",invoice:inv})}>Close out</CCBtn>}
