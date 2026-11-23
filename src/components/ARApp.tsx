@@ -1275,6 +1275,25 @@ function exportAgingCsv(rows: any[], buckets: string[], selectedBucket: string |
   URL.revokeObjectURL(url);
 }
 
+// Invoice-level AR aging export: one row per open invoice with its own days-past-due (true AR aging).
+function exportInvoiceAgingCsv(invoices: any[], selectedBucket: string | null) {
+  const esc = (v: any) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const fmtD = (s: string) => s ? s.split("T")[0] : "";
+  const headers = ["Customer", "Invoice #", "Invoice Date", "Due Date", "Amount", "Balance", "Days Past Due", "Aging Bucket"];
+  const bLabel: any = { current: "Current", "1-30": "1-30 days", "31-60": "31-60 days", "61-90": "61-90 days", "90+": "90+ days" };
+  const sorted = [...invoices].sort((a, b) => (b.daysOverdue || 0) - (a.daysOverdue || 0));
+  const lines = sorted.map(i => [i.customer?.name || "—", i.id, fmtD(i.date), i.due ? fmtD(i.due) : "", Number(i.amount).toFixed(2), (i.balance || 0).toFixed(2), i.due ? Math.max(0, i.daysOverdue || 0) : "", bLabel[i.bucket] || ""].map(esc).join(","));
+  const totalBal = sorted.reduce((s, i) => s + (i.balance || 0), 0);
+  lines.push(["TOTAL", "", "", "", "", totalBal.toFixed(2), "", ""].map(esc).join(","));
+  const today = new Date().toISOString().split("T")[0];
+  const csv = [esc(`Accounts Receivable Aging (by invoice)${selectedBucket ? ` - ${bLabel[selectedBucket]}` : ""} - as of ${today}`), "", headers.join(","), ...lines].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `ar-aging-by-invoice-${today}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
 // Drawer showing a customer's open invoices with days-past-due (the clean way to show DPD when a customer
 // has multiple invoices across aging brackets).
 function AgingDrawer({ row, onClose }: any) {
@@ -1314,6 +1333,8 @@ function AgePage({open,agingTotals,custMap}: any) {
   const [pageSize,setPageSize]=useState(100);
   const [currentPage,setCurrentPage]=useState(1);
   const [selectedBucket,setSelectedBucket]=useState<string|null>(null);
+  const [viewMode,setViewMode]=useState<"customer"|"invoice">("customer");
+  const bucketOf=(d:number)=>d<=0?"current":d<=30?"1-30":d<=60?"31-60":d<=90?"61-90":"90+";
 
   const buckets=["current","1-30","31-60","61-90","90+"];
   const bC:any={current:"#43B892","1-30":"#43B892","31-60":"#DBA14E","61-90":"#DBA14E","90+":"#E57C7C"};
@@ -1333,16 +1354,30 @@ function AgePage({open,agingTotals,custMap}: any) {
     return Object.entries(m).map(([id,bkts]:any)=>({...bkts,customerId:id,customer:custMap[id],total:buckets.reduce((a:any,b:any)=>a+bkts[b],0)})).sort((a:any,b:any)=>b.total-a.total);
   },[open,custMap]);
 
+  // Invoice-level rows (one per open invoice) — the "true AR aging" view Chisam asked for.
+  const byInvoice = useMemo(()=>[...open]
+    .filter((i:any)=>!selectedBucket || bucketOf(i.daysOverdue)===selectedBucket)
+    .sort((a:any,b:any)=>(b.daysOverdue||0)-(a.daysOverdue||0))
+    .map((i:any)=>({...i, customer:custMap[i.customerId], bucket:bucketOf(i.daysOverdue)}))
+  ,[open,custMap,selectedBucket]);
+
   const filtered = selectedBucket
     ? byCust.filter((r:any) => r[selectedBucket] > 0)
     : byCust;
 
-  const displayed=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
+  const activeRows = viewMode==="customer" ? filtered : byInvoice;
+  const displayed=activeRows.slice((currentPage-1)*pageSize,currentPage*pageSize);
 
   const tileLabel = (b:string) => b==="current"?"Current":b+" days";
+  const fmtDate = (s:string) => { if(!s) return "—"; const [y,m,d]=s.split("T")[0].split("-"); return `${m}/${d}/${y}`; };
 
   const chipTone:any={current:"green","1-30":"green","31-60":"amber","61-90":"amber","90+":"red"};
-  const invCountIn=(b:string)=>open.filter((i:any)=>{const d=i.daysOverdue;const bk=d<=0?"current":d<=30?"1-30":d<=60?"31-60":d<=90?"61-90":"90+";return bk===b;}).length;
+  const invCountIn=(b:string)=>open.filter((i:any)=>bucketOf(i.daysOverdue)===b).length;
+
+  const ToggleBtn=({mode,label}:{mode:"customer"|"invoice";label:string})=>(
+    <button onClick={()=>{setViewMode(mode);setCurrentPage(1);}} style={{padding:"6px 13px",fontSize:12.5,borderRadius:8,border:`1px solid ${viewMode===mode?"#5B9BE0":"#2A2A30"}`,background:viewMode===mode?"#15263a":"#1C1C21",color:viewMode===mode?"#5B9BE0":"#908E85",fontWeight:600,cursor:"pointer"}}>{label}</button>
+  );
+
   return (
     <div>
       <CCFilterChips
@@ -1354,22 +1389,39 @@ function AgePage({open,agingTotals,custMap}: any) {
         ]}
       />
       <CCToolbar>
-        <div style={{fontSize:13,fontWeight:600,color:"#C9C7BF"}}>{selectedBucket ? `${tileLabel(selectedBucket)} customers` : "All customers"} <span style={{color:"#63615A",fontWeight:400}}>· {filtered.length}</span></div>
-        <button onClick={()=>exportAgingCsv(filtered, buckets, selectedBucket)} style={{marginLeft:"auto",padding:"6px 13px",fontSize:12.5,borderRadius:8,border:"1px solid #2A2A30",background:"#232329",color:"#F0EEE8",fontWeight:500,cursor:"pointer"}}>⇪ Export CSV</button>
+        <div style={{display:"flex",gap:6}}><ToggleBtn mode="customer" label="By customer" /><ToggleBtn mode="invoice" label="By invoice" /></div>
+        <div style={{fontSize:12.5,color:"#63615A",marginLeft:4}}>· {activeRows.length} {viewMode==="customer"?"customers":"invoices"}</div>
+        <button onClick={()=>viewMode==="customer"?exportAgingCsv(filtered, buckets, selectedBucket):exportInvoiceAgingCsv(byInvoice, selectedBucket)} style={{marginLeft:"auto",padding:"6px 13px",fontSize:12.5,borderRadius:8,border:"1px solid #2A2A30",background:"#232329",color:"#F0EEE8",fontWeight:500,cursor:"pointer"}}>⇪ Export CSV</button>
       </CCToolbar>
-      <CCDataTable
-        rowKey={(_r:any,i:number)=>String(i)}
-        empty="No customers in this bucket"
-        onRowClick={(r:any)=>setDrawerCust(r)}
-        cols={[
-          { key:"cust", label:"Customer", render:(r:any)=><span style={{cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}><CCCustomerCell name={r.customer?.name||"—"} /><span style={{color:"#63615A",fontSize:11}}>{(r._invoices?.length||0)} inv ›</span></span> },
-          ...buckets.map(b=>({ key:b, label:tileLabel(b), align:"right" as const, render:(r:any)=><span style={{color:r[b]>0?bC[b]:"#63615A",fontWeight:r[b]>0?600:400,fontVariantNumeric:"tabular-nums"}}>{r[b]>0?fmt(r[b]):"—"}</span> })),
-          { key:"total", label:"Total", align:"right" as const, render:(r:any)=><span style={{fontWeight:700,color:"#F0EEE8",fontVariantNumeric:"tabular-nums"}}>{fmt(r.total)}</span> },
-        ]}
-        rows={displayed}
-      />
+      {viewMode==="customer" ? (
+        <CCDataTable
+          rowKey={(_r:any,i:number)=>String(i)}
+          empty="No customers in this bucket"
+          onRowClick={(r:any)=>setDrawerCust(r)}
+          cols={[
+            { key:"cust", label:"Customer", render:(r:any)=><span style={{cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}><CCCustomerCell name={r.customer?.name||"—"} /><span style={{color:"#63615A",fontSize:11}}>{(r._invoices?.length||0)} inv ›</span></span> },
+            ...buckets.map(b=>({ key:b, label:tileLabel(b), align:"right" as const, render:(r:any)=><span style={{color:r[b]>0?bC[b]:"#63615A",fontWeight:r[b]>0?600:400,fontVariantNumeric:"tabular-nums"}}>{r[b]>0?fmt(r[b]):"—"}</span> })),
+            { key:"total", label:"Total", align:"right" as const, render:(r:any)=><span style={{fontWeight:700,color:"#F0EEE8",fontVariantNumeric:"tabular-nums"}}>{fmt(r.total)}</span> },
+          ]}
+          rows={displayed}
+        />
+      ) : (
+        <CCDataTable
+          rowKey={(r:any)=>r.id}
+          empty="No invoices in this bucket"
+          cols={[
+            { key:"cust", label:"Customer", render:(r:any)=><CCCustomerCell name={r.customer?.name||"—"} /> },
+            { key:"inv", label:"Invoice #", render:(r:any)=><span style={{fontWeight:600,color:"#F0EEE8",fontVariantNumeric:"tabular-nums"}}>{r.id}</span> },
+            { key:"date", label:"Date", render:(r:any)=><span style={{color:"#908E85",fontSize:12.5}}>{fmtDate(r.date)}</span> },
+            { key:"due", label:"Due", render:(r:any)=><span style={{color:r.daysOverdue>0?"#E57C7C":"#908E85",fontSize:12.5}}>{r.due?fmtDate(r.due):"—"}</span> },
+            { key:"balance", label:"Balance", align:"right" as const, render:(r:any)=><span style={{fontWeight:700,color:"#F0EEE8",fontVariantNumeric:"tabular-nums"}}>{fmt(r.balance)}</span> },
+            { key:"dpd", label:"Days past due", align:"right" as const, render:(r:any)=><span style={{fontWeight:600,color:bC[r.bucket],fontVariantNumeric:"tabular-nums"}}>{r.due?(r.daysOverdue>0?`${r.daysOverdue} days`:"Current"):"—"}</span> },
+          ]}
+          rows={displayed}
+        />
+      )}
       {drawerCust && <AgingDrawer row={drawerCust} onClose={()=>setDrawerCust(null)} />}
-      <Pagination current={currentPage} total={filtered.length} pageSize={pageSize} onPage={setCurrentPage} onSize={(s:number)=>{setPageSize(s);setCurrentPage(1);}}/>
+      <Pagination current={currentPage} total={activeRows.length} pageSize={pageSize} onPage={setCurrentPage} onSize={(s:number)=>{setPageSize(s);setCurrentPage(1);}}/>
     </div>
   );
 }
