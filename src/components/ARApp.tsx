@@ -1255,6 +1255,41 @@ function exportAgingCsv(rows: any[], buckets: string[], selectedBucket: string |
   URL.revokeObjectURL(url);
 }
 
+// Drawer showing a customer's open invoices with days-past-due (the clean way to show DPD when a customer
+// has multiple invoices across aging brackets).
+function AgingDrawer({ row, onClose }: any) {
+  const invoices = [...(row._invoices || [])].sort((a: any, b: any) => (b.daysOverdue || 0) - (a.daysOverdue || 0));
+  const fmtDate = (s: string) => { if (!s) return "—"; const [y, m, d] = s.split("T")[0].split("-"); return `${m}/${d}/${y}`; };
+  const dpdColor = (d: number) => d <= 0 ? "#43B892" : d <= 30 ? "#43B892" : d <= 60 ? "#DBA14E" : d <= 90 ? "#DBA14E" : "#E57C7C";
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose(); }} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)", zIndex: 2000, display: "flex", justifyContent: "flex-end" }}>
+      <div style={{ width: "min(560px,100%)", height: "100%", background: "#1C1C21", borderLeft: "1px solid #2A2A30", overflowY: "auto", padding: "26px 24px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#F0EEE8" }}>{row.customer?.name || "—"}</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#908E85", fontSize: 22, cursor: "pointer", lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ fontSize: 13, color: "#908E85", marginBottom: 18 }}>{invoices.length} open invoice{invoices.length !== 1 ? "s" : ""} · {fmt(row.total)} total AR</div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead><tr>
+            {["Invoice", "Date", "Due", "Balance", "Days past due"].map((h, i) => <th key={h} style={{ textAlign: i >= 3 ? "right" : "left", padding: "8px 8px", fontSize: 10.5, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase", color: "#908E85", borderBottom: "1px solid #2A2A30", whiteSpace: "nowrap" }}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {invoices.map((inv: any) => (
+              <tr key={inv.id}>
+                <td style={{ padding: "9px 8px", borderBottom: "1px solid #232329", color: "#F0EEE8" }}>{inv.id}</td>
+                <td style={{ padding: "9px 8px", borderBottom: "1px solid #232329", color: "#C9C7BF", whiteSpace: "nowrap" }}>{fmtDate(inv.date)}</td>
+                <td style={{ padding: "9px 8px", borderBottom: "1px solid #232329", color: "#C9C7BF", whiteSpace: "nowrap" }}>{inv.due ? fmtDate(inv.due) : "—"}</td>
+                <td style={{ padding: "9px 8px", borderBottom: "1px solid #232329", textAlign: "right", color: "#F0EEE8", fontVariantNumeric: "tabular-nums" }}>{fmt(inv.balance)}</td>
+                <td style={{ padding: "9px 8px", borderBottom: "1px solid #232329", textAlign: "right", fontWeight: 600, color: dpdColor(inv.daysOverdue), fontVariantNumeric: "tabular-nums" }}>{inv.due ? (inv.daysOverdue > 0 ? `${inv.daysOverdue} days` : "Current") : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function AgePage({open,agingTotals,custMap}: any) {
   const [pageSize,setPageSize]=useState(100);
   const [currentPage,setCurrentPage]=useState(1);
@@ -1264,15 +1299,18 @@ function AgePage({open,agingTotals,custMap}: any) {
   const bC:any={current:"#43B892","1-30":"#43B892","31-60":"#DBA14E","61-90":"#DBA14E","90+":"#E57C7C"};
   const total=Object.values(agingTotals).reduce((a:any,b:any)=>a+b,0)||1;
 
+  const [drawerCust,setDrawerCust]=useState<any>(null);
+
   const byCust=useMemo(()=>{
     const m:any={};
     open.forEach((inv:any)=>{
-      if(!m[inv.customerId])m[inv.customerId]={...Object.fromEntries(buckets.map(b=>[b,0]))};
+      if(!m[inv.customerId]){m[inv.customerId]={...Object.fromEntries(buckets.map(b=>[b,0])),_invoices:[]};}
       const d=inv.daysOverdue;
       const b=d<=0?"current":d<=30?"1-30":d<=60?"31-60":d<=90?"61-90":"90+";
       m[inv.customerId][b]+=inv.balance;
+      m[inv.customerId]._invoices.push(inv);
     });
-    return Object.entries(m).map(([id,bkts]:any)=>({...bkts,customer:custMap[id],total:Object.values(bkts).reduce((a:any,b:any)=>a+b,0)})).sort((a:any,b:any)=>b.total-a.total);
+    return Object.entries(m).map(([id,bkts]:any)=>({...bkts,customerId:id,customer:custMap[id],total:buckets.reduce((a:any,b:any)=>a+bkts[b],0)})).sort((a:any,b:any)=>b.total-a.total);
   },[open,custMap]);
 
   const filtered = selectedBucket
@@ -1302,13 +1340,15 @@ function AgePage({open,agingTotals,custMap}: any) {
       <CCDataTable
         rowKey={(_r:any,i:number)=>String(i)}
         empty="No customers in this bucket"
+        onRowClick={(r:any)=>setDrawerCust(r)}
         cols={[
-          { key:"cust", label:"Customer", render:(r:any)=><CCCustomerCell name={r.customer?.name||"—"} /> },
+          { key:"cust", label:"Customer", render:(r:any)=><span style={{cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}><CCCustomerCell name={r.customer?.name||"—"} /><span style={{color:"#63615A",fontSize:11}}>{(r._invoices?.length||0)} inv ›</span></span> },
           ...buckets.map(b=>({ key:b, label:tileLabel(b), align:"right" as const, render:(r:any)=><span style={{color:r[b]>0?bC[b]:"#63615A",fontWeight:r[b]>0?600:400,fontVariantNumeric:"tabular-nums"}}>{r[b]>0?fmt(r[b]):"—"}</span> })),
           { key:"total", label:"Total", align:"right" as const, render:(r:any)=><span style={{fontWeight:700,color:"#F0EEE8",fontVariantNumeric:"tabular-nums"}}>{fmt(r.total)}</span> },
         ]}
         rows={displayed}
       />
+      {drawerCust && <AgingDrawer row={drawerCust} onClose={()=>setDrawerCust(null)} />}
       <Pagination current={currentPage} total={filtered.length} pageSize={pageSize} onPage={setCurrentPage} onSize={(s:number)=>{setPageSize(s);setCurrentPage(1);}}/>
     </div>
   );

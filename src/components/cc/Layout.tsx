@@ -110,8 +110,8 @@ export function SearchBox({ value, onChange, placeholder }: { value: string; onC
 
 // --- DataTable: the redesigned table (generous rows, hover, header) ---
 export type Col = { key: string; label: React.ReactNode; align?: 'left' | 'right' | 'center'; render?: (row: any) => React.ReactNode; width?: number | string; wrap?: boolean };
-export function DataTable({ cols, rows, empty = 'None.', rowKey }:
-  { cols: Col[]; rows: any[]; empty?: string; rowKey?: (r: any, i: number) => string }) {
+export function DataTable({ cols, rows, empty = 'None.', rowKey, onRowClick }:
+  { cols: Col[]; rows: any[]; empty?: string; rowKey?: (r: any, i: number) => string; onRowClick?: (r: any) => void }) {
   // Sticky header (frozen while the table body scrolls). position:sticky + top:0 keeps the header row fixed.
   const thBase: React.CSSProperties = { padding: '11px 13px', fontSize: 11, fontWeight: 600, letterSpacing: '.05em',
     textTransform: 'uppercase', color: cc.muted, background: cc.panel2, borderBottom: `1px solid ${cc.line}`, whiteSpace: 'nowrap',
@@ -126,9 +126,10 @@ export function DataTable({ cols, rows, empty = 'None.', rowKey }:
             <tr><td colSpan={cols.length} style={{ ...tdBase, textAlign: 'center', color: cc.faint, padding: 22 }}>{empty}</td></tr>
           ) : rows.map((r, i) => (
             <tr key={rowKey ? rowKey(r, i) : i}
+              onClick={onRowClick ? () => onRowClick(r) : undefined}
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = cc.panel2}
               onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-              style={{ transition: 'background .12s' }}>
+              style={{ transition: 'background .12s', cursor: onRowClick ? 'pointer' : 'default' }}>
               {cols.map(c => <td key={c.key} style={{ ...tdBase, textAlign: c.align || 'left', ...(c.wrap ? { whiteSpace: 'normal' } : {}) }}>{c.render ? c.render(r) : r[c.key]}</td>)}
             </tr>
           ))}
