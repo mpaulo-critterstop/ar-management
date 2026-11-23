@@ -79,8 +79,11 @@ export async function GET(req: NextRequest) {
     syncStatus: status?.value || null,
     // Active tabs exclude PAID (written-off / paid in full) — those are resolved and out of AR, so they
     // shouldn't clutter the working lists. (badDebt rows are already filtered to their own section below.)
-    collections: shaped.filter(r => r.track === 'COLLECTIONS' && r.stage !== 'PAID' && !r.stage.startsWith('BAD_DEBT')),
-    scc: shaped.filter(r => r.track === 'SCC' && r.stage !== 'PAID' && !r.stage.startsWith('BAD_DEBT')),
+    // Collections / Small Claims = pre-send rows (not yet Sent to ARM / SCC Filed).
+    collections: shaped.filter(r => r.track === 'COLLECTIONS' && r.stage !== 'PAID' && r.stage !== 'SENT' && !r.stage.startsWith('BAD_DEBT')),
+    scc: shaped.filter(r => r.track === 'SCC' && r.stage !== 'PAID' && r.stage !== 'SENT' && !r.stage.startsWith('BAD_DEBT')),
+    // Pending Bad Debt = Sent to ARM / SCC Filed, counting down to Bad Debt.
+    pendingBadDebt: shaped.filter(r => r.stage === 'SENT'),
     badDebt: shaped.filter(r => r.stage === 'BAD_DEBT_PROPOSED' || r.stage === 'BAD_DEBT_APPROVED'),
   });
 }

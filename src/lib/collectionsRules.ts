@@ -37,7 +37,7 @@ export const DEFAULT_CONFIG: CollectionsConfig = {
   promisedExtensionDays: 15,   // Promised → promise date + 15 days
   // ARM marks accounts "Treatment complete" ~day 59-60 after being sent; set the bad-debt-proposal
   // trigger to 60d so it fires when ARM has actually finished, not before. Total: 120d Collections.
-  badDebtDaysAfterARM: 60,
+  badDebtDaysAfterARM: 45,
   badDebtDaysAfterSCC: 60,    // SCC post-filing window; adjustable if court/SCC turnaround data suggests otherwise
   // Safe default: NOT live. Flip liveMode=true (via collections_config) to begin admitting the backlog, and
   // tune maxEntriesPerRun to control how fast the ~357 backlog flows in. Stage transitions on already-entered

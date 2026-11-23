@@ -9,7 +9,7 @@ const fmt = (d: any) => d ? new Date(d).toLocaleDateString('en-US', { month: 'sh
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export default function CollectionsTracker({ embedded }: { embedded?: boolean }) {
-  const [tab, setTab] = useState<'collections' | 'scc' | 'badDebt'>('collections');
+  const [tab, setTab] = useState<'collections' | 'scc' | 'pendingBadDebt' | 'badDebt'>('collections');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -26,7 +26,7 @@ export default function CollectionsTracker({ embedded }: { embedded?: boolean })
   }
   async function runSync() { setSyncing(true); await fetch('/api/cron/collections-sync?token=critterstop2026').catch(() => {}); setSyncing(false); load(); }
 
-  const rows = data ? (tab === 'collections' ? data.collections : tab === 'scc' ? data.scc : data.badDebt) : [];
+  const rows = data ? (tab === 'collections' ? data.collections : tab === 'scc' ? data.scc : tab === 'pendingBadDebt' ? (data.pendingBadDebt||[]) : data.badDebt) : [];
   const th: React.CSSProperties = { textAlign: 'left', padding: '13px 16px', fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#908E85', background: '#232329', borderBottom: '1px solid #2A2A30', whiteSpace: 'nowrap', position: 'sticky', top: 0, zIndex: 2 };
   const td: React.CSSProperties = { textAlign: 'left', padding: '12px 16px', fontSize: 13, color: '#C9C7BF', borderBottom: '1px solid #2A2A30', whiteSpace: 'nowrap' };
   const btn = (bg: string, fg: string): React.CSSProperties => ({ fontSize: 12, padding: '5px 11px', borderRadius: 7, border: '1px solid '+fg+'44', background: bg, color: fg, cursor: 'pointer', fontWeight: 600, marginRight: 5 });
@@ -74,14 +74,12 @@ export default function CollectionsTracker({ embedded }: { embedded?: boolean })
     if (!row.respondedAt) els.push(<button key="r" style={btn('#15263a', '#5B9BE0')} onClick={() => setModal({ id: row.id, kind: 'responded', date: todayStr() })}>Responded</button>);
     if (!row.promisedAt) els.push(<button key="p" style={btn('#143229', '#43B892')} onClick={() => setModal({ id: row.id, kind: 'promised', date: todayStr() })}>Promised to Pay</button>);
     els.push(<button key="pr" style={btn('#26262C', '#C9C7BF')} onClick={() => setModal({ id: row.id, kind: 'partial', date: todayStr() })}>Partial pmt</button>);
-    if (row.actionDue) {
-      if (!row.finalCallMadeAt) els.push(<button key="fc" style={btn('#352a16', '#DBA14E')} onClick={() => act(row.id, 'finalCall')}>✓ Final call made</button>);
-      else {
-        const armLabel = row.track === 'SCC' ? 'File SCC' : row.recommendedArm === 'CONTINGENCY' ? 'Send to ARM (Contingency)' : 'Send to ARM (Flat rate)';
-        const confirmMsg = row.track === 'SCC' ? 'Mark SCC Filed?' : `Send to ARM as ${row.recommendedArm === 'CONTINGENCY' ? 'CONTINGENCY (No Recovery No Fee)' : 'FLAT RATE (uses a slot)'}?`;
-        els.push(<button key="send" style={btn('#E57C7C', '#fff')} onClick={() => { if (confirm(confirmMsg)) act(row.id, row.track === 'SCC' ? 'sccFiled' : 'sentToARM'); }}>{armLabel}</button>);
-      }
-    }
+    // "Sent to ARM" (Collections) / "SCC Filed" (Small Claims) — always available (no final-call gate).
+    // Mark it after you've manually sent the account to ARM / filed SCC in FR; the row then moves to
+    // Pending Bad Debt and the countdown (ARM 45d / SCC 60d) begins.
+    const armLabel = row.track === 'SCC' ? 'SCC Filed' : row.recommendedArm === 'CONTINGENCY' ? 'Sent to ARM (Contingency)' : 'Sent to ARM';
+    const confirmMsg = row.track === 'SCC' ? 'Mark SCC as Filed? This moves the account to Pending Bad Debt and starts the 60-day countdown.' : `Mark Sent to ARM${row.recommendedArm === 'CONTINGENCY' ? ' (Contingency — No Recovery No Fee)' : ''}? This moves the account to Pending Bad Debt and starts the 45-day countdown.`;
+    els.push(<button key="send" style={btn('#E57C7C', '#fff')} onClick={() => { if (confirm(confirmMsg)) act(row.id, row.track === 'SCC' ? 'sccFiled' : 'sentToARM'); }}>{armLabel}</button>);
     return <span style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>{els}</span>;
   }
 
@@ -91,7 +89,7 @@ export default function CollectionsTracker({ embedded }: { embedded?: boolean })
 
   return (
     <div style={ embedded ? {} : { maxWidth: 1280, margin: '0 auto', padding: '30px 34px 70px' } }>
-      {!embedded && <CCPageHeader icon="⚖️" title="Collections · Small Claims · Bad Debt" subtitle="Overdue invoices auto-enter by amount; 15-day countdown with engagement, then escalation."
+      {!embedded && <CCPageHeader icon="⚖️" title="Collections · Small Claims · Bad Debt" subtitle="Overdue invoices auto-enter by amount. Mark Sent to ARM / SCC Filed → Pending Bad Debt → auto to Bad Debt (ARM 45d / SCC 60d) for approval."
         actions={<CCBtn variant="secondary" onClick={runSync} disabled={syncing} style={{ color: '#9D8BE6', borderColor: '#3a3357' }}>{syncing ? 'Syncing…' : '↻ Run sync now'}</CCBtn>} />}
       {embedded && <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:12 }}><CCBtn variant="secondary" onClick={runSync} disabled={syncing} style={{ color: '#9D8BE6', borderColor: '#3a3357' }}>{syncing ? 'Syncing…' : '↻ Run sync now'}</CCBtn></div>}
       <p style={{ fontSize: 12.5, color: '#908E85', margin: '-14px 0 10px', lineHeight: 1.6, maxWidth: 820 }}>
@@ -103,6 +101,7 @@ export default function CollectionsTracker({ embedded }: { embedded?: boolean })
         <CCSegTabs active={tab} onChange={(k:string)=>setTab(k as any)} tabs={[
           { key:'collections', label:'Collections', count: data?.collections.length ?? 0 },
           { key:'scc', label:'Small Claims', count: data?.scc.length ?? 0 },
+          { key:'pendingBadDebt', label:'Pending Bad Debt', count: data?.pendingBadDebt?.length ?? 0 },
           { key:'badDebt', label:`Bad Debt${bdCount ? ' ⚑'+bdCount : ''}`, count: data?.badDebt.length ?? 0 },
         ]} />
       </div>
