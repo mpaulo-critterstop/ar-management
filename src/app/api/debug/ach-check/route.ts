@@ -1,23 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FR_OFFICES } from '@/lib/helcimBridge';
 import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
-const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
-// Reverse an FR payment that was voided/returned in Stax (ACH return). ?token= &frPaymentId= &office= &confirm=1
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const frPaymentId = sp.get('frPaymentId') || '85308';
-  const office = sp.get('office') || 'DFW';
-  const cfg = (FR_OFFICES as any)[office];
-  if (!cfg) return NextResponse.json({ error: 'bad office' });
-  const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
-  // read the FR payment first
-  const g = await fetch(`${FR_BASE}/payment/get?paymentIDs=${frPaymentId},${frPaymentId}&${auth}`).then(r => r.json()).catch(() => null);
-  const pmt = g?.payments?.[0];
-  if (sp.get('confirm') !== '1') return NextResponse.json({ dryRun: true, frPayment: pmt ? { id: pmt.paymentID, amount: pmt.amount, status: pmt.status, customerID: pmt.customerID, date: pmt.date } : null, note: 'add &confirm=1 to reverse via createRefund' });
-  // reverse it (full refund)
-  const r = await fetch(`${FR_BASE}/payment/createRefund?paymentID=${frPaymentId}&${auth}`, { method: 'POST' });
-  const j = await r.json().catch(() => null);
-  return NextResponse.json({ reversed: j?.success !== false, response: j });
+  // mark the original charge ledger row as ach_returned, and the void row as written
+  if (sp.get('confirm') === '1') {
+    await prisma.staxPayment.update({ where: { staxTransactionId: '91f5597e-3edc-46e2-b031-256c21cebe7a' }, data: { status: 'ach_returned', failReason: 'ACH return R03 — No Account; FR payment 85308 reversed via refund 85986', processedAt: new Date() } }).catch(()=>{});
+    await prisma.staxPayment.update({ where: { staxTransactionId: 'a1f1b729-8612-472b-81e7-c630562866e4' }, data: { status: 'written', failReason: 'void processed; reversed FR payment 85308', processedAt: new Date() } }).catch(()=>{});
+    return NextResponse.json({ ok: true, updated: 'charge->ach_returned, void->written' });
+  }
+  const rows = await prisma.staxPayment.findMany({ where: { frInvoiceNumber: '283138' } });
+  return NextResponse.json({ rows: rows.map(r=>({ staxTransactionId:r.staxTransactionId, status:r.status, frPaymentId:r.frPaymentId })) , note:'add &confirm=1 to update ledger'});
 }
