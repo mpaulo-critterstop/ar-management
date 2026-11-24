@@ -13,9 +13,9 @@ const REDIRECT_URI = 'https://hub.critterstop.com/api/bouncie/oauth-callback';
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
 
-  // Chisam's separate analytics app credentials.
+  // Chisam's separate analytics app credentials (set in Vercel env if this one-time flow is ever re-run).
   const clientId = process.env.BOUNCIE_CHISAM_CLIENT_ID || 'critter-stop-chisam';
-  const clientSecret = process.env.BOUNCIE_CHISAM_CLIENT_SECRET || '52jqbaSvmqPOyPDuOpCfMxQ79GWXWirGCjHqjJjHVdfw87GNIl';
+  const clientSecret = process.env.BOUNCIE_CHISAM_CLIENT_SECRET || '';
 
   if (sp.get('start') === '1') {
     if (!clientId) return NextResponse.json({ error: 'BOUNCIE_CHISAM_CLIENT_ID not set in env' }, { status: 400 });
