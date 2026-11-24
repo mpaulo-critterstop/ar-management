@@ -4,8 +4,33 @@
 //   GET ?token=critterstop2026[&pages=5][&dry=1]
 import { NextRequest, NextResponse } from 'next/server';
 import { STAX_BASE, staxHeaders, processStaxTransaction } from '@/lib/staxBridge';
+import { FR_OFFICES } from '@/lib/helcimBridge';
+import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
+
+const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
+
+// When Stax voids/returns a charge that we already recorded to FR (e.g. ACH return R03 days later), reverse the
+// FR payment via payment/createRefund. Idempotent: the charge's ledger row is flipped to 'ach_returned' once.
+async function handleAchVoidByParent(parentChargeId: string, dry: boolean): Promise<{ reversed: boolean; frPaymentId: string | null } | null> {
+  const ledger = await prisma.staxPayment.findUnique({ where: { staxTransactionId: parentChargeId } }).catch(() => null);
+  if (!ledger || ledger.status !== 'written' || !ledger.frPaymentId) return null; // not ours / not written / already handled
+  if (dry) return { reversed: false, frPaymentId: ledger.frPaymentId };
+  const office = ledger.office || '';
+  const cfg = (FR_OFFICES as any)[office];
+  let reversed = false;
+  if (cfg) {
+    const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+    try {
+      const r = await fetch(`${FR_BASE}/payment/createRefund?paymentID=${ledger.frPaymentId}&${auth}`, { method: 'POST' });
+      const j = await r.json().catch(() => null);
+      reversed = j?.success !== false;
+    } catch { /* non-fatal */ }
+  }
+  await prisma.staxPayment.update({ where: { staxTransactionId: parentChargeId }, data: { status: 'ach_returned', failReason: `Stax voided/returned — FR payment ${ledger.frPaymentId} reversed`, processedAt: new Date() } }).catch(() => {});
+  return { reversed, frPaymentId: ledger.frPaymentId };
+}
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
@@ -24,6 +49,17 @@ export async function GET(req: NextRequest) {
     if (!Array.isArray(data) || !data.length) break;
     for (const txn of data) {
       const type = String(txn?.type || '').toLowerCase();
+      // ACH RETURN / VOID detection: Stax voids a charge days later (e.g. R03 ACH return). The VOID transaction
+      // itself is recent (so it shows up here), while its parent charge is on an old page. Key off the void and
+      // reverse the parent's FR payment. parent_id / transaction_id points to the original charge.
+      if (type === 'void' && txn?.success) {
+        const parentId = txn?.parent_id || txn?.transaction_id || txn?.parent_transaction_id || null;
+        if (parentId) {
+          const handled = await handleAchVoidByParent(parentId, dry);
+          if (handled) { summary.ach_reversed = (summary.ach_reversed || 0) + 1; if (handled.reversed) recovered.push({ reversal: true, voidTxn: txn.id, parentCharge: parentId, frPaymentId: handled.frPaymentId }); }
+        }
+        continue;
+      }
       if (type !== 'charge' && type !== 'capture') continue;
       summary.scanned++;
       if (dry) continue;
