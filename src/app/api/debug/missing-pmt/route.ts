@@ -1,23 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { STAX_BASE, staxHeaders } from '@/lib/staxBridge';
-import { prisma } from '@/lib/prisma';
+import { FR_OFFICES } from '@/lib/helcimBridge';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120;
+const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
 export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const txnId = req.nextUrl.searchParams.get('txn') || 'a123bc79-9651-48ee-bb33-abe1f4ed2e8f';
   const inv = req.nextUrl.searchParams.get('inv') || '284285';
-  // 1) Hub ledger — any row for this txn or invoice?
-  const byTxn = await prisma.staxPayment.findUnique({ where: { staxTransactionId: txnId } }).catch(() => null);
-  const byInv = await prisma.staxPayment.findMany({ where: { frInvoiceNumber: inv } }).catch(() => []);
-  // 2) the Stax transaction itself
-  const headers = staxHeaders();
-  const sg = await fetch(`${STAX_BASE}/transaction/${txnId}`, { headers }).then(r => r.json()).catch(() => null);
-  const stax = sg?.id ? { id: sg.id, type: sg.type, method: sg.method, total: sg.total, success: sg.success, status: sg.status, created_at: sg.created_at, meta: sg.meta, invoice_id: sg.invoice_id, customer_id: sg.customer_id } : { error: 'not found', raw: sg };
-  return NextResponse.json({
-    txnId, inv,
-    hubRowByTxn: byTxn ? { status: byTxn.status, frPaymentId: byTxn.frPaymentId, amount: byTxn.amount, failReason: byTxn.failReason } : null,
-    hubRowsByInvoice: byInv.map((r:any)=>({ staxTransactionId:r.staxTransactionId, status:r.status, frPaymentId:r.frPaymentId })),
-    staxTransaction: stax,
-  });
+  const out: any = { invoice: inv, offices: {} };
+  for (const [office, cfg] of Object.entries(FR_OFFICES)) {
+    if (!(cfg as any).key) continue;
+    const auth = `authenticationKey=${(cfg as any).key}&authenticationToken=${(cfg as any).token}`;
+    // find the ticket, then its payments
+    const tg = await fetch(`${FR_BASE}/ticket/get?ticketIDs=${inv},${inv}&${auth}`).then(r => r.json()).catch(() => null);
+    const tk = tg?.tickets?.[0];
+    if (!tk) continue;
+    // payments for this customer around this invoice
+    const ps = await fetch(`${FR_BASE}/payment/search?customerIDs=${tk.customerID}&${auth}`).then(r => r.json()).catch(() => null);
+    const pids = (ps?.paymentIDs || []).slice(0, 30);
+    let payments: any[] = [];
+    if (pids.length) { const g = await fetch(`${FR_BASE}/payment/get?paymentIDs=${pids.join(',')}${pids.length===1?','+pids[0]:''}&${auth}`).then(r => r.json()).catch(() => null); payments = g?.payments || []; }
+    // payments matching $662.28
+    const matches = payments.filter((p:any)=>Math.abs(Number(p.amount)-662.28)<0.01).map((p:any)=>({ id:p.paymentID, amount:p.amount, date:p.date, status:p.status, paymentMethod:p.paymentMethod }));
+    out.offices[office] = { ticketFound: true, customerID: tk.customerID, balance: tk.balance, matchingPayments: matches };
+  }
+  return NextResponse.json(out);
 }
