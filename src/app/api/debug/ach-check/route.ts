@@ -23,5 +23,5 @@ export async function GET(req: NextRequest) {
   }
   // what the Hub has stored
   const hubRows = await prisma.staxPayment.findMany({ where: { frInvoiceNumber: inv } });
-  return NextResponse.json({ invoice: inv, staxMatches: matches, hubRecords: hubRows.map(r=>({ id:r.id, staxTransactionId:r.staxTransactionId, status:r.status, amount:r.amount, frPaymentId:r.frPaymentId, office:r.office, method:r.method, createdAt:r.createdAt })) });
+  return NextResponse.json({ invoice: inv, staxMatches: matches, hubRecords: hubRows.map(r=>({ id:r.id, staxTransactionId:r.staxTransactionId, status:r.status, amount:r.amount, frPaymentId:r.frPaymentId, office:r.office, createdAt:r.createdAt })) });
 }
