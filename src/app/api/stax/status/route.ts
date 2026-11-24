@@ -22,17 +22,19 @@ export async function GET(_req: NextRequest) {
 
   const ONSITE_SELECT = { ...SELECT, frCustomerId: true, cardHolderName: true } as const;
   const DECLINED_SELECT = { ...SELECT, cardHolderName: true, failReason: true } as const;
-  const [writtenRaw, flaggedRaw, failedRaw, pendingRaw, onsiteRaw, declinedRaw] = await Promise.all([
+  const [writtenRaw, flaggedRaw, failedRaw, pendingRaw, onsiteRaw, declinedRaw, achReturnedRaw] = await Promise.all([
     prisma.staxPayment.findMany({ where: { status: 'written' }, orderBy: { processedAt: 'desc' }, take: 1000, select: SELECT }).catch(() => [] as any[]),
     prisma.staxPayment.findMany({ where: { status: 'flagged' }, orderBy: { createdAt: 'desc' }, take: 200, select: SELECT }).catch(() => [] as any[]),
     prisma.staxPayment.findMany({ where: { status: 'failed' }, orderBy: { createdAt: 'desc' }, take: 200, select: SELECT }).catch(() => [] as any[]),
     prisma.staxPayment.findMany({ where: { status: 'pending' }, orderBy: { createdAt: 'desc' }, take: 200, select: SELECT }).catch(() => [] as any[]),
     prisma.staxPayment.findMany({ where: { status: 'onsite' }, orderBy: { createdAt: 'desc' }, take: 500, select: ONSITE_SELECT }).catch(() => [] as any[]),
     prisma.staxPayment.findMany({ where: { status: 'declined' }, orderBy: { createdAt: 'desc' }, take: 500, select: DECLINED_SELECT }).catch(() => [] as any[]),
+    // ACH returns (payment succeeded then bank-returned; FR payment reversed) — shown in the refunded/returned list.
+    prisma.staxPayment.findMany({ where: { status: 'ach_returned' }, orderBy: { processedAt: 'desc' }, take: 200, select: DECLINED_SELECT }).catch(() => [] as any[]),
   ]);
   // Resolve FR customer names for ALL groups (from our DB, by externalId = FR customer id). Falls back to the
   // card-holder name on the Stax txn when we have no FR customer id (e.g. some flagged/declined rows).
-  const allRows = [...writtenRaw, ...flaggedRaw, ...failedRaw, ...pendingRaw, ...onsiteRaw, ...declinedRaw];
+  const allRows = [...writtenRaw, ...flaggedRaw, ...failedRaw, ...pendingRaw, ...onsiteRaw, ...declinedRaw, ...achReturnedRaw];
   const allCustIds = [...new Set(allRows.map((r: any) => r.frCustomerId).filter(Boolean))] as string[];
   const custNameById = new Map<string, string>();
   if (allCustIds.length) {
@@ -50,9 +52,13 @@ export async function GET(_req: NextRequest) {
   }
 
   const realWritten = writtenRaw.filter((r: any) => !isRefundMarker(r));
-  // Recorded = written real payments that are NOT refunded. Refunded = written real payments that ARE refunded.
+  // Recorded = written real payments that are NOT refunded. Refunded = written real payments that ARE refunded,
+  // PLUS ACH returns (bank-returned payments whose FR payment was reversed).
   const recorded = realWritten.filter((r: any) => !refundedOrigIds.has(String(r.staxTransactionId))).map(withName);
-  const refunded = realWritten.filter((r: any) => refundedOrigIds.has(String(r.staxTransactionId))).map(withName);
+  const refunded = [
+    ...realWritten.filter((r: any) => refundedOrigIds.has(String(r.staxTransactionId))).map(withName),
+    ...achReturnedRaw.map((r: any) => ({ ...withName(r), achReturned: true })),
+  ];
   const clean = (arr: any[]) => arr.filter((r: any) => !isRefundMarker(r)).map(withName);
   const flagged = clean(flaggedRaw), failed = clean(failedRaw), pending = clean(pendingRaw);
   const declined = declinedRaw.map(withName);
