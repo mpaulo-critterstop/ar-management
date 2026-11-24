@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
-  if (req.nextUrl.searchParams.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (req.nextUrl.searchParams.get('fix') === '1') {
-    const r = await prisma.staxPayment.update({ where: { staxTransactionId: 'a123bc79-9651-48ee-bb33-abe1f4ed2e8f' }, data: { status: 'written', frPaymentId: '85978', office: 'DFW', processedAt: new Date(), failReason: null } });
-    return NextResponse.json({ fixed: true, status: r.status, frPaymentId: r.frPaymentId });
+  const sp = req.nextUrl.searchParams;
+  if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (sp.get('fix') === '1') {
+    await prisma.staxPayment.update({ where: { staxTransactionId: 'a123bc79-9651-48ee-bb33-abe1f4ed2e8f' }, data: { status: 'written', frPaymentId: '85978', office: 'DFW', processedAt: new Date(), failReason: null } });
+    const after = await prisma.staxPayment.findUnique({ where: { staxTransactionId: 'a123bc79-9651-48ee-bb33-abe1f4ed2e8f' }, select: { status: true, frPaymentId: true } });
+    return NextResponse.json({ fixed: true, after });
   }
-  const r = await prisma.staxPayment.findUnique({ where: { staxTransactionId: 'a123bc79-9651-48ee-bb33-abe1f4ed2e8f' } });
-  return NextResponse.json({ current: r ? { status: r.status, frPaymentId: r.frPaymentId } : null });
+  return NextResponse.json({ note: 'add &fix=1 to mark written w/ FR payment 85978 (confirmed FR has exactly one $662.28 payment on cust 53100)' });
 }
