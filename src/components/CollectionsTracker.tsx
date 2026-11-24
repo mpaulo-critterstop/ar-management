@@ -8,7 +8,7 @@ const money = (n: number) => '$' + (n ?? 0).toLocaleString('en-US', { minimumFra
 const fmt = (d: any) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-export default function CollectionsTracker({ embedded }: { embedded?: boolean }) {
+export default function CollectionsTracker({ embedded, officeFilter }: { embedded?: boolean; officeFilter?: string }) {
   const [tab, setTab] = useState<'collections' | 'scc' | 'pendingBadDebt' | 'badDebt'>('collections');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -26,7 +26,9 @@ export default function CollectionsTracker({ embedded }: { embedded?: boolean })
   }
   async function runSync() { setSyncing(true); await fetch('/api/cron/collections-sync?token=critterstop2026').catch(() => {}); setSyncing(false); load(); }
 
-  const rows = data ? (tab === 'collections' ? data.collections : tab === 'scc' ? data.scc : tab === 'pendingBadDebt' ? (data.pendingBadDebt||[]) : data.badDebt) : [];
+  const rawRows = data ? (tab === 'collections' ? data.collections : tab === 'scc' ? data.scc : tab === 'pendingBadDebt' ? (data.pendingBadDebt||[]) : data.badDebt) : [];
+  const officeMatch = (r: any) => !officeFilter || officeFilter === 'ALL' || officeFilter === 'All' || (r.office || '').toLowerCase() === officeFilter.toLowerCase();
+  const rows = rawRows.filter(officeMatch);
   const th: React.CSSProperties = { textAlign: 'left', padding: '13px 16px', fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#908E85', background: '#232329', borderBottom: '1px solid #2A2A30', whiteSpace: 'nowrap', position: 'sticky', top: 0, zIndex: 2 };
   const td: React.CSSProperties = { textAlign: 'left', padding: '12px 16px', fontSize: 13, color: '#C9C7BF', borderBottom: '1px solid #2A2A30', whiteSpace: 'nowrap' };
   const btn = (bg: string, fg: string): React.CSSProperties => ({ fontSize: 12, padding: '5px 11px', borderRadius: 7, border: '1px solid '+fg+'44', background: bg, color: fg, cursor: 'pointer', fontWeight: 600, marginRight: 5 });
@@ -84,8 +86,8 @@ export default function CollectionsTracker({ embedded }: { embedded?: boolean })
   }
 
   const cfg = data?.config;
-  const flagCount = data ? [...data.collections, ...data.scc].filter((r: any) => r.actionDue || r.finalWarning).length : 0;
-  const bdCount = data ? data.badDebt.filter((r: any) => r.stage === 'BAD_DEBT_PROPOSED').length : 0;
+  const flagCount = data ? [...data.collections, ...data.scc].filter((r: any) => officeMatch(r) && (r.actionDue || r.finalWarning)).length : 0;
+  const bdCount = data ? data.badDebt.filter((r: any) => officeMatch(r) && r.stage === 'BAD_DEBT_PROPOSED').length : 0;
 
   return (
     <div style={ embedded ? {} : { maxWidth: 1280, margin: '0 auto', padding: '30px 34px 70px' } }>
@@ -99,10 +101,10 @@ export default function CollectionsTracker({ embedded }: { embedded?: boolean })
 
       <div style={{ marginBottom: 18 }}>
         <CCSegTabs active={tab} onChange={(k:string)=>setTab(k as any)} tabs={[
-          { key:'collections', label:'Collections', count: data?.collections.length ?? 0 },
-          { key:'scc', label:'Small Claims', count: data?.scc.length ?? 0 },
-          { key:'pendingBadDebt', label:'Pending Bad Debt', count: data?.pendingBadDebt?.length ?? 0 },
-          { key:'badDebt', label:`Bad Debt${bdCount ? ' ⚑'+bdCount : ''}`, count: data?.badDebt.length ?? 0 },
+          { key:'collections', label:'Collections', count: (data?.collections||[]).filter(officeMatch).length ?? 0 },
+          { key:'scc', label:'Small Claims', count: (data?.scc||[]).filter(officeMatch).length ?? 0 },
+          { key:'pendingBadDebt', label:'Pending Bad Debt', count: (data?.pendingBadDebt||[]).filter(officeMatch).length ?? 0 },
+          { key:'badDebt', label:`Bad Debt${bdCount ? ' ⚑'+bdCount : ''}`, count: (data?.badDebt||[]).filter(officeMatch).length ?? 0 },
         ]} />
       </div>
 

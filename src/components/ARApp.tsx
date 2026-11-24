@@ -274,7 +274,7 @@ export default function ARApp() {
       {page==="callsheet" && <CallSheetPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="blitz" && <BlitzPage officeFilter={officeFilter} showToast={showToast} />}
       {page==="tracking" && isAdmin && <TrackingPage />}
-      {page==="stages" && <CollectionsTracker embedded />}
+      {page==="stages" && <CollectionsTracker embedded officeFilter={officeFilter} />}
       {page==="customers" && <CustPage {...shared} />}
       {page==="invoices" && <InvPage {...shared} />}
       {page==="payments" && <PayPage {...shared} />}
