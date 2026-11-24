@@ -42,6 +42,19 @@ export async function GET(req: NextRequest) {
   const summary: Record<string, number> = { scanned: 0, written: 0, already_written: 0, onsite: 0, declined: 0, flagged: 0, skipped: 0, other: 0 };
   const recovered: any[] = [];
 
+  // STALE-CLAIM RECOVERY: a row claimed (processing lock) but never finalized — e.g. the FR write succeeded but
+  // the function timed out before marking 'written', or a retry crashed. Such rows are invisible (not shown) and
+  // never retried (dedup treats 'claimed' as in-progress forever). Reset claims older than 10 min back to pending
+  // so the scan below re-processes them (idempotent: processStaxTransaction re-dedups against FR).
+  if (!dry) {
+    const staleBefore = new Date(Date.now() - 10 * 60 * 1000);
+    const unstuck = await prisma.staxPayment.updateMany({
+      where: { status: 'claimed', updatedAt: { lt: staleBefore } },
+      data: { status: 'pending' },
+    }).catch(() => ({ count: 0 }));
+    summary.unstuck_claims = unstuck.count;
+  }
+
   for (let page = 1; page <= pages; page++) {
     const r = await fetch(`${STAX_BASE}/transaction?page=${page}&per_page=50`, { headers });
     const j = await r.json().catch(() => null);

@@ -291,7 +291,25 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
   if (cardType) qs += `&cardType=${encodeURIComponent(cardType)}`;
   const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
   let frPaymentId: string | null = null;
+  // PRE-WRITE DEDUP: if FR already has a payment carrying this Stax reference (e.g. a prior attempt wrote it but
+  // crashed before saving frPaymentId, or a stale-claim is being reprocessed), DON'T create a second one — reuse
+  // the existing FR payment. This prevents duplicate FR payments on retries/recovery.
   try {
+    const srch = await fetch(`${FR_BASE}/payment/search?customerIDs=${inv.customerID}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`);
+    const sj = await srch.json();
+    const ids: number[] = (sj.paymentIDs || []).map(Number).sort((a: number, b: number) => b - a).slice(0, 15);
+    if (ids.length) {
+      const g = await fetch(`${FR_BASE}/payment/get?paymentIDs=${ids.join(',')}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`);
+      const gj = await g.json();
+      const dup = (gj.payments || []).find((p: any) => String(p.notes) === ref && String(p.status) !== '0');
+      if (dup) {
+        frPaymentId = String(dup.paymentID);
+      }
+    }
+  } catch { /* non-fatal — fall through to create */ }
+  try {
+    if (frPaymentId) { /* already recorded in FR; skip the create */ }
+    else {
     let r = await fetch(`${FR_BASE}/payment/create?authenticationKey=${cfg.key}&authenticationToken=${cfg.token}&${qs}`);
     let j = await r.json();
     // Parent/child accounts: the ticket is billed to a PARENT account, so FR rejects the payment sent under the
@@ -321,6 +339,7 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
           if (match) frPaymentId = String(match.paymentID);
         }
       } catch { /* non-fatal */ }
+    }
     }
   } catch (e: any) {
     return fail(`FR write threw: ${String(e).slice(0, 150)}`);
