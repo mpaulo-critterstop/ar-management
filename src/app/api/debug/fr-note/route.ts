@@ -9,21 +9,21 @@ export async function GET(req: NextRequest) {
   const dfw = FR_OFFICES.DFW as any;
   const auth = `authenticationKey=${dfw.key}&authenticationToken=${dfw.token}`;
 
-  // find valid contactType values from an existing real note (get a note that has contactType populated)
+  // find a valid contactType/typeID from recent real notes (type "Notes" is the plain customer note)
   if (sp.get('inspect') === '1') {
-    const g = await fetch(`${FR_BASE}/note/get?${auth}&noteIDs=49000,49500,49900`).then(r => r.json()).catch(() => null);
-    return NextResponse.json({ sampleNotes: (g?.notes || []).map((n: any) => ({ noteID: n.noteID, customerID: n.customerID, entityID: n.entityID, type: n.type, contactType: n.contactType, note: n.note, date: n.date, showCustomer: n.showCustomer })) });
+    const s = await fetch(`${FR_BASE}/note/search?${auth}&content=${encodeURIComponent('exclusion')}&includeData=1`).then(r => r.json()).catch(() => null);
+    const notes = (s?.notes || []).slice(0, 8).map((n: any) => ({ noteID: n.noteID, typeID: n.typeID, type: n.type, notes: (n.notes || '').slice(0, 40) }));
+    return NextResponse.json({ sampleTypedNotes: notes });
   }
 
-  if (sp.get('confirm') !== '1') return NextResponse.json({ note: 'add &inspect=1 to see a real note structure, or &confirm=1&ct=N to test create' });
+  if (sp.get('confirm') !== '1') return NextResponse.json({ note: 'add &inspect=1 for typeIDs, or &confirm=1&ct=N to create' });
   const ct = sp.get('ct') || '1';
   const today = new Date().toISOString().slice(0, 10);
-  const text = encodeURIComponent('Hub test note — please ignore');
-  const qs = `customerID=${custId}&type=customer&notes=${text}&date=${today}&contactType=${ct}&showCustomer=0&showTech=0`;
+  const qs = `customerID=${custId}&date=${today}&contactType=${ct}&notes=${encodeURIComponent('Hub test note — please ignore')}&showOnInvoice=0&showTech=0&showCustomer=0`;
   const r = await fetch(`${FR_BASE}/note/create?${auth}&${qs}`, { method: 'POST' });
   const j = await r.json().catch(() => null);
   const newId = j?.result || null;
   let created = null;
   if (newId) { const g = await fetch(`${FR_BASE}/note/get?${auth}&noteIDs=${newId},${newId}`).then(r => r.json()).catch(() => null); created = g?.notes?.[0]; }
-  return NextResponse.json({ custId, contactTypeTried: ct, createSuccess: j?.success, error: j?.errorMessage, newNoteId: newId, createdNote: created });
+  return NextResponse.json({ custId, contactTypeTried: ct, createSuccess: j?.success, error: j?.errorMessage, newNoteId: newId, createdNote: created ? { noteID: created.noteID, customerID: created.customerID, type: created.type, notes: created.notes, date: created.date } : null });
 }
