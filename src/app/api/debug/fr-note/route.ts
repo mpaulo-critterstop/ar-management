@@ -16,7 +16,8 @@ export async function GET(req: NextRequest) {
   }
   // note/create params (FR): entityID (customerID), type, note (text), showCustomer, showTech
   const text = encodeURIComponent('Hub test note — please ignore (verifying /note/create)');
-  const qs = `customerID=${custId}&type=customer&note=${text}&showCustomer=0&showTech=0`;
+  const today = new Date().toISOString().slice(0,10);
+  const qs = `customerID=${custId}&type=customer&note=${text}&date=${today}&showCustomer=0&showTech=0`;
   const r = await fetch(`${FR_BASE}/note/create?${auth}&${qs}`, { method: 'POST' });
   const j = await r.json().catch(() => null);
   const newNoteId = j?.result || j?.noteID || null;
