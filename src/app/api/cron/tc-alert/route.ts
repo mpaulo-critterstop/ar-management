@@ -5,10 +5,27 @@
 //   /api/cron/tc-alert?token=critterstop2026&dry=1  (preview: returns the flagged jobs, posts nothing)
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { FR_OFFICES } from '@/lib/helcimBridge';
 
 export const dynamic = 'force-dynamic';
 
 const TC_THRESHOLD = 4;
+const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
+const NO_REVIEW_FLAG = '69'; // FR genericFlagID "No Review" — Do not send review request (negative experience or 4+ trap checks)
+
+// Add the "No Review" flag to a customer in FR (so Pest AI skips the review request). Idempotent: checks first.
+async function addNoReviewFlag(office: string, frCustomerId: string): Promise<'added' | 'already' | 'skipped' | 'error'> {
+  const cfg = (FR_OFFICES as any)[office];
+  if (!cfg?.key || !frCustomerId) return 'skipped';
+  const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
+  try {
+    const existing = await fetch(`${FR_BASE}/genericFlagAssignment/search?${auth}&entityID=${frCustomerId}&type=CUST&genericFlagID=${NO_REVIEW_FLAG}`).then(r => r.json()).catch(() => null);
+    if ((existing?.genericFlagAssignmentIDs || []).length > 0) return 'already';
+    const r = await fetch(`${FR_BASE}/genericFlagAssignment/create?${auth}&genericFlagID=${NO_REVIEW_FLAG}&entityID=${frCustomerId}&type=CUST`, { method: 'POST' });
+    const j = await r.json().catch(() => null);
+    return j?.success ? 'added' : 'error';
+  } catch { return 'error'; }
+}
 
 async function sendSlack(webhook: string, text: string, blocks?: any[]) {
   const body: any = { text };
@@ -84,7 +101,15 @@ export async function GET(req: NextRequest) {
   }
 
   await sendSlack(webhook, `Trap Check Alert: ${jobs.length} job(s) at ${TC_THRESHOLD}+ TCs`, blocks);
+
+  // Add the FR "No Review" flag to each of these customers (4+ TCs = don't ask for a review). Idempotent.
+  const flagResults: Record<string, number> = { added: 0, already: 0, skipped: 0, error: 0 };
+  for (const j of jobs) {
+    const res = await addNoReviewFlag(j.office, String(j.customer?.externalId || ''));
+    flagResults[res] = (flagResults[res] || 0) + 1;
+  }
+
   // Mark these jobs alerted so they don't fire again (once-per-job).
   await prisma.dispatchJob.updateMany({ where: { id: { in: jobs.map(j => j.id) } }, data: { tcAlerted: true } });
-  return NextResponse.json({ ok: true, flagged: jobs.length, posted: true });
+  return NextResponse.json({ ok: true, flagged: jobs.length, posted: true, noReviewFlags: flagResults });
 }
