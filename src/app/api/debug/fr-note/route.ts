@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { FR_OFFICES } from '@/lib/helcimBridge';
 export const dynamic = 'force-dynamic';
 const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
-// Test creating a note on a customer to confirm /note/create adds to the Notes section.
-// ?token= &custId=11440 &confirm=1
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   if (sp.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -11,21 +9,21 @@ export async function GET(req: NextRequest) {
   const dfw = FR_OFFICES.DFW as any;
   const auth = `authenticationKey=${dfw.key}&authenticationToken=${dfw.token}`;
 
-  if (sp.get('confirm') !== '1') {
-    return NextResponse.json({ custId, note: 'add &confirm=1 to create a TEST note "Hub test note — please ignore" on this customer' });
+  // find valid contactType values from an existing real note (get a note that has contactType populated)
+  if (sp.get('inspect') === '1') {
+    const g = await fetch(`${FR_BASE}/note/get?${auth}&noteIDs=49000,49500,49900`).then(r => r.json()).catch(() => null);
+    return NextResponse.json({ sampleNotes: (g?.notes || []).map((n: any) => ({ noteID: n.noteID, customerID: n.customerID, entityID: n.entityID, type: n.type, contactType: n.contactType, note: n.note, date: n.date, showCustomer: n.showCustomer })) });
   }
-  // note/create params (FR): entityID (customerID), type, note (text), showCustomer, showTech
-  const text = encodeURIComponent('Hub test note — please ignore (verifying /note/create)');
-  const today = new Date().toISOString().slice(0,10);
-  const qs = `customerID=${custId}&type=customer&note=${text}&date=${today}&contactType=0&showCustomer=0&showTech=0`;
+
+  if (sp.get('confirm') !== '1') return NextResponse.json({ note: 'add &inspect=1 to see a real note structure, or &confirm=1&ct=N to test create' });
+  const ct = sp.get('ct') || '1';
+  const today = new Date().toISOString().slice(0, 10);
+  const text = encodeURIComponent('Hub test note — please ignore');
+  const qs = `customerID=${custId}&type=customer&note=${text}&date=${today}&contactType=${ct}&showCustomer=0&showTech=0`;
   const r = await fetch(`${FR_BASE}/note/create?${auth}&${qs}`, { method: 'POST' });
   const j = await r.json().catch(() => null);
-  const newNoteId = j?.result || j?.noteID || null;
-  // read it back
+  const newId = j?.result || null;
   let created = null;
-  if (newNoteId) {
-    const g = await fetch(`${FR_BASE}/note/get?${auth}&noteIDs=${newNoteId},${newNoteId}`).then(r => r.json()).catch(() => null);
-    created = g?.notes?.[0];
-  }
-  return NextResponse.json({ custId, createSuccess: j?.success, error: j?.errorMessage, newNoteId, createdNote: created, rawCreateResponse: j?.success === undefined ? j : undefined });
+  if (newId) { const g = await fetch(`${FR_BASE}/note/get?${auth}&noteIDs=${newId},${newId}`).then(r => r.json()).catch(() => null); created = g?.notes?.[0]; }
+  return NextResponse.json({ custId, contactTypeTried: ct, createSuccess: j?.success, error: j?.errorMessage, newNoteId: newId, createdNote: created });
 }
