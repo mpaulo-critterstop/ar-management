@@ -4,20 +4,14 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.get('token') !== 'critterstop2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const mStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-  // written this month
-  const written = await prisma.staxPayment.findMany({ where: { status: 'written', processedAt: { gte: mStart } }, select: { staxTransactionId:true, amount:true, frInvoiceNumber:true, staxType:true } });
-  const grossWritten = written.reduce((s,w)=>s+Math.abs(Number(w.amount)||0),0);
-  // refund markers among written (these subtract)
-  const refundMarkers = written.filter(w => String(w.staxTransactionId).startsWith('refund:') || w.staxType==='refund');
-  const refundSum = refundMarkers.reduce((s,w)=>s+Math.abs(Number(w.amount)||0),0);
-  // ach_returned this month
-  const achRet = await prisma.staxPayment.findMany({ where: { status: 'ach_returned', processedAt: { gte: mStart } }, select: { amount:true, frInvoiceNumber:true } });
-  const achSum = achRet.reduce((s,w)=>s+Math.abs(Number(w.amount)||0),0);
-  return NextResponse.json({
-    grossWrittenThisMonth: Math.round(grossWritten*100)/100,
-    refundMarkerCount: refundMarkers.length, refundSum: Math.round(refundSum*100)/100,
-    netAfterRefunds: Math.round((grossWritten - refundSum)*100)/100,
-    achReturnedThisMonth: { count: achRet.length, sum: Math.round(achSum*100)/100, invoices: achRet.map(a=>a.frInvoiceNumber) },
-    note: 'compare netAfterRefunds to Hub UI 284795.39 and Stax 284684.97',
-  });
+  // EXACTLY what the status endpoint returns as 'recorded' this month — does Trevor appear?
+  const written = await prisma.staxPayment.findMany({ where: { status: 'written' }, orderBy: { processedAt: 'desc' }, take: 1000, select: { staxTransactionId:true, amount:true, cardHolderName:true, frInvoiceNumber:true, processedAt:true, staxType:true } });
+  // the status route filters out refund markers (isRefundMarker) from 'recorded'
+  const isRefundMarker = (r:any)=> String(r.staxTransactionId).startsWith('refund:') || r.staxType==='refund';
+  const realWritten = written.filter(r=>!isRefundMarker(r));
+  const thisMonth = realWritten.filter(r=>{const d=new Date(r.processedAt as any).getTime(); return !isNaN(d) && d>=mStart.getTime();});
+  const total = thisMonth.reduce((s,r)=>s+Math.abs(Number(r.amount)||0),0);
+  // any Trevor / inv 283138 in the recorded set?
+  const trevor = thisMonth.filter(r=>r.frInvoiceNumber==='283138');
+  return NextResponse.json({ recordedThisMonthCount: thisMonth.length, collectedMTD: Math.round(total*100)/100, trevorInRecorded: trevor });
 }
