@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const ct = sp.get('ct') || '1';
   const today = new Date().toISOString().slice(0, 10);
   const text = encodeURIComponent('Hub test note — please ignore');
-  const qs = `customerID=${custId}&type=customer&note=${text}&date=${today}&contactType=${ct}&showCustomer=0&showTech=0`;
+  const qs = `customerID=${custId}&type=customer&notes=${text}&date=${today}&contactType=${ct}&showCustomer=0&showTech=0`;
   const r = await fetch(`${FR_BASE}/note/create?${auth}&${qs}`, { method: 'POST' });
   const j = await r.json().catch(() => null);
   const newId = j?.result || null;
