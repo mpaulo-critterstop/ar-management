@@ -32,29 +32,55 @@ type HelcimTxn = {
 };
 
 // Find which FR office owns a given invoice (ticket) number, returning office + customerID + balance.
-export async function findInvoiceInFR(invoiceNumber: string): Promise<{ office: string; customerID: string; balance: number } | null> {
-  let hadError = false; // track whether any office lookup FAILED (vs. genuinely returned no match)
+// Look up an FR ticket (invoice) across all offices. Robust against FR's transient API failures: since a payment
+// that carries an invoice number (e.g. from a payment link) almost always means the invoice really exists, a
+// "not found" is treated as suspect and re-verified before we believe it.
+//   - returns the match when found
+//   - returns null ONLY after confirming, over MULTIPLE full passes, that every office cleanly reports no match
+//   - throws (→ caller marks the payment 'pending' for reconcile retry) if FR kept erroring and we never got a
+//     clean "it's genuinely not there" answer
+async function lookupTicketOnce(invoiceNumber: string): Promise<{ result: { office: string; customerID: string; balance: number } | null; hadError: boolean }> {
+  let hadError = false;
   for (const [office, cfg] of Object.entries(FR_OFFICES)) {
     if (!cfg.key) continue;
-    // Retry each office's lookup up to 3x on transient FR errors, so a hiccup doesn't look like "not found".
     let gotCleanResponse = false;
     for (let attempt = 0; attempt < 3 && !gotCleanResponse; attempt++) {
       try {
         const r = await fetch(`${FR_BASE}/ticket/get?ticketIDs=${invoiceNumber},${invoiceNumber}&authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`);
-        if (!r.ok) { if (attempt === 2) hadError = true; await new Promise(res => setTimeout(res, 400)); continue; }
+        if (!r.ok) { if (attempt === 2) hadError = true; await new Promise(res => setTimeout(res, 300 * (attempt + 1))); continue; }
         const j = await r.json();
-        if (j?.success === false) { if (attempt === 2) hadError = true; await new Promise(res => setTimeout(res, 400)); continue; }
-        gotCleanResponse = true; // FR answered cleanly for this office
+        if (j?.success === false) { if (attempt === 2) hadError = true; await new Promise(res => setTimeout(res, 300 * (attempt + 1))); continue; }
+        gotCleanResponse = true;
         const tk = (j.tickets || [])[0];
         if (tk && String(tk.ticketID) === String(invoiceNumber)) {
-          return { office, customerID: String(tk.customerID), balance: parseFloat(tk.balance || '0') };
+          return { result: { office, customerID: String(tk.customerID), balance: parseFloat(tk.balance || '0') }, hadError };
         }
-      } catch { if (attempt === 2) hadError = true; await new Promise(res => setTimeout(res, 400)); }
+      } catch { if (attempt === 2) hadError = true; await new Promise(res => setTimeout(res, 300 * (attempt + 1))); }
     }
   }
-  // If every office answered cleanly and none had it → genuinely not found (null). If some office erred on all
-  // retries, throw so the caller treats it as a transient failure (pending/retry) rather than a false "not found".
-  if (hadError) throw new Error(`findInvoiceInFR: FR lookup failed for invoice ${invoiceNumber} (transient) — not confirming "not found"`);
+  return { result: null, hadError };
+}
+
+export async function findInvoiceInFR(invoiceNumber: string): Promise<{ office: string; customerID: string; balance: number } | null> {
+  // Up to 3 full passes. Any pass that finds it wins immediately. A clean "not found" is re-verified with another
+  // pass (the invoice should exist for a link payment, so one clean miss isn't trusted) — only a not-found that
+  // repeats across passes is believed. If FR kept erroring and never gave a clean miss, throw for a retry.
+  let lastHadError = false;
+  for (let pass = 0; pass < 3; pass++) {
+    const { result, hadError } = await lookupTicketOnce(invoiceNumber);
+    if (result) return result;
+    lastHadError = hadError;
+    if (!hadError) {
+      // Clean "not found" this pass. Do ONE more confirming pass; if it's also a clean miss, believe it.
+      const confirm = await lookupTicketOnce(invoiceNumber);
+      if (confirm.result) return confirm.result;
+      if (!confirm.hadError) return null; // two clean misses in a row → genuinely not found
+      lastHadError = true;
+    }
+    await new Promise(res => setTimeout(res, 500 * (pass + 1)));
+  }
+  // Never got two clean misses and never found it → FR was erroring. Throw so the caller retries later.
+  if (lastHadError) throw new Error(`findInvoiceInFR: FR lookup failed for invoice ${invoiceNumber} (transient after retries) — not confirming "not found"`);
   return null;
 }
 
