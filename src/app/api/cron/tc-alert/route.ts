@@ -13,7 +13,16 @@ const TC_THRESHOLD = 4;
 const FR_BASE = 'https://critterstoppest.fieldroutes.com/api';
 const NO_REVIEW_FLAG = '69'; // FR genericFlagID "No Review" — Do not send review request (negative experience or 4+ trap checks)
 
+// Write a general "Notes" entry (contactType 0) to a customer in FR.
+async function addCustomerNote(auth: string, frCustomerId: string, text: string): Promise<boolean> {
+  const today = new Date().toISOString().slice(0, 10);
+  const qs = `customerID=${frCustomerId}&date=${today}&contactType=0&notes=${encodeURIComponent(text)}&showOnInvoice=0&showTech=0&showCustomer=0`;
+  const r = await fetch(`${FR_BASE}/note/create?${auth}&${qs}`, { method: 'POST' }).then(r => r.json()).catch(() => null);
+  return !!r?.success;
+}
+
 // Add the "No Review" flag to a customer in FR (so Pest AI skips the review request). Idempotent: checks first.
+// When the flag is NEWLY added, also drop a general note explaining why.
 async function addNoReviewFlag(office: string, frCustomerId: string): Promise<'added' | 'already' | 'skipped' | 'error'> {
   const cfg = (FR_OFFICES as any)[office];
   if (!cfg?.key || !frCustomerId) return 'skipped';
@@ -23,7 +32,10 @@ async function addNoReviewFlag(office: string, frCustomerId: string): Promise<'a
     if ((existing?.genericFlagAssignmentIDs || []).length > 0) return 'already';
     const r = await fetch(`${FR_BASE}/genericFlagAssignment/create?${auth}&genericFlagID=${NO_REVIEW_FLAG}&entityID=${frCustomerId}&type=CUST`, { method: 'POST' });
     const j = await r.json().catch(() => null);
-    return j?.success ? 'added' : 'error';
+    if (!j?.success) return 'error';
+    // flag newly added → log a note explaining the reason
+    await addCustomerNote(auth, frCustomerId, 'Added No Review flag with reason: 4TCs already and not yet closed out');
+    return 'added';
   } catch { return 'error'; }
 }
 
