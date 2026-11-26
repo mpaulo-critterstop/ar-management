@@ -9,21 +9,23 @@ export async function GET(req: NextRequest) {
   const cfg = (FR_OFFICES as any).DFW;
   const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
 
-  // 1) all flag assignments for this customer (entityIDs plural)
+  // create flag 69 + capture exact response
+  const cr = await fetch(`${FR_BASE}/genericFlagAssignment/create?${auth}&genericFlagID=69&entityID=${custId}&type=CUST`, { method: 'POST' }).then(r => r.json()).catch(() => null);
+  const newId = cr?.result;
+  // immediately get it back by ID
+  const back = newId ? await fetch(`${FR_BASE}/genericFlagAssignment/get?${auth}&genericFlagAssignmentIDs=${newId},${newId}`).then(r => r.json()).catch(() => null) : null;
+  // and re-search all for the customer
   const s = await fetch(`${FR_BASE}/genericFlagAssignment/search?${auth}&entityIDs=${custId}&type=CUST`).then(r => r.json()).catch(() => null);
   const ids = (s?.genericFlagAssignmentIDs || []).slice(0, 50);
   let flags: any[] = [];
   if (ids.length) {
     const g = await fetch(`${FR_BASE}/genericFlagAssignment/get?${auth}&genericFlagAssignmentIDs=${ids.join(',')}`).then(r => r.json()).catch(() => null);
-    flags = (g?.genericFlagAssignments || []).map((a: any) => ({ assignmentID: a.genericFlagAssignmentID, genericFlagID: a.genericFlagID, entityID: a.entityID, type: a.type, status: a.status }));
+    flags = (g?.genericFlagAssignments || []).map((a: any) => ({ assignmentID: a.genericFlagAssignmentID, genericFlagID: a.genericFlagID }));
   }
-  // 2) look at assignment 125136 directly (the one 'create' claimed to make)
-  const direct = await fetch(`${FR_BASE}/genericFlagAssignment/get?${auth}&genericFlagAssignmentIDs=125136,125136`).then(r => r.json()).catch(() => null);
-
   return NextResponse.json({
     custId,
-    assignmentIDsForCustomer: ids,
-    resolvedFlags: flags,
-    assignment125136: direct?.genericFlagAssignments?.[0] || direct,
+    createResponse: { success: cr?.success, result: cr?.result, error: cr?.errorMessage, ignoredParams: cr?.ignoredParams },
+    getByNewId: { count: back?.count, found: back?.genericFlagAssignments?.[0] || null },
+    allFlagsNow: flags,
   });
 }
