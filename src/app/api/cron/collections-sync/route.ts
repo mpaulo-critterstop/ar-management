@@ -117,7 +117,9 @@ export async function GET(req: NextRequest) {
       await prisma.collectionsTracker.create({
         data: {
           invoiceId: inv.id, invoiceNumber: inv.externalId, customerId: inv.customerId,
-          customerName: inv.customer?.name, office: inv.office, amount, dueDate: inv.due,
+          // Store the OUTSTANDING BALANCE (amount − paid), not the full invoice total, so the table shows what's
+          // actually owed after any partial payments. (Track routing above still uses the full amount.)
+          customerName: inv.customer?.name, office: inv.office, amount: Math.round(bal * 100) / 100, dueDate: inv.due,
           track, stage: 'COUNTDOWN', enteredAt, countdownEnd: addDays(enteredAt, cfg.countdownDays),
         },
       });
@@ -157,6 +159,11 @@ export async function GET(req: NextRequest) {
         details.push({ action: 'PAID_FULL', invoice: row.invoiceNumber });
         if (!dry) await prisma.collectionsTracker.update({ where: { id: row.id }, data: { stage: 'PAID', paidInFull: true, lastPaymentAt: now } });
         continue;
+      }
+      // Keep the displayed amount in sync with the current outstanding balance (partial payments reduce it).
+      const storedBal = Math.round(bal * 100) / 100;
+      if (!dry && Math.abs(Number(row.amount) - storedBal) > 0.01) {
+        await prisma.collectionsTracker.update({ where: { id: row.id }, data: { amount: storedBal } });
       }
       // 4b. Partial payment since we last saw → reset countdown 15d from now, re-enable engagement.
       //     (Detect by paid increasing vs. stored amount baseline — we store amount as original; compare paid.)
