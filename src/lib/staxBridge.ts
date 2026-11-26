@@ -269,7 +269,13 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
     return fail('onsite payment with no customer reference — cannot identify (phantom)', 'flagged');
   }
 
-  const inv = await findInvoiceInFR(String(frInvoice));
+  let inv: { office: string; customerID: string; balance: number } | null;
+  try {
+    inv = await findInvoiceInFR(String(frInvoice));
+  } catch {
+    // FR lookup errored (transient) — DON'T flag as "not found". Leave pending so the reconcile retries it.
+    return fail(`FR lookup for invoice ${frInvoice} failed transiently — will retry`, 'pending');
+  }
   if (!inv) return fail(`FR invoice ${frInvoice} not found in any office`, 'flagged');
 
   // 3) WRITE to FR — record-only (doCharge=0), correct method, referenced by Stax txn id.
