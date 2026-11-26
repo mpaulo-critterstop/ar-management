@@ -21,25 +21,33 @@ async function addCustomerNote(auth: string, frCustomerId: string, text: string)
   return !!r?.success;
 }
 
-// Add the "No Review" flag to a customer in FR (so Pest AI skips the review request). Idempotent: checks first.
-// When the flag is NEWLY added, also drop a general note explaining why.
+// Does this customer currently have the No Review flag? (search uses entityIDs PLURAL — entityID singular is
+// ignored by FR; the genericFlagID filter is also ignored, so we resolve assignments and check client-side.)
+async function hasNoReviewFlag(auth: string, frCustomerId: string): Promise<boolean> {
+  const s = await fetch(`${FR_BASE}/genericFlagAssignment/search?${auth}&entityIDs=${frCustomerId}&type=CUST`).then(r => r.json()).catch(() => null);
+  const ids = (s?.genericFlagAssignmentIDs || []).slice(0, 50);
+  if (!ids.length) return false;
+  const g = await fetch(`${FR_BASE}/genericFlagAssignment/get?${auth}&genericFlagAssignmentIDs=${ids.join(',')}`).then(r => r.json()).catch(() => null);
+  return (g?.genericFlagAssignments || []).some((a: any) => String(a.genericFlagID) === NO_REVIEW_FLAG);
+}
+
+// Add the "No Review" flag to a customer in FR (so Pest AI skips the review request). Idempotent + verified:
+// FR's create occasionally returns success without the assignment persisting, so we re-check and retry once.
+// Only writes the explanatory note once the flag is CONFIRMED present (and wasn't already there).
 async function addNoReviewFlag(office: string, frCustomerId: string): Promise<'added' | 'already' | 'skipped' | 'error'> {
   const cfg = (FR_OFFICES as any)[office];
   if (!cfg?.key || !frCustomerId) return 'skipped';
   const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
   try {
-    // Search uses entityIDs (PLURAL) — entityID singular is ignored by FR. The genericFlagID filter is also
-    // ignored, so resolve the assignments and check for flag 69 client-side.
-    const existing = await fetch(`${FR_BASE}/genericFlagAssignment/search?${auth}&entityIDs=${frCustomerId}&type=CUST`).then(r => r.json()).catch(() => null);
-    const exIds = (existing?.genericFlagAssignmentIDs || []).slice(0, 50);
-    if (exIds.length) {
-      const g = await fetch(`${FR_BASE}/genericFlagAssignment/get?${auth}&genericFlagAssignmentIDs=${exIds.join(',')}`).then(r => r.json()).catch(() => null);
-      if ((g?.genericFlagAssignments || []).some((a: any) => String(a.genericFlagID) === NO_REVIEW_FLAG)) return 'already';
+    if (await hasNoReviewFlag(auth, frCustomerId)) return 'already';
+    // create → verify it persisted → retry once if not (FR flag-assignment IDs can reshuffle / not stick).
+    let confirmed = false;
+    for (let attempt = 0; attempt < 2 && !confirmed; attempt++) {
+      await fetch(`${FR_BASE}/genericFlagAssignment/create?${auth}&genericFlagID=${NO_REVIEW_FLAG}&entityID=${frCustomerId}&type=CUST`, { method: 'POST' }).catch(() => null);
+      confirmed = await hasNoReviewFlag(auth, frCustomerId);
     }
-    const r = await fetch(`${FR_BASE}/genericFlagAssignment/create?${auth}&genericFlagID=${NO_REVIEW_FLAG}&entityID=${frCustomerId}&type=CUST`, { method: 'POST' });
-    const j = await r.json().catch(() => null);
-    if (!j?.success) return 'error';
-    // flag newly added → log a note explaining the reason
+    if (!confirmed) return 'error';
+    // flag confirmed → log a note explaining the reason
     await addCustomerNote(auth, frCustomerId, 'Added No Review flag with reason: 4TCs already and not yet closed out');
     return 'added';
   } catch { return 'error'; }
