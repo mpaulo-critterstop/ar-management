@@ -28,8 +28,14 @@ async function addNoReviewFlag(office: string, frCustomerId: string): Promise<'a
   if (!cfg?.key || !frCustomerId) return 'skipped';
   const auth = `authenticationKey=${cfg.key}&authenticationToken=${cfg.token}`;
   try {
-    const existing = await fetch(`${FR_BASE}/genericFlagAssignment/search?${auth}&entityID=${frCustomerId}&type=CUST&genericFlagID=${NO_REVIEW_FLAG}`).then(r => r.json()).catch(() => null);
-    if ((existing?.genericFlagAssignmentIDs || []).length > 0) return 'already';
+    // Search uses entityIDs (PLURAL) — entityID singular is ignored by FR. The genericFlagID filter is also
+    // ignored, so resolve the assignments and check for flag 69 client-side.
+    const existing = await fetch(`${FR_BASE}/genericFlagAssignment/search?${auth}&entityIDs=${frCustomerId}&type=CUST`).then(r => r.json()).catch(() => null);
+    const exIds = (existing?.genericFlagAssignmentIDs || []).slice(0, 50);
+    if (exIds.length) {
+      const g = await fetch(`${FR_BASE}/genericFlagAssignment/get?${auth}&genericFlagAssignmentIDs=${exIds.join(',')}`).then(r => r.json()).catch(() => null);
+      if ((g?.genericFlagAssignments || []).some((a: any) => String(a.genericFlagID) === NO_REVIEW_FLAG)) return 'already';
+    }
     const r = await fetch(`${FR_BASE}/genericFlagAssignment/create?${auth}&genericFlagID=${NO_REVIEW_FLAG}&entityID=${frCustomerId}&type=CUST`, { method: 'POST' });
     const j = await r.json().catch(() => null);
     if (!j?.success) return 'error';
