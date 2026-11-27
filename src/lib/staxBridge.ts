@@ -243,10 +243,24 @@ export async function processStaxTransaction(txn: any, source: 'webhook' | 'poll
   // 'onsite' payment tagged with the FR customer, so a CSR can later Link it to an invoice. Without a reference
   // it's a true phantom (can't be safely matched — multiple customers can pay the same amount).
   if (!frInvoice) {
-    const staxCustId = txn?.customer_id || txn?.customer?.id || null;
+    let staxCustId = txn?.customer_id || txn?.customer?.id || txn?.payment_method?.customer_id || null;
+    // The webhook payload can arrive BEFORE the customer is attached (slim notification) — a mobile-reader
+    // onsite payment then looks like a phantom. If no customer id on the payload, re-fetch the full transaction
+    // from Stax, where the customer_id + the nested customer (with its FR reference) are populated.
+    let custObj: any = txn?.customer || null;
+    if (!staxCustId) {
+      try {
+        const full = await fetch(`${STAX_BASE}/transaction/${staxTransactionId}`, { headers: staxHeaders() }).then(r => r.json()).catch(() => null);
+        staxCustId = full?.customer_id || full?.customer?.id || full?.payment_method?.customer_id || null;
+        custObj = full?.customer || custObj;
+      } catch { /* leave null */ }
+    }
     let frCustId: string | null = null;
     let custName: string | null = txn?.payment_method?.person_name || txn?.person_name || null;
-    if (staxCustId) {
+    // If the full transaction already carried the customer object with a reference, use it directly.
+    const inlineRef = String(custObj?.reference || '').replace(/\D/g, '');
+    if (inlineRef) { frCustId = inlineRef; if (!custName) custName = `${custObj?.firstname || ''} ${custObj?.lastname || ''}`.trim() || null; }
+    if (!frCustId && staxCustId) {
       try {
         const cr = await fetch(`${STAX_BASE}/customer/${staxCustId}`, { headers: staxHeaders() });
         const cj = await cr.json().catch(() => null);
