@@ -154,15 +154,24 @@ export async function POST(req: NextRequest) {
   if (!invoiceNumber || !amount || amount <= 0) return NextResponse.json({ error: 'invoiceNumber + amount required' }, { status: 400 });
   const delivery = b.delivery || 'email';
 
-  // 1) Look up the FR invoice → customer.
-  const tr = await fetch(`${FR_BASE}/ticket/get?ticketIDs=${invoiceNumber},${invoiceNumber}&authenticationKey=${fr.key}&authenticationToken=${fr.token}`);
-  const tj = await tr.json();
-  const tk = (tj.tickets || [])[0];
+  // Small retry helper — FR's ticket/customer GETs can hiccup transiently, which previously surfaced as a false
+  // "invoice not found" or an empty customer (→ "no customer email"). Retry a few times with backoff.
+  const frGet = async (url: string, pick: (j: any) => any): Promise<any> => {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const r = await fetch(url);
+        if (r.ok) { const j = await r.json(); if (j?.success !== false) { const v = pick(j); if (v) return v; if (attempt >= 1) return null; } }
+      } catch { /* retry */ }
+      await new Promise(res => setTimeout(res, 300 * (attempt + 1)));
+    }
+    return null;
+  };
+
+  // 1) Look up the FR invoice → customer (with retries so a transient FR hiccup doesn't false-fail).
+  const tk = await frGet(`${FR_BASE}/ticket/get?ticketIDs=${invoiceNumber},${invoiceNumber}&authenticationKey=${fr.key}&authenticationToken=${fr.token}`, (j) => (j.tickets || [])[0]);
   if (!tk) return NextResponse.json({ error: `FR invoice ${invoiceNumber} not found` }, { status: 404 });
   const custId = String(tk.customerID);
-  const cr = await fetch(`${FR_BASE}/customer/get?customerIDs=${custId},${custId}&authenticationKey=${fr.key}&authenticationToken=${fr.token}`);
-  const cj = await cr.json();
-  const cu = (cj.customers || [])[0] || {};
+  const cu = (await frGet(`${FR_BASE}/customer/get?customerIDs=${custId},${custId}&authenticationKey=${fr.key}&authenticationToken=${fr.token}`, (j) => (j.customers || [])[0])) || {};
   const name = `${cu.fname || ''} ${cu.lname || ''}`.trim() || cu.companyName || 'Customer';
   const rawEmail = (cu.email || cu.billingEmail || '').trim();
   // Stax rejects the whole customer create (422) if the email is malformed — common with junk FR data like
