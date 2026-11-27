@@ -164,7 +164,12 @@ export async function POST(req: NextRequest) {
   const cj = await cr.json();
   const cu = (cj.customers || [])[0] || {};
   const name = `${cu.fname || ''} ${cu.lname || ''}`.trim() || cu.companyName || 'Customer';
-  const email = cu.email || cu.billingEmail || '';
+  const rawEmail = (cu.email || cu.billingEmail || '').trim();
+  // Stax rejects the whole customer create (422) if the email is malformed — common with junk FR data like
+  // "n/a", a missing @, or a typo. Only pass it through if it actually looks like an email; otherwise omit it
+  // (the customer is still created; CSR/SMS can deliver the link) rather than failing the whole payment link.
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail);
+  const email = emailValid ? rawEmail : '';
   const phone = cu.phone1 || cu.phone2 || '';
 
   // 2) Create (or reuse) a Stax customer.
@@ -173,7 +178,12 @@ export async function POST(req: NextRequest) {
     firstname: firstname || name, lastname: rest.join(' ') || '-', email: email || undefined,
     phone: phone || undefined, reference: `FR-${custId}`,
   });
-  const staxCustomerId = custRes.json?.id;
+  let staxCustomerId = custRes.json?.id;
+  // Safety net: if the create still failed and the complaint is about email, retry once with no email.
+  if (!staxCustomerId && email && JSON.stringify(custRes.json || '').toLowerCase().includes('email')) {
+    const retry = await sx('/customer', 'POST', { firstname: firstname || name, lastname: rest.join(' ') || '-', phone: phone || undefined, reference: `FR-${custId}` });
+    staxCustomerId = retry.json?.id;
+  }
   if (!staxCustomerId) return NextResponse.json({ error: 'could not create Stax customer', detail: custRes.json }, { status: 502 });
 
   // 3) Create a Stax INVOICE tagged with the FR invoice number (meta.fr_invoice), partial payments enabled so
